@@ -4,6 +4,17 @@ import toJSON from "./plugins/toJSON";
 // USER SCHEMA
 const userSchema = mongoose.Schema(
   {
+    // DEPRECATED: Use DealerMembership instead. Kept for backwards compatibility during migration.
+    dealerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Dealer",
+    },
+    // For users with multiple dealers: their preferred default dealer
+    defaultDealerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Dealer",
+      default: null,
+    },
     name: {
       type: String,
       trim: true,

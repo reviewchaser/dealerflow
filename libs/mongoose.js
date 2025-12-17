@@ -1,12 +1,16 @@
 import mongoose from "mongoose";
-import User from "@/models/User";
 
-const connectMongo = async () =>
-  mongoose
-    .connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    })
-    .catch((e) => console.error("Mongoose Client Error: " + e.message));
+const connectMongo = async () => {
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
+  try {
+    await mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost:27017/dealerflow");
+    console.log("✅ MongoDB Connected");
+  } catch (error) {
+    console.error("❌ MongoDB connection error:", error);
+    throw error;
+  }
+};
 
 export default connectMongo;

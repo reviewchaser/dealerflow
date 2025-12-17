@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(node scripts/seed-forms-standalone.js:*)",
+      "Bash(taskkill:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(python:*)",
+      "Bash(lsof:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 5 bash:*)",
+      "Bash(mkdir:*)",
+      "Bash(node scripts/fix-appraisal-schema.js:*)",
+      "Bash(tasklist:*)",
+      "Bash(node:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(while read pid)",
+      "Bash(do taskkill //F //PID $pid)",
+      "Bash(done)",
+      "Bash(npx eslint:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(timeout 20 npm run dev)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

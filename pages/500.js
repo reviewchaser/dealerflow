@@ -1,7 +1,6 @@
 import Link from "next/link";
-import ButtonSupport from "@/components/ButtonSupport";
 
-export default function Custom404() {
+export default function Custom500() {
   return (
     <section className="relative bg-neutral text-neutral-content h-screen w-full flex flex-col justify-center gap-8 items-center p-10">
       <p className="text-xl md:text-2xl font-medium">Something went wrong 😅</p>
@@ -21,8 +20,6 @@ export default function Custom404() {
         </svg>
         Home
       </Link>
-
-      <ButtonSupport />
     </section>
   );
 }

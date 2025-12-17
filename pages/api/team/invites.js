@@ -1,0 +1,209 @@
+/**
+ * Team Invites API
+ *
+ * GET    - List pending invites for the current dealer
+ * POST   - Create a new invite
+ * PATCH  - Resend an invite (regenerate token)
+ * DELETE - Revoke an invite
+ */
+
+import connectMongo from "@/libs/mongoose";
+import {
+  withDealerContext,
+  requireTeamManagement,
+  canAssignRole,
+} from "@/libs/authContext";
+import DealerMembership from "@/models/DealerMembership";
+import DealerInvite, { INVITE_ROLES, INVITE_EXPIRY_DAYS } from "@/models/DealerInvite";
+import User from "@/models/User";
+import { sendInviteEmail, resendInviteEmail } from "@/libs/inviteEmail";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId, membership, dealer, user } = ctx;
+
+  // GET - List pending invites
+  if (req.method === "GET") {
+    const invites = await DealerInvite.findPendingByDealer(dealerId);
+
+    // Transform for response
+    const result = invites.map((inv) => ({
+      id: inv._id,
+      email: inv.email,
+      role: inv.role,
+      invitedBy: inv.invitedByUserId?.name || inv.invitedByUserId?.email || "Unknown",
+      createdAt: inv.createdAt,
+      expiresAt: inv.expiresAt,
+      isExpired: inv.isExpired(),
+      status: inv.isExpired() ? "expired" : "pending",
+    }));
+
+    return res.status(200).json(result);
+  }
+
+  // POST - Create invite
+  if (req.method === "POST") {
+    requireTeamManagement(membership);
+
+    const { email, role = "STAFF" } = req.body;
+
+    // Validate email
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({ error: "Valid email required" });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    // Validate role
+    if (!INVITE_ROLES.includes(role)) {
+      return res.status(400).json({ error: `Invalid role. Must be: ${INVITE_ROLES.join(", ")}` });
+    }
+
+    // Check if current user can assign this role
+    canAssignRole(membership, role);
+
+    // Check if user is already a member
+    const existingUser = await User.findOne({ email: normalizedEmail }).lean();
+    if (existingUser) {
+      const existingMembership = await DealerMembership.findOneActive({
+        dealerId,
+        userId: existingUser._id,
+      });
+
+      if (existingMembership) {
+        return res.status(400).json({
+          error: "This person is already a member of your team",
+        });
+      }
+    }
+
+    // Check if there's already a pending invite
+    const existingInvite = await DealerInvite.findActiveInvite(dealerId, normalizedEmail);
+    if (existingInvite) {
+      return res.status(400).json({
+        error: "An invite is already pending for this email. You can resend or revoke it.",
+      });
+    }
+
+    // Generate token
+    const { rawToken, tokenHash } = DealerInvite.generateToken();
+
+    // Create invite
+    const invite = await DealerInvite.create({
+      dealerId,
+      email: normalizedEmail,
+      role,
+      tokenHash,
+      invitedByUserId: userId,
+      expiresAt: new Date(Date.now() + INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000),
+    });
+
+    // Send email
+    const emailResult = await sendInviteEmail({
+      email: normalizedEmail,
+      dealerName: dealer.name || "Your Dealership",
+      inviterName: user.name || user.email,
+      role,
+      rawToken,
+    });
+
+    return res.status(201).json({
+      success: true,
+      invite: {
+        id: invite._id,
+        email: invite.email,
+        role: invite.role,
+        expiresAt: invite.expiresAt,
+      },
+      // Include invite URL in dev mode for testing
+      ...(emailResult.devMode && { inviteUrl: emailResult.inviteUrl }),
+      ...(emailResult.emailFailed && {
+        warning: "Invite created but email failed to send",
+        inviteUrl: emailResult.inviteUrl,
+      }),
+    });
+  }
+
+  // PATCH - Resend invite
+  if (req.method === "PATCH") {
+    requireTeamManagement(membership);
+
+    const { inviteId } = req.body;
+
+    if (!inviteId) {
+      return res.status(400).json({ error: "inviteId required" });
+    }
+
+    // Find the invite
+    const invite = await DealerInvite.findOne({
+      _id: inviteId,
+      dealerId,
+      acceptedAt: null,
+      revokedAt: null,
+    });
+
+    if (!invite) {
+      return res.status(404).json({ error: "Invite not found or already used/revoked" });
+    }
+
+    // Regenerate token and extend expiry
+    const rawToken = await invite.regenerateToken();
+
+    // Send email
+    const emailResult = await resendInviteEmail({
+      email: invite.email,
+      dealerName: dealer.name || "Your Dealership",
+      inviterName: user.name || user.email,
+      role: invite.role,
+      rawToken,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Invite resent with new link",
+      expiresAt: invite.expiresAt,
+      ...(emailResult.devMode && { inviteUrl: emailResult.inviteUrl }),
+    });
+  }
+
+  // DELETE - Revoke invite
+  if (req.method === "DELETE") {
+    requireTeamManagement(membership);
+
+    const { inviteId } = req.body;
+
+    if (!inviteId) {
+      return res.status(400).json({ error: "inviteId required" });
+    }
+
+    // Find the invite
+    const invite = await DealerInvite.findOne({
+      _id: inviteId,
+      dealerId,
+      acceptedAt: null,
+      revokedAt: null,
+    });
+
+    if (!invite) {
+      return res.status(404).json({ error: "Invite not found or already used/revoked" });
+    }
+
+    // Revoke
+    await invite.markRevoked(userId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Invite revoked",
+    });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

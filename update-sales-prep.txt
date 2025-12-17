@@ -1,0 +1,5 @@
+Step 1: Add draggedOver state
+Step 2: Add drag-and-drop handlers
+Step 3: Show MOT date
+Step 4: Add task management in drawer
+Step 5: Add V5 upload
