@@ -15,15 +15,32 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Vehicle registration required" });
   }
 
-  // Clean up registration number - remove spaces and convert to uppercase
-  const cleanReg = vehicleReg.toUpperCase().replace(/\s/g, "");
+  // Normalize VRM: trim, uppercase, remove all spaces
+  const cleanReg = vehicleReg.trim().toUpperCase().replace(/\s+/g, "");
+
+  // Basic format validation
+  if (cleanReg.length < 2 || cleanReg.length > 8) {
+    return res.status(400).json({
+      error: "Invalid registration format",
+      errorCode: "INVALID_FORMAT",
+      message: "Registration number must be between 2 and 8 characters",
+    });
+  }
 
   const apiKey = process.env.DVLA_API_KEY;
 
   // If no API key, return dummy data for development
   if (!apiKey) {
-    console.warn("DVLA_API_KEY not configured - returning dummy data");
-    return res.status(200).json(generateDummyData(cleanReg));
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[DVLA] API key not configured - returning dummy data");
+      return res.status(200).json(generateDummyData(cleanReg));
+    }
+    // In production, return proper error
+    return res.status(503).json({
+      error: "DVLA integration not configured",
+      errorCode: "NOT_CONFIGURED",
+      message: "DVLA lookup is not available. Please contact support.",
+    });
   }
 
   try {
@@ -43,34 +60,53 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("DVLA API error:", response.status, errorText);
+      if (process.env.NODE_ENV === "development") {
+        console.log(`[DVLA] Response status: ${response.status}`);
+      }
+      console.error("[DVLA] API error:", response.status, errorText);
 
       // Handle specific error codes
       if (response.status === 404) {
         return res.status(404).json({
-          error: "Vehicle not found",
-          message: "No vehicle found with this registration number",
+          error: "VRM not found",
+          errorCode: "NOT_FOUND",
+          message: "No vehicle found with this registration number. Please check the VRM and try again.",
         });
       }
 
       if (response.status === 400) {
         return res.status(400).json({
           error: "Invalid registration",
-          message: "The registration number format is invalid",
+          errorCode: "INVALID_FORMAT",
+          message: "The registration number format is invalid.",
+        });
+      }
+
+      if (response.status === 401) {
+        return res.status(503).json({
+          error: "DVLA integration not configured",
+          errorCode: "AUTH_FAILED",
+          message: "DVLA API authentication failed. Please contact support.",
         });
       }
 
       if (response.status === 403) {
-        return res.status(500).json({
-          error: "API access denied",
-          message: "DVLA API access denied - check API key",
+        return res.status(503).json({
+          error: "DVLA integration not configured",
+          errorCode: "ACCESS_DENIED",
+          message: "DVLA API access denied. Please contact support.",
         });
       }
 
-      return res.status(500).json({
-        error: "DVLA lookup failed",
-        message: "Unable to retrieve vehicle details",
+      return res.status(503).json({
+        error: "DVLA service unavailable",
+        errorCode: "SERVICE_ERROR",
+        message: "Unable to retrieve vehicle details. Please try again later.",
       });
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log(`[DVLA] Response status: ${response.status} - Success`);
     }
 
     const data = await response.json();
@@ -104,10 +140,20 @@ export default async function handler(req, res) {
 
     return res.status(200).json(vehicleData);
   } catch (error) {
-    console.error("DVLA lookup error:", error);
-    // Fall back to dummy data if connection fails
-    console.warn("Falling back to dummy data due to connection error");
-    return res.status(200).json(generateDummyData(cleanReg));
+    console.error("[DVLA] Network error:", error.message);
+
+    // In development, fall back to dummy data
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[DVLA] Falling back to dummy data due to connection error");
+      return res.status(200).json(generateDummyData(cleanReg));
+    }
+
+    // In production, return service unavailable
+    return res.status(503).json({
+      error: "DVLA service unavailable",
+      errorCode: "NETWORK_ERROR",
+      message: "Unable to connect to DVLA service. Please try again later.",
+    });
   }
 }
 

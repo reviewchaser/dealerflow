@@ -10,7 +10,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/libs/authOptions";
 import DealerMembership, { MEMBERSHIP_ROLES } from "@/models/DealerMembership";
-import User from "@/models/User";
+import User, { PLATFORM_ROLES, USER_STATUS } from "@/models/User";
+import { DEALER_STATUS } from "@/models/Dealer";
 import connectMongo from "@/libs/mongoose";
 
 /**
@@ -61,6 +62,9 @@ export async function requireAuth(req, res) {
  * Get authenticated dealer context for API routes
  * This is the primary helper for most API routes.
  *
+ * IMPORTANT: SUPER_ADMIN users are blocked from dealer context.
+ * They should use requireSuperAdmin() instead.
+ *
  * @param {object} req - Request object
  * @param {object} res - Response object
  * @returns {Promise<{ user, dealer, membership, userId, dealerId, role }>}
@@ -78,6 +82,22 @@ export async function requireDealerContext(req, res) {
 
   // Get user's preferred dealer or most recently active membership
   const user = await User.findById(userId).lean();
+
+  // Check if user is disabled
+  if (user?.status === USER_STATUS.DISABLED) {
+    throw new AuthError(
+      "Your account has been disabled. Please contact support.",
+      403
+    );
+  }
+
+  // SUPER_ADMIN users cannot access dealer context
+  if (user?.role === PLATFORM_ROLES.SUPER_ADMIN) {
+    throw new AuthError(
+      "Platform admins cannot access dealer workflows. Use the admin panel instead.",
+      403
+    );
+  }
 
   let membership;
 
@@ -103,13 +123,21 @@ export async function requireDealerContext(req, res) {
     );
   }
 
+  const dealer = membership.dealerId;
+
+  // Check if dealer is disabled
+  if (dealer?.status === DEALER_STATUS.DISABLED) {
+    throw new AuthError(
+      "This dealership has been disabled. Please contact support.",
+      403
+    );
+  }
+
   // Update last active timestamp (fire and forget)
   DealerMembership.updateOne(
     { _id: membership._id },
     { lastActiveAt: new Date() }
   ).exec();
-
-  const dealer = membership.dealerId;
 
   return {
     user: session.user,
@@ -233,4 +261,53 @@ export async function getUserMemberships(userId) {
     .lean();
 }
 
-export { MEMBERSHIP_ROLES };
+/**
+ * Require SUPER_ADMIN role for platform admin routes
+ * This is completely separate from dealer context.
+ *
+ * @param {object} req - Request object
+ * @param {object} res - Response object
+ * @returns {Promise<{ user: object, userId: string }>}
+ * @throws {AuthError} if not authenticated or not SUPER_ADMIN
+ */
+export async function requireSuperAdmin(req, res) {
+  await connectMongo();
+
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user?.id) {
+    throw new AuthError("Unauthorized - Please sign in", 401);
+  }
+
+  const userId = session.user.id;
+  const user = await User.findById(userId).lean();
+
+  if (!user || user.role !== PLATFORM_ROLES.SUPER_ADMIN) {
+    throw new AuthError("Access denied. This area is restricted to platform administrators.", 403);
+  }
+
+  return {
+    user: { ...session.user, role: user.role },
+    userId,
+  };
+}
+
+/**
+ * Wrapper for API routes that require SUPER_ADMIN
+ *
+ * @param {function} handler - Async handler function(req, res, ctx)
+ * @returns {function} Wrapped handler
+ */
+export function withSuperAdmin(handler) {
+  return async (req, res) => {
+    try {
+      const ctx = await requireSuperAdmin(req, res);
+      return await handler(req, res, ctx);
+    } catch (error) {
+      console.error("[withSuperAdmin]", error.message);
+      const status = error.status || 500;
+      return res.status(status).json({ error: error.message });
+    }
+  };
+}
+
+export { MEMBERSHIP_ROLES, PLATFORM_ROLES };

@@ -115,6 +115,31 @@ export default function NewVehicle() {
 
       const data = await response.json();
 
+      // Handle error responses
+      if (!response.ok) {
+        const errorCode = data.errorCode || "UNKNOWN";
+        switch (errorCode) {
+          case "NOT_FOUND":
+            toast.error("VRM not found - please check the registration");
+            break;
+          case "INVALID_FORMAT":
+            toast.error("Invalid registration format");
+            break;
+          case "NOT_CONFIGURED":
+          case "AUTH_FAILED":
+          case "ACCESS_DENIED":
+            toast.error("DVLA integration not configured");
+            break;
+          case "NETWORK_ERROR":
+          case "SERVICE_ERROR":
+            toast.error("DVLA service unavailable, try again later");
+            break;
+          default:
+            toast.error(data.message || "Lookup failed");
+        }
+        return;
+      }
+
       if (data.isDummy) {
         showDummyNotification("DVLA API");
       }
@@ -131,7 +156,7 @@ export default function NewVehicle() {
 
       toast.success("Vehicle details loaded");
     } catch (error) {
-      toast.error("Lookup failed: " + error.message);
+      toast.error("DVLA service unavailable, try again later");
     } finally {
       setIsLookingUp(false);
     }

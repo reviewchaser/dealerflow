@@ -1,50 +1,82 @@
 import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
-export default function SignIn() {
+export default function SignUp() {
   const router = useRouter();
-  const { callbackUrl, error: urlError } = router.query;
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Only show dev mode in development
-  const isDevMode = process.env.NODE_ENV !== "production";
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  const handleLogin = async (e) => {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    if (result?.error) {
-      setError(result.error === "CredentialsSignin"
-        ? "Invalid email or password"
-        : `Sign in failed: ${result.error}`
-      );
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
       setLoading(false);
-    } else if (result?.ok) {
-      // Get updated session to check dealer context
-      const session = await getSession();
+      return;
+    }
 
-      // If user has no dealer, redirect to create-dealer onboarding
-      if (!session?.user?.dealerId) {
-        router.push("/onboarding/create-dealer");
-      } else {
-        // Redirect to callback URL or dashboard
-        router.push(callbackUrl || "/dashboard");
+    // Validate password strength
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Create user via API
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Registration failed");
+        setLoading(false);
+        return;
       }
-    } else {
-      setError("Unknown error occurred");
+
+      // Sign in with the new credentials
+      const signInResult = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        // Account created but sign-in failed - redirect to sign in page
+        toast.success("Account created! Please sign in.");
+        router.push("/auth/signin");
+      } else {
+        // Success - redirect to create dealer (onboarding)
+        toast.success("Welcome to DealerFlow!");
+        router.push("/onboarding/create-dealer");
+      }
+    } catch (err) {
+      setError("An unexpected error occurred");
       setLoading(false);
     }
   };
@@ -52,7 +84,7 @@ export default function SignIn() {
   return (
     <>
       <Head>
-        <title>Sign In | DealerFlow</title>
+        <title>Sign Up | DealerFlow</title>
       </Head>
 
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-4">
@@ -66,29 +98,11 @@ export default function SignIn() {
                 </svg>
                 <span className="text-xl font-bold">DealerFlow</span>
               </Link>
-              <h1 className="text-2xl font-bold">Welcome Back</h1>
-              <p className="text-sm text-base-content/60 mt-1">Sign in to your account</p>
+              <h1 className="text-2xl font-bold">Create Your Account</h1>
+              <p className="text-sm text-base-content/60 mt-1">Get started with DealerFlow in seconds</p>
             </div>
 
-            {/* Dev Mode Banner - Only in development */}
-            {isDevMode && (
-              <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
-                <p className="text-xs text-warning font-medium mb-2">Development Mode</p>
-                <p className="text-xs text-base-content/60">Use any email with password: <code className="bg-base-200 px-1 rounded">test123</code></p>
-              </div>
-            )}
-
-            {/* URL Error */}
-            {urlError && (
-              <div className="alert alert-error text-sm py-2 mb-4">
-                {urlError === "OAuthAccountNotLinked"
-                  ? "This email is already registered with a different method."
-                  : `Error: ${urlError}`
-                }
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleSignUp} className="space-y-4">
               {error && (
                 <div className="alert alert-error text-sm py-2">
                   {error}
@@ -97,14 +111,31 @@ export default function SignIn() {
 
               <div className="form-control">
                 <label className="label">
+                  <span className="label-text">Full Name</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  className="input input-bordered"
+                  placeholder="John Smith"
+                  value={formData.name}
+                  onChange={handleChange}
+                  required
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
                   <span className="label-text">Email</span>
                 </label>
                 <input
                   type="email"
+                  name="email"
                   className="input input-bordered"
                   placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={handleChange}
                   required
                   autoComplete="email"
                 />
@@ -116,12 +147,31 @@ export default function SignIn() {
                 </label>
                 <input
                   type="password"
+                  name="password"
                   className="input input-bordered"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  value={formData.password}
+                  onChange={handleChange}
                   required
-                  autoComplete="current-password"
+                  minLength={6}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">Confirm Password</span>
+                </label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  className="input input-bordered"
+                  placeholder="Re-enter password"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
                 />
               </div>
 
@@ -133,9 +183,13 @@ export default function SignIn() {
                 {loading ? (
                   <span className="loading loading-spinner loading-sm"></span>
                 ) : (
-                  "Sign In"
+                  "Create Account"
                 )}
               </button>
+
+              <p className="text-xs text-base-content/50 text-center">
+                By signing up, you agree to our Terms of Service and Privacy Policy.
+              </p>
             </form>
 
             {/* Divider */}
@@ -144,7 +198,7 @@ export default function SignIn() {
             {/* OAuth Providers */}
             <div className="space-y-2">
               <button
-                onClick={() => signIn("google", { callbackUrl: callbackUrl || "/dashboard" })}
+                onClick={() => signIn("google", { callbackUrl: "/onboarding/create-dealer" })}
                 className="btn btn-outline btn-block"
               >
                 <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -157,12 +211,12 @@ export default function SignIn() {
               </button>
             </div>
 
-            {/* Sign Up Link */}
+            {/* Sign In Link */}
             <div className="text-center mt-6">
               <p className="text-sm text-base-content/60">
-                Don't have an account?{" "}
-                <Link href="/auth/signup" className="text-primary hover:underline font-medium">
-                  Sign up
+                Already have an account?{" "}
+                <Link href="/auth/signin" className="text-primary hover:underline font-medium">
+                  Sign in
                 </Link>
               </p>
             </div>

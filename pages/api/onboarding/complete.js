@@ -3,6 +3,7 @@ import connectMongo from "@/libs/mongoose";
 import Dealer from "@/models/Dealer";
 import { seedAllDefaultsForDealer } from "@/libs/seedDefaults";
 import { withDealerContext } from "@/libs/authContext";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
 
 async function handler(req, res, ctx) {
   if (req.method !== "POST") {
@@ -18,6 +19,13 @@ async function handler(req, res, ctx) {
   // Mark onboarding as complete
   dealer.completedOnboarding = true;
   await dealer.save();
+
+  // Log platform activity
+  await PlatformActivity.log(ACTIVITY_TYPES.DEALER_ONBOARDING_COMPLETED, {
+    actorUserId: ctx.userId,
+    dealerId,
+    metadata: { dealerName: dealer.name },
+  });
 
   console.log(`[Onboarding] Completed for dealer ${dealerId}`);
 

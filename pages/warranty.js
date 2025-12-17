@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import DashboardLayout from "@/components/DashboardLayout";
 import VehicleDrawer from "@/components/VehicleDrawer";
+import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import { toast } from "react-hot-toast";
 
 // Column config matching Sales & Prep style
@@ -150,6 +151,8 @@ export default function Warranty() {
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [aiDiagnostics, setAiDiagnostics] = useState(null);
+  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
   const [expandedTimelineGroups, setExpandedTimelineGroups] = useState({});
   const [isVehicleDrawerOpen, setIsVehicleDrawerOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
@@ -198,9 +201,24 @@ export default function Warranty() {
   const fetchCases = async () => {
     try {
       const res = await fetch("/api/aftercare");
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Warranty] Non-JSON response:", res.status);
+        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load cases");
+        setCases([]);
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to load cases");
+        setCases([]);
+        return;
+      }
       const data = await res.json();
       setCases(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error("[Warranty] Fetch error:", error);
       toast.error("Failed to load cases");
       setCases([]);
     } finally {
@@ -210,12 +228,27 @@ export default function Warranty() {
 
   const fetchCaseDetail = async (caseId) => {
     if (!caseId) return; // Guard against undefined/null caseId
+    // Clear AI diagnostics when switching cases
+    setAiDiagnostics(null);
     try {
       const res = await fetch(`/api/aftercare/${caseId}`);
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Warranty] Case detail non-JSON response:", res.status);
+        toast.error("Failed to load case details");
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to load case");
+        return;
+      }
       const data = await res.json();
       // Normalize id field (API returns _id, we use id internally)
       setSelectedCase({ ...data, id: data._id || data.id });
     } catch (error) {
+      console.error("[Warranty] Case detail error:", error);
       toast.error("Failed to load case");
     }
   };
@@ -492,6 +525,45 @@ export default function Warranty() {
       toast.error(error.message);
     } finally {
       setIsGeneratingAI(false);
+    }
+  };
+
+  // Fetch AI diagnostic suggestions
+  const fetchAIDiagnostics = async () => {
+    if (!selectedCase) return;
+    setIsLoadingDiagnostics(true);
+    setAiDiagnostics(null);
+    try {
+      const vehicle = selectedCase.vehicleId;
+      const res = await fetch("/api/ai/warranty-suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vehicleMake: vehicle?.make,
+          vehicleModel: vehicle?.model,
+          vehicleYear: vehicle?.year,
+          mileage: vehicle?.mileage,
+          fuelType: vehicle?.fuelType,
+          symptomDescription: selectedCase.summary || selectedCase.details?.description || "",
+          faultCodes: selectedCase.details?.faultCodes,
+          warrantyType: selectedCase.warrantyType,
+          additionalContext: selectedCase.details ? JSON.stringify(selectedCase.details) : null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiDiagnostics({
+          suggestions: data.suggestions,
+          isDummy: data.isDummy,
+        });
+      } else {
+        toast.error(data.error || "Failed to get AI suggestions");
+      }
+    } catch (error) {
+      console.error("AI diagnostics error:", error);
+      toast.error("Failed to get AI suggestions");
+    } finally {
+      setIsLoadingDiagnostics(false);
     }
   };
 
@@ -1642,6 +1714,37 @@ export default function Warranty() {
                   </div>
                 </div>
               )}
+
+              {/* AI Diagnostics Panel */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-base-content/80">AI Diagnostics</h3>
+                  <button
+                    className="btn btn-xs btn-ghost"
+                    onClick={fetchAIDiagnostics}
+                    disabled={isLoadingDiagnostics}
+                  >
+                    {isLoadingDiagnostics ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : aiDiagnostics ? (
+                      "Refresh"
+                    ) : (
+                      "Get Suggestions"
+                    )}
+                  </button>
+                </div>
+                {(aiDiagnostics || isLoadingDiagnostics) && (
+                  <AISuggestionsPanel
+                    suggestions={aiDiagnostics?.suggestions}
+                    isLoading={isLoadingDiagnostics}
+                    isDummy={aiDiagnostics?.isDummy}
+                    onCopyToNotes={(text) => {
+                      setNewComment((prev) => prev ? prev + "\n\n" + text : text);
+                      toast.success("Added to comment draft");
+                    }}
+                  />
+                )}
+              </div>
 
               {/* Issue Summary */}
               {selectedCase.summary && (

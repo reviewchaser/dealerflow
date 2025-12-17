@@ -50,28 +50,40 @@ export default withDealerContext(async (req, res, ctx) => {
   // POST - Create holiday request
   if (req.method === "POST") {
     try {
-      const { startDate, endDate, type, notes, requestForUserId, totalDaysRequested } = req.body;
+      const {
+        startDate,
+        endDate,
+        startSession = "AM",
+        endSession = "PM",
+        type,
+        notes,
+        requestForUserId,
+      } = req.body;
 
-      if (!startDate || !endDate) {
-        return res.status(400).json({ error: "Start date and end date are required" });
+      if (!startDate) {
+        return res.status(400).json({ error: "Start date is required" });
       }
 
-      // Validate totalDaysRequested
-      const userDays = parseInt(totalDaysRequested, 10);
-      if (!totalDaysRequested || isNaN(userDays) || userDays < 1) {
-        return res.status(400).json({ error: "Total days is required and must be at least 1" });
+      // Validate sessions
+      if (!["AM", "PM"].includes(startSession) || !["AM", "PM"].includes(endSession)) {
+        return res.status(400).json({ error: "Invalid session values. Must be AM or PM." });
       }
 
-      // Validate dates
+      // Parse dates
       const start = new Date(startDate);
-      const end = new Date(endDate);
+      // If no end date, default to start date (single day)
+      const end = endDate ? new Date(endDate) : new Date(startDate);
+
       if (end < start) {
-        return res.status(400).json({ error: "End date must be after start date" });
+        return res.status(400).json({ error: "End date must be on or after start date" });
       }
 
-      // Calculate total days (server-side computed)
-      const diffTime = Math.abs(end - start);
-      const totalDaysComputed = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      // Compute total days using the AM/PM logic
+      const totalDaysComputed = HolidayRequest.computeTotalDays(start, end, startSession, endSession);
+
+      if (totalDaysComputed === null) {
+        return res.status(400).json({ error: "Invalid date/session combination. PM to AM on the same day is not allowed." });
+      }
 
       // Prevent absurd date ranges (max 60 days per request)
       if (totalDaysComputed > 60) {
@@ -102,14 +114,14 @@ export default withDealerContext(async (req, res, ctx) => {
         const targetUser = await User.findById(requestForUserId).lean();
         if (targetUser) {
           targetUserId = requestForUserId;
-          targetUserName = targetUser.name || targetUser.email;
+          targetUserName = targetUser.fullName || targetUser.name || targetUser.email;
           targetUserEmail = targetUser.email;
         }
       } else {
         // Get current user's name
         const currentUser = await User.findById(userId).lean();
         if (currentUser) {
-          targetUserName = currentUser.name || currentUser.email;
+          targetUserName = currentUser.fullName || currentUser.name || currentUser.email;
           targetUserEmail = currentUser.email;
         }
       }
@@ -121,7 +133,8 @@ export default withDealerContext(async (req, res, ctx) => {
         userEmail: targetUserEmail,
         startDate: start,
         endDate: end,
-        totalDaysRequested: userDays,
+        startSession,
+        endSession,
         totalDaysComputed,
         totalDays: totalDaysComputed, // legacy field
         type: type || "Holiday",

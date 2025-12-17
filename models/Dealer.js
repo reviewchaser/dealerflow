@@ -1,9 +1,22 @@
 import mongoose from "mongoose";
 import toJSON from "./plugins/toJSON.js";
 
+// Dealer status for admin control
+export const DEALER_STATUS = {
+  ACTIVE: "ACTIVE",
+  DISABLED: "DISABLED",
+};
+
 const dealerSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
+    // Platform admin can disable dealers
+    status: {
+      type: String,
+      enum: Object.values(DEALER_STATUS),
+      default: DEALER_STATUS.ACTIVE,
+      index: true,
+    },
     // Company details for forms and branding
     companyName: { type: String }, // Legal company name e.g. "My New Motor LTD"
     companyAddress: { type: String }, // Full address for forms

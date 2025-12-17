@@ -12,6 +12,7 @@ import DealerInvite from "@/models/DealerInvite";
 import DealerMembership from "@/models/DealerMembership";
 import Dealer from "@/models/Dealer";
 import User from "@/models/User";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
 
 export default async function handler(req, res) {
   await connectMongo();
@@ -133,6 +134,13 @@ export default async function handler(req, res) {
 
     // Get dealer name for response
     const dealer = await Dealer.findById(invite.dealerId).lean();
+
+    // Log platform activity
+    await PlatformActivity.log(ACTIVITY_TYPES.USER_SIGNED_UP, {
+      targetUserId: user._id,
+      dealerId: invite.dealerId,
+      metadata: { userEmail: user.email, role: invite.role, dealerName: dealer?.name },
+    });
 
     return res.status(200).json({
       success: true,

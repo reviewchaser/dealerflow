@@ -75,20 +75,48 @@ export default function Appraisals() {
   const fetchAppraisals = async () => {
     try {
       const res = await fetch(`/api/appraisals?decision=${filter}`);
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Appraisals] Non-JSON response:", res.status);
+        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load appraisals");
+        setAppraisals([]);
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to load appraisals");
+        setAppraisals([]);
+        return;
+      }
       const data = await res.json();
-      setAppraisals(data);
+      setAppraisals(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error("[Appraisals] Fetch error:", error);
       toast.error("Failed to load buying appraisals");
+      setAppraisals([]);
     }
   };
 
   const fetchPxAppraisals = async () => {
     try {
       const res = await fetch(`/api/customer-px?decision=${filter}`);
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[PX Appraisals] Non-JSON response:", res.status);
+        setPxAppraisals([]);
+        return;
+      }
+      if (!res.ok) {
+        setPxAppraisals([]);
+        return;
+      }
       const data = await res.json();
-      setPxAppraisals(data);
+      setPxAppraisals(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load PX appraisals", error);
+      setPxAppraisals([]);
     } finally {
       setIsLoading(false);
     }

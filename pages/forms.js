@@ -614,8 +614,11 @@ export default function Forms() {
         <body>
           ${isPdf ? `<button class="download-btn no-print" onclick="window.print(); return false;">Download PDF</button>` : ""}
           <div class="header">
-            ${submissionDetail.dealer?.logoUrl ? `<img src="${submissionDetail.dealer.logoUrl}" alt="Logo" class="logo" />` : ""}
-            ${submissionDetail.dealer?.name ? `<div class="dealer-name">${submissionDetail.dealer.name}</div>` : ""}
+            ${submissionDetail.dealer?.logoUrl
+              ? `<img src="${submissionDetail.dealer.logoUrl}" alt="Logo" class="logo" />`
+              : submissionDetail.dealer?.name
+              ? `<div class="dealer-name">${submissionDetail.dealer.name}</div>`
+              : ""}
             <h1>${formName}</h1>
             ${vrm ? `<div class="vrm">${vrm}</div>` : ""}
             <div class="meta">

@@ -17,6 +17,7 @@ import DealerMembership from "@/models/DealerMembership";
 import DealerInvite, { INVITE_ROLES, INVITE_EXPIRY_DAYS } from "@/models/DealerInvite";
 import User from "@/models/User";
 import { sendInviteEmail, resendInviteEmail } from "@/libs/inviteEmail";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -111,6 +112,13 @@ async function handler(req, res, ctx) {
       inviterName: user.name || user.email,
       role,
       rawToken,
+    });
+
+    // Log platform activity
+    await PlatformActivity.log(ACTIVITY_TYPES.USER_INVITED, {
+      actorUserId: userId,
+      dealerId,
+      metadata: { userEmail: normalizedEmail, role, dealerName: dealer.name },
     });
 
     return res.status(201).json({

@@ -1,5 +1,22 @@
 import Stripe from "stripe";
 
+/**
+ * Check if Stripe is configured
+ */
+export const isStripeConfigured = () => {
+  return !!process.env.STRIPE_SECRET_KEY;
+};
+
+/**
+ * Get Stripe client (only if configured)
+ */
+const getStripeClient = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return null;
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+};
+
 // This is the code for the createCheckout function for one-time payments (and save data for later of needed)
 export const createCheckout = async ({
   user,

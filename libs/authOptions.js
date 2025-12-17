@@ -1,5 +1,4 @@
 import GoogleProvider from "next-auth/providers/google";
-// import EmailProvider from "next-auth/providers/email"; // Requires adapter
 import CredentialsProvider from "next-auth/providers/credentials";
 import config from "@/config";
 import mongoose from "mongoose";
@@ -9,33 +8,15 @@ export const authOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 
   providers: [
-    // DEV ONLY: Simple credentials login for testing
-    // Use any email + password "test123"
+    // Credentials provider for email/password login
     CredentialsProvider({
-      name: "Dev Login",
+      name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "email", placeholder: "test@example.com" },
-        password: { label: "Password", type: "password", placeholder: "test123" },
+        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        console.log("[CredentialsProvider] authorize called");
-        console.log("[CredentialsProvider] NODE_ENV:", process.env.NODE_ENV);
-        console.log("[CredentialsProvider] email:", credentials?.email);
-
-        // Only allow in development (or if NODE_ENV is undefined)
-        if (process.env.NODE_ENV === "production") {
-          console.log("[CredentialsProvider] Blocked - production mode");
-          return null;
-        }
-
-        // Simple password check for dev
-        if (credentials?.password !== "test123") {
-          console.log("[CredentialsProvider] Invalid password");
-          return null;
-        }
-
-        if (!credentials?.email) {
-          console.log("[CredentialsProvider] No email provided");
+        if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
@@ -48,22 +29,46 @@ export const authOptions = {
           // Import User model dynamically to avoid circular deps
           const User = (await import("@/models/User")).default;
 
-          // Find or create user
-          let user = await User.findOne({ email: credentials.email.toLowerCase() });
+          // Find user with password hash
+          const user = await User.findByEmailWithPassword(credentials.email);
 
           if (!user) {
-            console.log("[CredentialsProvider] Creating new user");
-            user = await User.create({
-              email: credentials.email.toLowerCase(),
-              name: credentials.email.split("@")[0],
-            });
+            // In development, create user with test password
+            if (process.env.NODE_ENV !== "production" && credentials.password === "test123") {
+              const newUser = await User.create({
+                email: credentials.email.toLowerCase(),
+                name: credentials.email.split("@")[0],
+                fullName: credentials.email.split("@")[0],
+              });
+              return {
+                id: newUser._id.toString(),
+                email: newUser.email,
+                name: newUser.name,
+              };
+            }
+            return null;
           }
 
-          console.log("[CredentialsProvider] Success - user id:", user._id.toString());
+          // If user has password hash, verify it
+          if (user.passwordHash) {
+            const isValid = await user.comparePassword(credentials.password);
+            if (!isValid) {
+              return null;
+            }
+          } else {
+            // User exists but no password - allow dev mode test123
+            if (process.env.NODE_ENV !== "production" && credentials.password === "test123") {
+              // Dev mode fallback - user exists without password
+            } else {
+              // Production: no password set means can't login with credentials
+              return null;
+            }
+          }
+
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.name,
+            name: user.fullName || user.name,
           };
         } catch (error) {
           console.error("[CredentialsProvider] Error:", error);
@@ -87,38 +92,91 @@ export const authOptions = {
         },
       }),
     ] : []),
-    // EmailProvider requires an adapter - disabled for now
-    // EmailProvider({
-    //   server: process.env.EMAIL_SERVER,
-    //   from: config.mailgun.fromNoReply,
-    // }),
   ],
-  // Note: MongoDBAdapter is disabled when using CredentialsProvider with JWT
-  // The adapter doesn't work well with CredentialsProvider
-  // Users are stored in our own User model via Mongoose instead
-  // adapter: MongoDBAdapter(connectMongo),
   callbacks: {
     jwt: async ({ token, user, account }) => {
-      console.log("[JWT Callback] called, user:", user?.email, "account:", account?.provider);
       // On sign in, add user info to token
       if (user) {
         token.sub = user.id;
         token.email = user.email;
         token.name = user.name;
-        console.log("[JWT Callback] Set token.sub to:", token.sub);
       }
+
+      // Fetch dealer context on every JWT refresh
+      if (token.sub) {
+        try {
+          if (mongoose.connection.readyState !== 1) {
+            await mongoose.connect(process.env.MONGODB_URI);
+          }
+          const DealerMembership = (await import("@/models/DealerMembership")).default;
+          const User = (await import("@/models/User")).default;
+
+          // Get user's default dealer or first active membership
+          const userDoc = await User.findById(token.sub);
+          let membership = null;
+
+          if (userDoc?.defaultDealerId) {
+            membership = await DealerMembership.findOneActive({
+              userId: token.sub,
+              dealerId: userDoc.defaultDealerId,
+            });
+          }
+
+          if (!membership) {
+            // Fall back to first active membership
+            membership = await DealerMembership.findOneActive({
+              userId: token.sub,
+            }).sort({ lastActiveAt: -1 });
+          }
+
+          if (membership) {
+            token.dealerId = membership.dealerId.toString();
+            token.role = membership.role;
+          } else {
+            token.dealerId = null;
+            token.role = null;
+          }
+        } catch (error) {
+          console.error("[JWT Callback] Error fetching dealer context:", error);
+        }
+      }
+
       return token;
     },
     session: async ({ session, token }) => {
-      console.log("[Session Callback] called, token.sub:", token?.sub);
       if (session?.user) {
         session.user.id = token.sub;
+        session.user.dealerId = token.dealerId || null;
+        session.user.role = token.role || null;
       }
       return session;
     },
-    signIn: async ({ user, account }) => {
-      console.log("[SignIn Callback] user:", user?.email, "account:", account?.provider);
-      // Allow all sign-ins for credentials provider
+    signIn: async ({ user, account, profile }) => {
+      // Handle Google OAuth sign-in
+      if (account?.provider === "google" && user?.email) {
+        try {
+          if (mongoose.connection.readyState !== 1) {
+            await mongoose.connect(process.env.MONGODB_URI);
+          }
+          const User = (await import("@/models/User")).default;
+
+          // Find or create user
+          let dbUser = await User.findOne({ email: user.email.toLowerCase() });
+          if (!dbUser) {
+            dbUser = await User.create({
+              email: user.email.toLowerCase(),
+              name: user.name,
+              fullName: user.name,
+              image: user.image,
+            });
+          }
+
+          // Update user ID to match our DB
+          user.id = dbUser._id.toString();
+        } catch (error) {
+          console.error("[SignIn Callback] Error:", error);
+        }
+      }
       return true;
     },
   },
@@ -127,11 +185,10 @@ export const authOptions = {
   },
   theme: {
     brandColor: config.colors.main,
-    // Add you own logo below. Recommended size is rectangle (i.e. 200x50px) and show your logo + name.
-    // It will be used in the login flow to display your logo. If you don't add it, it will look faded.
     logo: `https://${config.domainName}/logoAndName.png`,
   },
   pages: {
-    signIn: "/auth/signin", // We'll create a custom sign-in page
+    signIn: "/auth/signin",
+    newUser: "/onboarding/create-dealer", // Redirect new users to create dealer
   },
 };

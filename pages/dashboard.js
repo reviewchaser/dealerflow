@@ -65,29 +65,59 @@ export default function Dashboard() {
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Default empty stats object to prevent crashes
+  const defaultStats = {
+    appraisals: { total: 0, pending: 0 },
+    vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+    aftercare: { total: 0, open: 0 },
+    reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+    forms: { total: 0, submissions: 0 },
+    recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+    today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+    topForms: [],
+    oldestAppraisalDays: null,
+  };
+
   useEffect(() => {
+    // Helper to safely parse JSON responses
+    const safeJsonParse = async (res) => {
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Dashboard] Non-JSON response:", res.status, contentType);
+        return null;
+      }
+      return res.json();
+    };
+
     Promise.all([
-      fetch("/api/dashboard/stats").then(res => {
-        if (!res.ok) throw new Error("Failed to fetch stats");
-        return res.json();
+      fetch("/api/dashboard/stats").then(async (res) => {
+        // Handle 403 (no dealer context) gracefully
+        if (res.status === 403) return { error: "No dealer context" };
+        if (!res.ok) return { error: "Failed to fetch stats" };
+        const data = await safeJsonParse(res);
+        return data || { error: "Invalid response" };
       }),
-      fetch("/api/forms").then(res => {
-        if (!res.ok) throw new Error("Failed to fetch forms");
-        return res.json();
+      fetch("/api/forms").then(async (res) => {
+        if (res.status === 403) return [];
+        if (!res.ok) return [];
+        const data = await safeJsonParse(res);
+        return data || [];
       }),
     ])
       .then(([statsData, formsData]) => {
-        if (statsData.error) {
+        if (statsData?.error) {
           console.error("Dashboard stats error:", statsData.error);
-          setStats(null);
+          setStats(defaultStats);
         } else {
-          setStats(statsData);
+          setStats(statsData || defaultStats);
         }
         setForms(Array.isArray(formsData) ? formsData : []);
         setIsLoading(false);
       })
       .catch((err) => {
         console.error("Dashboard fetch error:", err);
+        setStats(defaultStats);
         setIsLoading(false);
       });
   }, []);
@@ -147,29 +177,29 @@ export default function Dashboard() {
         <div className="space-y-4">
           {/* Today Strip - Only show if there's data */}
           {hasTodayData && (
-            <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl px-3 py-2 flex items-center gap-3 flex-wrap">
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap shadow-sm">
               <span className="text-sm font-semibold text-slate-700">Today</span>
               <div className="h-4 w-px bg-slate-300" />
               <div className="flex items-center gap-3 flex-wrap">
-                {stats.today.events > 0 && (
+                {(stats?.today?.events ?? 0) > 0 && (
                   <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition-colors">
                     <span className="w-2 h-2 rounded-full bg-blue-500" />
                     {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
                   </Link>
                 )}
-                {stats.today.deliveries > 0 && (
+                {(stats?.today?.deliveries ?? 0) > 0 && (
                   <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors">
                     <span className="w-2 h-2 rounded-full bg-emerald-500" />
                     {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
                   </Link>
                 )}
-                {stats.today.testDrives > 0 && (
+                {(stats?.today?.testDrives ?? 0) > 0 && (
                   <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium hover:bg-cyan-200 transition-colors">
                     <span className="w-2 h-2 rounded-full bg-cyan-500" />
                     {stats.today.testDrives} test drive{stats.today.testDrives !== 1 ? "s" : ""}
                   </Link>
                 )}
-                {stats.today.courtesyDueBack > 0 && (
+                {(stats?.today?.courtesyDueBack ?? 0) > 0 && (
                   <Link href="/warranty" className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors">
                     <span className="w-2 h-2 rounded-full bg-amber-500" />
                     {stats.today.courtesyDueBack} courtesy due
@@ -182,86 +212,102 @@ export default function Dashboard() {
           {/* Top Row - KPI Cards with micro-context */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatsCard
-              title="Total Stock"
-              value={(stats?.vehicles?.inStock || 0) + (stats?.vehicles?.inPrep || 0)}
-              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
-              icon="🚗"
+              title="Pending Appraisals"
+              value={stats?.appraisals?.pending ?? 0}
+              trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
+              icon="📋"
               color="primary"
             />
             <StatsCard
-              title="Pending Appraisals"
-              value={stats?.appraisals?.pending || 0}
-              trend={stats?.oldestAppraisalDays !== null ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
-              icon="📋"
-              color="warning"
+              title="Total Stock"
+              value={(stats?.vehicles?.inStock ?? 0) + (stats?.vehicles?.inPrep ?? 0)}
+              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+              icon="🚗"
+              color="secondary"
             />
             <StatsCard
               title="Live Vehicles"
-              value={stats?.vehicles?.live || 0}
-              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+              value={stats?.vehicles?.live ?? 0}
+              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} ready to go live` : null}
               icon="✨"
-              color="success"
+              color="accent"
             />
             <StatsCard
               title="Avg Rating"
-              value={stats?.reviews?.avgRating || "N/A"}
+              value={stats?.reviews?.avgRating ?? "N/A"}
               trend={
-                stats?.reviews?.lastReviewDays !== null
+                typeof stats?.reviews?.lastReviewDays === "number"
                   ? `Last review: ${stats.reviews.lastReviewDays}d ago`
                   : stats?.reviews?.count === 0
                   ? "No reviews yet"
                   : null
               }
               icon="⭐"
-              color="info"
+              color="warning"
             />
           </div>
 
-          {/* Quick Forms - Glass Pills */}
+          {/* Quick Forms - Touch Cards Grid */}
           {forms.length > 0 && (
-            <div className="bg-white/80 backdrop-blur-sm shadow-sm rounded-2xl px-5 py-4 flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2 mr-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Quick Forms</span>
-              </div>
-              {/* Top form buttons - Glass Pills */}
-              {topForms.map((form) => (
-                <button
-                  key={form.id || form._id}
-                  onClick={() => handleFormClick(form)}
-                  className="bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 hover:text-blue-600 rounded-full px-5 py-2.5 transition-all text-sm font-semibold text-slate-600"
-                >
-                  {FORM_TYPE_LABELS[form.type] || form.name}
-                </button>
-              ))}
-              {/* More dropdown */}
-              {otherForms.length > 0 && (
-                <div className="dropdown dropdown-end">
-                  <label tabIndex={0} className="bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 rounded-full px-5 py-2.5 transition-all text-sm font-semibold text-slate-500 cursor-pointer flex items-center gap-1.5">
-                    <span>More</span>
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </label>
-                  <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-xl bg-white rounded-2xl w-56 max-h-60 overflow-y-auto border border-slate-100 mt-2">
-                    {otherForms.map((form) => (
-                      <li key={form.id || form._id}>
-                        <button onClick={() => handleFormClick(form)} className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                          {form.name}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Quick Forms</span>
                 </div>
-              )}
-              <Link href="/forms" className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">All Submissions →</Link>
+                <Link href="/forms" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">All Submissions →</Link>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Top form buttons - Touch Cards */}
+                {topForms.map((form) => (
+                  <button
+                    key={form.id || form._id}
+                    onClick={() => handleFormClick(form)}
+                    className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer text-left"
+                  >
+                    <div className="bg-blue-50 text-blue-600 p-2 rounded-lg shrink-0">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <span className="font-semibold text-slate-700 truncate">
+                      {FORM_TYPE_LABELS[form.type] || form.name}
+                    </span>
+                  </button>
+                ))}
+                {/* More Forms Card */}
+                {otherForms.length > 0 && (
+                  <div className="dropdown dropdown-end">
+                    <label
+                      tabIndex={0}
+                      className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-slate-400 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer w-full"
+                    >
+                      <div className="bg-slate-100 text-slate-500 p-2 rounded-lg shrink-0">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                        </svg>
+                      </div>
+                      <span className="font-semibold text-slate-500">More ({otherForms.length})</span>
+                    </label>
+                    <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-xl bg-white rounded-2xl w-56 max-h-60 overflow-y-auto border border-slate-100 mt-2">
+                      {otherForms.map((form) => (
+                        <li key={form.id || form._id}>
+                          <button onClick={() => handleFormClick(form)} className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                            {form.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {/* Middle Row - Needs Attention + Dealer Actions */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Needs Attention - 2/3 width - Task Style */}
-            <div className="lg:col-span-2 bg-white border border-red-100 rounded-xl p-1 shadow-sm">
+            <div className="lg:col-span-2 bg-white border border-red-100 rounded-2xl p-1 shadow-sm">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
                 <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -278,7 +324,7 @@ export default function Dashboard() {
                     >
                       {/* Soft Circle Counter */}
                       <div className="bg-red-100 text-red-600 font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                        {stats.needsAttention[item.key]}
+                        {stats?.needsAttention?.[item.key] ?? 0}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-800">{item.label}</p>
@@ -306,7 +352,7 @@ export default function Dashboard() {
             </div>
 
             {/* Dealer Actions - 1/3 width - Command Cards */}
-            <div className="bg-slate-50/50 rounded-xl p-4">
+            <div className="bg-slate-50/50 rounded-2xl p-4">
               <div className="flex items-center gap-2 mb-4">
                 <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -315,44 +361,44 @@ export default function Dashboard() {
               </div>
               <div className="space-y-3">
                 {/* Add Vehicle Card */}
-                <Link href="/sales-prep" className="group flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
-                  <div className="bg-slate-50 text-slate-500 p-2.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Link href="/sales-prep" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
-                  <span className="font-bold text-slate-700">Add Vehicle</span>
+                  <span className="font-semibold text-slate-700">Add Vehicle</span>
                 </Link>
 
                 {/* New Appraisal Card */}
-                <Link href="/appraisals/new" className="group flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
-                  <div className="bg-slate-50 text-slate-500 p-2.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Link href="/appraisals/new" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <span className="font-bold text-slate-700">New Appraisal</span>
+                  <span className="font-semibold text-slate-700">New Appraisal</span>
                 </Link>
 
                 {/* View Submissions Card */}
-                <Link href="/forms" className="group flex items-center gap-3 p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
-                  <div className="bg-slate-50 text-slate-500 p-2.5 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                <Link href="/forms" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                   </div>
-                  <span className="font-bold text-slate-700">View Submissions</span>
+                  <span className="font-semibold text-slate-700">View Submissions</span>
                 </Link>
 
                 {/* Invite Team Card - Distinct Purple Style */}
-                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-2 border-violet-200 rounded-xl shadow-sm hover:shadow-md hover:border-violet-400 transition-all">
-                  <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white p-2.5 rounded-lg shadow">
+                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-2 border-violet-200 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 hover:scale-[1.02] transition-all">
+                  <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white p-2 rounded-lg shadow">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
                   <div>
-                    <span className="font-bold text-violet-700 block">Invite Team</span>
+                    <span className="font-semibold text-violet-700 block">Invite Team</span>
                     <span className="text-xs text-violet-500">Add staff members</span>
                   </div>
                 </Link>

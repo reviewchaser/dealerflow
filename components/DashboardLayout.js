@@ -88,6 +88,8 @@ export default function DashboardLayout({ children }) {
   const [expandedMenus, setExpandedMenus] = useState({});
   const [forms, setForms] = useState([]);
   const [dealer, setDealer] = useState(null);
+  const [debugContext, setDebugContext] = useState(null);
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
 
   // Load sidebar collapsed state from localStorage
   useEffect(() => {
@@ -116,6 +118,22 @@ export default function DashboardLayout({ children }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [sidebarCollapsed]);
 
+  // Dev-only: fetch debug context
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      fetch("/api/debug/context")
+        .then(res => {
+          const contentType = res.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) return null;
+          return res.json();
+        })
+        .then(data => {
+          if (data) setDebugContext(data);
+        })
+        .catch(() => {});
+    }
+  }, []);
+
   useEffect(() => {
     // Load forms for the quick add dropdown
     fetch("/api/forms")
@@ -127,10 +145,19 @@ export default function DashboardLayout({ children }) {
 
     // Load dealer for logo and check onboarding status
     fetch("/api/dealer")
-      .then(res => res.json())
+      .then(async (res) => {
+        // 403 = no dealer membership - redirect to create dealer
+        if (res.status === 403 && !router.pathname.startsWith("/onboarding")) {
+          router.push("/onboarding/create-dealer");
+          return null;
+        }
+        if (!res.ok) return null;
+        return res.json();
+      })
       .then(data => {
+        if (!data) return;
         setDealer(data);
-        // Redirect to onboarding if not completed (skip if already on onboarding page)
+        // Redirect to onboarding wizard if not completed (skip if already on onboarding page)
         if (data && !data.completedOnboarding && !router.pathname.startsWith("/onboarding")) {
           router.push("/onboarding");
         }
@@ -377,6 +404,65 @@ export default function DashboardLayout({ children }) {
           })}
         </div>
       </nav>
+
+      {/* Dev-only Tenant Debug Panel */}
+      {process.env.NODE_ENV === "development" && debugContext && (
+        <div className="fixed bottom-20 md:bottom-4 right-4 z-[60]">
+          <button
+            onClick={() => setDebugPanelOpen(!debugPanelOpen)}
+            className="btn btn-xs btn-warning shadow-lg"
+            title="Toggle debug panel"
+          >
+            {debugPanelOpen ? "Hide Debug" : "Debug"}
+          </button>
+          {debugPanelOpen && (
+            <div className="absolute bottom-8 right-0 bg-warning/10 border border-warning rounded-lg p-3 shadow-xl min-w-64 text-xs font-mono">
+              <div className="font-bold text-warning mb-2 text-sm">Tenant Context</div>
+              <div className="space-y-1 text-base-content">
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">Auth:</span>
+                  <span className={debugContext.authenticated ? "text-success" : "text-error"}>
+                    {debugContext.authenticated ? "Yes" : "No"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">User ID:</span>
+                  <span className="truncate max-w-32" title={debugContext.userId}>
+                    {debugContext.userId || "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">Email:</span>
+                  <span className="truncate max-w-32" title={debugContext.userEmail}>
+                    {debugContext.userEmail || "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">User Role:</span>
+                  <span>{debugContext.userRole || "-"}</span>
+                </div>
+                <hr className="border-base-300 my-1" />
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">Dealer ID:</span>
+                  <span className="truncate max-w-32" title={debugContext.dealerId}>
+                    {debugContext.dealerId || "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">Dealer:</span>
+                  <span className="truncate max-w-32" title={debugContext.dealerName}>
+                    {debugContext.dealerName || "-"}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-base-content/60">Membership:</span>
+                  <span>{debugContext.membershipRole || "-"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

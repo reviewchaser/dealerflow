@@ -26,10 +26,11 @@ export default function HolidaySettings() {
   const [newRequest, setNewRequest] = useState({
     startDate: "",
     endDate: "",
+    startSession: "AM",
+    endSession: "PM",
     type: "Holiday",
     notes: "",
     requestForUserId: "",
-    totalDaysRequested: "",
   });
   const [adminNote, setAdminNote] = useState("");
   const [actionModal, setActionModal] = useState({ open: false, request: null, action: null });
@@ -169,34 +170,59 @@ export default function HolidaySettings() {
     }
   };
 
-  const handleCreateRequest = async (e) => {
-    e.preventDefault();
-    if (!newRequest.startDate || !newRequest.endDate) {
-      toast.error("Please select start and end dates");
-      return;
+  // Compute total days based on AM/PM sessions (mirrors server logic)
+  const computeTotalDays = (startDate, endDate, startSession, endSession) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysDiff = Math.round((end - start) / msPerDay);
+
+    if (daysDiff < 0) return null;
+
+    // Same day
+    if (daysDiff === 0) {
+      if (startSession === "PM" && endSession === "AM") return null;
+      if (startSession === "AM" && endSession === "PM") return 1.0;
+      return 0.5;
     }
 
-    // Validate total days requested
-    const totalDaysRequested = parseInt(newRequest.totalDaysRequested, 10);
-    if (!newRequest.totalDaysRequested || isNaN(totalDaysRequested) || totalDaysRequested < 1) {
-      toast.error("Please enter the total number of days (must be at least 1)");
+    // Multi-day
+    const startDayValue = startSession === "PM" ? 0.5 : 1.0;
+    const endDayValue = endSession === "AM" ? 0.5 : 1.0;
+    const middleDays = daysDiff - 1;
+
+    return startDayValue + middleDays + endDayValue;
+  };
+
+  const handleCreateRequest = async (e) => {
+    e.preventDefault();
+    if (!newRequest.startDate) {
+      toast.error("Please select a start date");
       return;
     }
 
     // Client-side validation
     const start = new Date(newRequest.startDate);
-    const end = new Date(newRequest.endDate);
+    // End date defaults to start date if not provided
+    const end = newRequest.endDate ? new Date(newRequest.endDate) : new Date(newRequest.startDate);
 
     if (end < start) {
-      toast.error("End date must be after start date");
+      toast.error("End date must be on or after start date");
       return;
     }
 
-    // Calculate days
-    const diffTime = Math.abs(end - start);
-    const computedDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    // Compute total days with AM/PM
+    const totalDays = computeTotalDays(start, end, newRequest.startSession, newRequest.endSession);
 
-    if (computedDays > 60) {
+    if (totalDays === null) {
+      toast.error("Invalid session combination: PM to AM on the same day is not allowed");
+      return;
+    }
+
+    if (totalDays > 60) {
       toast.error("Holiday request cannot exceed 60 days");
       return;
     }
@@ -217,20 +243,18 @@ export default function HolidaySettings() {
       return;
     }
 
-    // Warn if user input doesn't match computed days (but still allow)
-    if (totalDaysRequested !== computedDays) {
-      if (!confirm(`Total days entered (${totalDaysRequested}) doesn't match the date range (${computedDays} days). Continue anyway?`)) {
-        return;
-      }
-    }
-
     try {
       const res = await fetch("/api/holiday-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...newRequest,
-          totalDaysRequested,
+          startDate: newRequest.startDate,
+          endDate: newRequest.endDate || newRequest.startDate, // Default to start date
+          startSession: newRequest.startSession,
+          endSession: newRequest.endSession,
+          type: newRequest.type,
+          notes: newRequest.notes,
+          requestForUserId: newRequest.requestForUserId,
         }),
       });
       if (!res.ok) {
@@ -239,7 +263,7 @@ export default function HolidaySettings() {
       }
       toast.success("Holiday request created");
       setShowCreateModal(false);
-      setNewRequest({ startDate: "", endDate: "", type: "Holiday", notes: "", requestForUserId: "", totalDaysRequested: "" });
+      setNewRequest({ startDate: "", endDate: "", startSession: "AM", endSession: "PM", type: "Holiday", notes: "", requestForUserId: "" });
       fetchRequests();
     } catch (error) {
       toast.error(error.message || "Failed to create request");
@@ -488,11 +512,16 @@ export default function HolidaySettings() {
                     </div>
                     <div className="text-sm mt-1">
                       <span className="font-medium">
-                        {formatDate(request.startDate)} - {formatDate(request.endDate)}
+                        {formatDate(request.startDate)}
+                        {request.startSession && <span className="text-xs text-base-content/50 ml-1">({request.startSession})</span>}
+                        {" - "}
+                        {formatDate(request.endDate)}
+                        {request.endSession && <span className="text-xs text-base-content/50 ml-1">({request.endSession})</span>}
                       </span>
                       <span className="text-base-content/50 ml-2">
                         {(() => {
-                          const days = calculateDays(request.startDate, request.endDate);
+                          // Use server-computed days if available, otherwise calculate
+                          const days = request.totalDaysComputed || request.totalDays || calculateDays(request.startDate, request.endDate);
                           if (days > 60) {
                             return <span className="text-error font-semibold">⚠️ {days} days (invalid)</span>;
                           }
@@ -606,8 +635,9 @@ export default function HolidaySettings() {
                   <option value="Other">Other</option>
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="form-control">
+              {/* Start Date and Session */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="form-control col-span-2">
                   <label className="label">
                     <span className="label-text">Start Date</span>
                   </label>
@@ -621,57 +651,83 @@ export default function HolidaySettings() {
                 </div>
                 <div className="form-control">
                   <label className="label">
+                    <span className="label-text">Session</span>
+                  </label>
+                  <select
+                    className="select select-bordered"
+                    value={newRequest.startSession}
+                    onChange={(e) => setNewRequest({ ...newRequest, startSession: e.target.value })}
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* End Date and Session */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="form-control col-span-2">
+                  <label className="label">
                     <span className="label-text">End Date</span>
+                    <span className="label-text-alt text-base-content/50">Optional</span>
                   </label>
                   <input
                     type="date"
                     className="input input-bordered"
                     value={newRequest.endDate}
                     onChange={(e) => setNewRequest({ ...newRequest, endDate: e.target.value })}
-                    required
+                    placeholder="Same as start"
                   />
                 </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Session</span>
+                  </label>
+                  <select
+                    className="select select-bordered"
+                    value={newRequest.endSession}
+                    onChange={(e) => setNewRequest({ ...newRequest, endSession: e.target.value })}
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
               </div>
-              {newRequest.startDate && newRequest.endDate && (() => {
-                const days = calculateDays(newRequest.startDate, newRequest.endDate);
+
+              {/* Computed Total Days Chip */}
+              {newRequest.startDate && (() => {
                 const start = new Date(newRequest.startDate);
-                const end = new Date(newRequest.endDate);
-                const isInvalid = days > 60 || end < start;
+                const end = newRequest.endDate ? new Date(newRequest.endDate) : new Date(newRequest.startDate);
+                const totalDays = computeTotalDays(start, end, newRequest.startSession, newRequest.endSession);
                 const oneYearAgo = new Date();
                 oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
                 const isTooOld = start < oneYearAgo;
+                const isInvalid = totalDays === null || totalDays > 60 || end < start;
 
                 return (
-                  <div className={`text-sm p-2 rounded ${isInvalid || isTooOld ? 'bg-error/10 text-error' : 'bg-base-200 text-base-content/60'}`}>
+                  <div className={`text-sm p-3 rounded-lg flex items-center gap-2 ${isInvalid || isTooOld ? 'bg-error/10 text-error' : 'bg-primary/10 text-primary'}`}>
                     {end < start ? (
-                      <span>⚠️ End date must be after start date</span>
-                    ) : days > 60 ? (
-                      <span>⚠️ Maximum 60 days per request ({days} days selected)</span>
+                      <span>End date must be on or after start date</span>
+                    ) : totalDays === null ? (
+                      <span>Invalid: PM to AM on same day not allowed</span>
+                    ) : totalDays > 60 ? (
+                      <span>Maximum 60 days per request ({totalDays} days selected)</span>
                     ) : isTooOld ? (
-                      <span>⚠️ Start date is too far in the past</span>
+                      <span>Start date is too far in the past</span>
                     ) : (
-                      <span>Date range: {days} day{days !== 1 ? 's' : ''}</span>
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="font-semibold">
+                          Total requested: {totalDays} day{totalDays !== 1 ? 's' : ''}
+                        </span>
+                        {totalDays === 0.5 && <span className="text-xs opacity-75">(half day)</span>}
+                      </>
                     )}
                   </div>
                 );
               })()}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text">Total days</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  className="input input-bordered"
-                  placeholder="e.g. 2"
-                  value={newRequest.totalDaysRequested}
-                  onChange={(e) => setNewRequest({ ...newRequest, totalDaysRequested: e.target.value })}
-                  required
-                />
-                <label className="label">
-                  <span className="label-text-alt text-base-content/50">Enter the number of days you're requesting off</span>
-                </label>
-              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Notes (optional)</span>
@@ -713,9 +769,13 @@ export default function HolidaySettings() {
               <div className="bg-base-200 p-3 rounded-lg">
                 <p className="font-semibold">{actionModal.request.userName}</p>
                 <p className="text-sm">
-                  {formatDate(actionModal.request.startDate)} - {formatDate(actionModal.request.endDate)}
+                  {formatDate(actionModal.request.startDate)}
+                  {actionModal.request.startSession && <span className="text-xs text-base-content/50 ml-1">({actionModal.request.startSession})</span>}
+                  {" - "}
+                  {formatDate(actionModal.request.endDate)}
+                  {actionModal.request.endSession && <span className="text-xs text-base-content/50 ml-1">({actionModal.request.endSession})</span>}
                   <span className="text-base-content/50 ml-2">
-                    ({calculateDays(actionModal.request.startDate, actionModal.request.endDate)} days)
+                    ({actionModal.request.totalDaysComputed || actionModal.request.totalDays || calculateDays(actionModal.request.startDate, actionModal.request.endDate)} days)
                   </span>
                 </p>
                 <p className="text-sm text-base-content/60">{actionModal.request.type}</p>

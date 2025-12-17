@@ -83,6 +83,7 @@ export default function NewAppraisal() {
     if (!formData.vehicleReg) return toast.error("Enter registration first");
     setIsLookingUp(true);
     setAiHints(null);
+    setDvlaData(null);
 
     try {
       const res = await fetch("/api/dvla-lookup", {
@@ -91,6 +92,32 @@ export default function NewAppraisal() {
         body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
       });
       const data = await res.json();
+
+      // Handle error responses
+      if (!res.ok) {
+        const errorCode = data.errorCode || "UNKNOWN";
+        switch (errorCode) {
+          case "NOT_FOUND":
+            toast.error("VRM not found - please check the registration");
+            break;
+          case "INVALID_FORMAT":
+            toast.error("Invalid registration format");
+            break;
+          case "NOT_CONFIGURED":
+          case "AUTH_FAILED":
+          case "ACCESS_DENIED":
+            toast.error("DVLA integration not configured");
+            break;
+          case "NETWORK_ERROR":
+          case "SERVICE_ERROR":
+            toast.error("DVLA service unavailable, try again later");
+            break;
+          default:
+            toast.error(data.message || "Lookup failed");
+        }
+        return;
+      }
+
       setDvlaData(data);
       if (data.isDummy) showDummyNotification("DVLA API");
 
@@ -106,7 +133,7 @@ export default function NewAppraisal() {
       // Fetch AI hints
       fetchAiHints(data.make, data.model, data.yearOfManufacture);
     } catch (error) {
-      toast.error("Lookup failed");
+      toast.error("DVLA service unavailable, try again later");
     } finally {
       setIsLookingUp(false);
     }

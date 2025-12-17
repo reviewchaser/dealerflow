@@ -9,9 +9,39 @@ import FormSubmission from "@/models/FormSubmission";
 import CalendarEvent from "@/models/CalendarEvent";
 import CourtesyAllocation from "@/models/CourtesyAllocation";
 import Contact from "@/models/Contact"; // Required for populate
-import { withDealerContext } from "@/libs/authContext";
+import { requireDealerContext } from "@/libs/authContext";
 
-async function handler(req, res, ctx) {
+// Default empty stats object for safe responses
+const DEFAULT_STATS = {
+  appraisals: { total: 0, pending: 0 },
+  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+  aftercare: { total: 0, open: 0 },
+  reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+  forms: { total: 0, submissions: 0 },
+  recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+  topForms: [],
+  oldestAppraisalDays: null,
+};
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  // Try to get dealer context - if it fails, return safe defaults
+  let ctx;
+  try {
+    ctx = await requireDealerContext(req, res);
+  } catch (error) {
+    // No dealer context - return safe defaults instead of 403
+    console.log("[Dashboard Stats] No dealer context, returning defaults");
+    return res.status(200).json(DEFAULT_STATS);
+  }
+
+  return handleStats(req, res, ctx);
+}
+
+async function handleStats(req, res, ctx) {
   await connectMongo();
   const { dealerId } = ctx;
 
@@ -197,4 +227,3 @@ async function handler(req, res, ctx) {
   });
 }
 
-export default withDealerContext(handler);

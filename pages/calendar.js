@@ -72,10 +72,26 @@ export default function Calendar() {
       end.setMonth(end.getMonth() + 3);
 
       const res = await fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`);
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Calendar] Non-JSON response:", res.status);
+        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load events");
+        setEvents([]);
+        return;
+      }
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Failed to load events");
+        setEvents([]);
+        return;
+      }
       const data = await res.json();
-      setEvents(data);
+      setEvents(Array.isArray(data) ? data : []);
     } catch (error) {
+      console.error("[Calendar] Fetch error:", error);
       toast.error("Failed to load events");
+      setEvents([]);
     } finally {
       setIsLoading(false);
     }
@@ -84,20 +100,43 @@ export default function Calendar() {
   const fetchCategories = async () => {
     try {
       const res = await fetch("/api/calendar/categories");
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Calendar] Categories non-JSON response:", res.status);
+        setCategories([]);
+        return;
+      }
+      if (!res.ok) {
+        setCategories([]);
+        return;
+      }
       const data = await res.json();
-      setCategories(data);
+      setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load categories");
+      setCategories([]);
     }
   };
 
   const fetchPendingHolidayCount = async () => {
     try {
       const res = await fetch("/api/holiday-requests?status=PENDING");
+      // Check for JSON response
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        setPendingHolidayCount(0);
+        return;
+      }
+      if (!res.ok) {
+        setPendingHolidayCount(0);
+        return;
+      }
       const data = await res.json();
       setPendingHolidayCount(Array.isArray(data) ? data.length : 0);
     } catch (error) {
       console.error("Failed to load pending holiday count");
+      setPendingHolidayCount(0);
     }
   };
 
@@ -930,16 +969,19 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.title || !formData.startDatetime || !formData.endDatetime) {
-      return toast.error("Title, start and end time are required");
+    if (!formData.title || !formData.startDatetime) {
+      return toast.error("Title and start time are required");
     }
     setIsLoading(true);
     try {
+      // End datetime defaults to start datetime if not provided
+      const endDatetime = formData.endDatetime || formData.startDatetime;
+
       const payload = {
         title: formData.title,
         description: formData.description || "",
         startDatetime: formData.startDatetime,
-        endDatetime: formData.endDatetime,
+        endDatetime: endDatetime,
       };
       if (formData.categoryId && formData.categoryId !== "") {
         payload.categoryId = formData.categoryId;
@@ -1067,13 +1109,15 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">End *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    End <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                  </label>
                   <input
                     type="datetime-local"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     value={formData.endDatetime}
                     onChange={(e) => setFormData({ ...formData, endDatetime: e.target.value })}
-                    required
+                    placeholder="Same as start"
                   />
                 </div>
               </div>
@@ -1152,33 +1196,72 @@ function HolidayRequestModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     startDate: "",
     endDate: "",
+    startSession: "AM",
+    endSession: "PM",
     type: "Holiday",
     notes: "",
   });
 
-  const calculateDays = (startDate, endDate) => {
-    if (!startDate || !endDate) return 0;
+  // Compute total days with AM/PM sessions
+  const computeTotalDays = (startDate, endDate, startSession, endSession) => {
+    if (!startDate) return 0;
     const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffTime = Math.abs(end - start);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return diffDays;
+    const end = endDate ? new Date(endDate) : new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const daysDiff = Math.round((end - start) / msPerDay);
+
+    if (daysDiff < 0) return null;
+
+    // Same day
+    if (daysDiff === 0) {
+      if (startSession === "PM" && endSession === "AM") return null;
+      if (startSession === "AM" && endSession === "PM") return 1.0;
+      return 0.5;
+    }
+
+    // Multi-day
+    const startDayValue = startSession === "PM" ? 0.5 : 1.0;
+    const endDayValue = endSession === "AM" ? 0.5 : 1.0;
+    const middleDays = daysDiff - 1;
+
+    return startDayValue + middleDays + endDayValue;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.startDate || !formData.endDate) {
-      return toast.error("Please select start and end dates");
+    if (!formData.startDate) {
+      return toast.error("Please select a start date");
     }
-    if (new Date(formData.endDate) < new Date(formData.startDate)) {
-      return toast.error("End date must be after start date");
+
+    const start = new Date(formData.startDate);
+    const end = formData.endDate ? new Date(formData.endDate) : new Date(formData.startDate);
+
+    if (end < start) {
+      return toast.error("End date must be on or after start date");
     }
+
+    const totalDays = computeTotalDays(start, end, formData.startSession, formData.endSession);
+
+    if (totalDays === null) {
+      return toast.error("Invalid session combination: PM to AM on the same day is not allowed");
+    }
+
     setIsLoading(true);
     try {
       const res = await fetch("/api/holiday-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          startDate: formData.startDate,
+          endDate: formData.endDate || formData.startDate,
+          startSession: formData.startSession,
+          endSession: formData.endSession,
+          type: formData.type,
+          notes: formData.notes,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -1227,8 +1310,9 @@ function HolidayRequestModal({ onClose, onSuccess }) {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              {/* Start Date and Session */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
                   <label className="block text-sm font-medium text-slate-700 mb-1">Start Date *</label>
                   <input
                     type="date"
@@ -1239,27 +1323,71 @@ function HolidayRequestModal({ onClose, onSuccess }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">End Date *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Session</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    value={formData.startSession}
+                    onChange={(e) => setFormData({ ...formData, startSession: e.target.value })}
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* End Date and Session */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    End Date <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                  </label>
                   <input
                     type="date"
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Session</label>
+                  <select
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    value={formData.endSession}
+                    onChange={(e) => setFormData({ ...formData, endSession: e.target.value })}
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
                 </div>
               </div>
 
-              {formData.startDate && formData.endDate && (
-                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-sm text-emerald-700 font-medium">
-                    {calculateDays(formData.startDate, formData.endDate)} day{calculateDays(formData.startDate, formData.endDate) !== 1 ? "s" : ""} requested
-                  </span>
-                </div>
-              )}
+              {/* Computed Total Days */}
+              {formData.startDate && (() => {
+                const start = new Date(formData.startDate);
+                const end = formData.endDate ? new Date(formData.endDate) : new Date(formData.startDate);
+                const totalDays = computeTotalDays(start, end, formData.startSession, formData.endSession);
+                const isInvalid = totalDays === null || end < start;
+
+                return (
+                  <div className={`flex items-center gap-2 p-3 rounded-lg ${isInvalid ? 'bg-red-50' : 'bg-emerald-50'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isInvalid ? 'text-red-600' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className={`text-sm font-medium ${isInvalid ? 'text-red-700' : 'text-emerald-700'}`}>
+                      {end < start ? (
+                        "End date must be on or after start date"
+                      ) : totalDays === null ? (
+                        "Invalid: PM to AM on same day not allowed"
+                      ) : (
+                        <>
+                          Total requested: {totalDays} day{totalDays !== 1 ? "s" : ""}
+                          {totalDays === 0.5 && <span className="text-xs opacity-75 ml-1">(half day)</span>}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })()}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
