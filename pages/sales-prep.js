@@ -59,6 +59,18 @@ export default function SalesPrep() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
 
+  // Parts ordering state
+  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+  const [partsOrderForm, setPartsOrderForm] = useState({
+    supplierType: "EURO_CAR_PARTS",
+    supplierName: "",
+    orderRef: "",
+    expectedAt: "",
+    notes: "",
+  });
+  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+
   // Column sorting state
   const [columnSortOptions, setColumnSortOptions] = useState({});
 
@@ -66,6 +78,11 @@ export default function SalesPrep() {
   const [showJobSheetModal, setShowJobSheetModal] = useState(false);
   const [jobSheetLink, setJobSheetLink] = useState(null);
   const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+
+  // Prep summary share state
+  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
 
   // Issues state
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
@@ -330,6 +347,157 @@ export default function SalesPrep() {
     } catch (error) {
       toast.error("Failed to update task progress");
     }
+  };
+
+  // Parts order management functions
+  const openPartsOrderModal = (taskId, existingOrder = null) => {
+    setPartsOrderTaskId(taskId);
+    if (existingOrder) {
+      setEditingPartsOrderId(existingOrder._id || existingOrder.id);
+      setPartsOrderForm({
+        supplierType: existingOrder.supplierType || "EURO_CAR_PARTS",
+        supplierName: existingOrder.supplierName || "",
+        orderRef: existingOrder.orderRef || "",
+        expectedAt: existingOrder.expectedAt ? existingOrder.expectedAt.split("T")[0] : "",
+        notes: existingOrder.notes || "",
+      });
+    } else {
+      setEditingPartsOrderId(null);
+      setPartsOrderForm({
+        supplierType: "EURO_CAR_PARTS",
+        supplierName: "",
+        orderRef: "",
+        expectedAt: "",
+        notes: "",
+      });
+    }
+    setShowPartsOrderModal(true);
+  };
+
+  const closePartsOrderModal = () => {
+    setShowPartsOrderModal(false);
+    setPartsOrderTaskId(null);
+    setEditingPartsOrderId(null);
+    setPartsOrderForm({
+      supplierType: "EURO_CAR_PARTS",
+      supplierName: "",
+      orderRef: "",
+      expectedAt: "",
+      notes: "",
+    });
+  };
+
+  const addPartsOrder = async () => {
+    if (!partsOrderTaskId) return;
+    try {
+      const orderData = {
+        supplierType: partsOrderForm.supplierType,
+        ...(partsOrderForm.supplierType === "OTHER" && partsOrderForm.supplierName && { supplierName: partsOrderForm.supplierName }),
+        ...(partsOrderForm.orderRef && { orderRef: partsOrderForm.orderRef }),
+        ...(partsOrderForm.expectedAt && { expectedAt: partsOrderForm.expectedAt }),
+        ...(partsOrderForm.notes && { notes: partsOrderForm.notes }),
+      };
+
+      await fetch(`/api/tasks/${partsOrderTaskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addPartsOrder: orderData }),
+      });
+
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const data = await res.json();
+      setSelectedVehicle(data);
+      fetchVehicles();
+      closePartsOrderModal();
+      toast.success("Parts order added");
+    } catch (error) {
+      toast.error("Failed to add parts order");
+    }
+  };
+
+  const updatePartsOrder = async () => {
+    if (!partsOrderTaskId || !editingPartsOrderId) return;
+    try {
+      const orderData = {
+        orderId: editingPartsOrderId,
+        supplierType: partsOrderForm.supplierType,
+        supplierName: partsOrderForm.supplierType === "OTHER" ? partsOrderForm.supplierName : null,
+        orderRef: partsOrderForm.orderRef || null,
+        expectedAt: partsOrderForm.expectedAt || null,
+        notes: partsOrderForm.notes || null,
+      };
+
+      await fetch(`/api/tasks/${partsOrderTaskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updatePartsOrder: orderData }),
+      });
+
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const data = await res.json();
+      setSelectedVehicle(data);
+      fetchVehicles();
+      closePartsOrderModal();
+      toast.success("Parts order updated");
+    } catch (error) {
+      toast.error("Failed to update parts order");
+    }
+  };
+
+  const removePartsOrder = async (taskId, orderId) => {
+    if (!confirm("Remove this parts order?")) return;
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removePartsOrderId: orderId }),
+      });
+
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const data = await res.json();
+      setSelectedVehicle(data);
+      fetchVehicles();
+      toast.success("Parts order removed");
+    } catch (error) {
+      toast.error("Failed to remove parts order");
+    }
+  };
+
+  const markPartsReceived = async (taskId, orderId) => {
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          updatePartsOrder: {
+            orderId,
+            status: "RECEIVED",
+            receivedAt: new Date().toISOString(),
+          },
+        }),
+      });
+
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const data = await res.json();
+      setSelectedVehicle(data);
+      fetchVehicles();
+      toast.success("Parts marked as received");
+    } catch (error) {
+      toast.error("Failed to update parts order");
+    }
+  };
+
+  // Helper to get supplier display name
+  const getSupplierDisplay = (order) => {
+    const labels = {
+      EURO_CAR_PARTS: "Euro Car Parts",
+      TPS: "TPS",
+      MAIN_DEALER: "Main Dealer",
+      LOCAL_FACTOR: "Local Factor",
+      ONLINE: "Online",
+      OTHER: order.supplierName || "Other",
+    };
+    return labels[order.supplierType] || order.supplierType;
   };
 
   const updateTaskName = async (taskId, newName) => {
@@ -994,6 +1162,45 @@ export default function SalesPrep() {
   const shareViaWhatsApp = () => {
     if (jobSheetLink?.url) {
       const text = `Job sheet for ${selectedVehicle?.regCurrent}: ${jobSheetLink.url}`;
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    }
+  };
+
+  // Prep summary share handlers
+  const handleGeneratePrepSummary = async () => {
+    if (!selectedVehicle) return;
+    setIsGeneratingPrepSummary(true);
+    try {
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/prep-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays: 60 }),
+      });
+      if (!res.ok) throw new Error("Failed to generate share link");
+      const data = await res.json();
+      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+      setPrepSummaryLink({
+        url: fullUrl,
+        expiresAt: data.expiresAt,
+      });
+      setShowPrepSummaryModal(true);
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsGeneratingPrepSummary(false);
+    }
+  };
+
+  const copyPrepSummaryLink = () => {
+    if (prepSummaryLink?.url) {
+      navigator.clipboard.writeText(prepSummaryLink.url);
+      toast.success("Link copied to clipboard!");
+    }
+  };
+
+  const sharePrepSummaryViaWhatsApp = () => {
+    if (prepSummaryLink?.url) {
+      const text = `Prep summary for ${selectedVehicle?.regCurrent}: ${prepSummaryLink.url}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
   };
@@ -2050,6 +2257,17 @@ export default function SalesPrep() {
                   </svg>
                   {isGeneratingJobSheet ? "..." : "Share"}
                 </button>
+                <button
+                  className="hidden md:flex btn btn-outline btn-sm"
+                  onClick={handleGeneratePrepSummary}
+                  disabled={isGeneratingPrepSummary}
+                  title="Export prep summary PDF"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {isGeneratingPrepSummary ? "..." : "Prep PDF"}
+                </button>
                 <button className="hidden md:flex btn btn-outline btn-sm" onClick={handlePrintVehicle} title="Print vehicle details">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -2624,14 +2842,21 @@ export default function SalesPrep() {
                                 title="Click to edit"
                               >
                                 {task.name}
-                                {/* Show progress chip next to task name */}
-                                {task.progress && task.progress !== "NONE" && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
-                                    {task.progress === "PARTS_ORDERED" && "Parts Ordered"}
-                                    {task.progress === "AWAITING_PARTS" && "Awaiting Parts"}
-                                    {task.progress === "BOOKED_IN" && "Booked In"}
-                                    {task.progress === "IN_WORKSHOP" && "In Workshop"}
-                                    {task.progressNote && ` - ${task.progressNote}`}
+                                {/* Show parts status chip next to task name */}
+                                {task.partsOrders?.length > 0 && (
+                                  <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                                    task.partsOrders.every(o => o.status === "RECEIVED")
+                                      ? "bg-green-100 text-green-800 border border-green-200"
+                                      : task.partsOrders.some(o => o.status === "RECEIVED")
+                                        ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                                  }`}>
+                                    {task.partsOrders.every(o => o.status === "RECEIVED")
+                                      ? `✓ Parts Received (${task.partsOrders.length})`
+                                      : task.partsOrders.some(o => o.status === "RECEIVED")
+                                        ? `Parts: ${task.partsOrders.filter(o => o.status === "RECEIVED").length}/${task.partsOrders.length} Received`
+                                        : `Parts Ordered (${task.partsOrders.length})`
+                                    }
                                   </span>
                                 )}
                               </span>
@@ -2641,6 +2866,19 @@ export default function SalesPrep() {
                                 {formatDate(task.completedAt)}
                               </span>
                             )}
+                            {/* Order Parts button - show for pending/in_progress tasks */}
+                            {task.status !== "done" && task.status !== "not_required" && (
+                              <button
+                                className="btn btn-ghost btn-xs text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPartsOrderModal(task.id);
+                                }}
+                                title="Order Parts"
+                              >
+                                + Parts
+                              </button>
+                            )}
                             <button
                               className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => deleteTask(task.id)}
@@ -2648,32 +2886,61 @@ export default function SalesPrep() {
                               ✕
                             </button>
                           </div>
-                          {/* Progress sub-status row - only show for in_progress tasks */}
-                          {task.status === "in_progress" && (
-                            <div className="flex items-center gap-2 mt-2 ml-6 pl-2 border-l-2 border-amber-300">
-                              <span className="text-xs text-base-content/60">Progress:</span>
-                              <select
-                                className="select select-bordered select-xs"
-                                value={task.progress || "NONE"}
-                                onChange={(e) => updateTaskProgress(task.id, e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <option value="NONE">Not set</option>
-                                <option value="PARTS_ORDERED">Parts Ordered</option>
-                                <option value="AWAITING_PARTS">Awaiting Parts</option>
-                                <option value="BOOKED_IN">Booked In</option>
-                                <option value="IN_WORKSHOP">In Workshop</option>
-                              </select>
-                              {task.progress && task.progress !== "NONE" && (
-                                <input
-                                  type="text"
-                                  className="input input-bordered input-xs flex-1"
-                                  placeholder="Add note (e.g., Euro Car Parts)"
-                                  value={task.progressNote || ""}
-                                  onChange={(e) => updateTaskProgress(task.id, task.progress, e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              )}
+                          {/* Parts orders section - show if task has parts orders */}
+                          {task.partsOrders?.length > 0 && (
+                            <div className="mt-2 ml-6 pl-2 border-l-2 border-amber-300 space-y-1">
+                              {task.partsOrders.map((order) => (
+                                <div key={order._id || order.id} className="flex items-center gap-2 text-xs">
+                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    order.status === "RECEIVED"
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-amber-100 text-amber-700"
+                                  }`}>
+                                    {order.status === "RECEIVED" ? "✓" : "⏳"}
+                                  </span>
+                                  <span className="text-base-content/80">{getSupplierDisplay(order)}</span>
+                                  {order.orderRef && (
+                                    <span className="text-base-content/50">Ref: {order.orderRef}</span>
+                                  )}
+                                  {order.expectedAt && order.status !== "RECEIVED" && (
+                                    <span className="text-base-content/50">
+                                      ETA: {formatDate(order.expectedAt)}
+                                    </span>
+                                  )}
+                                  {order.status !== "RECEIVED" && (
+                                    <button
+                                      className="btn btn-ghost btn-xs text-green-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markPartsReceived(task.id, order._id || order.id);
+                                      }}
+                                      title="Mark as Received"
+                                    >
+                                      ✓ Received
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn btn-ghost btn-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openPartsOrderModal(task.id, order);
+                                    }}
+                                    title="Edit"
+                                  >
+                                    ✎
+                                  </button>
+                                  <button
+                                    className="btn btn-ghost btn-xs text-error"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      removePartsOrder(task.id, order._id || order.id);
+                                    }}
+                                    title="Remove"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
                             </div>
                           )}
                         </div>
@@ -2935,6 +3202,9 @@ export default function SalesPrep() {
                             activity.type === "TASK_COMPLETED" ? "bg-emerald-100" :
                             activity.type === "TASK_STATUS_UPDATED" ? "bg-amber-100" :
                             activity.type === "TASK_PROGRESS_UPDATED" ? "bg-orange-100" :
+                            activity.type === "TASK_PARTS_STATUS_CHANGED" || activity.type === "TASK_PARTS_ORDER_ADDED" ? "bg-amber-100" :
+                            activity.type === "TASK_PARTS_ORDER_UPDATED" ? "bg-blue-100" :
+                            activity.type === "TASK_PARTS_ORDER_REMOVED" ? "bg-red-100" :
                             activity.type === "TASK_ADDED" || activity.type === "TASK_DELETED" ? "bg-slate-100" :
                             activity.type === "ISSUE_ADDED" ? "bg-red-100" :
                             activity.type === "ISSUE_RESOLVED" ? "bg-green-100" :
@@ -2994,6 +3264,22 @@ export default function SalesPrep() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             )}
+                            {/* Parts ordering events */}
+                            {(activity.type === "TASK_PARTS_STATUS_CHANGED" || activity.type === "TASK_PARTS_ORDER_ADDED") && (
+                              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                              </svg>
+                            )}
+                            {activity.type === "TASK_PARTS_ORDER_UPDATED" && (
+                              <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            )}
+                            {activity.type === "TASK_PARTS_ORDER_REMOVED" && (
+                              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            )}
                             {/* Issue events */}
                             {activity.type === "ISSUE_ADDED" && (
                               <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3024,6 +3310,7 @@ export default function SalesPrep() {
                             {/* Fallback for any unhandled types */}
                             {!["VEHICLE_CREATED", "STATUS_CHANGED", "TYPE_CHANGED", "LOCATION_CHANGED", "DETAILS_UPDATED",
                                "TASK_COMPLETED", "TASK_STATUS_UPDATED", "TASK_PROGRESS_UPDATED", "TASK_ADDED", "TASK_UPDATED", "TASK_DELETED",
+                               "TASK_PARTS_STATUS_CHANGED", "TASK_PARTS_ORDER_ADDED", "TASK_PARTS_ORDER_UPDATED", "TASK_PARTS_ORDER_REMOVED",
                                "ISSUE_ADDED", "ISSUE_RESOLVED", "ISSUE_UPDATED", "ISSUE_COMMENT_ADDED", "ISSUE_DELETED",
                                "DOC_UPLOADED", "DOC_DELETED"].includes(activity.type) && (
                               <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3152,6 +3439,107 @@ export default function SalesPrep() {
             });
           }}
         />
+      )}
+
+      {/* Parts Order Modal */}
+      {showPartsOrderModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingPartsOrderId ? "Edit Parts Order" : "Add Parts Order"}
+              </h3>
+              <button
+                onClick={closePartsOrderModal}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Supplier</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={partsOrderForm.supplierType}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierType: e.target.value })}
+                >
+                  <option value="EURO_CAR_PARTS">Euro Car Parts</option>
+                  <option value="TPS">TPS</option>
+                  <option value="MAIN_DEALER">Main Dealer</option>
+                  <option value="LOCAL_FACTOR">Local Factor</option>
+                  <option value="ONLINE">Online</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+              {partsOrderForm.supplierType === "OTHER" && (
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Supplier Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter supplier name"
+                    className="input input-bordered w-full"
+                    value={partsOrderForm.supplierName}
+                    onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
+                  />
+                </div>
+              )}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Order Reference (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., ORD-123456"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.orderRef}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, orderRef: e.target.value })}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Expected Delivery (Optional)</span>
+                </label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.expectedAt}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, expectedAt: e.target.value })}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Notes (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Oil filter + air filter"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.notes}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, notes: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-slate-200">
+              <button
+                className="btn btn-ghost"
+                onClick={closePartsOrderModal}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={editingPartsOrderId ? updatePartsOrder : addPartsOrder}
+              >
+                {editingPartsOrderId ? "Update" : "Add Order"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Add Label Modal */}
@@ -3335,6 +3723,101 @@ export default function SalesPrep() {
                 onClick={() => {
                   setShowJobSheetModal(false);
                   setJobSheetLink(null);
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prep Summary Share Modal */}
+      {showPrepSummaryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Prep Summary PDF</h3>
+              <button
+                onClick={() => {
+                  setShowPrepSummaryModal(false);
+                  setPrepSummaryLink(null);
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              {isGeneratingPrepSummary ? (
+                <div className="flex flex-col items-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <p className="text-slate-600">Generating prep summary...</p>
+                </div>
+              ) : prepSummaryLink ? (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Shareable Link</p>
+                    <p className="text-sm font-mono text-slate-900 break-all">{prepSummaryLink.url}</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    This link expires in 60 days. Click Print/PDF to save a PDF of the prep summary.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={copyPrepSummaryLink}
+                      className="btn btn-outline btn-sm gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Copy Link
+                    </button>
+                    <button
+                      onClick={sharePrepSummaryViaWhatsApp}
+                      className="btn btn-success btn-sm gap-2 text-white"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                      </svg>
+                      WhatsApp
+                    </button>
+                    <button
+                      onClick={() => {
+                        const subject = `Prep Summary - ${selectedVehicle?.regCurrent || 'Vehicle'}`;
+                        const body = `Here is the prep summary for ${selectedVehicle?.regCurrent || 'the vehicle'}:\n\n${prepSummaryLink.url}`;
+                        window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+                      }}
+                      className="btn btn-outline btn-sm gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Email
+                    </button>
+                    <button
+                      onClick={() => window.open(prepSummaryLink.url, '_blank')}
+                      className="btn btn-primary btn-sm gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      Print / PDF
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  No link generated yet
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end p-4 border-t border-slate-200">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowPrepSummaryModal(false);
+                  setPrepSummaryLink(null);
                 }}
               >
                 Close

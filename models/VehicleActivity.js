@@ -4,28 +4,39 @@ import toJSON from "./plugins/toJSON";
 const ACTIVITY_TYPES = [
   // Vehicle lifecycle
   "VEHICLE_CREATED",
-  "STATUS_CHANGED",      // Kanban column move
+  "VEHICLE_UPDATED",     // Meaningful field changes
+  "STATUS_CHANGED",      // Kanban column move (VEHICLE_STAGE_MOVED)
   "LOCATION_CHANGED",
-  "TYPE_CHANGED",        // STOCK -> COURTESY, FLEET_OTHER etc.
+  "TYPE_CHANGED",        // STOCK -> COURTESY, FLEET_OTHER etc. (VEHICLE_TYPE_SET)
   "DETAILS_UPDATED",
   "NOTE_ADDED",
   "LABELS_UPDATED",
   // Task events
   "TASK_ADDED",
-  "TASK_STATUS_UPDATED", // Pending -> In Progress -> Complete
+  "TASK_REMOVED",
+  "TASK_STATUS_UPDATED", // Pending -> In Progress -> Complete (TASK_STATUS_CHANGED)
   "TASK_COMPLETED",      // Specifically when marked complete
-  "TASK_PROGRESS_UPDATED", // Parts ordering sub-status
+  "TASK_PROGRESS_UPDATED", // Legacy progress sub-status
   "TASK_UPDATED",        // Name/notes changed
   "TASK_DELETED",
+  // Parts ordering events
+  "TASK_PARTS_STATUS_CHANGED", // Overall parts status changed
+  "TASK_PARTS_ORDER_ADDED",    // New parts order created
+  "TASK_PARTS_ORDER_UPDATED",  // Parts order updated (status, expected date, etc.)
+  "TASK_PARTS_ORDER_REMOVED",  // Parts order removed
   // Issue events
-  "ISSUE_ADDED",
+  "ISSUE_ADDED",         // ISSUE_CREATED
   "ISSUE_UPDATED",
   "ISSUE_DELETED",
   "ISSUE_RESOLVED",
+  "ISSUE_REOPENED",
   "ISSUE_COMMENT_ADDED",
   // Document events
-  "DOC_UPLOADED",
-  "DOC_DELETED",
+  "DOC_UPLOADED",        // DOCUMENT_UPLOADED
+  "DOC_DELETED",         // DOCUMENT_DELETED
+  // Export/Share events
+  "PDF_EXPORTED",
+  "CARD_SHARED",         // WhatsApp/email share
 ];
 
 const vehicleActivitySchema = new mongoose.Schema(

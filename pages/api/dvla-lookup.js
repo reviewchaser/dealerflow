@@ -3,7 +3,11 @@
  *
  * Uses the official DVLA VES API to lookup vehicle details by registration number.
  * API Documentation: https://developer-portal.driver-vehicle-licensing.api.gov.uk/
+ *
+ * Returns normalized vehicle data using shared normalizer.
  */
+
+import { normalizeVrm, normalizeDvlaResponse } from "@/libs/vehicle/normalizeVrmLookup";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -111,31 +115,18 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // Transform DVLA response to our format
+    // Use shared normalizer for consistent response shape
+    const normalizedData = normalizeDvlaResponse(data);
+
+    // Also include legacy field names for backwards compatibility
     const vehicleData = {
+      ...normalizedData,
+      // Legacy field mappings
       isDummy: false,
-      registrationNumber: data.registrationNumber,
-      make: data.make,
-      model: data.model || "", // DVLA doesn't always return model
-      colour: data.colour,
-      yearOfManufacture: data.yearOfManufacture,
-      engineCapacity: data.engineCapacity,
-      fuelType: data.fuelType,
-      transmission: data.transmission || "",
-      taxStatus: data.taxStatus,
-      taxDueDate: data.taxDueDate,
-      motStatus: data.motStatus,
-      motExpiryDate: data.motExpiryDate,
-      // Additional fields from DVLA
-      co2Emissions: data.co2Emissions,
-      euroStatus: data.euroStatus,
-      markedForExport: data.markedForExport,
-      typeApproval: data.typeApproval,
-      wheelplan: data.wheelplan,
-      monthOfFirstRegistration: data.monthOfFirstRegistration,
-      dateOfLastV5CIssued: data.dateOfLastV5CIssued,
-      revenueWeight: data.revenueWeight,
-      realDrivingEmissions: data.realDrivingEmissions,
+      registrationNumber: normalizedData.vrm,
+      yearOfManufacture: normalizedData.year,
+      // Flag if model is missing (needs manual entry)
+      modelMissing: !normalizedData.model || normalizedData.model.trim() === "",
     };
 
     return res.status(200).json(vehicleData);
@@ -179,10 +170,10 @@ function generateDummyData(vehicleReg) {
 
   const motExpiryDate = new Date();
   motExpiryDate.setDate(motExpiryDate.getDate() + daysOffset);
+  const motExpiryStr = motExpiryDate.toISOString().split("T")[0];
 
-  return {
-    isDummy: true,
-    message: "DVLA API not configured - showing demo data",
+  // Create raw DVLA-like data
+  const rawData = {
     registrationNumber: vehicleReg,
     make: "FORD",
     model: "FOCUS",
@@ -194,6 +185,19 @@ function generateDummyData(vehicleReg) {
     taxStatus: "Taxed",
     taxDueDate: "2025-03-01",
     motStatus: motStatus,
-    motExpiryDate: motExpiryDate.toISOString().split("T")[0],
+    motExpiryDate: motExpiryStr,
+  };
+
+  // Normalize using shared normalizer
+  const normalizedData = normalizeDvlaResponse(rawData);
+
+  return {
+    ...normalizedData,
+    isDummy: true,
+    message: "DVLA API not configured - showing demo data",
+    // Legacy field mappings
+    registrationNumber: normalizedData.vrm,
+    yearOfManufacture: normalizedData.year,
+    modelMissing: false,
   };
 }
