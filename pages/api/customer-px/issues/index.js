@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "POST") {
-      const { customerPXAppraisalId, category, subcategory, description, photos, actionNeeded, estimatedCost, notes, faultCodes, status } = req.body;
+      const { customerPXAppraisalId, category, subcategory, description, photos, attachments, actionNeeded, estimatedCost, notes, faultCodes, status } = req.body;
 
       if (!customerPXAppraisalId || !category || !description) {
         return res.status(400).json({ error: "customerPXAppraisalId, category, and description required" });
@@ -39,6 +39,7 @@ export default async function handler(req, res) {
         subcategory: subcategory || "Other",
         description,
         photos: photos || [],
+        attachments: attachments || [],
         actionNeeded,
         estimatedCost,
         notes,

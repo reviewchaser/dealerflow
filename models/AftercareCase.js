@@ -68,7 +68,12 @@ const aftercareCaseSchema = new mongoose.Schema(
           "COURTESY_ALLOCATED",
           "COURTESY_RETURNED",
           "COURTESY_OUT_RECORDED",
-          "COURTESY_IN_RECORDED"
+          "COURTESY_IN_RECORDED",
+          // Warranty booking auto-move events
+          "WARRANTY_BOOKED_IN",
+          "WARRANTY_BOOKING_UPDATED",
+          "WARRANTY_BOOKING_CANCELLED",
+          "WARRANTY_STAGE_MOVED"
         ],
         required: true
       },
@@ -95,6 +100,7 @@ const aftercareCaseSchema = new mongoose.Schema(
     // Booking fields
     bookedInAt: { type: Date }, // booking date/time
     linkedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" }, // linked warranty booking calendar event
+    previousBoardStatusBeforeBookedIn: { type: String }, // for restoring if booking removed
 
     // Parts fields
     partsRequired: { type: Boolean, default: false },

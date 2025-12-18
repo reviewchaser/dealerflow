@@ -107,22 +107,15 @@ async function handler(req, res, ctx) {
       THIRD_PARTY: "Third-party"
     };
 
-    // Handle custom event types (LOCATION_UPDATED, BOOKING_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED)
-    if (_eventType && ["LOCATION_UPDATED", "BOOKING_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED"].includes(_eventType)) {
+    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED)
+    // Note: BOOKING_UPDATED is now handled separately with auto-move logic below
+    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED"].includes(_eventType)) {
       let summary = "";
       switch (_eventType) {
         case "LOCATION_UPDATED":
           const fromLoc = _eventMetadata?.fromLocation || "WITH_CUSTOMER";
           const toLoc = _eventMetadata?.toLocation || "WITH_CUSTOMER";
           summary = `Repair location changed from "${LOCATION_LABELS[fromLoc] || fromLoc}" to "${LOCATION_LABELS[toLoc] || toLoc}"`;
-          break;
-        case "BOOKING_UPDATED":
-          if (_eventMetadata?.newBookedAt) {
-            const bookedDate = new Date(_eventMetadata.newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-            summary = `Booking set: ${bookedDate}`;
-          } else {
-            summary = "Booking date cleared";
-          }
           break;
         case "PARTS_UPDATED":
           if (_eventMetadata?.partsRequired !== undefined) {
@@ -155,8 +148,18 @@ async function handler(req, res, ctx) {
       updateObj.$push = { events: { $each: events } };
     }
 
-    // ===== Calendar Event Automation for Warranty Bookings =====
-    // Idempotent: create/update/delete calendar event when bookedInAt changes
+    // ===== Calendar Event & Auto-Move Automation for Warranty Bookings =====
+    // Stages in order: not_booked_in → on_site (Booked In) → work_complete → collected
+    // Auto-move rules:
+    // - When booking set: if in not_booked_in, move to on_site
+    // - When booking cleared: if in on_site, move back to previous status
+    // - Never move backwards from work_complete or collected
+
+    // Track if auto-move happened for UI feedback
+    let autoMoved = false;
+    let autoMovedFrom = null;
+    let autoMovedTo = null;
+
     if (_eventType === "BOOKING_UPDATED") {
       const currentCase = await AftercareCase.findOne({ _id: id, dealerId })
         .populate("contactId")
@@ -164,10 +167,75 @@ async function handler(req, res, ctx) {
         .lean();
 
       if (currentCase) {
+        const oldBookedAt = currentCase.bookedInAt;
         const newBookedAt = _eventMetadata?.newBookedAt ? new Date(_eventMetadata.newBookedAt) : null;
+        const currentStatus = currentCase.boardStatus;
 
-        if (newBookedAt) {
-          // Get or create "Warranty" calendar category
+        // Define stage ordering for comparison
+        const STAGE_ORDER = ["not_booked_in", "on_site", "work_complete", "collected"];
+        const PRE_BOOKING_STAGES = ["not_booked_in"]; // Stages that can auto-move to on_site
+        const POST_BOOKING_STAGES = ["work_complete", "collected"]; // Stages that should never move backwards
+
+        // Determine booking transition type
+        const wasNull = !oldBookedAt;
+        const isNull = !newBookedAt;
+
+        if (!isNull) {
+          // Booking is being SET or UPDATED
+
+          if (wasNull) {
+            // === CASE A: Booking SET (null → Date) ===
+            // Add WARRANTY_BOOKED_IN event
+            events.push({
+              type: "WARRANTY_BOOKED_IN",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Booking set: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+              metadata: { bookingDateTime: newBookedAt }
+            });
+
+            // Auto-move if in pre-booking stage and NOT in closed/later stages
+            if (PRE_BOOKING_STAGES.includes(currentStatus) && !POST_BOOKING_STAGES.includes(currentStatus)) {
+              // Store previous status for potential restore
+              updateObj.previousBoardStatusBeforeBookedIn = currentStatus;
+              updateObj.boardStatus = "on_site";
+              autoMoved = true;
+              autoMovedFrom = currentStatus;
+              autoMovedTo = "on_site";
+
+              // Add auto-move timeline event
+              events.push({
+                type: "WARRANTY_STAGE_MOVED",
+                createdAt: new Date(),
+                createdByUserId: userId,
+                createdByName: userName,
+                summary: `Auto-moved from "${BOARD_STATUS_LABELS[currentStatus]}" to "Booked In" (booking set)`,
+                metadata: {
+                  fromStatus: currentStatus,
+                  toStatus: "on_site",
+                  source: "SYSTEM",
+                  reason: "BOOKING_SET"
+                }
+              });
+            }
+          } else {
+            // === CASE B: Booking CHANGED (Date → Date) ===
+            // Just update, don't move
+            events.push({
+              type: "WARRANTY_BOOKING_UPDATED",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Booking updated: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+              metadata: {
+                oldBookingDateTime: oldBookedAt,
+                newBookingDateTime: newBookedAt
+              }
+            });
+          }
+
+          // === Calendar event create/update ===
           let warrantyCategory = await CalendarCategory.findOne({
             dealerId,
             name: "Warranty",
@@ -180,12 +248,10 @@ async function handler(req, res, ctx) {
             });
           }
 
-          // Build event title and description
           const vrm = currentCase.currentReg || currentCase.vehicleId?.vrm || currentCase.regAtPurchase || "Unknown";
           const customerName = currentCase.contactId?.name || "Customer";
           const title = `Warranty: ${vrm} – ${customerName}`;
 
-          // Build description with repair location and issue summary
           const repairLocLabel = LOCATION_LABELS[currentCase.repairLocationType] || currentCase.repairLocationType;
           let description = `Repair location: ${repairLocLabel}`;
           if (currentCase.repairLocationName) {
@@ -195,12 +261,10 @@ async function handler(req, res, ctx) {
             description += `\n\nIssue: ${currentCase.summary}`;
           }
 
-          // Set end time 2 hours after start (typical booking duration)
           const startDatetime = newBookedAt;
           const endDatetime = new Date(newBookedAt.getTime() + 2 * 60 * 60 * 1000);
 
           if (currentCase.linkedCalendarEventId) {
-            // Update existing calendar event
             await CalendarEvent.findByIdAndUpdate(currentCase.linkedCalendarEventId, {
               title,
               description,
@@ -209,7 +273,6 @@ async function handler(req, res, ctx) {
               endDatetime,
             });
           } else {
-            // Create new calendar event
             const calendarEvent = await CalendarEvent.create({
               dealerId,
               title,
@@ -220,17 +283,55 @@ async function handler(req, res, ctx) {
               createdByUserId: userId,
               linkedAftercareCaseId: id,
             });
-            // Store the calendar event ID on the case
             updateObj.linkedCalendarEventId = calendarEvent._id;
           }
-        } else {
-          // Booking cleared - delete linked calendar event
+        } else if (!wasNull && isNull) {
+          // === CASE C: Booking CANCELLED (Date → null) ===
+          events.push({
+            type: "WARRANTY_BOOKING_CANCELLED",
+            createdAt: new Date(),
+            createdByUserId: userId,
+            createdByName: userName,
+            summary: "Booking cancelled",
+            metadata: { previousBookingDateTime: oldBookedAt }
+          });
+
+          // Auto-move back if currently in on_site (Booked In) stage
+          if (currentStatus === "on_site") {
+            const restoreStatus = currentCase.previousBoardStatusBeforeBookedIn || "not_booked_in";
+            updateObj.boardStatus = restoreStatus;
+            updateObj.previousBoardStatusBeforeBookedIn = null; // Clear the stored status
+            autoMoved = true;
+            autoMovedFrom = "on_site";
+            autoMovedTo = restoreStatus;
+
+            events.push({
+              type: "WARRANTY_STAGE_MOVED",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Auto-moved from "Booked In" to "${BOARD_STATUS_LABELS[restoreStatus]}" (booking cancelled)`,
+              metadata: {
+                fromStatus: "on_site",
+                toStatus: restoreStatus,
+                source: "SYSTEM",
+                reason: "BOOKING_CANCELLED"
+              }
+            });
+          }
+
+          // Delete linked calendar event
           if (currentCase.linkedCalendarEventId) {
             await CalendarEvent.findByIdAndDelete(currentCase.linkedCalendarEventId);
             updateObj.linkedCalendarEventId = null;
           }
         }
       }
+    }
+
+    // Re-apply events to updateObj if new events were added during booking logic
+    if (events.length > 0) {
+      updateObj.$push = { events: { $each: events } };
     }
 
     // Use updateOne to get modifiedCount, then fetch the updated document
@@ -253,7 +354,11 @@ async function handler(req, res, ctx) {
     return res.status(200).json({
       ok: true,
       modifiedCount: updateResult.modifiedCount,
-      case: aftercareCase
+      case: aftercareCase,
+      // Auto-move info for UI feedback
+      autoMoved,
+      autoMovedFrom,
+      autoMovedTo
     });
   }
 

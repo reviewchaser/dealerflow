@@ -46,6 +46,11 @@ const EVENT_ICONS = {
   COURTESY_RETURNED: "🚗",
   COURTESY_OUT_RECORDED: "🚗",
   COURTESY_IN_RECORDED: "🚗",
+  // Warranty booking auto-move events
+  WARRANTY_BOOKED_IN: "📅",
+  WARRANTY_BOOKING_UPDATED: "📅",
+  WARRANTY_BOOKING_CANCELLED: "❌",
+  WARRANTY_STAGE_MOVED: "🔀",
 };
 
 // Timeline grouping constant
@@ -274,8 +279,24 @@ export default function Warranty() {
           (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
         ));
       }
-      if (successMessage) toast.success(successMessage);
-      return true;
+
+      // Handle auto-move toast messages for booking changes
+      if (data.autoMoved) {
+        const COLUMN_LABELS = {
+          not_booked_in: "Not Booked In",
+          on_site: "Booked In",
+          work_complete: "Work Complete",
+          collected: "Closed"
+        };
+        if (data.autoMovedTo === "on_site") {
+          toast.success(`Booked in — moved to Booked In`, { duration: 4000 });
+        } else if (data.autoMovedFrom === "on_site") {
+          toast.success(`Booking cancelled — moved back to ${COLUMN_LABELS[data.autoMovedTo] || data.autoMovedTo}`, { duration: 4000 });
+        }
+      } else if (successMessage) {
+        toast.success(successMessage);
+      }
+      return data;
     } catch (error) {
       toast.error(error.message || "Failed to update case");
       return false;
@@ -1407,11 +1428,12 @@ export default function Warranty() {
                       onChange={async (e) => {
                         const newValue = e.target.value ? new Date(e.target.value).toISOString() : null;
                         const oldValue = selectedCase.bookedInAt || null;
+                        // Pass "Booking updated" as fallback message when no auto-move happens
                         await updateCase({
                           bookedInAt: newValue,
                           _eventType: "BOOKING_UPDATED",
                           _eventMetadata: { oldBookedAt: oldValue, newBookedAt: newValue }
-                        }, newValue ? "Booking date set" : "Booking date cleared");
+                        }, newValue ? "Booking updated" : null); // No fallback message when clearing, auto-move logic will handle it
                       }}
                     />
                     {selectedCase.bookedInAt && (
@@ -1419,11 +1441,12 @@ export default function Warranty() {
                         className="btn btn-ghost btn-xs mt-1 self-start"
                         onClick={async () => {
                           const oldValue = selectedCase.bookedInAt;
+                          // No fallback message - auto-move logic will show appropriate toast
                           await updateCase({
                             bookedInAt: null,
                             _eventType: "BOOKING_UPDATED",
                             _eventMetadata: { oldBookedAt: oldValue, newBookedAt: null }
-                          }, "Booking date cleared");
+                          }, "Booking cleared");
                         }}
                       >
                         Clear booking

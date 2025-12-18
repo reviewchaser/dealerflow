@@ -6,7 +6,7 @@ import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
 
 const COLUMNS = [
-  { key: "in_stock", label: "In Prep", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+  { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
   { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
   { key: "live", label: "Sold In Progress", gradient: "from-purple-100/60", accent: "border-l-purple-400", accentBg: "bg-purple-400" },
   { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
@@ -83,6 +83,10 @@ export default function SalesPrep() {
   const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
   const [prepSummaryLink, setPrepSummaryLink] = useState(null);
   const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+
+  // Manual share fallback modal
+  const [showManualShareModal, setShowManualShareModal] = useState(false);
+  const [manualShareUrl, setManualShareUrl] = useState("");
 
   // Issues state
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
@@ -1127,6 +1131,38 @@ export default function SalesPrep() {
     printWindow.document.close();
   };
 
+  // Share utility with fallback chain: Web Share API → Clipboard → Manual modal
+  const shareWithFallback = async (url, title, text) => {
+    // 1. Try Web Share API (native sharing on mobile/supported browsers)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return true;
+      } catch (error) {
+        // User cancelled or share failed - continue to fallback
+        if (error.name !== "AbortError") {
+          console.log("Web Share API failed, trying clipboard fallback");
+        }
+      }
+    }
+
+    // 2. Try Clipboard API
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard!");
+        return true;
+      } catch (error) {
+        console.log("Clipboard API failed, showing manual modal");
+      }
+    }
+
+    // 3. Fallback to manual modal
+    setManualShareUrl(url);
+    setShowManualShareModal(true);
+    return false;
+  };
+
   // Job sheet share handlers
   const handleGenerateJobSheet = async () => {
     if (!selectedVehicle) return;
@@ -1152,10 +1188,13 @@ export default function SalesPrep() {
     }
   };
 
-  const copyJobSheetLink = () => {
+  const copyJobSheetLink = async () => {
     if (jobSheetLink?.url) {
-      navigator.clipboard.writeText(jobSheetLink.url);
-      toast.success("Link copied to clipboard!");
+      await shareWithFallback(
+        jobSheetLink.url,
+        `Job Sheet - ${selectedVehicle?.regCurrent || "Vehicle"}`,
+        `Job sheet for ${selectedVehicle?.regCurrent}: ${jobSheetLink.url}`
+      );
     }
   };
 
@@ -1191,10 +1230,13 @@ export default function SalesPrep() {
     }
   };
 
-  const copyPrepSummaryLink = () => {
+  const copyPrepSummaryLink = async () => {
     if (prepSummaryLink?.url) {
-      navigator.clipboard.writeText(prepSummaryLink.url);
-      toast.success("Link copied to clipboard!");
+      await shareWithFallback(
+        prepSummaryLink.url,
+        `Prep Summary - ${selectedVehicle?.regCurrent || "Vehicle"}`,
+        `Prep summary for ${selectedVehicle?.regCurrent}: ${prepSummaryLink.url}`
+      );
     }
   };
 
@@ -1206,7 +1248,9 @@ export default function SalesPrep() {
   };
 
   const getMOTStatus = (motExpiryDate) => {
-    if (!motExpiryDate) return null;
+    if (!motExpiryDate) {
+      return { type: "unknown", label: "Unknown", days: null, class: "bg-slate-100 text-slate-500 border border-slate-200" };
+    }
     const expiry = new Date(motExpiryDate);
     const now = new Date();
     const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
@@ -1218,7 +1262,7 @@ export default function SalesPrep() {
     if (daysUntilExpiry <= 30) {
       return { type: "due_soon", label: `${daysUntilExpiry}d`, days: daysUntilExpiry, class: "bg-amber-50 text-amber-700 border border-amber-200" };
     }
-    return null;
+    return { type: "valid", label: `${daysUntilExpiry}d`, days: daysUntilExpiry, class: null };
   };
 
   const getActiveIssuesByCategory = (issues = []) => {
@@ -1906,6 +1950,14 @@ export default function SalesPrep() {
                                 MOT {motStatus.label}
                               </span>
                             )}
+                            {motStatus?.type === "unknown" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT ?
+                              </span>
+                            )}
                             {/* Issue Pills with Icons */}
                             {Object.entries(issueCounts).map(([category, count]) => {
                               const style = issueCategoryStyles[category] || issueCategoryStyles.Other;
@@ -2130,6 +2182,14 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 MOT {motStatus.label}
+                              </span>
+                            )}
+                            {motStatus?.type === "unknown" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT ?
                               </span>
                             )}
                             {/* Issue Pills with Icons */}
@@ -3826,6 +3886,71 @@ export default function SalesPrep() {
           </div>
         </div>
       )}
+
+      {/* Manual Share Fallback Modal */}
+      {showManualShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Share Link</h3>
+              <button
+                onClick={() => {
+                  setShowManualShareModal(false);
+                  setManualShareUrl("");
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <p className="text-sm text-slate-600">
+                Copy the link below to share:
+              </p>
+              <div className="bg-slate-50 rounded-lg p-3 relative">
+                <input
+                  type="text"
+                  value={manualShareUrl}
+                  readOnly
+                  className="w-full bg-transparent text-sm font-mono text-slate-900 border-none focus:outline-none pr-10"
+                  onClick={(e) => e.target.select()}
+                />
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(manualShareUrl);
+                      toast.success("Link copied!");
+                    } catch {
+                      // If clipboard still fails, user can manually copy
+                      toast.info("Select and copy the link manually");
+                    }
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-200 rounded transition-colors"
+                  title="Copy to clipboard"
+                >
+                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">
+                Click the link to select it, then use Ctrl+C (or Cmd+C on Mac) to copy.
+              </p>
+            </div>
+            <div className="flex justify-end p-4 border-t border-slate-200">
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowManualShareModal(false);
+                  setManualShareUrl("");
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 }
@@ -3838,6 +3963,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     regCurrent: "", make: "", model: "", year: "", mileageCurrent: "",
     fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
+    motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
     type: "STOCK", // STOCK, COURTESY, FLEET_OTHER
     saleType: "RETAIL", // RETAIL, TRADE - only used when type is STOCK
   });
@@ -4180,18 +4306,29 @@ function AddVehicleModal({ onClose, onSuccess }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
-        <h3 className="font-bold text-lg mb-4">Add Vehicle</h3>
+      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <form onSubmit={handleSubmit}>
           {/* Vehicle Details Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Vehicle Details</h4>
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
             <div className="relative flex gap-2 mb-4">
               <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Registration"
-                  className="input input-bordered w-full uppercase font-mono"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg uppercase font-mono text-slate-900 placeholder-slate-400 focus:bg-white focus:border-transparent focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
                   value={formData.regCurrent}
                   onChange={(e) => {
                     const newValue = e.target.value.toUpperCase();
@@ -4237,8 +4374,13 @@ function AddVehicleModal({ onClose, onSuccess }) {
                   </div>
                 )}
               </div>
-              <button type="button" className="btn btn-secondary" onClick={handleLookup} disabled={isLookingUp}>
-                {isLookingUp ? <span className="loading loading-spinner"></span> : "🔍 Lookup"}
+              <button
+                type="button"
+                className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+                onClick={handleLookup}
+                disabled={isLookingUp}
+              >
+                {isLookingUp ? <span className="loading loading-spinner loading-sm"></span> : <><span>🔍</span><span>Lookup</span></>}
               </button>
             </div>
 
@@ -4279,33 +4421,33 @@ function AddVehicleModal({ onClose, onSuccess }) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">
-                <label className="label"><span className="label-text">Make *</span></label>
-                <input type="text" className="input input-bordered" value={formData.make}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Make *</label>
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.make}
                   onChange={(e) => setFormData({ ...formData, make: e.target.value })} required />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Model *</span></label>
-                <input type="text" className="input input-bordered" value={formData.model}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Model *</label>
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })} required />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Year</span></label>
-                <input type="number" className="input input-bordered" value={formData.year}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Year</label>
+                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: e.target.value })} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Mileage</span></label>
-                <input type="number" className="input input-bordered" value={formData.mileageCurrent}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mileage</label>
+                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.mileageCurrent}
                   onChange={(e) => setFormData({ ...formData, mileageCurrent: e.target.value })} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Colour</span></label>
-                <input type="text" className="input input-bordered" value={formData.colour}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Colour</label>
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.colour}
                   onChange={(e) => setFormData({ ...formData, colour: e.target.value })} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Fuel Type</span></label>
-                <select className="select select-bordered" value={formData.fuelType}
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fuel Type</label>
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType}
                   onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}>
                   <option value="">Select...</option>
                   <option value="Petrol">Petrol</option>
@@ -4314,17 +4456,39 @@ function AddVehicleModal({ onClose, onSuccess }) {
                   <option value="Electric">Electric</option>
                 </select>
               </div>
+              <div className="form-control">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MOT Expiry Date</label>
+                <input
+                  type="date"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                  value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
+                  onChange={(e) => setFormData({ ...formData, motExpiryDate: e.target.value })}
+                />
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {formData.motExpiryDate ? "" : "Auto-filled by VRM lookup or enter manually"}
+                </p>
+              </div>
+              <div className="form-control">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Transmission</label>
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission}
+                  onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}>
+                  <option value="">Select...</option>
+                  <option value="Manual">Manual</option>
+                  <option value="Automatic">Automatic</option>
+                  <option value="Semi-Auto">Semi-Auto</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Vehicle Type Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Vehicle Type</h4>
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Type</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">
-                <label className="label"><span className="label-text">Vehicle Type</span></label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Vehicle Type</label>
                 <select
-                  className="select select-bordered"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                   value={formData.type}
                   onChange={(e) => {
                     const newType = e.target.value;
@@ -4344,9 +4508,9 @@ function AddVehicleModal({ onClose, onSuccess }) {
               {/* Sale Type - Only show for Stock vehicles */}
               {formData.type === "STOCK" && (
                 <div className="form-control">
-                  <label className="label"><span className="label-text">Sale Type</span></label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sale Type</label>
                   <select
-                    className="select select-bordered"
+                    className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                     value={formData.saleType || "RETAIL"}
                     onChange={(e) => setFormData({ ...formData, saleType: e.target.value })}
                   >
@@ -4356,22 +4520,20 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 </div>
               )}
             </div>
-            <label className="label">
-              <span className="label-text-alt text-base-content/60">
-                {formData.type === "COURTESY" && "This vehicle will be available in courtesy car forms"}
-                {formData.type === "FLEET_OTHER" && "This vehicle will not appear in sales board"}
-                {formData.type === "STOCK" && formData.saleType === "TRADE" && "Trade vehicles are marked separately and can be filtered"}
-                {formData.type === "STOCK" && formData.saleType !== "TRADE" && "This vehicle will go through the normal sales prep flow"}
-              </span>
-            </label>
+            <p className="text-xs text-slate-400 mt-3">
+              {formData.type === "COURTESY" && "This vehicle will be available in courtesy car forms"}
+              {formData.type === "FLEET_OTHER" && "This vehicle will not appear in sales board"}
+              {formData.type === "STOCK" && formData.saleType === "TRADE" && "Trade vehicles are marked separately and can be filtered"}
+              {formData.type === "STOCK" && formData.saleType !== "TRADE" && "This vehicle will go through the normal sales prep flow"}
+            </p>
           </div>
 
           {/* Location Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Location</h4>
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Location</h4>
             <div className="form-control">
               <select
-                className="select select-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={formData.locationId}
                 onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
               >
@@ -4384,39 +4546,39 @@ function AddVehicleModal({ onClose, onSuccess }) {
           </div>
 
           {/* Document Uploads Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Document Uploads (Optional)</h4>
-            <div className="space-y-3">
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Document Uploads (Optional)</h4>
+            <div className="space-y-4">
               <div className="form-control">
-                <label className="label"><span className="label-text">V5 Document</span></label>
-                <input type="file" className="file-input file-input-bordered w-full" accept="image/*,.pdf"
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">V5 Document</label>
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setV5File(e.target.files[0])} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Service History</span></label>
-                <input type="file" className="file-input file-input-bordered w-full" accept="image/*,.pdf"
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Service History</label>
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setServiceHistoryFile(e.target.files[0])} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Fault Codes</span></label>
-                <input type="file" className="file-input file-input-bordered w-full" accept="image/*,.pdf"
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setFaultCodesFile(e.target.files[0])} />
               </div>
               <div className="form-control">
-                <label className="label"><span className="label-text">Other Documents</span></label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Other Documents</label>
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline"
+                  className="px-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200"
                   onClick={() => setOtherDocuments([...otherDocuments, { name: "", file: null }])}
                 >
                   + Add Document/Image
                 </button>
                 {otherDocuments.map((doc, idx) => (
-                  <div key={idx} className="flex gap-2 mt-2">
+                  <div key={idx} className="flex gap-2 mt-3">
                     <input
                       type="text"
                       placeholder="Document name"
-                      className="input input-sm input-bordered flex-1"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
                       value={doc.name}
                       onChange={(e) => {
                         const updated = [...otherDocuments];
@@ -4426,7 +4588,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                     />
                     <input
                       type="file"
-                      className="file-input file-input-sm file-input-bordered flex-1"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium file:text-xs hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 transition-all duration-200 outline-none"
                       onChange={(e) => {
                         const updated = [...otherDocuments];
                         updated[idx].file = e.target.files[0];
@@ -4435,7 +4597,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                     />
                     <button
                       type="button"
-                      className="btn btn-sm btn-ghost"
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
                       onClick={() => setOtherDocuments(otherDocuments.filter((_, i) => i !== idx))}
                     >
                       ✕
@@ -4447,13 +4609,13 @@ function AddVehicleModal({ onClose, onSuccess }) {
           </div>
 
           {/* Initial Issues Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Initial Issues (Optional)</h4>
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Initial Issues (Optional)</h4>
 
             {/* Add Issue Button */}
             <button
               type="button"
-              className="btn btn-outline btn-sm w-full mb-3"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200 mb-3"
               onClick={() => setShowAddIssueInVehicleModal(true)}
             >
               + Add Issue
@@ -4496,11 +4658,11 @@ function AddVehicleModal({ onClose, onSuccess }) {
           </div>
 
           {/* Prep Checklist Template Section */}
-          <div className="mb-6">
-            <h4 className="font-semibold text-md mb-3">Prep Checklist Template</h4>
+          <div className="mb-6 pb-6 border-b border-slate-100">
+            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Prep Checklist Template</h4>
             <div className="form-control">
               <select
-                className="select select-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
               >
@@ -4511,12 +4673,12 @@ function AddVehicleModal({ onClose, onSuccess }) {
 
             {/* Task Preview for Standard Prep */}
             {selectedTemplate === "default" && (
-              <div className="mt-3 p-3 bg-base-200 rounded-lg">
-                <p className="text-xs font-semibold text-base-content/70 mb-2">Tasks included:</p>
-                <div className="text-xs text-base-content/60 space-y-1">
+              <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tasks included:</p>
+                <div className="text-sm text-slate-600 space-y-2">
                   {["PDI", "Valet", "Photos", "MOT Check", "Advert"].map((task, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <span className="text-primary">✓</span>
+                      <span className="text-violet-500">✓</span>
                       <span>{task}</span>
                     </div>
                   ))}
@@ -4526,18 +4688,32 @@ function AddVehicleModal({ onClose, onSuccess }) {
           </div>
 
           {/* Notes Section */}
-          <div className="mb-6">
+          <div className="mb-8">
             <div className="form-control">
-              <label className="label"><span className="label-text">Additional Notes</span></label>
-              <textarea className="textarea textarea-bordered" value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}></textarea>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
+              <textarea
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
+                rows={4}
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              ></textarea>
             </div>
           </div>
 
-          <div className="modal-action">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={isLoading}>
-              {isLoading ? <span className="loading loading-spinner"></span> : "Add Vehicle"}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={isLoading}
+            >
+              {isLoading ? <><span className="loading loading-spinner loading-sm"></span><span>Saving...</span></> : "Add Vehicle"}
             </button>
           </div>
         </form>
@@ -4651,14 +4827,25 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-2xl">
-        <h3 className="font-bold text-lg mb-4">Add Issue</h3>
+      <div className="modal-box max-w-2xl bg-white">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-slate-900">Add Issue</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-4">
             <div className="form-control">
-              <label className="label"><span className="label-text">Category *</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
               <select
-                className="select select-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={issueForm.category}
                 onChange={(e) => {
                   setIssueForm({ ...issueForm, category: e.target.value, subcategory: "" });
@@ -4680,9 +4867,9 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
 
             {issueForm.category && (
               <div className="form-control">
-                <label className="label"><span className="label-text">Subcategory</span></label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subcategory</label>
                 <select
-                  className="select select-bordered"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                   value={issueForm.subcategory}
                   onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
                 >
@@ -4697,24 +4884,22 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             {/* Fault Codes field - only show for fault_codes category */}
             {issueForm.category === "fault_codes" && (
               <div className="form-control col-span-2">
-                <label className="label"><span className="label-text">Fault Codes</span></label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
                 <input
                   type="text"
-                  className="input input-bordered font-mono"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 font-mono placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
                   value={issueForm.faultCodes || ""}
                   onChange={(e) => setIssueForm({ ...issueForm, faultCodes: e.target.value })}
                   placeholder="e.g. P0301, P0420, C1234"
                 />
-                <label className="label">
-                  <span className="label-text-alt">Enter codes separated by commas</span>
-                </label>
+                <p className="text-xs text-slate-400 mt-1.5">Enter codes separated by commas</p>
               </div>
             )}
 
             <div className="form-control col-span-2">
-              <label className="label"><span className="label-text">Description *</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description *</label>
               <textarea
-                className="textarea textarea-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
                 value={issueForm.description}
                 onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
                 placeholder={issueForm.category === "fault_codes" ? "Describe what the fault codes indicate..." : "Describe the issue..."}
@@ -4724,10 +4909,10 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </div>
 
             <div className="form-control col-span-2">
-              <label className="label"><span className="label-text">Action Needed</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Action Needed</label>
               <input
                 type="text"
-                className="input input-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
                 value={issueForm.actionNeeded}
                 onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
                 placeholder="What needs to be done?"
@@ -4735,9 +4920,9 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </div>
 
             <div className="form-control">
-              <label className="label"><span className="label-text">Status</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
               <select
-                className="select select-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={issueForm.status}
                 onChange={(e) => setIssueForm({ ...issueForm, status: e.target.value })}
               >
@@ -4749,23 +4934,30 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </div>
 
             {/* Parts Required Section */}
-            <div className="form-control">
-              <label className="label cursor-pointer justify-start gap-3">
-                <input
-                  type="checkbox"
-                  className="checkbox checkbox-primary"
-                  checked={issueForm.partsRequired || false}
-                  onChange={(e) => setIssueForm({ ...issueForm, partsRequired: e.target.checked })}
-                />
-                <span className="label-text">Parts Required</span>
+            <div className="form-control flex items-center">
+              <label className="flex items-center gap-3 cursor-pointer mt-6">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={issueForm.partsRequired || false}
+                    onChange={(e) => setIssueForm({ ...issueForm, partsRequired: e.target.checked })}
+                  />
+                  <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:border-violet-500 peer-checked:bg-violet-500 transition-all duration-200 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <span className="text-sm font-medium text-slate-700">Parts Required</span>
               </label>
             </div>
 
             {issueForm.partsRequired && (
               <div className="form-control col-span-2">
-                <label className="label"><span className="label-text">Parts Details</span></label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Parts Details</label>
                 <textarea
-                  className="textarea textarea-bordered"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
                   value={issueForm.partsDetails || ""}
                   onChange={(e) => setIssueForm({ ...issueForm, partsDetails: e.target.value })}
                   placeholder="Supplier, part numbers, who ordered, ETA..."
@@ -4775,9 +4967,9 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             )}
 
             <div className="form-control col-span-2">
-              <label className="label"><span className="label-text">Notes</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notes</label>
               <textarea
-                className="textarea textarea-bordered"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
                 value={issueForm.notes}
                 onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
                 placeholder="Additional notes..."
@@ -4787,13 +4979,13 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
 
             {/* Photo Upload */}
             <div className="form-control col-span-2">
-              <label className="label"><span className="label-text">Photos</span></label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Photos</label>
               <input
                 type="file"
                 accept="image/*"
                 multiple
                 onChange={handlePhotoChange}
-                className="file-input file-input-bordered w-full"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
               />
               {photoPreviews.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -4803,7 +4995,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
                       <button
                         type="button"
                         onClick={() => removePhoto(idx)}
-                        className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center transition-colors"
                       >
                         ✕
                       </button>
@@ -4814,13 +5006,23 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </div>
           </div>
 
-          <div className="modal-action">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={isLoading || isUploadingPhotos}>
+          <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
+            <button
+              type="button"
+              className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              disabled={isLoading || isUploadingPhotos}
+            >
               {isLoading || isUploadingPhotos ? (
                 <>
                   <span className="loading loading-spinner loading-sm"></span>
-                  {isUploadingPhotos ? "Uploading photos..." : "Saving..."}
+                  <span>{isUploadingPhotos ? "Uploading photos..." : "Saving..."}</span>
                 </>
               ) : "Add Issue"}
             </button>

@@ -51,10 +51,17 @@ export default function CustomerPXForm() {
   // Documents - No V5 for GDPR
   const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
 
+  // Vehicle photos
+  const [exteriorPhotos, setExteriorPhotos] = useState([]);
+  const [interiorPhotos, setInteriorPhotos] = useState([]);
+  const [dashboardPhoto, setDashboardPhoto] = useState(null);
+  const [odometerPhoto, setOdometerPhoto] = useState(null);
+
   // Issues
   const [issues, setIssues] = useState([]);
   const [showAddIssue, setShowAddIssue] = useState(false);
   const [newIssue, setNewIssue] = useState({ category: "", description: "" });
+  const [issuePhotos, setIssuePhotos] = useState([]);  // Photos for current issue being added
 
   useEffect(() => {
     if (dealerSlug) {
@@ -112,14 +119,40 @@ export default function CustomerPXForm() {
     if (!newIssue.category || !newIssue.description) {
       return toast.error("Please select a category and describe the issue");
     }
-    setIssues([...issues, newIssue]);
+    // Store issue with its photos (files to be uploaded on submit)
+    setIssues([...issues, { ...newIssue, photos: issuePhotos }]);
     setNewIssue({ category: "", description: "" });
+    setIssuePhotos([]);
     setShowAddIssue(false);
     toast.success("Issue added");
   };
 
   const removeIssue = (index) => {
     setIssues(issues.filter((_, i) => i !== index));
+  };
+
+  // Helper function to upload a single file
+  const uploadFile = async (file, type = "photo") => {
+    if (!file) return null;
+    const uploadData = new FormData();
+    uploadData.append("file", file);
+    uploadData.append("type", type);
+    const res = await fetch("/api/vehicles/upload", { method: "POST", body: uploadData });
+    if (res.ok) {
+      const data = await res.json();
+      return data.url;
+    }
+    return null;
+  };
+
+  // Helper function to upload multiple files
+  const uploadMultipleFiles = async (files, type = "photo") => {
+    const urls = [];
+    for (const file of files) {
+      const url = await uploadFile(file, type);
+      if (url) urls.push(url);
+    }
+    return urls;
   };
 
   const handleSubmit = async (e) => {
@@ -134,15 +167,14 @@ export default function CustomerPXForm() {
       // Upload service history if provided
       let serviceHistoryUrl = null;
       if (serviceHistoryFile) {
-        const formDataUpload = new FormData();
-        formDataUpload.append("file", serviceHistoryFile);
-        formDataUpload.append("type", "service_history");
-        const uploadRes = await fetch("/api/vehicles/upload", { method: "POST", body: formDataUpload });
-        if (uploadRes.ok) {
-          const data = await uploadRes.json();
-          serviceHistoryUrl = data.url;
-        }
+        serviceHistoryUrl = await uploadFile(serviceHistoryFile, "service_history");
       }
+
+      // Upload photos
+      const exteriorPhotoUrls = await uploadMultipleFiles(exteriorPhotos, "exterior");
+      const interiorPhotoUrls = await uploadMultipleFiles(interiorPhotos, "interior");
+      const dashboardPhotoUrl = await uploadFile(dashboardPhoto, "dashboard");
+      const odometerPhotoUrl = await uploadFile(odometerPhoto, "odometer");
 
       // Create customer PX appraisal directly (not through Forms system)
       const res = await fetch("/api/customer-px", {
@@ -152,6 +184,12 @@ export default function CustomerPXForm() {
           dealerSlug,
           ...formData,
           serviceHistoryUrl,
+          photos: {
+            exterior: exteriorPhotoUrls,
+            interior: interiorPhotoUrls,
+            dashboard: dashboardPhotoUrl,
+            odometer: odometerPhotoUrl,
+          },
         }),
       });
 
@@ -162,8 +200,23 @@ export default function CustomerPXForm() {
 
       const appraisal = await res.json();
 
-      // Create issues if any
+      // Create issues with uploaded photos
       for (const issue of issues) {
+        // Upload issue photos if any
+        let attachments = [];
+        if (issue.photos && issue.photos.length > 0) {
+          for (const file of issue.photos) {
+            const url = await uploadFile(file, "issue_photo");
+            if (url) {
+              attachments.push({
+                url,
+                uploadedAt: new Date().toISOString(),
+                caption: file.name,
+              });
+            }
+          }
+        }
+
         await fetch("/api/customer-px/issues", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -171,6 +224,7 @@ export default function CustomerPXForm() {
             customerPXAppraisalId: appraisal.id || appraisal._id,
             category: issue.category,
             description: issue.description,
+            attachments,
             status: "outstanding",
           }),
         });
@@ -448,9 +502,19 @@ export default function CustomerPXForm() {
                 {issues.map((issue, index) => (
                   <div key={index} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
                     <div className="flex-1">
-                      <span className="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-xs font-medium mb-1">
-                        {ISSUE_CATEGORIES.find(c => c.value === issue.category)?.label || issue.category}
-                      </span>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-xs font-medium">
+                          {ISSUE_CATEGORIES.find(c => c.value === issue.category)?.label || issue.category}
+                        </span>
+                        {issue.photos && issue.photos.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {issue.photos.length} photo{issue.photos.length !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-700">{issue.description}</p>
                     </div>
                     <button
@@ -496,12 +560,34 @@ export default function CustomerPXForm() {
                       placeholder="Describe the issue..."
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Photos <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => setIssuePhotos(Array.from(e.target.files))}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+                    />
+                    {issuePhotos.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {issuePhotos.map((file, idx) => (
+                          <span key={idx} className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                            {file.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex justify-end gap-2">
                     <button
                       type="button"
                       onClick={() => {
                         setShowAddIssue(false);
                         setNewIssue({ category: "", description: "" });
+                        setIssuePhotos([]);
                       }}
                       className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium"
                     >
@@ -518,6 +604,96 @@ export default function CustomerPXForm() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Vehicle Photos */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Vehicle Photos (Optional)</h2>
+            <p className="text-sm text-slate-500 mb-4">Photos help us give you a more accurate valuation</p>
+
+            <div className="space-y-4">
+              {/* Exterior Photos */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Exterior Photos
+                  <span className="text-slate-400 font-normal ml-1">(front, rear, sides)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setExteriorPhotos(Array.from(e.target.files))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+                />
+                {exteriorPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {exteriorPhotos.map((file, idx) => (
+                      <span key={idx} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+                        {file.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Interior Photos */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Interior Photos
+                  <span className="text-slate-400 font-normal ml-1">(seats, dashboard area)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setInteriorPhotos(Array.from(e.target.files))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+                />
+                {interiorPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {interiorPhotos.map((file, idx) => (
+                      <span key={idx} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+                        {file.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Dashboard & Odometer */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Dashboard
+                    <span className="text-slate-400 font-normal ml-1">(any warning lights)</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setDashboardPhoto(e.target.files[0])}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+                  />
+                  {dashboardPhoto && (
+                    <p className="text-xs text-emerald-600 mt-1">{dashboardPhoto.name}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Odometer
+                    <span className="text-slate-400 font-normal ml-1">(mileage reading)</span>
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setOdometerPhoto(e.target.files[0])}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+                  />
+                  {odometerPhoto && (
+                    <p className="text-xs text-emerald-600 mt-1">{odometerPhoto.name}</p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Service History */}

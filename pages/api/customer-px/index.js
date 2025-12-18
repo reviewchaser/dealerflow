@@ -39,7 +39,8 @@ export default async function handler(req, res) {
       mileage, colour, fuelType, conditionNotes, proposedPurchasePrice,
       outstandingFinanceAmount, aiHintText, v5Url, serviceHistoryUrl,
       otherDocuments, prepTemplateId, customerName, customerEmail, customerPhone,
-      conditionRating, formSubmissionId, interestedInVehicle, dealerSlug, dealerId: bodyDealerId
+      conditionRating, formSubmissionId, interestedInVehicle, dealerSlug, dealerId: bodyDealerId,
+      photos
     } = req.body;
 
     if (!vehicleReg) {
@@ -104,6 +105,14 @@ export default async function handler(req, res) {
     if (conditionRating) appraisalData.conditionRating = conditionRating;
     if (formSubmissionId) appraisalData.formSubmissionId = formSubmissionId;
     if (interestedInVehicle) appraisalData.interestedInVehicle = interestedInVehicle;
+    if (photos) {
+      appraisalData.photos = {
+        exterior: photos.exterior || [],
+        interior: photos.interior || [],
+        dashboard: photos.dashboard || null,
+        odometer: photos.odometer || null,
+      };
+    }
 
     const appraisal = await CustomerPXAppraisal.create(appraisalData);
 

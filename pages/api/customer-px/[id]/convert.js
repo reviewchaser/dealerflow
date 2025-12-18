@@ -101,6 +101,7 @@ export default async function handler(req, res) {
           subcategory: subcategory,
           description: description,
           photos: issue.photos || [],
+          attachments: issue.attachments || [],  // Transfer attachments
           actionNeeded: issue.actionNeeded || "",
           status: STATUS_MAP[issue.status] || "Outstanding",
           notes: issue.notes || "",

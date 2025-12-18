@@ -28,6 +28,13 @@ const customerPXAppraisalSchema = new mongoose.Schema(
       name: { type: String },
       url: { type: String }
     }],
+    // Vehicle photos
+    photos: {
+      exterior: [{ type: String }],  // Multiple exterior photos
+      interior: [{ type: String }],  // Multiple interior photos
+      dashboard: { type: String },   // Single dashboard photo
+      odometer: { type: String },    // Single odometer photo
+    },
     // Legacy fields
     conditionRating: {
       type: String,

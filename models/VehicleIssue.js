@@ -11,7 +11,14 @@ const vehicleIssueSchema = new mongoose.Schema(
     },
     subcategory: { type: String, required: true },
     description: { type: String, required: true },
-    photos: [{ type: String }], // URLs to photos
+    photos: [{ type: String }], // Legacy: simple URLs to photos
+    attachments: [{
+      key: { type: String },      // S3 key
+      url: { type: String },      // Full URL
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      uploadedAt: { type: Date, default: Date.now },
+      caption: { type: String },  // Optional caption/description
+    }],
     actionNeeded: { type: String },
     status: {
       type: String,
