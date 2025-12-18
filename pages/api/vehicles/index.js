@@ -5,6 +5,8 @@ import VehicleLabel from "@/models/VehicleLabel";
 import VehicleIssue from "@/models/VehicleIssue";
 import VehicleLocation from "@/models/VehicleLocation";
 import VehicleDocument from "@/models/VehicleDocument";
+import VehicleActivity from "@/models/VehicleActivity";
+import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
 
 const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
@@ -147,6 +149,7 @@ async function handler(req, res, ctx) {
   }
 
   if (req.method === "POST") {
+    const { userId, user } = ctx;
     const {
       regCurrent, vin, make, model, derivative, year,
       mileageCurrent, bodyType, fuelType, transmission, colour,
@@ -165,6 +168,7 @@ async function handler(req, res, ctx) {
       vin, make, model, derivative, year,
       mileageCurrent, bodyType, fuelType, transmission, colour,
       status, notes, type,
+      createdByUserId: userId,
       // Only set saleType for STOCK vehicles
       ...(type === "STOCK" && { saleType }),
     };
@@ -187,6 +191,21 @@ async function handler(req, res, ctx) {
         });
       }
     }
+
+    // Log VEHICLE_CREATED activity
+    const actor = await User.findById(userId).lean();
+    const actorName = actor?.name || user?.name || user?.email || "System";
+    const typeLabel = { STOCK: "Stock", COURTESY: "Courtesy", FLEET_OTHER: "Fleet" }[type] || type;
+
+    await VehicleActivity.log({
+      dealerId,
+      vehicleId: vehicle._id,
+      actorId: userId,
+      actorName,
+      type: "VEHICLE_CREATED",
+      message: `Added ${typeLabel} vehicle: ${make} ${model} (${regCurrent.toUpperCase()})`,
+      meta: { type, make, model, regCurrent: regCurrent.toUpperCase() },
+    });
 
     // Transform to include id field
     const vehicleJson = vehicle.toJSON();

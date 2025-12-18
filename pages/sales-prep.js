@@ -81,9 +81,30 @@ export default function SalesPrep() {
   const [issueUpdateContent, setIssueUpdateContent] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
 
-  // Filters state
+  // Filters state - with localStorage persistence
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+
+  // Load filters from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedFilters = localStorage.getItem("salesPrepFilters");
+      if (savedFilters) {
+        setActiveFilters(JSON.parse(savedFilters));
+      }
+    } catch (e) {
+      console.warn("Failed to load saved filters:", e);
+    }
+  }, []);
+
+  // Save filters to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+    } catch (e) {
+      console.warn("Failed to save filters:", e);
+    }
+  }, [activeFilters]);
 
   // Documents state
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
@@ -271,6 +292,11 @@ export default function SalesPrep() {
       if (newStatus === "done") {
         payload.completedAt = new Date().toISOString();
       }
+      // Clear progress when changing status (optional: keep if staying in_progress)
+      if (newStatus !== "in_progress") {
+        payload.progress = "NONE";
+        payload.progressNote = "";
+      }
       await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -282,6 +308,27 @@ export default function SalesPrep() {
       fetchVehicles();
     } catch (error) {
       toast.error("Failed to update task");
+    }
+  };
+
+  // Update task progress sub-status (for parts ordering, booking, etc.)
+  const updateTaskProgress = async (taskId, progress, progressNote = null) => {
+    try {
+      const payload = { progress };
+      if (progressNote !== null) {
+        payload.progressNote = progressNote;
+      }
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const data = await res.json();
+      setSelectedVehicle(data);
+      fetchVehicles();
+    } catch (error) {
+      toast.error("Failed to update task progress");
     }
   };
 
@@ -619,6 +666,11 @@ export default function SalesPrep() {
         if (filter === "trade_only") return vehicle.saleType === "TRADE";
         if (filter === "retail_only") return vehicle.saleType === "RETAIL" || !vehicle.saleType;
 
+        // Vehicle type filters
+        if (filter === "type_stock") return vehicle.type === "STOCK" || !vehicle.type;
+        if (filter === "type_courtesy") return vehicle.type === "COURTESY";
+        if (filter === "type_fleet") return vehicle.type === "FLEET_OTHER";
+
         return true;
       });
     });
@@ -690,6 +742,9 @@ export default function SalesPrep() {
       }
       if (filter === "trade_only") return v.saleType === "TRADE";
       if (filter === "retail_only") return v.saleType === "RETAIL" || !v.saleType;
+      if (filter === "type_stock") return v.type === "STOCK" || !v.type;
+      if (filter === "type_courtesy") return v.type === "COURTESY";
+      if (filter === "type_fleet") return v.type === "FLEET_OTHER";
       return false;
     }));
     return allFiltered.length;
@@ -1196,6 +1251,32 @@ export default function SalesPrep() {
                             );
                           })()}
 
+                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-5">Vehicle Type</h5>
+                          {[
+                            { key: "type_stock", label: "Stock Vehicles" },
+                            { key: "type_courtesy", label: "Courtesy Vehicles" },
+                            { key: "type_fleet", label: "Fleet Vehicles" },
+                          ].map(filter => {
+                            const isActive = activeFilters.includes(filter.key);
+                            const count = getFilterCount(filter.key);
+                            return (
+                              <button
+                                key={filter.key}
+                                onClick={() => toggleFilter(filter.key)}
+                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
+                                  isActive
+                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
+                                }`}
+                              >
+                                <span>{filter.label}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                }`}>{count}</span>
+                              </button>
+                            );
+                          })}
+
                           <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-5">Sale Type</h5>
                           {[
                             { key: "trade_only", label: "Trade Only" },
@@ -1371,6 +1452,33 @@ export default function SalesPrep() {
                           </button>
                         );
                       })()}
+
+                      {/* Vehicle Type */}
+                      <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Vehicle Type</h5>
+                      {[
+                        { key: "type_stock", label: "Stock Vehicles" },
+                        { key: "type_courtesy", label: "Courtesy Vehicles" },
+                        { key: "type_fleet", label: "Fleet Vehicles" },
+                      ].map(filter => {
+                        const isActive = activeFilters.includes(filter.key);
+                        const count = getFilterCount(filter.key);
+                        return (
+                          <button
+                            key={filter.key}
+                            onClick={() => toggleFilter(filter.key)}
+                            className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+                              isActive
+                                ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+                                : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+                            }`}
+                          >
+                            <span>{filter.label}</span>
+                            <span className={`text-sm px-2.5 py-1 rounded-lg ${
+                              isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                            }`}>{count}</span>
+                          </button>
+                        );
+                      })}
 
                       {/* Sale Type */}
                       <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Sale Type</h5>
@@ -1557,6 +1665,22 @@ export default function SalesPrep() {
                             {vehicle.saleType === "TRADE" && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
                                 Trade
+                              </span>
+                            )}
+                            {vehicle.type === "COURTESY" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-600 text-white uppercase">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Courtesy
+                              </span>
+                            )}
+                            {vehicle.type === "FLEET_OTHER" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                Fleet
                               </span>
                             )}
                             {motStatus?.type === "expired" && (
@@ -1766,6 +1890,23 @@ export default function SalesPrep() {
                             {vehicle.saleType === "TRADE" && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
                                 Trade
+                              </span>
+                            )}
+                            {/* Courtesy/Fleet badges */}
+                            {vehicle.type === "COURTESY" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-600 text-white uppercase">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Courtesy
+                              </span>
+                            )}
+                            {vehicle.type === "FLEET_OTHER" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                Fleet
                               </span>
                             )}
                             {motStatus?.type === "expired" && (
@@ -2428,73 +2569,113 @@ export default function SalesPrep() {
                     <h3 className="font-semibold mb-3">Prep Checklist</h3>
                     <div className="space-y-2">
                       {selectedVehicle.tasks?.map((task) => (
-                        <div key={task.id} className="flex items-center gap-2 p-2 rounded hover:bg-base-300 group">
-                          <select
-                            className="select select-bordered select-xs"
-                            value={task.status || "pending"}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="done">Done</option>
-                            <option value="not_required">Not Required</option>
-                          </select>
-                          {editingTaskId === task.id ? (
-                            <input
-                              type="text"
-                              className="input input-bordered input-xs flex-1"
-                              value={editingTaskName}
-                              onChange={(e) => setEditingTaskName(e.target.value)}
-                              onBlur={() => {
-                                if (editingTaskName.trim() && editingTaskName !== task.name) {
-                                  updateTaskName(task.id, editingTaskName);
-                                } else {
-                                  setEditingTaskId(null);
-                                  setEditingTaskName("");
-                                }
-                              }}
-                              onKeyPress={(e) => {
-                                if (e.key === "Enter") {
+                        <div key={task.id} className="p-2 rounded hover:bg-base-300 group">
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="select select-bordered select-xs"
+                              value={task.status || "pending"}
+                              onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="done">Done</option>
+                              <option value="not_required">Not Required</option>
+                            </select>
+                            {editingTaskId === task.id ? (
+                              <input
+                                type="text"
+                                className="input input-bordered input-xs flex-1"
+                                value={editingTaskName}
+                                onChange={(e) => setEditingTaskName(e.target.value)}
+                                onBlur={() => {
                                   if (editingTaskName.trim() && editingTaskName !== task.name) {
                                     updateTaskName(task.id, editingTaskName);
                                   } else {
                                     setEditingTaskId(null);
                                     setEditingTaskName("");
                                   }
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Escape") {
-                                  setEditingTaskId(null);
-                                  setEditingTaskName("");
-                                }
-                              }}
-                              autoFocus
-                            />
-                          ) : (
-                            <span
-                              className={`flex-1 text-sm cursor-pointer ${task.status === "done" ? "line-through text-base-content/50" : ""}`}
-                              onClick={() => {
-                                setEditingTaskId(task.id);
-                                setEditingTaskName(task.name);
-                              }}
-                              title="Click to edit"
+                                }}
+                                onKeyPress={(e) => {
+                                  if (e.key === "Enter") {
+                                    if (editingTaskName.trim() && editingTaskName !== task.name) {
+                                      updateTaskName(task.id, editingTaskName);
+                                    } else {
+                                      setEditingTaskId(null);
+                                      setEditingTaskName("");
+                                    }
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape") {
+                                    setEditingTaskId(null);
+                                    setEditingTaskName("");
+                                  }
+                                }}
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className={`flex-1 text-sm cursor-pointer ${task.status === "done" ? "line-through text-base-content/50" : ""}`}
+                                onClick={() => {
+                                  setEditingTaskId(task.id);
+                                  setEditingTaskName(task.name);
+                                }}
+                                title="Click to edit"
+                              >
+                                {task.name}
+                                {/* Show progress chip next to task name */}
+                                {task.progress && task.progress !== "NONE" && (
+                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                                    {task.progress === "PARTS_ORDERED" && "Parts Ordered"}
+                                    {task.progress === "AWAITING_PARTS" && "Awaiting Parts"}
+                                    {task.progress === "BOOKED_IN" && "Booked In"}
+                                    {task.progress === "IN_WORKSHOP" && "In Workshop"}
+                                    {task.progressNote && ` - ${task.progressNote}`}
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                            {task.completedAt && !editingTaskId && (
+                              <span className="text-xs text-base-content/50">
+                                {formatDate(task.completedAt)}
+                              </span>
+                            )}
+                            <button
+                              className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => deleteTask(task.id)}
                             >
-                              {task.name}
-                            </span>
+                              ✕
+                            </button>
+                          </div>
+                          {/* Progress sub-status row - only show for in_progress tasks */}
+                          {task.status === "in_progress" && (
+                            <div className="flex items-center gap-2 mt-2 ml-6 pl-2 border-l-2 border-amber-300">
+                              <span className="text-xs text-base-content/60">Progress:</span>
+                              <select
+                                className="select select-bordered select-xs"
+                                value={task.progress || "NONE"}
+                                onChange={(e) => updateTaskProgress(task.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <option value="NONE">Not set</option>
+                                <option value="PARTS_ORDERED">Parts Ordered</option>
+                                <option value="AWAITING_PARTS">Awaiting Parts</option>
+                                <option value="BOOKED_IN">Booked In</option>
+                                <option value="IN_WORKSHOP">In Workshop</option>
+                              </select>
+                              {task.progress && task.progress !== "NONE" && (
+                                <input
+                                  type="text"
+                                  className="input input-bordered input-xs flex-1"
+                                  placeholder="Add note (e.g., Euro Car Parts)"
+                                  value={task.progressNote || ""}
+                                  onChange={(e) => updateTaskProgress(task.id, task.progress, e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              )}
+                            </div>
                           )}
-                          {task.completedAt && !editingTaskId && (
-                            <span className="text-xs text-base-content/50">
-                              {formatDate(task.completedAt)}
-                            </span>
-                          )}
-                          <button
-                            className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => deleteTask(task.id)}
-                          >
-                            ✕
-                          </button>
                         </div>
                       ))}
                     </div>
@@ -2746,14 +2927,38 @@ export default function SalesPrep() {
                           key={activity._id || activity.id}
                           className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100"
                         >
-                          <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                            activity.type === "VEHICLE_CREATED" ? "bg-green-100" :
+                            activity.type === "STATUS_CHANGED" ? "bg-blue-100" :
+                            activity.type === "TYPE_CHANGED" ? "bg-violet-100" :
+                            activity.type === "LOCATION_CHANGED" ? "bg-indigo-100" :
+                            activity.type === "TASK_COMPLETED" ? "bg-emerald-100" :
+                            activity.type === "TASK_STATUS_UPDATED" ? "bg-amber-100" :
+                            activity.type === "TASK_PROGRESS_UPDATED" ? "bg-orange-100" :
+                            activity.type === "TASK_ADDED" || activity.type === "TASK_DELETED" ? "bg-slate-100" :
+                            activity.type === "ISSUE_ADDED" ? "bg-red-100" :
+                            activity.type === "ISSUE_RESOLVED" ? "bg-green-100" :
+                            activity.type === "ISSUE_UPDATED" || activity.type === "ISSUE_COMMENT_ADDED" ? "bg-yellow-100" :
+                            "bg-slate-100"
+                          }`}>
+                            {/* Vehicle lifecycle */}
+                            {activity.type === "VEHICLE_CREATED" && (
+                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            )}
                             {activity.type === "STATUS_CHANGED" && (
                               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                               </svg>
                             )}
+                            {activity.type === "TYPE_CHANGED" && (
+                              <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                            )}
                             {activity.type === "LOCATION_CHANGED" && (
-                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
@@ -2763,17 +2968,64 @@ export default function SalesPrep() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             )}
-                            {activity.type === "ISSUE_ADDED" && (
-                              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                              </svg>
-                            )}
+                            {/* Task events */}
                             {activity.type === "TASK_COMPLETED" && (
                               <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             )}
-                            {!["STATUS_CHANGED", "LOCATION_CHANGED", "DETAILS_UPDATED", "ISSUE_ADDED", "TASK_COMPLETED"].includes(activity.type) && (
+                            {activity.type === "TASK_STATUS_UPDATED" && (
+                              <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                              </svg>
+                            )}
+                            {activity.type === "TASK_PROGRESS_UPDATED" && (
+                              <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                              </svg>
+                            )}
+                            {(activity.type === "TASK_ADDED" || activity.type === "TASK_UPDATED") && (
+                              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                            )}
+                            {activity.type === "TASK_DELETED" && (
+                              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            )}
+                            {/* Issue events */}
+                            {activity.type === "ISSUE_ADDED" && (
+                              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                            )}
+                            {activity.type === "ISSUE_RESOLVED" && (
+                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                            {(activity.type === "ISSUE_UPDATED" || activity.type === "ISSUE_COMMENT_ADDED") && (
+                              <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                              </svg>
+                            )}
+                            {activity.type === "ISSUE_DELETED" && (
+                              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            )}
+                            {/* Document events */}
+                            {(activity.type === "DOC_UPLOADED" || activity.type === "DOC_DELETED") && (
+                              <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            )}
+                            {/* Fallback for any unhandled types */}
+                            {!["VEHICLE_CREATED", "STATUS_CHANGED", "TYPE_CHANGED", "LOCATION_CHANGED", "DETAILS_UPDATED",
+                               "TASK_COMPLETED", "TASK_STATUS_UPDATED", "TASK_PROGRESS_UPDATED", "TASK_ADDED", "TASK_UPDATED", "TASK_DELETED",
+                               "ISSUE_ADDED", "ISSUE_RESOLVED", "ISSUE_UPDATED", "ISSUE_COMMENT_ADDED", "ISSUE_DELETED",
+                               "DOC_UPLOADED", "DOC_DELETED"].includes(activity.type) && (
                               <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>

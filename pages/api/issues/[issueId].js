@@ -1,14 +1,34 @@
 import connectMongo from "@/libs/mongoose";
 import VehicleIssue from "@/models/VehicleIssue";
+import Vehicle from "@/models/Vehicle";
+import VehicleActivity from "@/models/VehicleActivity";
+import User from "@/models/User";
+import { withDealerContext } from "@/libs/authContext";
 
-export default async function handler(req, res) {
+async function handler(req, res, ctx) {
   await connectMongo();
-
+  const { dealerId, userId, user } = ctx;
   const { issueId } = req.query;
+
+  // Get the issue and verify it belongs to a vehicle in this dealer
+  const issue = await VehicleIssue.findById(issueId);
+  if (!issue) {
+    return res.status(404).json({ error: "Issue not found" });
+  }
+
+  const vehicle = await Vehicle.findOne({ _id: issue.vehicleId, dealerId }).lean();
+  if (!vehicle) {
+    return res.status(404).json({ error: "Vehicle not found" });
+  }
+
+  // Get actor info for activity logging
+  const actor = await User.findById(userId).lean();
+  const actorName = actor?.name || user?.name || user?.email || "System";
 
   if (req.method === "PUT") {
     try {
       const updates = { ...req.body };
+      const previousStatus = issue.status;
 
       // Map status if provided (handle both lowercase and proper case)
       if (updates.status) {
@@ -34,21 +54,56 @@ export default async function handler(req, res) {
         updates.completedAt = new Date();
       }
 
-      const issue = await VehicleIssue.findByIdAndUpdate(
+      updates.updatedByUserId = userId;
+
+      const updatedIssue = await VehicleIssue.findByIdAndUpdate(
         issueId,
         updates,
         { new: true, runValidators: true }
       ).lean();
 
-      if (!issue) {
-        return res.status(404).json({ error: "Issue not found" });
+      // Log activity for status changes
+      if (updates.status && updates.status !== previousStatus) {
+        const isResolved = updates.status === "Complete";
+        await VehicleActivity.log({
+          dealerId,
+          vehicleId: issue.vehicleId,
+          actorId: userId,
+          actorName,
+          type: isResolved ? "ISSUE_RESOLVED" : "ISSUE_UPDATED",
+          message: isResolved
+            ? `Resolved issue: ${issue.category} - ${issue.subcategory}`
+            : `Issue status changed: ${issue.category} - ${issue.subcategory} (${previousStatus} → ${updates.status})`,
+          meta: {
+            issueId: issue._id,
+            category: issue.category,
+            subcategory: issue.subcategory,
+            from: previousStatus,
+            to: updates.status,
+          },
+        });
+      } else if (Object.keys(updates).length > 1) {
+        // Log general update if other fields changed (not just status)
+        await VehicleActivity.log({
+          dealerId,
+          vehicleId: issue.vehicleId,
+          actorId: userId,
+          actorName,
+          type: "ISSUE_UPDATED",
+          message: `Updated issue: ${issue.category} - ${issue.subcategory}`,
+          meta: {
+            issueId: issue._id,
+            category: issue.category,
+            subcategory: issue.subcategory,
+          },
+        });
       }
 
       // Transform _id to id
-      issue.id = issue._id.toString();
-      delete issue._id;
+      updatedIssue.id = updatedIssue._id.toString();
+      delete updatedIssue._id;
 
-      return res.status(200).json(issue);
+      return res.status(200).json(updatedIssue);
     } catch (error) {
       console.error("Error updating issue:", error);
       return res.status(500).json({ error: error.message || "Failed to update issue" });
@@ -57,12 +112,22 @@ export default async function handler(req, res) {
 
   if (req.method === "DELETE") {
     try {
-      const issue = await VehicleIssue.findByIdAndDelete(issueId);
+      // Log activity before deletion
+      await VehicleActivity.log({
+        dealerId,
+        vehicleId: issue.vehicleId,
+        actorId: userId,
+        actorName,
+        type: "ISSUE_DELETED",
+        message: `Removed issue: ${issue.category} - ${issue.subcategory}`,
+        meta: {
+          issueId: issue._id,
+          category: issue.category,
+          subcategory: issue.subcategory,
+        },
+      });
 
-      if (!issue) {
-        return res.status(404).json({ error: "Issue not found" });
-      }
-
+      await VehicleIssue.findByIdAndDelete(issueId);
       return res.status(200).json({ message: "Issue deleted" });
     } catch (error) {
       console.error("Error deleting issue:", error);
@@ -73,15 +138,10 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     // Add update/comment to issue
     try {
-      const { content, userName } = req.body;
+      const { content } = req.body;
 
       if (!content || !content.trim()) {
         return res.status(400).json({ error: "Update content is required" });
-      }
-
-      const issue = await VehicleIssue.findById(issueId);
-      if (!issue) {
-        return res.status(404).json({ error: "Issue not found" });
       }
 
       // Initialize updates array if it doesn't exist
@@ -89,14 +149,31 @@ export default async function handler(req, res) {
         issue.updates = [];
       }
 
-      // Add new update
+      // Add new update with proper user info
       issue.updates.push({
+        userId,
+        userName: actorName,
         content: content.trim(),
-        userName: userName || "Unknown User",
         createdAt: new Date(),
       });
 
       await issue.save();
+
+      // Log activity for comment
+      await VehicleActivity.log({
+        dealerId,
+        vehicleId: issue.vehicleId,
+        actorId: userId,
+        actorName,
+        type: "ISSUE_COMMENT_ADDED",
+        message: `Added comment to issue: ${issue.category} - ${issue.subcategory}`,
+        meta: {
+          issueId: issue._id,
+          category: issue.category,
+          subcategory: issue.subcategory,
+          comment: content.trim().substring(0, 100), // Truncate for meta
+        },
+      });
 
       // Return updated issue in the same format as other endpoints
       const updatedIssue = issue.toJSON();
@@ -112,3 +189,5 @@ export default async function handler(req, res) {
 
   return res.status(405).json({ error: "Method not allowed" });
 }
+
+export default withDealerContext(handler);

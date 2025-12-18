@@ -1,13 +1,24 @@
 import connectMongo from "@/libs/mongoose";
 import VehicleTask from "@/models/VehicleTask";
+import Vehicle from "@/models/Vehicle";
+import VehicleActivity from "@/models/VehicleActivity";
+import User from "@/models/User";
+import { withDealerContext } from "@/libs/authContext";
 
-export default async function handler(req, res) {
+async function handler(req, res, ctx) {
   try {
     await connectMongo();
+    const { dealerId, userId, user } = ctx;
     const { id } = req.query; // vehicleId
 
     if (!id) {
       return res.status(400).json({ error: "Vehicle ID is required" });
+    }
+
+    // Verify vehicle belongs to this dealer
+    const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    if (!vehicle) {
+      return res.status(404).json({ error: "Vehicle not found" });
     }
 
     if (req.method === "GET") {
@@ -26,6 +37,20 @@ export default async function handler(req, res) {
         status: "pending",
         source: "manual",
       });
+
+      // Log activity
+      const actor = await User.findById(userId).lean();
+      const actorName = actor?.name || user?.name || user?.email || "System";
+      await VehicleActivity.log({
+        dealerId,
+        vehicleId: id,
+        actorId: userId,
+        actorName,
+        type: "TASK_ADDED",
+        message: `Added task: ${name}`,
+        meta: { taskId: task._id, taskName: name },
+      });
+
       return res.status(201).json(task.toJSON());
     }
 
@@ -34,3 +59,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
+
+export default withDealerContext(handler);

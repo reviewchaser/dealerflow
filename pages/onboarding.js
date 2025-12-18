@@ -45,21 +45,56 @@ function Step1Profile({ data, onChange, onNext, onSkip }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Client-side validation
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload an image file (PNG, JPEG, WebP, or GIF)");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`);
+      return;
+    }
+
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
-      if (res.ok) {
-        const { url } = await res.json();
-        setLogoPreview(url);
-        onChange({ ...data, logoUrl: url });
-      } else {
-        toast.error("Failed to upload logo");
+      const res = await fetch("/api/dealer/logo", { method: "POST", body: formData });
+
+      // Check content type
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Non-JSON response:", res.status);
+        }
+        toast.error("Upload failed (LOGO_UPLOAD_SERVER_ERROR)");
+        return;
       }
-    } catch {
-      toast.error("Upload error");
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setLogoPreview(data.url);
+        onChange({ ...data, logoUrl: data.url });
+        toast.success("Logo uploaded!");
+      } else {
+        // Show the specific error from server
+        const errorMsg = data.error || "Failed to upload logo";
+        const errorCode = data.code || "UNKNOWN";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Error:", errorCode, errorMsg, data.details);
+        }
+        toast.error(`${errorMsg} (${errorCode})`);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Logo Upload] Exception:", err);
+      }
+      toast.error("Upload failed (LOGO_UPLOAD_NETWORK_ERROR)");
     } finally {
       setUploading(false);
     }
@@ -581,6 +616,7 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
     setLoading(true);
     setLookupError(null);
     setVehicleData(null);
+    setManualMode(false);
 
     try {
       const res = await fetch("/api/dvla-lookup", {
@@ -592,6 +628,19 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
       if (res.ok) {
         const data = await res.json();
         setVehicleData(data);
+
+        // Check if model is missing from DVLA response
+        if (!data.model?.trim()) {
+          setManualMode(true);
+          setManualData((prev) => ({
+            ...prev,
+            make: data.make || "",
+            model: "", // Need manual entry
+            year: data.yearOfManufacture?.toString() || "",
+            colour: data.colour || "",
+          }));
+          setLookupError("DVLA didn't return the model. Please enter it below.");
+        }
       } else {
         setLookupError("Could not find vehicle. You can enter details manually.");
         setManualMode(true);
@@ -605,22 +654,39 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
   };
 
   const handleCreate = async () => {
+    // Build payload: prefer lookup data, but use manual data as fallback/override
+    const make = (vehicleData?.make || manualData.make || "").trim();
+    const model = (manualData.model || vehicleData?.model || "").trim(); // Manual overrides lookup for model
+    const year = manualData.year || vehicleData?.yearOfManufacture || "";
+    const colour = manualData.colour || vehicleData?.colour || "";
+
+    // Client-side validation before submit
+    if (!make) {
+      toast.error("Make is required");
+      return;
+    }
+    if (!model) {
+      toast.error("Model is required. Please enter it in the form below.");
+      return;
+    }
+
     setCreating(true);
 
     const payload = {
       vrm: vrm.toUpperCase().replace(/\s/g, ""),
       mileage: mileage ? parseInt(mileage, 10) : null,
-      ...(vehicleData
-        ? {
-            make: vehicleData.make,
-            model: vehicleData.model,
-            year: vehicleData.yearOfManufacture,
-            colour: vehicleData.colour,
-            fuelType: vehicleData.fuelType,
-            transmission: vehicleData.transmission,
-          }
-        : manualData),
+      make,
+      model,
+      year: year ? parseInt(year, 10) : null,
+      colour: colour || null,
+      fuelType: vehicleData?.fuelType || null,
+      transmission: vehicleData?.transmission || null,
     };
+
+    // Debug logging (dev only)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Onboarding Vehicle] Submitting payload:", payload);
+    }
 
     try {
       const res = await fetch("/api/onboarding/vehicle", {
@@ -629,22 +695,39 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        const { vehicleId } = await res.json();
-        toast.success("Vehicle created!");
-        onComplete(vehicleId);
-      } else {
-        const err = await res.json();
-        toast.error(err.error || "Failed to create vehicle");
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        console.error("[Onboarding Vehicle] Non-JSON response:", res.status);
+        toast.error("Server error (VEHICLE_CREATE_SERVER_ERROR)");
+        return;
       }
-    } catch {
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Vehicle created!");
+        onComplete(data.vehicleId);
+      } else {
+        const errorCode = data.code || "UNKNOWN";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Onboarding Vehicle] Error:", errorCode, data.error);
+        }
+        toast.error(data.error || "Failed to create vehicle");
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Onboarding Vehicle] Exception:", err);
+      }
       toast.error("Error creating vehicle");
     } finally {
       setCreating(false);
     }
   };
 
-  const canCreate = vrm.trim() && (vehicleData || (manualData.make && manualData.model));
+  // Determine if we have valid make/model (from lookup or manual entry)
+  const effectiveMake = (vehicleData?.make || manualData.make || "").trim();
+  const effectiveModel = (manualData.model || vehicleData?.model || "").trim();
+  const canCreate = vrm.trim() && effectiveMake && effectiveModel;
 
   return (
     <div className="space-y-6">
@@ -713,7 +796,7 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
           </div>
         )}
 
-        {/* Manual Entry Fields */}
+        {/* Manual Entry Fields - Full manual entry (no lookup data) */}
         {manualMode && !vehicleData && (
           <div className="space-y-3 p-4 bg-base-200 rounded-lg">
             <p className="text-sm font-medium">Enter vehicle details manually:</p>
@@ -747,6 +830,21 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
                 onChange={(e) => setManualData({ ...manualData, colour: e.target.value })}
               />
             </div>
+          </div>
+        )}
+
+        {/* Model Entry - When lookup succeeded but DVLA didn't return model */}
+        {manualMode && vehicleData && !vehicleData.model?.trim() && (
+          <div className="space-y-3 p-4 bg-warning/10 border border-warning/30 rounded-lg">
+            <p className="text-sm font-medium">Enter model:</p>
+            <input
+              type="text"
+              className="input input-bordered input-sm w-full"
+              placeholder="Model (e.g. Focus, Golf, A3) *"
+              value={manualData.model}
+              onChange={(e) => setManualData({ ...manualData, model: e.target.value })}
+              autoFocus
+            />
           </div>
         )}
 

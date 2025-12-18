@@ -51,21 +51,54 @@ export default function CreateDealer() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Client-side validation
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload an image file (PNG, JPEG, WebP, or GIF)");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`);
+      return;
+    }
+
     setUploading(true);
     const formDataUpload = new FormData();
     formDataUpload.append("file", file);
 
     try {
       const res = await fetch("/api/vehicles/upload", { method: "POST", body: formDataUpload });
-      if (res.ok) {
-        const { url } = await res.json();
-        setLogoPreview(url);
-        setFormData({ ...formData, logoUrl: url });
-      } else {
-        toast.error("Failed to upload logo");
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Non-JSON response:", res.status);
+        }
+        toast.error("Upload failed (LOGO_UPLOAD_SERVER_ERROR)");
+        return;
       }
-    } catch {
-      toast.error("Upload error");
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setLogoPreview(data.url);
+        setFormData({ ...formData, logoUrl: data.url });
+        toast.success("Logo uploaded!");
+      } else {
+        const errorMsg = data.error || "Failed to upload logo";
+        const errorCode = data.code || "UNKNOWN";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Error:", errorCode, errorMsg, data.details);
+        }
+        toast.error(`${errorMsg} (${errorCode})`);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Logo Upload] Exception:", err);
+      }
+      toast.error("Upload failed (LOGO_UPLOAD_NETWORK_ERROR)");
     } finally {
       setUploading(false);
     }

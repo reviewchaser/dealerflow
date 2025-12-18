@@ -1,6 +1,15 @@
 import mongoose from "mongoose";
 import toJSON from "./plugins/toJSON";
 
+// Task progress sub-statuses (for parts ordering, booking etc.)
+const TASK_PROGRESS = {
+  NONE: "NONE",
+  PARTS_ORDERED: "PARTS_ORDERED",
+  AWAITING_PARTS: "AWAITING_PARTS",
+  BOOKED_IN: "BOOKED_IN",
+  IN_WORKSHOP: "IN_WORKSHOP",
+};
+
 const vehicleTaskSchema = new mongoose.Schema(
   {
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", required: true },
@@ -10,6 +19,13 @@ const vehicleTaskSchema = new mongoose.Schema(
       enum: ["pending", "in_progress", "done", "not_required", "PENDING", "IN_PROGRESS", "DONE", "NOT_REQUIRED"],
       default: "pending"
     },
+    // Optional progress sub-status for tracking parts ordering, booking etc.
+    progress: {
+      type: String,
+      enum: Object.values(TASK_PROGRESS),
+      default: TASK_PROGRESS.NONE,
+    },
+    progressNote: { type: String }, // e.g. "Euro Car Parts", "Booked for Monday 10am"
     assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     notes: { type: String },
     source: {
@@ -23,4 +39,6 @@ const vehicleTaskSchema = new mongoose.Schema(
 );
 
 vehicleTaskSchema.plugin(toJSON);
+
 export default mongoose.models.VehicleTask || mongoose.model("VehicleTask", vehicleTaskSchema);
+export { TASK_PROGRESS };

@@ -28,7 +28,8 @@ const dealerSchema = new mongoose.Schema(
     email: { type: String },
     websiteUrl: { type: String },
     googleReviewUrl: { type: String },
-    logoUrl: { type: String }, // Dealer logo for branding
+    logoUrl: { type: String }, // Dealer logo for branding (deprecated - use logoKey)
+    logoKey: { type: String }, // S3 object key for logo (private bucket)
     slug: { type: String, unique: true, sparse: true }, // URL slug for public forms
     settings: { type: Object, default: {} }, // branding, default task templates
     // Form customization - intro text, T&Cs per form type

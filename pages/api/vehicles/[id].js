@@ -119,6 +119,27 @@ async function handler(req, res, ctx) {
       }
     }
 
+    // Log activity for type changes (STOCK -> COURTESY, etc.)
+    if (updateData.type && updateData.type !== existingVehicle.type) {
+      const typeLabels = {
+        STOCK: "Stock",
+        COURTESY: "Courtesy",
+        FLEET_OTHER: "Fleet",
+      };
+      const oldLabel = typeLabels[existingVehicle.type] || existingVehicle.type;
+      const newLabel = typeLabels[updateData.type] || updateData.type;
+
+      await VehicleActivity.log({
+        dealerId,
+        vehicleId: id,
+        actorId: userId,
+        actorName,
+        type: "TYPE_CHANGED",
+        message: `Vehicle type changed from ${oldLabel} to ${newLabel}`,
+        meta: { from: existingVehicle.type, to: updateData.type },
+      });
+    }
+
     // Log activity for detail changes (VIN, make, model, etc.)
     const detailFields = ["make", "model", "year", "colour", "vin", "regCurrent"];
     const changedDetails = detailFields.filter(

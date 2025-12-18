@@ -175,15 +175,16 @@ export default function Settings() {
     if (!file) return;
 
     // Validate file type
-    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
     if (!validTypes.includes(file.type)) {
-      toast.error("Please upload PNG, JPG, or SVG");
+      toast.error("Please upload PNG, JPEG, WebP, or GIF");
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be under 2MB");
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`);
       return;
     }
 
@@ -192,26 +193,42 @@ export default function Settings() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await fetch("/api/vehicles/upload", {
+      // Use dedicated dealer logo endpoint (tenant-scoped, handles DB update)
+      const uploadRes = await fetch("/api/dealer/logo", {
         method: "POST",
         body: formData,
       });
 
-      if (!uploadRes.ok) throw new Error("Upload failed");
+      const contentType = uploadRes.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Non-JSON response:", uploadRes.status);
+        }
+        throw new Error("Server error (LOGO_UPLOAD_SERVER_ERROR)");
+      }
+
       const uploadData = await uploadRes.json();
 
-      // Save logo URL to dealer
-      const dealerRes = await fetch("/api/dealer", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl: uploadData.url }),
-      });
+      if (!uploadRes.ok) {
+        const errorMsg = uploadData.error || "Upload failed";
+        const errorCode = uploadData.code || "UNKNOWN";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Error:", errorCode, errorMsg, uploadData.details);
+        }
+        throw new Error(`${errorMsg} (${errorCode})`);
+      }
 
-      if (!dealerRes.ok) throw new Error("Failed to save logo");
+      // Dealer logo endpoint updates dealer record automatically
+      // Refresh dealer to get the updated logoUrl
+      const dealerRes = await fetch("/api/dealer");
+      if (!dealerRes.ok) throw new Error("Failed to refresh dealer profile");
       const updatedDealer = await dealerRes.json();
       setDealer(updatedDealer);
       toast.success("Logo uploaded");
     } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Logo Upload] Exception:", error);
+      }
       toast.error(error.message || "Failed to upload logo");
     } finally {
       setIsUploadingLogo(false);
@@ -223,7 +240,7 @@ export default function Settings() {
       const res = await fetch("/api/dealer", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logoUrl: "" }),
+        body: JSON.stringify({ logoUrl: "", logoKey: "" }),
       });
       if (!res.ok) throw new Error("Failed to remove logo");
       const updatedDealer = await res.json();

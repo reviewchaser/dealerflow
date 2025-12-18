@@ -1,13 +1,22 @@
 // Step 4: Create first vehicle
 import connectMongo from "@/libs/mongoose";
-import Dealer from "@/models/Dealer";
 import Vehicle from "@/models/Vehicle";
 import VehicleTask from "@/models/VehicleTask";
 import VehicleTaskTemplate from "@/models/VehicleTaskTemplate";
+import { withDealerContext } from "@/libs/authContext";
 
-export default async function handler(req, res) {
+async function handler(req, res, ctx) {
+  // Always return JSON
+  res.setHeader("Content-Type", "application/json");
+
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({ error: "Method not allowed", code: "METHOD_NOT_ALLOWED" });
+  }
+
+  const { dealerId, dealer } = ctx;
+
+  if (!dealerId) {
+    return res.status(401).json({ error: "Not authenticated", code: "NOT_AUTHENTICATED" });
   }
 
   try {
@@ -15,54 +24,72 @@ export default async function handler(req, res) {
 
     const { vrm, mileage, make, model, year, colour, fuelType, transmission } = req.body;
 
+    // Debug logging (dev only)
+    if (process.env.NODE_ENV !== "production") {
+      console.log("[Onboarding Vehicle] Received:", { vrm, make, model, year, colour, dealerId });
+    }
+
     // Validate required fields
     if (!vrm?.trim()) {
-      return res.status(400).json({ error: "Vehicle registration is required" });
+      return res.status(400).json({
+        error: "Vehicle registration is required",
+        code: "VRM_REQUIRED",
+      });
     }
 
-    if (!make?.trim() || !model?.trim()) {
-      return res.status(400).json({ error: "Make and model are required" });
+    const trimmedMake = make?.trim();
+    const trimmedModel = model?.trim();
+
+    if (!trimmedMake) {
+      return res.status(400).json({
+        error: "Make is required",
+        code: "MAKE_REQUIRED",
+      });
     }
 
-    // Find the dealer
-    // TODO: In multi-tenant setup, get dealer from session
-    const dealer = await Dealer.findOne();
-
-    if (!dealer) {
-      return res.status(404).json({ error: "Dealer not found" });
+    if (!trimmedModel) {
+      return res.status(400).json({
+        error: "Model is required",
+        code: "MODEL_REQUIRED",
+      });
     }
 
     // Normalize VRM
     const normalizedVrm = vrm.toUpperCase().replace(/\s/g, "");
 
-    // Check if vehicle already exists
+    // Check if vehicle already exists (scoped to dealer)
     const existingVehicle = await Vehicle.findOne({
-      dealerId: dealer._id,
+      dealerId,
       regCurrent: normalizedVrm,
     });
 
     if (existingVehicle) {
-      return res.status(400).json({ error: "Vehicle with this registration already exists" });
+      return res.status(409).json({
+        error: "Vehicle with this registration already exists",
+        code: "VEHICLE_EXISTS",
+      });
     }
 
-    // Create the vehicle
+    // Create the vehicle (scoped to dealer)
     const vehicle = await Vehicle.create({
-      dealerId: dealer._id,
+      dealerId,
       regCurrent: normalizedVrm,
-      make: make.toUpperCase(),
-      model: model.toUpperCase(),
+      make: trimmedMake.toUpperCase(),
+      model: trimmedModel.toUpperCase(),
       year: year ? parseInt(year, 10) : null,
-      colour: colour?.toUpperCase() || null,
-      fuelType: fuelType?.toUpperCase() || null,
-      transmission: transmission?.toUpperCase() || null,
+      colour: colour?.trim()?.toUpperCase() || null,
+      fuelType: fuelType?.trim()?.toUpperCase() || null,
+      transmission: transmission?.trim()?.toUpperCase() || null,
       mileageCurrent: mileage ? parseInt(mileage, 10) : null,
       status: "in_stock",
       type: "STOCK",
       saleType: "RETAIL",
     });
 
+    console.log(`[Onboarding Vehicle] Created vehicle ${vehicle._id} for dealer ${dealerId}`);
+
     // Create default tasks from template group
-    if (dealer.defaultTaskTemplateGroupId) {
+    if (dealer?.defaultTaskTemplateGroupId) {
       const templates = await VehicleTaskTemplate.find({
         groupId: dealer.defaultTaskTemplateGroupId,
       }).sort({ order: 1 });
@@ -91,7 +118,12 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    console.error("[Onboarding Vehicle] Error:", error);
-    return res.status(500).json({ error: "Failed to create vehicle" });
+    console.error("[Onboarding Vehicle] Error:", error.message, error.stack);
+    return res.status(500).json({
+      error: "Failed to create vehicle",
+      code: "CREATE_ERROR",
+    });
   }
 }
+
+export default withDealerContext(handler);
