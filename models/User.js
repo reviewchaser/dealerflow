@@ -11,6 +11,7 @@ export const PLATFORM_ROLES = {
 // User status for admin control
 export const USER_STATUS = {
   ACTIVE: "ACTIVE",
+  INVITED: "INVITED", // User invited but hasn't set password yet
   DISABLED: "DISABLED",
 };
 
@@ -54,6 +55,8 @@ const userSchema = mongoose.Schema(
       trim: true,
       lowercase: true,
       private: true,
+      unique: true,
+      sparse: true, // Allow multiple null values (for OAuth users without email)
     },
     // Password hash (only for credentials login)
     passwordHash: {

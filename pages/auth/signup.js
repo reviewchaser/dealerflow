@@ -15,6 +15,7 @@ export default function SignUp() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -24,6 +25,7 @@ export default function SignUp() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setErrorCode("");
 
     // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
@@ -51,10 +53,39 @@ export default function SignUp() {
         }),
       });
 
-      const data = await res.json();
+      // Check content-type before parsing JSON
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        // Server returned HTML (likely redirect or error page)
+        const text = await res.text();
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Signup] Non-JSON response:", res.status, text.slice(0, 500));
+        }
+        setError("Signup failed: server returned HTML (check auth/middleware/API route)");
+        setLoading(false);
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Signup] JSON parse error:", parseErr);
+        }
+        setError("Signup failed: invalid response from server");
+        setLoading(false);
+        return;
+      }
 
       if (!res.ok) {
-        setError(data.error || "Registration failed");
+        // Show the exact error from backend
+        const errorMsg = data.error || data.message || "Registration failed";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Signup] API error:", res.status, data);
+        }
+        setError(errorMsg);
+        setErrorCode(data.code || "");
         setLoading(false);
         return;
       }
@@ -76,7 +107,10 @@ export default function SignUp() {
         router.push("/onboarding/create-dealer");
       }
     } catch (err) {
-      setError("An unexpected error occurred");
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Signup] Unexpected error:", err);
+      }
+      setError(err.message || "An unexpected error occurred");
       setLoading(false);
     }
   };
@@ -105,7 +139,21 @@ export default function SignUp() {
             <form onSubmit={handleSignUp} className="space-y-4">
               {error && (
                 <div className="alert alert-error text-sm py-2">
-                  {error}
+                  <div className="flex flex-col gap-2 w-full">
+                    <span>{error}</span>
+                    {/* Show helpful links for existing account errors */}
+                    {(errorCode === "EMAIL_EXISTS" || errorCode === "NO_PASSWORD_SET") && (
+                      <div className="flex gap-3 text-xs">
+                        <Link href="/auth/signin" className="link link-primary">
+                          Sign in instead
+                        </Link>
+                        <span className="text-base-content/40">|</span>
+                        <Link href="/auth/forgot-password" className="link link-primary">
+                          Forgot password?
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { signOut } from "next-auth/react";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -349,11 +350,33 @@ export default function DashboardLayout({ children }) {
               </ul>
             </div>
 
-            {/* User Avatar */}
-            <div className="avatar placeholder">
-              <div className="bg-neutral text-neutral-content rounded-full w-8">
-                <span className="text-xs">U</span>
-              </div>
+            {/* User Menu */}
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder cursor-pointer">
+                <div className="bg-neutral text-neutral-content rounded-full w-8">
+                  <span className="text-xs">U</span>
+                </div>
+              </label>
+              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-52">
+                <li>
+                  <Link href="/settings" className="text-sm">
+                    <CogIcon className="w-4 h-4" />
+                    Settings
+                  </Link>
+                </li>
+                <div className="divider my-1"></div>
+                <li>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    className="text-sm text-error"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                    </svg>
+                    Sign out
+                  </button>
+                </li>
+              </ul>
             </div>
           </div>
         </header>

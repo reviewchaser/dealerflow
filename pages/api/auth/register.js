@@ -1,7 +1,10 @@
-import mongoose from "mongoose";
+import connectMongo from "@/libs/mongoose";
 import User from "@/models/User";
 
 export default async function handler(req, res) {
+  // Always return JSON, never redirect
+  res.setHeader("Content-Type", "application/json");
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -13,9 +16,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Name, email, and password are required" });
   }
 
+  // Normalize email
+  const normalizedEmail = email.trim().toLowerCase();
+
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
+  if (!emailRegex.test(normalizedEmail)) {
     return res.status(400).json({ error: "Invalid email format" });
   }
 
@@ -25,15 +31,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Connect to MongoDB
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI);
+    // Connect to MongoDB using shared connection util
+    await connectMongo();
+  } catch (dbError) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[Register] Database connection error:", dbError.message, dbError.stack);
     }
+    return res.status(500).json({
+      error: process.env.MONGODB_URI
+        ? "Database connection failed"
+        : "Database not configured"
+    });
+  }
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
+  try {
+    // Check if user already exists (include passwordHash to check if set)
+    const existingUser = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
     if (existingUser) {
-      return res.status(400).json({ error: "An account with this email already exists" });
+      // If user exists but has no password (OAuth or invited user)
+      if (!existingUser.passwordHash) {
+        return res.status(409).json({
+          error: "Account exists but has no password set. Use forgot password to set one.",
+          code: "NO_PASSWORD_SET",
+        });
+      }
+      // User exists with password
+      return res.status(409).json({
+        error: "An account with this email already exists. Please sign in instead.",
+        code: "EMAIL_EXISTS",
+      });
     }
 
     // Hash password
@@ -43,7 +69,7 @@ export default async function handler(req, res) {
     const user = await User.create({
       name: name.trim(),
       fullName: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       passwordHash,
     });
 
@@ -52,7 +78,19 @@ export default async function handler(req, res) {
       userId: user._id.toString(),
     });
   } catch (error) {
-    console.error("[Register] Error:", error);
-    return res.status(500).json({ error: "Failed to create account" });
+    // Log full error in development
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[Register] Error:", error.message, error.stack);
+    } else {
+      console.error("[Register] Error:", error.message);
+    }
+
+    // Handle MongoDB duplicate key error (in case of race condition)
+    if (error.code === 11000) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    // Return sanitized error message
+    return res.status(500).json({ error: "Failed to create account. Please try again." });
   }
 }

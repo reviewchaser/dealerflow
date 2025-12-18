@@ -12,8 +12,8 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Only show dev mode in development
-  const isDevMode = process.env.NODE_ENV !== "production";
+  // Only show dev login when explicitly enabled via env var (safe for production)
+  const isDevLoginEnabled = process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -70,10 +70,10 @@ export default function SignIn() {
               <p className="text-sm text-base-content/60 mt-1">Sign in to your account</p>
             </div>
 
-            {/* Dev Mode Banner - Only in development */}
-            {isDevMode && (
+            {/* Dev Login Banner - Only when NEXT_PUBLIC_ENABLE_DEV_LOGIN=true */}
+            {isDevLoginEnabled && (
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-4 mb-4">
-                <p className="text-xs text-warning font-medium mb-2">Development Mode</p>
+                <p className="text-xs text-warning font-medium mb-2">Dev Login Enabled</p>
                 <p className="text-xs text-base-content/60">Use any email with password: <code className="bg-base-200 px-1 rounded">test123</code></p>
               </div>
             )}

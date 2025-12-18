@@ -189,8 +189,9 @@ function Step2Modules({ data, onChange, onNext, onSkip, onBack }) {
     },
     {
       key: "appraisals",
-      name: "Appraisals & PX",
-      description: "Part-exchange appraisals with customer-facing submission forms",
+      name: "Appraisals & Buying",
+      description: "Part-exchange and dealer buying appraisals — with shareable forms customers can complete from home.",
+      tooltip: "Use this for customer PX appraisals, buying stock on the road, or sending a link to a third-party buyer to complete an appraisal.",
       icon: (
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -271,6 +272,13 @@ function Step2Modules({ data, onChange, onNext, onSkip, onBack }) {
                     <h3 className="font-bold">{module.name}</h3>
                     {module.recommended && (
                       <span className="badge badge-primary badge-xs">Recommended</span>
+                    )}
+                    {module.tooltip && (
+                      <div className="tooltip tooltip-right" data-tip={module.tooltip}>
+                        <svg className="w-4 h-4 text-base-content/40 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
                     )}
                   </div>
                   <p className="text-sm text-base-content/60 mt-1">{module.description}</p>

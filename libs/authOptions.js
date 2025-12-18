@@ -1,7 +1,7 @@
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import config from "@/config";
-import mongoose from "mongoose";
+import connectMongo from "@/libs/mongoose";
 
 export const authOptions = {
   // Set any random key in .env.local
@@ -17,28 +17,32 @@ export const authOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log("[Auth] Login failed: missing email or password");
           return null;
         }
 
+        const normalizedEmail = credentials.email.trim().toLowerCase();
+
         try {
-          // Connect to MongoDB
-          if (mongoose.connection.readyState !== 1) {
-            await mongoose.connect(process.env.MONGODB_URI);
-          }
+          // Connect to MongoDB using shared connection util
+          await connectMongo();
 
           // Import User model dynamically to avoid circular deps
           const User = (await import("@/models/User")).default;
 
           // Find user with password hash
-          const user = await User.findByEmailWithPassword(credentials.email);
+          const user = await User.findByEmailWithPassword(normalizedEmail);
 
           if (!user) {
-            // In development, create user with test password
-            if (process.env.NODE_ENV !== "production" && credentials.password === "test123") {
+            console.log(`[Auth] Login failed: user not found for email ${normalizedEmail}`);
+            // Dev login: create user with test password (only when ENABLE_DEV_LOGIN=true)
+            const devLoginEnabled = process.env.ENABLE_DEV_LOGIN === "true";
+            if (devLoginEnabled && credentials.password === "test123") {
+              console.log(`[Auth] Dev login: creating new user for ${normalizedEmail}`);
               const newUser = await User.create({
-                email: credentials.email.toLowerCase(),
-                name: credentials.email.split("@")[0],
-                fullName: credentials.email.split("@")[0],
+                email: normalizedEmail,
+                name: normalizedEmail.split("@")[0],
+                fullName: normalizedEmail.split("@")[0],
               });
               return {
                 id: newUser._id.toString(),
@@ -49,29 +53,40 @@ export const authOptions = {
             return null;
           }
 
+          // Check if user is disabled
+          if (user.status === "DISABLED") {
+            console.log(`[Auth] Login failed: user ${normalizedEmail} is disabled`);
+            return null;
+          }
+
           // If user has password hash, verify it
           if (user.passwordHash) {
             const isValid = await user.comparePassword(credentials.password);
             if (!isValid) {
+              console.log(`[Auth] Login failed: bcrypt mismatch for ${normalizedEmail}`);
               return null;
             }
           } else {
-            // User exists but no password - allow dev mode test123
-            if (process.env.NODE_ENV !== "production" && credentials.password === "test123") {
-              // Dev mode fallback - user exists without password
+            console.log(`[Auth] Login failed: passwordHash missing for ${normalizedEmail}`);
+            // User exists but no password - allow dev login with test123
+            const devLoginEnabled = process.env.ENABLE_DEV_LOGIN === "true";
+            if (devLoginEnabled && credentials.password === "test123") {
+              console.log(`[Auth] Dev login: allowing access without password for ${normalizedEmail}`);
+              // Dev login fallback - user exists without password
             } else {
-              // Production: no password set means can't login with credentials
+              // No password set means can't login with credentials
               return null;
             }
           }
 
+          console.log(`[Auth] Login success for ${normalizedEmail}`);
           return {
             id: user._id.toString(),
             email: user.email,
             name: user.fullName || user.name,
           };
         } catch (error) {
-          console.error("[CredentialsProvider] Error:", error);
+          console.error("[CredentialsProvider] Error:", error.message, error.stack);
           return null;
         }
       },
@@ -105,9 +120,7 @@ export const authOptions = {
       // Fetch dealer context on every JWT refresh
       if (token.sub) {
         try {
-          if (mongoose.connection.readyState !== 1) {
-            await mongoose.connect(process.env.MONGODB_URI);
-          }
+          await connectMongo();
           const DealerMembership = (await import("@/models/DealerMembership")).default;
           const User = (await import("@/models/User")).default;
 
@@ -155,9 +168,7 @@ export const authOptions = {
       // Handle Google OAuth sign-in
       if (account?.provider === "google" && user?.email) {
         try {
-          if (mongoose.connection.readyState !== 1) {
-            await mongoose.connect(process.env.MONGODB_URI);
-          }
+          await connectMongo();
           const User = (await import("@/models/User")).default;
 
           // Find or create user
