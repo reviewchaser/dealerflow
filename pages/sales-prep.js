@@ -1133,9 +1133,15 @@ export default function SalesPrep() {
   };
 
   // Share utility with fallback chain: Web Share API → Clipboard → Manual modal
+  // SSR-safe: only runs client-side, with guards for browser API availability
   const shareWithFallback = async (url, title, text) => {
+    // Guard against SSR - this should only run client-side
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return false;
+    }
+
     // 1. Try Web Share API (native sharing on mobile/supported browsers)
-    if (navigator.share) {
+    if (typeof navigator.share === "function") {
       try {
         await navigator.share({ title, text, url });
         return true;
@@ -1148,7 +1154,7 @@ export default function SalesPrep() {
     }
 
     // 2. Try Clipboard API
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
       try {
         await navigator.clipboard.writeText(url);
         toast.success("Link copied to clipboard!");
@@ -1200,8 +1206,9 @@ export default function SalesPrep() {
   };
 
   const shareViaWhatsApp = () => {
+    if (typeof window === "undefined") return;
     if (jobSheetLink?.url) {
-      const text = `Job sheet for ${selectedVehicle?.regCurrent}: ${jobSheetLink.url}`;
+      const text = `Job sheet for ${selectedVehicle?.regCurrent || "Vehicle"}: ${jobSheetLink.url}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
   };
@@ -1242,8 +1249,9 @@ export default function SalesPrep() {
   };
 
   const sharePrepSummaryViaWhatsApp = () => {
+    if (typeof window === "undefined") return;
     if (prepSummaryLink?.url) {
-      const text = `Prep summary for ${selectedVehicle?.regCurrent}: ${prepSummaryLink.url}`;
+      const text = `Prep summary for ${selectedVehicle?.regCurrent || "Vehicle"}: ${prepSummaryLink.url}`;
       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
     }
   };

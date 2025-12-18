@@ -17,6 +17,7 @@ const customerPXAppraisalSchema = new mongoose.Schema(
     mileage: { type: Number },
     colour: { type: String },
     fuelType: { type: String },
+    motExpiryDate: { type: Date }, // MOT expiry - transferred to vehicle on conversion
     conditionNotes: { type: String },
     // Match dealer appraisal fields
     proposedPurchasePrice: { type: Number },

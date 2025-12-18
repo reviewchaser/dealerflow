@@ -45,7 +45,7 @@ export default async function handler(req, res) {
 
     const { initialStatus = "in_stock" } = req.body;
 
-    // Create vehicle with all details (including dealerId and document URLs from appraisal)
+    // Create vehicle with all details (including dealerId, MOT expiry, and document URLs from appraisal)
     const vehicle = await Vehicle.create({
       dealerId: appraisal.dealerId,
       regCurrent: appraisal.vehicleReg,
@@ -55,6 +55,7 @@ export default async function handler(req, res) {
       mileageCurrent: appraisal.mileage,
       colour: appraisal.colour,
       fuelType: appraisal.fuelType,
+      motExpiryDate: appraisal.motExpiryDate || null, // Transfer MOT expiry
       status: initialStatus,
       notes: appraisal.conditionNotes,
       type: "STOCK",

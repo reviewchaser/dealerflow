@@ -150,14 +150,16 @@ export default function NewVehicle() {
         showDummyNotification("DVLA API");
       }
 
+      // Use DVLA data primarily, but fallback to MOT data for fields DVLA often misses
+      // MOT API (DVSA) typically has better model/fuelType data than DVLA
       setFormData((prev) => ({
         ...prev,
-        make: dvlaData.make || prev.make,
-        model: dvlaData.model || prev.model,
-        year: dvlaData.yearOfManufacture || prev.year,
-        colour: dvlaData.colour || prev.colour,
-        fuelType: dvlaData.fuelType || prev.fuelType,
-        engineSize: dvlaData.engineCapacity ? `${dvlaData.engineCapacity}cc` : prev.engineSize,
+        make: dvlaData.make || motData?.make || prev.make,
+        model: dvlaData.model || motData?.model || prev.model,
+        year: dvlaData.yearOfManufacture || motData?.manufactureYear || prev.year,
+        colour: dvlaData.colour || motData?.primaryColour || prev.colour,
+        fuelType: dvlaData.fuelType || motData?.fuelType || prev.fuelType,
+        engineSize: dvlaData.engineCapacity ? `${dvlaData.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
         motExpiryDate: motData?.motExpiry || prev.motExpiryDate,
       }));
 

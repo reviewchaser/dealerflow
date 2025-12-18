@@ -19,6 +19,8 @@ export default function PublicForm({ form, fields, dealer }) {
   const [formData, setFormData] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]); // Track uploaded files for submission
+  const [uploadingField, setUploadingField] = useState(null); // Track which field is currently uploading
   const [courtesyVehicles, setCourtesyVehicles] = useState([]);
   const [stockVehicles, setStockVehicles] = useState([]);
   const [stockSearch, setStockSearch] = useState("");
@@ -297,6 +299,51 @@ export default function PublicForm({ form, fields, dealer }) {
     return hideFields.includes(field.fieldName);
   };
 
+  // Upload file to server and return URL
+  const handleFileUpload = async (file, fieldName) => {
+    setUploadingField(fieldName);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+
+      const res = await fetch("/api/vehicles/upload", {
+        method: "POST",
+        body: formDataUpload,
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
+
+      const data = await res.json();
+
+      // Store file metadata for submission
+      setUploadedFiles((prev) => [
+        ...prev.filter((f) => f.fieldName !== fieldName), // Replace if same field
+        {
+          fieldName,
+          url: data.url,
+          key: data.key, // S3 key for signed URL regeneration
+          filename: data.filename || file.name,
+          mimeType: data.type || file.type,
+          size: data.size || file.size,
+        },
+      ]);
+
+      // Also store URL in formData for display
+      handleInputChange(fieldName, data.url);
+      toast.success("File uploaded");
+      return data.url;
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Failed to upload file");
+      return null;
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -308,6 +355,7 @@ export default function PublicForm({ form, fields, dealer }) {
         body: JSON.stringify({
           formId: form._id,
           rawAnswers: formData,
+          files: uploadedFiles, // Include uploaded files
         }),
       });
 
@@ -315,6 +363,7 @@ export default function PublicForm({ form, fields, dealer }) {
 
       toast.success("Form submitted successfully!");
       setFormData({});
+      setUploadedFiles([]);
 
       setTimeout(() => {
         router.push("/public/forms/thank-you");
@@ -731,17 +780,47 @@ export default function PublicForm({ form, fields, dealer }) {
         );
 
       case "FILE":
+        const isUploading = uploadingField === field.fieldName;
+        const uploadedUrl = formData[field.fieldName];
+        const isImage = uploadedUrl && (uploadedUrl.includes("image") || /\.(jpg|jpeg|png|gif|webp)$/i.test(uploadedUrl));
+
         return (
-          <input
-            type="file"
-            className="file-input file-input-bordered w-full"
-            onChange={(e) => {
-              const file = e.target.files[0];
-              if (file) {
-                handleInputChange(field.fieldName, `[File: ${file.name}]`);
-              }
-            }}
-          />
+          <div className="space-y-2">
+            <input
+              type="file"
+              className="file-input file-input-bordered w-full"
+              disabled={isUploading}
+              accept="image/*,video/*,.pdf,.doc,.docx"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  handleFileUpload(file, field.fieldName);
+                }
+              }}
+            />
+            {isUploading && (
+              <div className="flex items-center gap-2 text-sm text-base-content/60">
+                <span className="loading loading-spinner loading-sm"></span>
+                Uploading...
+              </div>
+            )}
+            {uploadedUrl && !isUploading && (
+              <div className="mt-2">
+                {isImage ? (
+                  <img src={uploadedUrl} alt="Uploaded" className="max-h-32 rounded-lg border" />
+                ) : (
+                  <a
+                    href={uploadedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="link link-primary text-sm"
+                  >
+                    View uploaded file
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
         );
 
       case "SIGNATURE":

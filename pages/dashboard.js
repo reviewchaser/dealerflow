@@ -17,8 +17,10 @@ const FORM_TYPE_LABELS = {
   OTHER: "Other",
 };
 
-// Default priority forms (fallback if no usage data)
-const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "SERVICE_RECEIPT", "TEST_DRIVE"];
+// Default priority forms - PDI is always first as it's the most common daily task
+// These are shown when there's no usage data, or PDI is forced to always be first
+const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
+const ALWAYS_FIRST_FORM_TYPE = "PDI"; // PDI always shows as the first quick form
 
 // Needs Attention item configurations
 const NEEDS_ATTENTION_ITEMS = [
@@ -125,17 +127,26 @@ export default function Dashboard() {
     }
   };
 
-  // Get top forms from stats (by submission count) or fall back to defaults
+  // Get top forms - PDI is always first, then by usage stats or defaults
   const getTopForms = () => {
+    // Find PDI form - it should always be first
+    const pdiForm = forms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
+
+    let otherTopForms = [];
     if (stats?.topForms?.length > 0) {
       // Map topForms to actual form objects - ensure both sides are strings for comparison
-      return stats.topForms
+      // Exclude PDI since we're adding it first
+      otherTopForms = stats.topForms
         .map(tf => forms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
-        .filter(Boolean)
-        .slice(0, 3);
+        .filter(f => f && f.type !== ALWAYS_FIRST_FORM_TYPE)
+        .slice(0, 2);
+    } else {
+      // Fallback to default priority forms (excluding PDI)
+      otherTopForms = forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
     }
-    // Fallback to default priority forms
-    return forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type)).slice(0, 3);
+
+    // PDI first, then other top forms
+    return pdiForm ? [pdiForm, ...otherTopForms] : otherTopForms;
   };
 
   const topForms = getTopForms();
@@ -221,10 +232,10 @@ export default function Dashboard() {
               color="secondary"
             />
             <StatsCard
-              title="Live Vehicles"
-              value={stats?.vehicles?.live ?? 0}
-              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} ready to go live` : null}
-              icon="✨"
+              title="Advertised"
+              value={stats?.vehicles?.inPrep ?? 0}
+              trend={stats?.vehicles?.live > 0 ? `${stats.vehicles.live} sold in progress` : null}
+              icon="📢"
               color="accent"
             />
             <StatsCard

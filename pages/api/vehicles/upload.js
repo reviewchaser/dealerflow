@@ -26,13 +26,22 @@ export const config = {
   },
 };
 
-// Allowed image MIME types
+// Allowed MIME types (images + documents + videos)
 const ALLOWED_TYPES = [
+  // Images
   "image/png",
   "image/jpeg",
   "image/jpg",
   "image/webp",
   "image/gif",
+  // Documents
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  // Videos
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
 ];
 
 // Max file size: 5MB
@@ -141,8 +150,14 @@ function getExtFromMimeType(mimeType) {
     "image/jpg": ".jpg",
     "image/webp": ".webp",
     "image/gif": ".gif",
+    "application/pdf": ".pdf",
+    "application/msword": ".doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+    "video/mp4": ".mp4",
+    "video/quicktime": ".mov",
+    "video/webm": ".webm",
   };
-  return map[mimeType] || ".jpg";
+  return map[mimeType] || ".bin";
 }
 
 export default async function handler(req, res) {
@@ -186,7 +201,7 @@ export default async function handler(req, res) {
       // Check for file type error
       if (parseError.message?.includes("filter")) {
         return res.status(415).json({
-          error: "Invalid file type. Only PNG, JPEG, WebP, and GIF are allowed.",
+          error: "Invalid file type. Allowed: images, PDFs, Word docs, and videos.",
           code: "INVALID_FILE_TYPE",
         });
       }
@@ -213,7 +228,7 @@ export default async function handler(req, res) {
     if (!ALLOWED_TYPES.includes(mimeType)) {
       console.log("[Upload] Invalid MIME type:", mimeType);
       return res.status(415).json({
-        error: `Invalid file type: ${mimeType}. Only images are allowed.`,
+        error: `Invalid file type: ${mimeType}. Allowed: images, PDFs, Word docs, and videos.`,
         code: "INVALID_FILE_TYPE",
       });
     }
