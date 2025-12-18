@@ -38,6 +38,9 @@ export default function CustomerPXAppraisalDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
 
+  // Photo lightbox state
+  const [lightboxPhoto, setLightboxPhoto] = useState(null);
+
   // Issue modal state
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueForm, setIssueForm] = useState({
@@ -297,6 +300,12 @@ export default function CustomerPXAppraisalDetail() {
                   <p className="text-sm text-base-content/60">Phone</p>
                   <p className="font-semibold">{appraisal.customerPhone || appraisal.contactId?.phone || "—"}</p>
                 </div>
+                {appraisal.interestedInVehicle && (
+                  <div className="md:col-span-3">
+                    <p className="text-sm text-base-content/60">Interested In Vehicle</p>
+                    <p className="font-semibold">{appraisal.interestedInVehicle}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -335,6 +344,118 @@ export default function CustomerPXAppraisalDetail() {
               <p className="whitespace-pre-wrap">{appraisal.conditionNotes || "No notes recorded"}</p>
             </div>
           </div>
+
+          {/* Vehicle Photos Gallery */}
+          {appraisal.photos && (
+            (appraisal.photos.exterior?.length > 0 || appraisal.photos.interior?.length > 0 ||
+             appraisal.photos.dashboard || appraisal.photos.odometer) && (
+              <div className="card bg-base-200">
+                <div className="card-body">
+                  <h2 className="card-title">Vehicle Photos</h2>
+                  <div className="space-y-4">
+                    {/* Exterior Photos */}
+                    {appraisal.photos.exterior?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-base-content/70 mb-2">Exterior ({appraisal.photos.exterior.length})</p>
+                        <div className="flex flex-wrap gap-2">
+                          {appraisal.photos.exterior.map((photo, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setLightboxPhoto(photo)}
+                              className="relative group"
+                            >
+                              <img
+                                src={photo}
+                                alt={`Exterior ${idx + 1}`}
+                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interior Photos */}
+                    {appraisal.photos.interior?.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-base-content/70 mb-2">Interior ({appraisal.photos.interior.length})</p>
+                        <div className="flex flex-wrap gap-2">
+                          {appraisal.photos.interior.map((photo, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setLightboxPhoto(photo)}
+                              className="relative group"
+                            >
+                              <img
+                                src={photo}
+                                alt={`Interior ${idx + 1}`}
+                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Dashboard & Odometer */}
+                    {(appraisal.photos.dashboard || appraisal.photos.odometer) && (
+                      <div>
+                        <p className="text-sm font-semibold text-base-content/70 mb-2">Dashboard & Odometer</p>
+                        <div className="flex flex-wrap gap-2">
+                          {appraisal.photos.dashboard && (
+                            <button
+                              onClick={() => setLightboxPhoto(appraisal.photos.dashboard)}
+                              className="relative group"
+                            >
+                              <img
+                                src={appraisal.photos.dashboard}
+                                alt="Dashboard"
+                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                              />
+                              <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">Dashboard</span>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </button>
+                          )}
+                          {appraisal.photos.odometer && (
+                            <button
+                              onClick={() => setLightboxPhoto(appraisal.photos.odometer)}
+                              className="relative group"
+                            >
+                              <img
+                                src={appraisal.photos.odometer}
+                                alt="Odometer"
+                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                              />
+                              <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">Odometer</span>
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                </svg>
+                              </div>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          )}
 
           {/* Issues Section */}
           <div className="card bg-base-200">
@@ -385,17 +506,61 @@ export default function CustomerPXAppraisalDetail() {
                           Est. cost: £{issue.estimatedCost.toLocaleString()}
                         </p>
                       )}
+                      {/* Legacy photos (simple URL array) */}
                       {issue.photos && issue.photos.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          {issue.photos.map((photo, idx) => (
-                            <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">
-                              <img
-                                src={photo}
-                                alt={`Issue photo ${idx + 1}`}
-                                className="w-20 h-20 object-cover rounded-lg hover:opacity-80 transition-opacity border border-base-300"
-                              />
-                            </a>
-                          ))}
+                        <div className="mt-3">
+                          <p className="text-xs text-base-content/60 mb-2">Photos ({issue.photos.length})</p>
+                          <div className="flex flex-wrap gap-2">
+                            {issue.photos.map((photo, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setLightboxPhoto(photo)}
+                                className="relative group"
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Issue photo ${idx + 1}`}
+                                  className="w-20 h-20 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                  </svg>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {/* New attachments format (with caption, uploadedAt) */}
+                      {issue.attachments && issue.attachments.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs text-base-content/60 mb-2">Attachments ({issue.attachments.length})</p>
+                          <div className="flex flex-wrap gap-2">
+                            {issue.attachments.map((attachment, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setLightboxPhoto(attachment.url)}
+                                className="relative group"
+                              >
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.caption || `Attachment ${idx + 1}`}
+                                  className="w-20 h-20 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
+                                />
+                                {attachment.caption && (
+                                  <span className="absolute bottom-0 left-0 right-0 text-[9px] bg-black/60 text-white px-1 py-0.5 rounded-b-lg truncate">
+                                    {attachment.caption}
+                                  </span>
+                                )}
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                  </svg>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -640,6 +805,41 @@ export default function CustomerPXAppraisalDetail() {
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+        </div>
+      )}
+
+      {/* Photo Lightbox Modal */}
+      {lightboxPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <button
+            className="absolute top-4 right-4 btn btn-circle btn-ghost text-white hover:bg-white/20"
+            onClick={() => setLightboxPhoto(null)}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightboxPhoto}
+            alt="Full size photo"
+            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <a
+            href={lightboxPhoto}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute bottom-4 right-4 btn btn-sm btn-ghost text-white hover:bg-white/20"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            Open Original
+          </a>
         </div>
       )}
     </DashboardLayout>
