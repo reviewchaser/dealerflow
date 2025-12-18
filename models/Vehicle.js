@@ -1,6 +1,18 @@
 import mongoose from "mongoose";
 import toJSON from "./plugins/toJSON";
 
+/**
+ * Vehicle Model
+ *
+ * SERVERLESS-SAFE PATTERN:
+ * The export uses `mongoose.models.Vehicle || mongoose.model(...)` to prevent
+ * OverwriteModelError during Vercel/serverless hot reloads and cold starts.
+ *
+ * IMPORTANT FOR POPULATE:
+ * Any file that uses .populate("vehicleId") must import this model, even if
+ * it doesn't use Vehicle directly. Mongoose needs the model registered before
+ * it can resolve the "Vehicle" ref during populate operations.
+ */
 const vehicleSchema = new mongoose.Schema(
   {
     dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },

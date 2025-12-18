@@ -116,27 +116,64 @@ async function handleStats(req, res, ctx) {
       .lean()
   ]);
 
-  // Top 3 forms by submission count
-  const dealerObjectId = new mongoose.Types.ObjectId(dealerId);
-  const topFormsAgg = await FormSubmission.aggregate([
-    { $match: { dealerId: dealerObjectId } },
-    { $group: { _id: "$formId", count: { $sum: 1 } } },
-    { $sort: { count: -1 } },
-    { $limit: 3 },
-    { $lookup: { from: "forms", localField: "_id", foreignField: "_id", as: "form" } },
-    { $unwind: { path: "$form", preserveNullAndEmptyArrays: false } },
-    { $project: { formId: "$_id", count: 1, name: "$form.name", type: "$form.type" } }
-  ]);
+  // Helper to transform _id to id for lean() results
+  const transformDoc = (doc) => {
+    if (!doc) return null;
+    const { _id, __v, ...rest } = doc;
+    return { id: _id?.toString(), ...rest };
+  };
 
-  // Today counts by calendar category (for Today strip)
-  const todayCategoryCounts = await CalendarEvent.aggregate([
-    { $match: {
-      dealerId: dealerObjectId,
-      startDatetime: { $gte: startOfToday, $lt: endOfToday }
-    }},
-    { $lookup: { from: "calendarcategories", localField: "categoryId", foreignField: "_id", as: "category" }},
-    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
-    { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
+  // Second batch of parallel queries - aggregations and recent items
+  const dealerObjectId = new mongoose.Types.ObjectId(dealerId);
+  const [
+    topFormsAgg,
+    todayCategoryCounts,
+    recentAppraisalsRaw,
+    recentVehiclesRaw,
+    recentSubmissionsRaw,
+    allForms
+  ] = await Promise.all([
+    // Top 3 forms by submission count
+    FormSubmission.aggregate([
+      { $match: { dealerId: dealerObjectId } },
+      { $group: { _id: "$formId", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 3 },
+      { $lookup: { from: "forms", localField: "_id", foreignField: "_id", as: "form" } },
+      { $unwind: { path: "$form", preserveNullAndEmptyArrays: false } },
+      { $project: { formId: "$_id", count: 1, name: "$form.name", type: "$form.type" } }
+    ]),
+    // Today counts by calendar category
+    CalendarEvent.aggregate([
+      { $match: {
+        dealerId: dealerObjectId,
+        startDatetime: { $gte: startOfToday, $lt: endOfToday }
+      }},
+      { $lookup: { from: "calendarcategories", localField: "categoryId", foreignField: "_id", as: "category" }},
+      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
+      { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
+    ]),
+    // Recent appraisals
+    Appraisal.find({ dealerId })
+      .populate("contactId")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean(),
+    // Recent vehicles
+    Vehicle.find({ dealerId })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean(),
+    // Recent submissions
+    FormSubmission.find({ dealerId })
+      .populate("formId")
+      .sort({ submittedAt: -1 })
+      .limit(5)
+      .lean(),
+    // All forms for quick forms section (eliminates separate /api/forms call)
+    Form.find({ dealerId })
+      .sort({ type: 1, createdAt: -1 })
+      .lean()
   ]);
 
   // Extract category counts
@@ -152,35 +189,11 @@ async function handleStats(req, res, ctx) {
     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
     : "N/A";
 
-  // Helper to transform _id to id for lean() results
-  const transformDoc = (doc) => {
-    if (!doc) return null;
-    const { _id, __v, ...rest } = doc;
-    return { id: _id?.toString(), ...rest };
-  };
-
-  // Recent items - scoped by dealerId
-  const recentAppraisalsRaw = await Appraisal.find({ dealerId })
-    .populate("contactId")
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean();
-
-  const recentVehiclesRaw = await Vehicle.find({ dealerId })
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean();
-
-  const recentSubmissionsRaw = await FormSubmission.find({ dealerId })
-    .populate("formId")
-    .sort({ submittedAt: -1 })
-    .limit(5)
-    .lean();
-
   // Transform all recent items
   const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
   const recentVehicles = recentVehiclesRaw.map(transformDoc);
   const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
+  const formsList = allForms.map(transformDoc);
 
   // Calculate days since oldest pending appraisal
   const oldestAppraisalDays = oldestPendingAppraisal
@@ -222,6 +235,8 @@ async function handleStats(req, res, ctx) {
     },
     // Top forms by usage
     topForms: topFormsAgg,
+    // All forms for quick forms section (eliminates separate /api/forms call)
+    formsList,
     // KPI micro-context
     oldestAppraisalDays,
   });

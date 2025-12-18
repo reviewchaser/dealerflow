@@ -1,0 +1,307 @@
+/**
+ * PhotoGallery Component - Thumbnail grid with lightbox/modal viewer
+ * Usage:
+ *   <PhotoGallery photos={[{ url: '...', category: 'exterior' }]} />
+ *   <PhotoGallery photos={urls} groupByCategory />
+ */
+
+import { useState, useEffect, useCallback } from "react";
+
+// Category labels for display
+const CATEGORY_LABELS = {
+  exterior: "Exterior",
+  interior: "Interior",
+  dashboard: "Dashboard",
+  odometer: "Odometer",
+  damage: "Damage",
+  documents: "Documents",
+  other: "Other",
+};
+
+export function PhotoGallery({
+  photos = [],
+  groupByCategory = false,
+  maxVisible = 6,
+  thumbnailSize = "default",
+  className = "",
+  showCount = true,
+}) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [showAll, setShowAll] = useState(false);
+
+  // Normalize photos to consistent format
+  const normalizedPhotos = photos.map((photo, idx) => {
+    if (typeof photo === "string") {
+      return { url: photo, category: "other", id: idx };
+    }
+    return { ...photo, id: photo.id || idx };
+  });
+
+  const thumbnailSizes = {
+    sm: "w-16 h-16",
+    default: "w-20 h-20",
+    lg: "w-24 h-24",
+    xl: "w-32 h-32",
+  };
+
+  const size = thumbnailSizes[thumbnailSize] || thumbnailSizes.default;
+  const visiblePhotos = showAll ? normalizedPhotos : normalizedPhotos.slice(0, maxVisible);
+  const hiddenCount = normalizedPhotos.length - maxVisible;
+
+  const openLightbox = (index) => {
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
+
+  // Group photos by category if requested
+  const groupedPhotos = groupByCategory
+    ? normalizedPhotos.reduce((acc, photo) => {
+        const cat = photo.category || "other";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(photo);
+        return acc;
+      }, {})
+    : null;
+
+  if (normalizedPhotos.length === 0) {
+    return (
+      <div className={`text-sm text-slate-500 italic ${className}`}>
+        No photos
+      </div>
+    );
+  }
+
+  // Grouped view
+  if (groupByCategory && groupedPhotos) {
+    return (
+      <>
+        <div className={`space-y-4 ${className}`}>
+          {Object.entries(groupedPhotos).map(([category, categoryPhotos]) => (
+            <div key={category}>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+                {CATEGORY_LABELS[category] || category} ({categoryPhotos.length})
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {categoryPhotos.map((photo, idx) => {
+                  const globalIndex = normalizedPhotos.findIndex((p) => p.id === photo.id);
+                  return (
+                    <PhotoThumbnail
+                      key={photo.id}
+                      photo={photo}
+                      size={size}
+                      onClick={() => openLightbox(globalIndex)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <PhotoLightbox
+          photos={normalizedPhotos}
+          isOpen={lightboxOpen}
+          currentIndex={lightboxIndex}
+          onClose={() => setLightboxOpen(false)}
+          onNavigate={setLightboxIndex}
+        />
+      </>
+    );
+  }
+
+  // Flat view
+  return (
+    <>
+      <div className={`flex flex-wrap gap-2 ${className}`}>
+        {visiblePhotos.map((photo, idx) => (
+          <PhotoThumbnail
+            key={photo.id}
+            photo={photo}
+            size={size}
+            onClick={() => openLightbox(idx)}
+          />
+        ))}
+        {!showAll && hiddenCount > 0 && (
+          <button
+            onClick={() => setShowAll(true)}
+            className={`${size} rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center transition-colors`}
+          >
+            <span className="text-sm font-semibold text-slate-600">+{hiddenCount}</span>
+          </button>
+        )}
+      </div>
+      {showCount && normalizedPhotos.length > 0 && (
+        <p className="text-xs text-slate-500 mt-2">
+          {normalizedPhotos.length} photo{normalizedPhotos.length !== 1 ? "s" : ""}
+        </p>
+      )}
+      <PhotoLightbox
+        photos={normalizedPhotos}
+        isOpen={lightboxOpen}
+        currentIndex={lightboxIndex}
+        onClose={() => setLightboxOpen(false)}
+        onNavigate={setLightboxIndex}
+      />
+    </>
+  );
+}
+
+function PhotoThumbnail({ photo, size, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`${size} relative group rounded-lg overflow-hidden border border-slate-200 hover:border-violet-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2`}
+    >
+      <img
+        src={photo.url}
+        alt={photo.caption || photo.category || "Photo"}
+        className="w-full h-full object-cover"
+        loading="lazy"
+      />
+      {/* Hover overlay */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+        <svg
+          className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+          />
+        </svg>
+      </div>
+      {/* Caption badge */}
+      {photo.caption && (
+        <span className="absolute bottom-0 left-0 right-0 text-[9px] bg-black/60 text-white px-1 py-0.5 truncate">
+          {photo.caption}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (!isOpen) return;
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" && currentIndex > 0) onNavigate(currentIndex - 1);
+      if (e.key === "ArrowRight" && currentIndex < photos.length - 1) onNavigate(currentIndex + 1);
+    },
+    [isOpen, currentIndex, photos.length, onClose, onNavigate]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  if (!isOpen || !photos.length) return null;
+
+  const currentPhoto = photos[currentIndex];
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex < photos.length - 1;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+      onClick={onClose}
+    >
+      {/* Close button */}
+      <button
+        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+        onClick={onClose}
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Navigation - Previous */}
+      {hasPrev && (
+        <button
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate(currentIndex - 1);
+          }}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Navigation - Next */}
+      {hasNext && (
+        <button
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigate(currentIndex + 1);
+          }}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Main image */}
+      <img
+        src={currentPhoto.url}
+        alt={currentPhoto.caption || `Photo ${currentIndex + 1}`}
+        className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+
+      {/* Bottom bar - counter + open original */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 rounded-full bg-black/50 text-white text-sm">
+        <span>
+          {currentIndex + 1} / {photos.length}
+        </span>
+        {currentPhoto.category && (
+          <>
+            <span className="w-px h-4 bg-white/30" />
+            <span className="text-white/70 capitalize">{currentPhoto.category}</span>
+          </>
+        )}
+        <span className="w-px h-4 bg-white/30" />
+        <a
+          href={currentPhoto.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 hover:text-violet-300 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+            />
+          </svg>
+          Open
+        </a>
+      </div>
+    </div>
+  );
+}
+
+export default PhotoGallery;

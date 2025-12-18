@@ -1245,39 +1245,40 @@ export default function Warranty() {
       {/* Case Detail Drawer */}
       {selectedCase && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="bg-black/50 absolute inset-0" onClick={() => setSelectedCase(null)}></div>
-          <div className="relative bg-base-100 w-full max-w-xl h-full overflow-y-auto">
-            {/* Header */}
-            <div className="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
-              <div className="flex justify-between items-start">
+          <div className="bg-black/40 absolute inset-0 backdrop-blur-sm" onClick={() => setSelectedCase(null)}></div>
+          <div className="relative bg-white w-full max-w-xl h-full overflow-y-auto shadow-2xl">
+            {/* Modern Sticky Header */}
+            <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-4 z-10">
+              <div className="flex justify-between items-start gap-3">
                 {/* Back button on mobile */}
-                <button className="md:hidden btn btn-ghost btn-sm btn-circle mr-2" onClick={() => setSelectedCase(null)}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors" onClick={() => setSelectedCase(null)}>
+                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
+                  {/* VRM + Status Pills Row */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-block bg-[#fcd34d] border border-yellow-500/50 rounded-md px-3 py-1 shadow-sm font-mono font-bold text-slate-900 text-base tracking-wider uppercase">
+                    <span className="inline-flex items-center bg-amber-100 border border-amber-300 rounded-lg px-3 py-1.5 font-mono font-bold text-slate-900 text-base tracking-wider uppercase shadow-sm">
                       {selectedCase.regAtPurchase || selectedCase.details?.vehicleReg || "NO REG"}
                     </span>
                     {selectedCase.warrantyType && (
-                      <span className="badge badge-sm badge-outline">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
                         {selectedCase.warrantyType}
                       </span>
                     )}
-                    <span className={`badge badge-sm ${PRIORITIES[selectedCase.priority]?.bg} ${PRIORITIES[selectedCase.priority]?.text}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${PRIORITIES[selectedCase.priority]?.bg} ${PRIORITIES[selectedCase.priority]?.text} ${PRIORITIES[selectedCase.priority]?.border} border`}>
                       {selectedCase.priority}
                     </span>
                   </div>
-                  <p className="text-sm text-base-content/60 mt-1">
-                    {selectedCase.contactId?.name} &middot; {daysSince(selectedCase.createdAt)}d open
+                  <p className="text-sm text-slate-500 mt-1.5 truncate">
+                    {selectedCase.contactId?.name || "Unknown"} &middot; {daysSince(selectedCase.createdAt)}d open
                   </p>
                 </div>
-                <div className="hidden md:flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-1.5">
                   <button
                     onClick={handleGenerateJobSheet}
-                    className="btn btn-outline btn-sm gap-1"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
                     title="Share Job Sheet"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1285,64 +1286,111 @@ export default function Warranty() {
                     </svg>
                     Share
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setSelectedCase(null)}>✕</button>
+                  <button
+                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                    onClick={() => setSelectedCase(null)}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <div className="flex gap-2 mt-3">
-                <select
-                  className="select select-bordered select-sm flex-1"
-                  value={selectedCase.boardStatus}
-                  onChange={async (e) => {
-                    const newStatus = e.target.value;
-                    await updateCase(
-                      { boardStatus: newStatus },
-                      `Moved to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`
-                    );
-                  }}
-                >
-                  {COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
-                <select
-                  className="select select-bordered select-sm"
-                  value={selectedCase.priority}
-                  onChange={async (e) => {
-                    await updateCase({ priority: e.target.value }, "Priority updated");
-                  }}
-                >
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
+              {/* Status Segmented Control */}
+              <div className="flex gap-2 mt-4">
+                <div className="flex-1 bg-slate-100 rounded-lg p-1 flex">
+                  {COLUMNS.map(c => (
+                    <button
+                      key={c.key}
+                      onClick={async () => {
+                        if (selectedCase.boardStatus !== c.key) {
+                          await updateCase(
+                            { boardStatus: c.key },
+                            `Moved to ${c.label}`
+                          );
+                        }
+                      }}
+                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+                        selectedCase.boardStatus === c.key
+                          ? "bg-white text-slate-900 shadow-sm"
+                          : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="bg-slate-100 rounded-lg p-1 flex">
+                  {["low", "normal", "high", "critical"].map(p => (
+                    <button
+                      key={p}
+                      onClick={async () => {
+                        if (selectedCase.priority !== p) {
+                          await updateCase({ priority: p }, "Priority updated");
+                        }
+                      }}
+                      className={`px-2 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
+                        selectedCase.priority === p
+                          ? `${PRIORITIES[p]?.bg} ${PRIORITIES[p]?.text} shadow-sm`
+                          : "text-slate-400 hover:text-slate-600"
+                      }`}
+                    >
+                      {p === "critical" ? "!" : p.charAt(0).toUpperCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div className="px-5 py-4 space-y-4">
               {/* Customer & Vehicle Section */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <h3 className="font-semibold mb-2">Customer & Vehicle</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="text-base-content/60">Name:</span> {selectedCase.contactId?.name || "—"}</div>
-                    <div><span className="text-base-content/60">Phone:</span> {selectedCase.contactId?.phone || "—"}</div>
-                    <div className="col-span-2"><span className="text-base-content/60">Email:</span> {selectedCase.contactId?.email || "—"}</div>
-                    <div><span className="text-base-content/60">Reg at Purchase:</span> {selectedCase.regAtPurchase || "—"}</div>
-                    <div><span className="text-base-content/60">Current Reg:</span> {selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-900">Customer & Vehicle</h3>
+                </div>
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.name || "—"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</span>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.phone || "—"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.email || "—"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Reg at Purchase</span>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.regAtPurchase || "—"}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Reg</span>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</p>
+                    </div>
                     {selectedCase.vehicleId && (
                       <>
                         <div className="col-span-2">
-                          <span className="text-base-content/60">Vehicle:</span>{" "}
-                          {selectedCase.vehicleId.make} {selectedCase.vehicleId.model} {selectedCase.vehicleId.year}
+                          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Vehicle</span>
+                          <p className="text-slate-900 mt-0.5">
+                            {selectedCase.vehicleId.make} {selectedCase.vehicleId.model} {selectedCase.vehicleId.year}
+                          </p>
                         </div>
-                        <div className="col-span-2">
+                        <div className="col-span-2 pt-1">
                           <button
-                            className="btn btn-xs btn-outline"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 rounded-lg transition-colors"
                             onClick={() => {
                               setSelectedVehicleId(selectedCase.vehicleId._id || selectedCase.vehicleId.id);
                               setIsVehicleDrawerOpen(true);
                             }}
                           >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
                             View Vehicle
                           </button>
                         </div>
@@ -1353,95 +1401,130 @@ export default function Warranty() {
               </div>
 
               {/* Repair Location Section */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-semibold">Repair Location</h3>
-                    <span className={`badge badge-sm ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.bg} ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.text}`}>
-                      {REPAIR_LOCATION_LABELS[selectedCase.repairLocationType || "WITH_CUSTOMER"]}
-                    </span>
-                  </div>
-                  <div className="space-y-3">
-                    <div className="form-control">
-                      <label className="label label-text text-xs">Location Type</label>
-                      <select
-                        className="select select-bordered select-sm w-full"
-                        value={selectedCase.repairLocationType || "WITH_CUSTOMER"}
-                        onChange={async (e) => {
-                          const newValue = e.target.value;
-                          const oldValue = selectedCase.repairLocationType || "WITH_CUSTOMER";
-                          await updateCase({
-                            repairLocationType: newValue,
-                            _eventType: "LOCATION_UPDATED",
-                            _eventMetadata: { fromLocation: oldValue, toLocation: newValue }
-                          }, "Repair location updated");
-                        }}
-                      >
-                        <option value="WITH_CUSTOMER">With customer</option>
-                        <option value="ON_SITE">On-site</option>
-                        <option value="THIRD_PARTY">Third-party</option>
-                      </select>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">Repair Location</h3>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.bg} ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.text}`}>
+                    {REPAIR_LOCATION_LABELS[selectedCase.repairLocationType || "WITH_CUSTOMER"]}
+                  </span>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Location Type Segmented Control */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">Location Type</label>
+                    <div className="bg-slate-100 rounded-lg p-1 flex">
+                      {[
+                        { key: "WITH_CUSTOMER", label: "With Customer", icon: "🏠" },
+                        { key: "ON_SITE", label: "On-site", icon: "🏢" },
+                        { key: "THIRD_PARTY", label: "Third-party", icon: "🔧" },
+                      ].map(loc => (
+                        <button
+                          key={loc.key}
+                          onClick={async () => {
+                            if ((selectedCase.repairLocationType || "WITH_CUSTOMER") !== loc.key) {
+                              const oldValue = selectedCase.repairLocationType || "WITH_CUSTOMER";
+                              await updateCase({
+                                repairLocationType: loc.key,
+                                _eventType: "LOCATION_UPDATED",
+                                _eventMetadata: { fromLocation: oldValue, toLocation: loc.key }
+                              }, "Repair location updated");
+                            }
+                          }}
+                          className={`flex-1 px-2 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 ${
+                            (selectedCase.repairLocationType || "WITH_CUSTOMER") === loc.key
+                              ? `${REPAIR_LOCATION_STYLES[loc.key]?.bg} ${REPAIR_LOCATION_STYLES[loc.key]?.text} shadow-sm`
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          <span>{loc.icon}</span>
+                          <span className="hidden sm:inline">{loc.label}</span>
+                        </button>
+                      ))}
                     </div>
-
-                    {/* Show additional fields for third-party repairs */}
-                    {selectedCase.repairLocationType === "THIRD_PARTY" && (
-                      <>
-                        <div className="form-control">
-                          <label className="label label-text text-xs">Garage Name</label>
-                          <input
-                            type="text"
-                            className="input input-bordered input-sm"
-                            value={selectedCase.repairLocationName || ""}
-                            placeholder="e.g., ABC Motors"
-                            onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationName: e.target.value })}
-                            onBlur={() => updateCase({ repairLocationName: selectedCase.repairLocationName })}
-                          />
-                        </div>
-
-                        <div className="form-control">
-                          <label className="label label-text text-xs">Notes</label>
-                          <textarea
-                            className="textarea textarea-bordered textarea-sm"
-                            rows={2}
-                            value={selectedCase.repairLocationNotes || ""}
-                            placeholder="Any notes about the repair location..."
-                            onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationNotes: e.target.value })}
-                            onBlur={() => updateCase({ repairLocationNotes: selectedCase.repairLocationNotes })}
-                          />
-                        </div>
-                      </>
-                    )}
                   </div>
+
+                  {/* Show additional fields for third-party repairs */}
+                  {selectedCase.repairLocationType === "THIRD_PARTY" && (
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Garage Name</label>
+                        <input
+                          type="text"
+                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none text-sm"
+                          value={selectedCase.repairLocationName || ""}
+                          placeholder="e.g., ABC Motors"
+                          onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationName: e.target.value })}
+                          onBlur={() => updateCase({ repairLocationName: selectedCase.repairLocationName })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Notes</label>
+                        <textarea
+                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none text-sm resize-none"
+                          rows={2}
+                          value={selectedCase.repairLocationNotes || ""}
+                          placeholder="Any notes about the repair location..."
+                          onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationNotes: e.target.value })}
+                          onBlur={() => updateCase({ repairLocationNotes: selectedCase.repairLocationNotes })}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Booking Section */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <h3 className="font-semibold mb-3">Booking</h3>
-                  <div className="form-control">
-                    <label className="label label-text text-xs">Booked Date/Time</label>
+              {/* Booking Section - Accent Styled */}
+              <div className={`rounded-xl border-2 shadow-sm overflow-hidden ${
+                selectedCase.bookedInAt
+                  ? "bg-emerald-50/50 border-emerald-200"
+                  : "bg-amber-50/50 border-amber-200"
+              }`}>
+                <div className={`px-4 py-3 flex items-center justify-between ${
+                  selectedCase.bookedInAt
+                    ? "bg-emerald-100/50 border-b border-emerald-200"
+                    : "bg-amber-100/50 border-b border-amber-200"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{selectedCase.bookedInAt ? "📅" : "⏳"}</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Booking</h3>
+                  </div>
+                  {selectedCase.bookedInAt ? (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      {formatBookedDate(selectedCase.bookedInAt)}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                      Not Booked
+                    </span>
+                  )}
+                </div>
+                <div className="p-4">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Booked Date & Time</label>
                     <input
                       type="datetime-local"
-                      className="input input-bordered input-sm"
+                      className={`w-full px-3 py-2.5 rounded-lg text-slate-900 transition-all outline-none text-sm font-medium ${
+                        selectedCase.bookedInAt
+                          ? "bg-white border border-emerald-200 focus:ring-2 focus:ring-emerald-500"
+                          : "bg-white border border-amber-200 focus:ring-2 focus:ring-amber-500"
+                      }`}
                       value={selectedCase.bookedInAt ? new Date(selectedCase.bookedInAt).toISOString().slice(0, 16) : ""}
                       onChange={async (e) => {
                         const newValue = e.target.value ? new Date(e.target.value).toISOString() : null;
                         const oldValue = selectedCase.bookedInAt || null;
-                        // Pass "Booking updated" as fallback message when no auto-move happens
                         await updateCase({
                           bookedInAt: newValue,
                           _eventType: "BOOKING_UPDATED",
                           _eventMetadata: { oldBookedAt: oldValue, newBookedAt: newValue }
-                        }, newValue ? "Booking updated" : null); // No fallback message when clearing, auto-move logic will handle it
+                        }, newValue ? "Booking updated" : null);
                       }}
                     />
                     {selectedCase.bookedInAt && (
                       <button
-                        className="btn btn-ghost btn-xs mt-1 self-start"
+                        className="inline-flex items-center gap-1 mt-2 px-2 py-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         onClick={async () => {
                           const oldValue = selectedCase.bookedInAt;
-                          // No fallback message - auto-move logic will show appropriate toast
                           await updateCase({
                             bookedInAt: null,
                             _eventType: "BOOKING_UPDATED",
@@ -1449,6 +1532,9 @@ export default function Warranty() {
                           }, "Booking cleared");
                         }}
                       >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                         Clear booking
                       </button>
                     )}
@@ -1457,147 +1543,170 @@ export default function Warranty() {
               </div>
 
               {/* Parts Required Section */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <h3 className="font-semibold mb-3">Parts</h3>
-                  <div className="space-y-3">
-                    <div className="form-control">
-                      <label className="label cursor-pointer justify-start gap-3">
-                        <input
-                          type="checkbox"
-                          className="checkbox checkbox-sm checkbox-primary"
-                          checked={selectedCase.partsRequired || false}
-                          onChange={async (e) => {
-                            const newValue = e.target.checked;
-                            const oldValue = selectedCase.partsRequired || false;
-                            await updateCase({
-                              partsRequired: newValue,
-                              _eventType: "PARTS_UPDATED",
-                              _eventMetadata: { partsRequired: newValue, wasRequired: oldValue }
-                            }, newValue ? "Parts required marked" : "Parts not required");
-                          }}
-                        />
-                        <span className="label-text">Parts required</span>
-                      </label>
-                    </div>
-
-                    {selectedCase.partsRequired && (
-                      <div className="form-control">
-                        <label className="label label-text text-xs">Parts Notes</label>
-                        <textarea
-                          className="textarea textarea-bordered textarea-sm"
-                          rows={2}
-                          value={selectedCase.partsNotes || ""}
-                          placeholder="List parts needed, order status, etc..."
-                          onChange={(e) => setSelectedCase({ ...selectedCase, partsNotes: e.target.value })}
-                          onBlur={() => updateCase({
-                            partsNotes: selectedCase.partsNotes,
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">Parts</h3>
+                  {selectedCase.partsRequired && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                      Required
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 space-y-3">
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={selectedCase.partsRequired || false}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          const oldValue = selectedCase.partsRequired || false;
+                          await updateCase({
+                            partsRequired: newValue,
                             _eventType: "PARTS_UPDATED",
-                            _eventMetadata: { partsNotes: selectedCase.partsNotes }
-                          })}
-                        />
-                      </div>
-                    )}
-                  </div>
+                            _eventMetadata: { partsRequired: newValue, wasRequired: oldValue }
+                          }, newValue ? "Parts required marked" : "Parts not required");
+                        }}
+                      />
+                      <div className="w-10 h-6 bg-slate-200 rounded-full peer-checked:bg-violet-500 transition-colors"></div>
+                      <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Parts required</span>
+                  </label>
+
+                  {selectedCase.partsRequired && (
+                    <div className="pt-2 border-t border-slate-100">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Parts Notes</label>
+                      <textarea
+                        className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none text-sm resize-none"
+                        rows={2}
+                        value={selectedCase.partsNotes || ""}
+                        placeholder="List parts needed, order status, etc..."
+                        onChange={(e) => setSelectedCase({ ...selectedCase, partsNotes: e.target.value })}
+                        onBlur={() => updateCase({
+                          partsNotes: selectedCase.partsNotes,
+                          _eventType: "PARTS_UPDATED",
+                          _eventMetadata: { partsNotes: selectedCase.partsNotes }
+                        })}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Courtesy Car Section */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <h3 className="font-semibold mb-3">Courtesy Car</h3>
-                  <div className="space-y-3">
-                    {/* Toggle: Courtesy Required */}
-                    <div className="form-control">
-                      <label className="label cursor-pointer justify-start gap-3">
-                        <input
-                          type="checkbox"
-                          className="checkbox checkbox-sm checkbox-primary"
-                          checked={selectedCase.courtesyRequired || false}
-                          onChange={async (e) => {
-                            const newValue = e.target.checked;
-                            await updateCase({
-                              courtesyRequired: newValue,
-                              _eventType: "COURTESY_REQUIRED_TOGGLED",
-                              _eventMetadata: { courtesyRequired: newValue }
-                            }, newValue ? "Courtesy car marked as required" : "Courtesy car not required");
-                          }}
-                        />
-                        <span className="label-text">Courtesy car required</span>
-                      </label>
-                    </div>
-
-                    {/* Allocation Display / Controls */}
-                    {selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "OUT" ? (
-                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-emerald-800">Allocated</span>
-                          <span className="inline-block bg-[#fcd34d] border border-yellow-500/50 rounded-md px-2 py-0.5 shadow-sm font-mono font-bold text-slate-900 text-xs tracking-wider uppercase">
-                            {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent || "N/A"}
-                          </span>
-                        </div>
-                        {selectedCase.courtesyAllocation.courtesyVehicle && (
-                          <p className="text-xs text-emerald-700">
-                            {selectedCase.courtesyAllocation.courtesyVehicle.make} {selectedCase.courtesyAllocation.courtesyVehicle.model}
-                          </p>
-                        )}
-                        {selectedCase.courtesyAllocation.dateDueBack && (
-                          <p className="text-xs text-emerald-700">
-                            Due back: {new Date(selectedCase.courtesyAllocation.dateDueBack).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                          </p>
-                        )}
-                        <button
-                          className="btn btn-xs btn-outline btn-success mt-2"
-                          onClick={returnCourtesy}
-                        >
-                          Mark as Returned
-                        </button>
-                      </div>
-                    ) : selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "RETURNED" ? (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-sm text-slate-600">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Courtesy car returned
-                          {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent && (
-                            <span className="font-mono text-xs">({selectedCase.courtesyAllocation.courtesyVehicle.regCurrent})</span>
-                          )}
-                        </div>
-                      </div>
-                    ) : selectedCase.courtesyRequired ? (
-                      <div className="space-y-2">
-                        <p className="text-xs text-amber-600 font-medium">No courtesy car allocated yet</p>
-                        <div className="flex gap-2 items-end">
-                          <div className="form-control flex-1">
-                            <label className="label label-text text-xs">Select Vehicle</label>
-                            <select
-                              className="select select-bordered select-sm w-full"
-                              onFocus={loadCourtesyVehicles}
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  allocateCourtesy(e.target.value);
-                                }
-                              }}
-                              defaultValue=""
-                            >
-                              <option value="" disabled>
-                                {isLoadingCourtesy ? "Loading..." : "Choose courtesy vehicle..."}
-                              </option>
-                              {courtesyVehicles.map((v) => (
-                                <option key={v._id} value={v._id}>
-                                  {v.regCurrent} - {v.make} {v.model}
-                                </option>
-                              ))}
-                              {courtesyVehicles.length === 0 && !isLoadingCourtesy && (
-                                <option value="" disabled>No courtesy vehicles available</option>
-                              )}
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🚗</span>
+                    <h3 className="text-sm font-semibold text-slate-900">Courtesy Car</h3>
                   </div>
+                  {selectedCase.courtesyAllocation?.status === "OUT" && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                      Out
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 space-y-3">
+                  {/* Toggle: Courtesy Required */}
+                  <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="relative">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={selectedCase.courtesyRequired || false}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          await updateCase({
+                            courtesyRequired: newValue,
+                            _eventType: "COURTESY_REQUIRED_TOGGLED",
+                            _eventMetadata: { courtesyRequired: newValue }
+                          }, newValue ? "Courtesy car marked as required" : "Courtesy car not required");
+                        }}
+                      />
+                      <div className="w-10 h-6 bg-slate-200 rounded-full peer-checked:bg-violet-500 transition-colors"></div>
+                      <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+                    </div>
+                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Courtesy car required</span>
+                  </label>
+
+                  {/* Allocation Display / Controls */}
+                  {selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "OUT" ? (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-emerald-800">Currently Allocated</span>
+                        <span className="inline-flex items-center bg-amber-100 border border-amber-300 rounded-lg px-2 py-0.5 font-mono font-bold text-slate-900 text-xs tracking-wider uppercase">
+                          {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent || "N/A"}
+                        </span>
+                      </div>
+                      {selectedCase.courtesyAllocation.courtesyVehicle && (
+                        <p className="text-xs text-emerald-700">
+                          {selectedCase.courtesyAllocation.courtesyVehicle.make} {selectedCase.courtesyAllocation.courtesyVehicle.model}
+                        </p>
+                      )}
+                      {selectedCase.courtesyAllocation.dateDueBack && (
+                        <p className="text-xs text-emerald-700">
+                          Due back: {new Date(selectedCase.courtesyAllocation.dateDueBack).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </p>
+                      )}
+                      <button
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors mt-1"
+                        onClick={returnCourtesy}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Mark as Returned
+                      </button>
+                    </div>
+                  ) : selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "RETURNED" ? (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Courtesy car returned
+                        {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent && (
+                          <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">({selectedCase.courtesyAllocation.courtesyVehicle.regCurrent})</span>
+                        )}
+                      </div>
+                    </div>
+                  ) : selectedCase.courtesyRequired ? (
+                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                      <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        No courtesy car allocated yet
+                      </p>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Select Vehicle</label>
+                        <select
+                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none text-sm"
+                          onFocus={loadCourtesyVehicles}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              allocateCourtesy(e.target.value);
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="" disabled>
+                            {isLoadingCourtesy ? "Loading..." : "Choose courtesy vehicle..."}
+                          </option>
+                          {courtesyVehicles.map((v) => (
+                            <option key={v._id} value={v._id}>
+                              {v.regCurrent} - {v.make} {v.model}
+                            </option>
+                          ))}
+                          {courtesyVehicles.length === 0 && !isLoadingCourtesy && (
+                            <option value="" disabled>No courtesy vehicles available</option>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
@@ -1605,61 +1714,80 @@ export default function Warranty() {
               <div className="flex gap-2 flex-wrap">
                 {selectedCase.aiReview?.payload ? (
                   <button
-                    className="btn btn-sm btn-outline"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
                     onClick={() => setShowRegenerateConfirm(true)}
                     disabled={isGeneratingAI}
                   >
-                    {isGeneratingAI ? <span className="loading loading-spinner loading-xs"></span> : "Regenerate AI Review"}
+                    {isGeneratingAI ? (
+                      <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    )}
+                    Regenerate AI
                   </button>
                 ) : (
                   <button
-                    className="btn btn-sm btn-primary"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors shadow-sm"
                     onClick={() => generateAIReview()}
                     disabled={isGeneratingAI}
                   >
-                    {isGeneratingAI ? <span className="loading loading-spinner loading-xs"></span> : "Generate AI Review"}
+                    {isGeneratingAI ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    )}
+                    Generate AI Review
                   </button>
                 )}
                 <button
-                  className="btn btn-sm btn-outline"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!selectedCase.aiReview?.payload?.draftCustomerReply}
                   onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftCustomerReply, "Customer reply")}
                 >
-                  Copy Customer Reply
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Customer Reply
                 </button>
                 <button
-                  className="btn btn-sm btn-outline"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!selectedCase.aiReview?.payload?.draftInternalNote}
                   onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftInternalNote, "Internal note")}
                 >
-                  Copy Internal Note
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Internal Note
                 </button>
               </div>
 
               {/* AI Case Review Panel */}
               {selectedCase.aiReview?.payload ? (
-                <div className="card bg-info/10 border border-info/30">
-                  <div className="card-body p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="font-semibold text-sm flex items-center gap-2">
-                        🤖 AI Case Review
-                      </h3>
-                      <span className="text-xs text-base-content/60">
-                        Generated {relativeTime(selectedCase.aiReview.generatedAt)}
-                      </span>
-                    </div>
-
+                <div className="bg-violet-50/50 rounded-xl border border-violet-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-violet-100 flex justify-between items-center bg-violet-100/50">
+                    <h3 className="text-sm font-semibold text-violet-900 flex items-center gap-2">
+                      <span>🤖</span> AI Case Review
+                    </h3>
+                    <span className="text-xs text-violet-600">
+                      Generated {relativeTime(selectedCase.aiReview.generatedAt)}
+                    </span>
+                  </div>
+                  <div className="p-4 space-y-4">
                     {/* Summary */}
-                    <div className="mb-4">
-                      <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Summary</h4>
-                      <p className="text-sm">{selectedCase.aiReview.payload.summary}</p>
+                    <div>
+                      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Summary</h4>
+                      <p className="text-sm text-slate-700">{selectedCase.aiReview.payload.summary}</p>
                     </div>
 
                     {/* Possible Causes */}
                     {selectedCase.aiReview.payload.possibleCauses?.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Possible Causes</h4>
-                        <ul className="text-sm list-disc list-inside space-y-1">
+                      <div>
+                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Possible Causes</h4>
+                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
                           {selectedCase.aiReview.payload.possibleCauses.map((cause, i) => (
                             <li key={i}>{cause}</li>
                           ))}
@@ -1669,9 +1797,9 @@ export default function Warranty() {
 
                     {/* Recommended Steps */}
                     {selectedCase.aiReview.payload.recommendedSteps?.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Recommended Next Steps</h4>
-                        <ol className="text-sm list-decimal list-inside space-y-1">
+                      <div>
+                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Recommended Next Steps</h4>
+                        <ol className="text-sm text-slate-700 list-decimal list-inside space-y-1">
                           {selectedCase.aiReview.payload.recommendedSteps.map((step, i) => (
                             <li key={i}>{step}</li>
                           ))}
@@ -1681,9 +1809,9 @@ export default function Warranty() {
 
                     {/* Warranty Considerations */}
                     {selectedCase.aiReview.payload.warrantyConsiderations?.length > 0 && (
-                      <div className="mb-4">
-                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Warranty Considerations</h4>
-                        <ul className="text-sm list-disc list-inside space-y-1">
+                      <div>
+                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Warranty Considerations</h4>
+                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
                           {selectedCase.aiReview.payload.warrantyConsiderations.map((item, i) => (
                             <li key={i}>{item}</li>
                           ))}
@@ -1693,17 +1821,20 @@ export default function Warranty() {
 
                     {/* Draft Customer Reply */}
                     {selectedCase.aiReview.payload.draftCustomerReply && (
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-medium text-xs uppercase text-base-content/60">Draft Customer Reply</h4>
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Customer Reply</h4>
                           <button
-                            className="btn btn-xs btn-ghost"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-100 rounded transition-colors"
                             onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftCustomerReply, "Customer reply")}
                           >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
                             Copy
                           </button>
                         </div>
-                        <p className="text-sm bg-base-100 p-2 rounded whitespace-pre-wrap">
+                        <p className="text-sm bg-white p-3 rounded-lg border border-violet-100 whitespace-pre-wrap text-slate-700">
                           {selectedCase.aiReview.payload.draftCustomerReply}
                         </p>
                       </div>
@@ -1712,16 +1843,19 @@ export default function Warranty() {
                     {/* Draft Internal Note */}
                     {selectedCase.aiReview.payload.draftInternalNote && (
                       <div>
-                        <div className="flex justify-between items-center mb-1">
-                          <h4 className="font-medium text-xs uppercase text-base-content/60">Draft Internal Note</h4>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Internal Note</h4>
                           <button
-                            className="btn btn-xs btn-ghost"
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-violet-600 hover:text-violet-700 hover:bg-violet-100 rounded transition-colors"
                             onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftInternalNote, "Internal note")}
                           >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
                             Copy
                           </button>
                         </div>
-                        <p className="text-sm bg-base-100 p-2 rounded whitespace-pre-wrap">
+                        <p className="text-sm bg-white p-3 rounded-lg border border-violet-100 whitespace-pre-wrap text-slate-700">
                           {selectedCase.aiReview.payload.draftInternalNote}
                         </p>
                       </div>
@@ -1729,30 +1863,41 @@ export default function Warranty() {
                   </div>
                 </div>
               ) : (
-                <div className="card bg-base-200 border border-base-300">
-                  <div className="card-body p-4 text-center">
-                    <p className="text-sm text-base-content/60">
-                      Click "Generate AI Review" to get AI-powered analysis of this case.
-                    </p>
+                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 text-center">
+                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-lg">
+                    🤖
                   </div>
+                  <p className="text-sm text-slate-500">
+                    Click "Generate AI Review" to get AI-powered analysis of this case.
+                  </p>
                 </div>
               )}
 
               {/* AI Diagnostics Panel */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-base-content/80">AI Diagnostics</h3>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">AI Diagnostics</h3>
                   <button
-                    className="btn btn-xs btn-ghost"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
                     onClick={fetchAIDiagnostics}
                     disabled={isLoadingDiagnostics}
                   >
                     {isLoadingDiagnostics ? (
-                      <span className="loading loading-spinner loading-xs"></span>
+                      <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
                     ) : aiDiagnostics ? (
-                      "Refresh"
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Refresh
+                      </>
                     ) : (
-                      "Get Suggestions"
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        Get Suggestions
+                      </>
                     )}
                   </button>
                 </div>
@@ -1771,19 +1916,22 @@ export default function Warranty() {
 
               {/* Issue Summary */}
               {selectedCase.summary && (
-                <div className="card bg-base-200">
-                  <div className="card-body p-4">
-                    <h3 className="font-semibold mb-2">Issue Summary</h3>
-                    <p className="text-sm whitespace-pre-wrap">{selectedCase.summary}</p>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100">
+                    <h3 className="text-sm font-semibold text-slate-900">Issue Summary</h3>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedCase.summary}</p>
                   </div>
                 </div>
               )}
 
               {/* Timeline */}
-              <div className="card bg-base-200">
-                <div className="card-body p-4">
-                  <h3 className="font-semibold mb-3">Timeline</h3>
-
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-900">Timeline</h3>
+                </div>
+                <div className="p-4">
                   {/* Event-driven timeline (newest first) with grouping */}
                   <div className="space-y-3 mb-4">
                     {groupTimelineEvents(selectedCase.events || []).map((item, idx) => {
@@ -1797,12 +1945,12 @@ export default function Warranty() {
                           const event = item.events[0];
                           return (
                             <div key={idx} className="flex gap-3 items-start opacity-70">
-                              <div className="text-base text-base-content/50" title={event.type}>
+                              <div className="text-base text-slate-400" title={event.type}>
                                 {EVENT_ICONS.STATUS_CHANGED}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs text-base-content/70">{event.summary || "Status changed"}</p>
-                                <p className="text-xs text-base-content/50" title={new Date(event.createdAt).toLocaleString()}>
+                                <p className="text-xs text-slate-500">{event.summary || "Status changed"}</p>
+                                <p className="text-xs text-slate-400" title={new Date(event.createdAt).toLocaleString()}>
                                   {relativeTime(event.createdAt)}
                                   {event.createdByName && <span className="ml-1">by {event.createdByName}</span>}
                                 </p>
@@ -1812,24 +1960,24 @@ export default function Warranty() {
                         }
 
                         return (
-                          <div key={idx} className="border border-base-300 rounded-lg p-2 bg-base-100/50">
+                          <div key={idx} className="border border-slate-200 rounded-lg p-2 bg-slate-50/50">
                             <button
                               className="flex gap-3 items-start w-full text-left"
                               onClick={() => setExpandedTimelineGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
                             >
-                              <div className="text-base text-base-content/50" title="Multiple status changes">
+                              <div className="text-base text-slate-400" title="Multiple status changes">
                                 {EVENT_ICONS.STATUS_CHANGED}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs text-base-content/70 font-medium">
+                                <p className="text-xs text-slate-600 font-medium">
                                   Status updated {item.events.length} times
                                 </p>
-                                <p className="text-xs text-base-content/50">
+                                <p className="text-xs text-slate-400">
                                   Last change: {relativeTime(lastEvent.createdAt)}
                                 </p>
                               </div>
                               <svg
-                                className={`w-4 h-4 text-base-content/40 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1839,11 +1987,11 @@ export default function Warranty() {
                             </button>
 
                             {isExpanded && (
-                              <div className="mt-2 ml-7 space-y-2 border-l-2 border-base-300 pl-3">
+                              <div className="mt-2 ml-7 space-y-2 border-l-2 border-slate-200 pl-3">
                                 {item.events.map((event, subIdx) => (
                                   <div key={subIdx} className="text-xs">
-                                    <p className="text-base-content/70">{event.summary || "Status changed"}</p>
-                                    <p className="text-base-content/50">
+                                    <p className="text-slate-600">{event.summary || "Status changed"}</p>
+                                    <p className="text-slate-400">
                                       {relativeTime(event.createdAt)}
                                       {event.createdByName && <span className="ml-1">by {event.createdByName}</span>}
                                     </p>
@@ -1867,7 +2015,7 @@ export default function Warranty() {
                           className={`flex gap-3 items-start ${isStatusChange ? "opacity-70" : ""} ${isMinimal ? "opacity-50" : ""}`}
                         >
                           <div
-                            className={`${isProminent ? "text-lg" : "text-base"} ${isStatusChange || isMinimal ? "text-base-content/50" : ""}`}
+                            className={`${isProminent ? "text-lg" : "text-base"} ${isStatusChange || isMinimal ? "text-slate-400" : ""}`}
                             title={event.type}
                           >
                             {EVENT_ICONS[event.type] || "📌"}
@@ -1876,20 +2024,20 @@ export default function Warranty() {
                             {/* Prominent events (comments, AI reviews) get larger text and preview */}
                             {isProminent ? (
                               <>
-                                <p className="text-sm font-medium">{event.summary || event.type.replace(/_/g, " ")}</p>
+                                <p className="text-sm font-medium text-slate-900">{event.summary || event.type.replace(/_/g, " ")}</p>
                                 {event.type === "COMMENT_ADDED" && event.metadata?.content && (
-                                  <p className="text-xs text-base-content/70 mt-0.5 line-clamp-2">
+                                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
                                     "{event.metadata.content}"
                                   </p>
                                 )}
                               </>
                             ) : (
-                              <p className={`${isStatusChange || isMinimal ? "text-xs text-base-content/70" : "text-sm"}`}>
+                              <p className={`${isStatusChange || isMinimal ? "text-xs text-slate-500" : "text-sm text-slate-700"}`}>
                                 {event.summary || event.type.replace(/_/g, " ")}
                               </p>
                             )}
                             <p
-                              className={`text-xs ${isStatusChange || isMinimal ? "text-base-content/50" : "text-base-content/60"}`}
+                              className={`text-xs ${isStatusChange || isMinimal ? "text-slate-400" : "text-slate-500"}`}
                               title={new Date(event.createdAt).toLocaleString()}
                             >
                               {relativeTime(event.createdAt)}
@@ -1901,26 +2049,26 @@ export default function Warranty() {
                     })}
 
                     {(!selectedCase.events || selectedCase.events.length === 0) && (
-                      <p className="text-sm text-base-content/60">No timeline events yet.</p>
+                      <p className="text-sm text-slate-500">No timeline events yet.</p>
                     )}
                   </div>
 
                   {/* Comments (legacy display for existing comments) */}
                   {selectedCase.comments?.length > 0 && (
-                    <div className="border-t border-base-300 pt-3 mt-3">
-                      <h4 className="font-medium text-sm mb-2">Comments</h4>
+                    <div className="border-t border-slate-100 pt-3 mt-3">
+                      <h4 className="font-medium text-sm text-slate-900 mb-2">Comments</h4>
                       <div className="space-y-3">
                         {selectedCase.comments.map((comment) => (
                           <div key={comment.id} className={`p-3 rounded-lg ${
-                            comment.authorType === "customer" ? "bg-primary/10" : "bg-base-100"
+                            comment.authorType === "customer" ? "bg-violet-50 border border-violet-100" : "bg-slate-50 border border-slate-100"
                           }`}>
-                            <div className="flex justify-between text-xs text-base-content/60 mb-1">
-                              <span>{comment.authorType === "customer" ? "Customer" : "Staff"}</span>
+                            <div className="flex justify-between text-xs text-slate-500 mb-1">
+                              <span className="font-medium">{comment.authorType === "customer" ? "Customer" : "Staff"}</span>
                               <span title={new Date(comment.createdAt).toLocaleString()}>
                                 {relativeTime(comment.createdAt)}
                               </span>
                             </div>
-                            <p className="text-sm">{comment.content}</p>
+                            <p className="text-sm text-slate-700">{comment.content}</p>
                             {comment.attachments?.length > 0 && (
                               <div className="flex gap-2 mt-2 flex-wrap">
                                 {comment.attachments.map((att, i) => (
@@ -1929,7 +2077,7 @@ export default function Warranty() {
                                     href={att.url || att}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="badge badge-sm badge-outline gap-1"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
                                   >
                                     📎 {att.filename || "File"}
                                   </a>
@@ -1943,14 +2091,14 @@ export default function Warranty() {
                   )}
 
                   {/* Add Comment with Attachment */}
-                  <div className="mt-4">
+                  <div className="mt-4 pt-3 border-t border-slate-100">
                     {commentAttachments.length > 0 && (
                       <div className="flex gap-2 flex-wrap mb-2">
                         {commentAttachments.map((att, i) => (
-                          <span key={i} className="badge badge-sm gap-1">
+                          <span key={i} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-md">
                             📎 {att.filename}
                             <button
-                              className="text-error ml-1"
+                              className="text-red-500 hover:text-red-600 ml-0.5"
                               onClick={() => setCommentAttachments(commentAttachments.filter((_, j) => j !== i))}
                             >
                               ✕
@@ -1962,7 +2110,7 @@ export default function Warranty() {
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className="input input-bordered input-sm flex-1"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all outline-none text-sm"
                         placeholder="Add a comment..."
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
@@ -1976,13 +2124,20 @@ export default function Warranty() {
                         onChange={handleFileSelect}
                       />
                       <button
-                        className="btn btn-ghost btn-sm"
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                         title="Attach files"
                       >
-                        📎
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
                       </button>
-                      <button className="btn btn-primary btn-sm" onClick={addComment}>Add</button>
+                      <button
+                        className="px-4 py-2 text-sm font-medium text-white bg-violet-600 hover:bg-violet-700 rounded-lg transition-colors"
+                        onClick={addComment}
+                      >
+                        Add
+                      </button>
                     </div>
                   </div>
                 </div>

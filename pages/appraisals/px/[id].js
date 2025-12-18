@@ -4,6 +4,10 @@ import Head from "next/head";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { KeyValue, KeyValueGrid } from "@/components/ui/KeyValue";
+import { Badge, StatusBadge } from "@/components/ui/Badge";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
 
 // Categories must match CustomerPXIssue model schema (lowercase)
 const ISSUE_CATEGORIES = ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"];
@@ -37,9 +41,6 @@ export default function CustomerPXAppraisalDetail() {
   const [issues, setIssues] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
-
-  // Photo lightbox state
-  const [lightboxPhoto, setLightboxPhoto] = useState(null);
 
   // Issue modal state
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -218,20 +219,6 @@ export default function CustomerPXAppraisalDetail() {
     }
   };
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case "mechanical": return "badge-error";
-      case "electrical": return "badge-warning";
-      case "bodywork": return "badge-info";
-      case "interior": return "badge-info";
-      case "tyres": return "badge-warning";
-      case "mot": return "badge-secondary";
-      case "service": return "badge-accent";
-      case "fault_codes": return "badge-error";
-      default: return "badge-ghost";
-    }
-  };
-
   const totalEstimatedCost = issues.reduce((sum, issue) => sum + (issue.estimatedCost || 0), 0);
 
   if (isLoading) {
@@ -284,361 +271,296 @@ export default function CustomerPXAppraisalDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           {/* Customer Details */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Customer Details</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-base-content/60">Name</p>
-                  <p className="font-semibold">{appraisal.customerName || appraisal.contactId?.name || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-base-content/60">Email</p>
-                  <p className="font-semibold">{appraisal.customerEmail || appraisal.contactId?.email || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-base-content/60">Phone</p>
-                  <p className="font-semibold">{appraisal.customerPhone || appraisal.contactId?.phone || "—"}</p>
-                </div>
+          <Card>
+            <CardHeader title="Customer Details" />
+            <CardContent>
+              <KeyValueGrid cols={3}>
+                <KeyValue label="Name" value={appraisal.customerName || appraisal.contactId?.name} />
+                <KeyValue label="Email" value={appraisal.customerEmail || appraisal.contactId?.email} />
+                <KeyValue label="Phone" value={appraisal.customerPhone || appraisal.contactId?.phone} />
                 {appraisal.interestedInVehicle && (
                   <div className="md:col-span-3">
-                    <p className="text-sm text-base-content/60">Interested In Vehicle</p>
-                    <p className="font-semibold">{appraisal.interestedInVehicle}</p>
+                    <KeyValue label="Interested In Vehicle" value={appraisal.interestedInVehicle} />
                   </div>
                 )}
-              </div>
-            </div>
-          </div>
+              </KeyValueGrid>
+            </CardContent>
+          </Card>
 
           {/* Vehicle Details */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Vehicle Details</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div><p className="text-sm text-base-content/60">Make</p><p className="font-semibold">{appraisal.vehicleMake || "—"}</p></div>
-                <div><p className="text-sm text-base-content/60">Model</p><p className="font-semibold">{appraisal.vehicleModel || "—"}</p></div>
-                <div><p className="text-sm text-base-content/60">Year</p><p className="font-semibold">{appraisal.vehicleYear || "—"}</p></div>
-                <div><p className="text-sm text-base-content/60">Mileage</p><p className="font-semibold">{appraisal.mileage?.toLocaleString() || "—"}</p></div>
-                <div><p className="text-sm text-base-content/60">Colour</p><p className="font-semibold">{appraisal.colour || "—"}</p></div>
-                <div><p className="text-sm text-base-content/60">Fuel Type</p><p className="font-semibold">{appraisal.fuelType || "—"}</p></div>
+          <Card>
+            <CardHeader title="Vehicle Details" />
+            <CardContent>
+              <KeyValueGrid cols={2}>
+                <KeyValue label="Make" value={appraisal.vehicleMake} />
+                <KeyValue label="Model" value={appraisal.vehicleModel} />
+                <KeyValue label="Year" value={appraisal.vehicleYear} />
+                <KeyValue label="Mileage" value={appraisal.mileage ? `${appraisal.mileage.toLocaleString()} mi` : null} />
+                <KeyValue label="Colour" value={appraisal.colour} />
+                <KeyValue label="Fuel Type" value={appraisal.fuelType} />
                 {appraisal.conditionRating && (
-                  <div><p className="text-sm text-base-content/60">Condition Rating</p><p className="font-semibold capitalize">{appraisal.conditionRating}</p></div>
+                  <KeyValue label="Condition" value={<Badge variant={
+                    appraisal.conditionRating === 'excellent' ? 'success' :
+                    appraisal.conditionRating === 'good' ? 'info' :
+                    appraisal.conditionRating === 'fair' ? 'warning' : 'danger'
+                  }>{appraisal.conditionRating}</Badge>} />
                 )}
                 {appraisal.outstandingFinanceAmount > 0 && (
-                  <div><p className="text-sm text-base-content/60">Outstanding Finance</p><p className="font-semibold text-error">£{appraisal.outstandingFinanceAmount?.toLocaleString()}</p></div>
+                  <KeyValue label="Outstanding Finance" value={<span className="text-red-600 font-bold">£{appraisal.outstandingFinanceAmount?.toLocaleString()}</span>} />
                 )}
                 {appraisal.proposedPurchasePrice > 0 && (
-                  <div>
-                    <p className="text-sm text-base-content/60">Proposed Price</p>
-                    <p className="font-semibold text-lg">£{appraisal.proposedPurchasePrice?.toLocaleString()}</p>
-                  </div>
+                  <KeyValue label="Proposed Price" value={<span className="text-lg font-bold text-emerald-600">£{appraisal.proposedPurchasePrice?.toLocaleString()}</span>} size="lg" />
                 )}
-              </div>
-            </div>
-          </div>
+              </KeyValueGrid>
+            </CardContent>
+          </Card>
 
           {/* Condition Notes */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Condition Notes</h2>
-              <p className="whitespace-pre-wrap">{appraisal.conditionNotes || "No notes recorded"}</p>
-            </div>
-          </div>
+          <Card>
+            <CardHeader title="Condition Notes" />
+            <CardContent>
+              <p className="whitespace-pre-wrap text-slate-700">{appraisal.conditionNotes || <span className="text-slate-400 italic">No notes recorded</span>}</p>
+            </CardContent>
+          </Card>
 
           {/* Vehicle Photos Gallery */}
           {appraisal.photos && (
             (appraisal.photos.exterior?.length > 0 || appraisal.photos.interior?.length > 0 ||
              appraisal.photos.dashboard || appraisal.photos.odometer) && (
-              <div className="card bg-base-200">
-                <div className="card-body">
-                  <h2 className="card-title">Vehicle Photos</h2>
-                  <div className="space-y-4">
-                    {/* Exterior Photos */}
-                    {appraisal.photos.exterior?.length > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-base-content/70 mb-2">Exterior ({appraisal.photos.exterior.length})</p>
-                        <div className="flex flex-wrap gap-2">
-                          {appraisal.photos.exterior.map((photo, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setLightboxPhoto(photo)}
-                              className="relative group"
-                            >
-                              <img
-                                src={photo}
-                                alt={`Exterior ${idx + 1}`}
-                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Interior Photos */}
-                    {appraisal.photos.interior?.length > 0 && (
-                      <div>
-                        <p className="text-sm font-semibold text-base-content/70 mb-2">Interior ({appraisal.photos.interior.length})</p>
-                        <div className="flex flex-wrap gap-2">
-                          {appraisal.photos.interior.map((photo, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setLightboxPhoto(photo)}
-                              className="relative group"
-                            >
-                              <img
-                                src={photo}
-                                alt={`Interior ${idx + 1}`}
-                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                              />
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Dashboard & Odometer */}
-                    {(appraisal.photos.dashboard || appraisal.photos.odometer) && (
-                      <div>
-                        <p className="text-sm font-semibold text-base-content/70 mb-2">Dashboard & Odometer</p>
-                        <div className="flex flex-wrap gap-2">
-                          {appraisal.photos.dashboard && (
-                            <button
-                              onClick={() => setLightboxPhoto(appraisal.photos.dashboard)}
-                              className="relative group"
-                            >
-                              <img
-                                src={appraisal.photos.dashboard}
-                                alt="Dashboard"
-                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                              />
-                              <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">Dashboard</span>
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                              </div>
-                            </button>
-                          )}
-                          {appraisal.photos.odometer && (
-                            <button
-                              onClick={() => setLightboxPhoto(appraisal.photos.odometer)}
-                              className="relative group"
-                            >
-                              <img
-                                src={appraisal.photos.odometer}
-                                alt="Odometer"
-                                className="w-24 h-24 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                              />
-                              <span className="absolute bottom-1 left-1 text-[10px] bg-black/60 text-white px-1.5 py-0.5 rounded">Odometer</span>
-                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                <svg className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                </svg>
-                              </div>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Card>
+                <CardHeader title="Vehicle Photos" icon="📷" />
+                <CardContent>
+                  <PhotoGallery
+                    photos={[
+                      ...(appraisal.photos.exterior || []).map(url => ({ url, category: 'exterior' })),
+                      ...(appraisal.photos.interior || []).map(url => ({ url, category: 'interior' })),
+                      ...(appraisal.photos.dashboard ? [{ url: appraisal.photos.dashboard, category: 'dashboard', caption: 'Dashboard' }] : []),
+                      ...(appraisal.photos.odometer ? [{ url: appraisal.photos.odometer, category: 'odometer', caption: 'Odometer' }] : []),
+                    ]}
+                    groupByCategory
+                    showCount={false}
+                  />
+                </CardContent>
+              </Card>
             )
           )}
 
           {/* Issues Section */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="card-title">Issues & Damage</h2>
-                  {totalEstimatedCost > 0 && (
-                    <p className="text-sm text-base-content/60">
-                      Total estimated repair cost: <span className="font-semibold text-error">£{totalEstimatedCost.toLocaleString()}</span>
-                    </p>
-                  )}
-                </div>
-                <button className="btn btn-primary btn-sm" onClick={() => setShowIssueModal(true)}>
-                  + Add Issue
+          <Card>
+            <CardHeader
+              title="Issues & Damage"
+              icon="⚠️"
+              subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
+              action={
+                <button
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                  onClick={() => setShowIssueModal(true)}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Issue
                 </button>
-              </div>
-
+              }
+            />
+            <CardContent>
               {issues.length === 0 ? (
-                <div className="text-center py-8 text-base-content/60">
-                  <p>No issues recorded</p>
-                  <p className="text-sm mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-600 font-medium">No issues recorded</p>
+                  <p className="text-sm text-slate-400 mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {issues.map((issue) => (
-                    <div key={issue.id} className="bg-base-100 rounded-lg p-4">
+                    <div key={issue.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`badge ${getCategoryColor(issue.category)} badge-sm`}>{CATEGORY_LABELS[issue.category] || issue.category}</span>
-                          <span className="font-semibold">{issue.subcategory}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant={
+                            issue.category === 'mechanical' ? 'danger' :
+                            issue.category === 'electrical' ? 'warning' :
+                            issue.category === 'bodywork' ? 'info' :
+                            issue.category === 'fault_codes' ? 'danger' :
+                            issue.category === 'mot' ? 'secondary' : 'default'
+                          }>
+                            {CATEGORY_LABELS[issue.category] || issue.category}
+                          </Badge>
+                          <span className="font-semibold text-slate-800">{issue.subcategory}</span>
                         </div>
                         <button
-                          className="btn btn-ghost btn-xs text-error"
+                          className="text-xs text-red-500 hover:text-red-700 hover:underline transition-colors"
                           onClick={() => handleDeleteIssue(issue.id)}
                         >
                           Delete
                         </button>
                       </div>
-                      <p className="text-sm mb-2">{issue.description}</p>
+                      <p className="text-sm text-slate-700 mb-2">{issue.description}</p>
                       {issue.actionNeeded && (
-                        <p className="text-xs text-base-content/60 mb-1">
-                          <span className="font-medium">Action needed:</span> {issue.actionNeeded}
+                        <p className="text-xs text-slate-500 mb-1">
+                          <span className="font-medium text-slate-600">Action needed:</span> {issue.actionNeeded}
                         </p>
                       )}
                       {issue.estimatedCost > 0 && (
-                        <p className="text-sm text-error font-medium">
+                        <p className="text-sm font-semibold text-red-600">
                           Est. cost: £{issue.estimatedCost.toLocaleString()}
                         </p>
                       )}
-                      {/* Legacy photos (simple URL array) */}
+                      {/* Photos - use PhotoGallery component */}
                       {issue.photos && issue.photos.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-xs text-base-content/60 mb-2">Photos ({issue.photos.length})</p>
-                          <div className="flex flex-wrap gap-2">
-                            {issue.photos.map((photo, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => setLightboxPhoto(photo)}
-                                className="relative group"
-                              >
-                                <img
-                                  src={photo}
-                                  alt={`Issue photo ${idx + 1}`}
-                                  className="w-20 h-20 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                  </svg>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <PhotoGallery
+                            photos={issue.photos}
+                            thumbnailSize="sm"
+                            showCount={false}
+                          />
                         </div>
                       )}
-                      {/* New attachments format (with caption, uploadedAt) */}
+                      {/* Attachments format */}
                       {issue.attachments && issue.attachments.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-xs text-base-content/60 mb-2">Attachments ({issue.attachments.length})</p>
-                          <div className="flex flex-wrap gap-2">
-                            {issue.attachments.map((attachment, idx) => (
-                              <button
-                                key={idx}
-                                onClick={() => setLightboxPhoto(attachment.url)}
-                                className="relative group"
-                              >
-                                <img
-                                  src={attachment.url}
-                                  alt={attachment.caption || `Attachment ${idx + 1}`}
-                                  className="w-20 h-20 object-cover rounded-lg border border-base-300 hover:border-primary transition-all cursor-pointer"
-                                />
-                                {attachment.caption && (
-                                  <span className="absolute bottom-0 left-0 right-0 text-[9px] bg-black/60 text-white px-1 py-0.5 rounded-b-lg truncate">
-                                    {attachment.caption}
-                                  </span>
-                                )}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                                  </svg>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
+                        <div className="mt-3 pt-3 border-t border-slate-200">
+                          <PhotoGallery
+                            photos={issue.attachments.map(a => ({ url: a.url, caption: a.caption }))}
+                            thumbnailSize="sm"
+                            showCount={false}
+                          />
                         </div>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Documents Section */}
           {(appraisal.v5Url || appraisal.serviceHistoryUrl || (appraisal.otherDocuments && appraisal.otherDocuments.length > 0)) && (
-            <div className="card bg-base-200">
-              <div className="card-body">
-                <h2 className="card-title">Documents</h2>
-                <div className="space-y-2">
+            <Card>
+              <CardHeader title="Documents" icon="📄" />
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
                   {appraisal.v5Url && (
-                    <a href={appraisal.v5Url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline">
+                    <a
+                      href={appraisal.v5Url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                       V5 Document
                     </a>
                   )}
                   {appraisal.serviceHistoryUrl && (
-                    <a href={appraisal.serviceHistoryUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline ml-2">
+                    <a
+                      href={appraisal.serviceHistoryUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                       Service History
                     </a>
                   )}
                   {appraisal.otherDocuments?.map((doc, idx) => (
-                    <a key={idx} href={doc.url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline ml-2">
+                    <a
+                      key={idx}
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
                       {doc.name || "Document"}
                     </a>
                   ))}
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* AI Hints */}
           {appraisal.aiHintText && (
-            <div className="card bg-info/10 border border-info/30">
-              <div className="card-body">
-                <h2 className="card-title">AI Suggestions</h2>
-                <p className="whitespace-pre-wrap text-sm">{appraisal.aiHintText}</p>
-              </div>
-            </div>
+            <Card variant="accent">
+              <CardHeader title="AI Suggestions" icon="🤖" />
+              <CardContent>
+                <p className="whitespace-pre-wrap text-sm text-slate-700">{appraisal.aiHintText}</p>
+              </CardContent>
+            </Card>
           )}
         </div>
 
         {/* Actions Sidebar */}
         <div className="lg:col-span-1">
-          <div className="card bg-base-200 sticky top-20">
-            <div className="card-body">
-              <h3 className="card-title">Actions</h3>
-
+          <Card className="sticky top-20">
+            <CardHeader title="Actions" />
+            <CardContent className="space-y-4">
               {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
                 <div className="space-y-3">
-                  <button className="btn btn-success w-full" onClick={handleConvert} disabled={isConverting}>
-                    {isConverting ? <span className="loading loading-spinner"></span> : "Convert to Stock"}
+                  <button
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                    onClick={handleConvert}
+                    disabled={isConverting}
+                  >
+                    {isConverting ? (
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    Convert to Stock
                   </button>
-                  <button className="btn btn-ghost w-full" onClick={() => handleDecision("reviewed")}>
+                  <button
+                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                    onClick={() => handleDecision("reviewed")}
+                  >
                     Mark as Reviewed
                   </button>
-                  <button className="btn btn-error btn-outline w-full" onClick={() => handleDecision("declined")}>
+                  <button
+                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                    onClick={() => handleDecision("declined")}
+                  >
                     Decline
                   </button>
-                  <p className="text-xs text-base-content/60">Converting will create a vehicle and default prep tasks.</p>
+                  <p className="text-xs text-slate-500 text-center">Converting will create a vehicle and default prep tasks.</p>
                 </div>
               )}
 
               {appraisal.decision === "converted" || appraisal.vehicleId ? (
                 <div className="space-y-3">
-                  <div className="alert alert-success text-sm">Vehicle added to stock</div>
-                  <Link href="/sales-prep" className="btn btn-primary w-full">View in Stock & Prep</Link>
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 text-center">
+                    Vehicle added to stock
+                  </div>
+                  <Link
+                    href="/sales-prep"
+                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+                  >
+                    View in Stock & Prep
+                  </Link>
                 </div>
               ) : null}
 
               {appraisal.decision === "declined" && (
                 <div className="space-y-3">
-                  <div className="alert text-sm">This appraisal was declined</div>
-                  <button className="btn btn-ghost btn-sm w-full" onClick={() => handleDecision("pending")}>
+                  <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-600 text-center">
+                    This appraisal was declined
+                  </div>
+                  <button
+                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                    onClick={() => handleDecision("pending")}
+                  >
                     Re-open
                   </button>
                 </div>
@@ -646,31 +568,30 @@ export default function CustomerPXAppraisalDetail() {
 
               {/* Issues Summary */}
               {issues.length > 0 && (
-                <>
-                  <div className="divider"></div>
-                  <div className="text-sm">
-                    <p className="font-semibold mb-2">Issues Summary</p>
-                    <p>{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
-                    {totalEstimatedCost > 0 && (
-                      <p className="text-error font-medium">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
-                    )}
-                  </div>
-                </>
+                <div className="pt-4 border-t border-slate-200">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Issues Summary</p>
+                  <p className="text-sm text-slate-700">{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+                  {totalEstimatedCost > 0 && (
+                    <p className="text-sm font-semibold text-red-600">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+                  )}
+                </div>
               )}
 
-              <div className="divider"></div>
-
-              <button className="btn btn-ghost btn-sm text-error w-full"
-                onClick={async () => {
-                  if (confirm("Delete this appraisal?")) {
-                    await fetch(`/api/customer-px/${id}`, { method: "DELETE" });
-                    router.push("/appraisals");
-                  }
-                }}>
-                Delete
-              </button>
-            </div>
-          </div>
+              <div className="pt-4 border-t border-slate-200">
+                <button
+                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                  onClick={async () => {
+                    if (confirm("Delete this appraisal?")) {
+                      await fetch(`/api/customer-px/${id}`, { method: "DELETE" });
+                      router.push("/appraisals");
+                    }
+                  }}
+                >
+                  Delete Appraisal
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -808,40 +729,6 @@ export default function CustomerPXAppraisalDetail() {
         </div>
       )}
 
-      {/* Photo Lightbox Modal */}
-      {lightboxPhoto && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setLightboxPhoto(null)}
-        >
-          <button
-            className="absolute top-4 right-4 btn btn-circle btn-ghost text-white hover:bg-white/20"
-            onClick={() => setLightboxPhoto(null)}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <img
-            src={lightboxPhoto}
-            alt="Full size photo"
-            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <a
-            href={lightboxPhoto}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute bottom-4 right-4 btn btn-sm btn-ghost text-white hover:bg-white/20"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-            </svg>
-            Open Original
-          </a>
-        </div>
-      )}
     </DashboardLayout>
   );
 }

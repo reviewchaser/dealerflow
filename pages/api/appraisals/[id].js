@@ -1,5 +1,7 @@
 import connectMongo from "@/libs/mongoose";
 import Appraisal from "@/models/Appraisal";
+import Vehicle from "@/models/Vehicle"; // Required for populate
+import Contact from "@/models/Contact"; // Required for populate
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {

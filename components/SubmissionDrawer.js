@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
 
 // Image lightbox component
 function ImageLightbox({ src, alt, onClose }) {
@@ -105,8 +108,8 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
           issuesArray = JSON.parse(value);
         } catch {
           // Not valid JSON, show as-is if it looks like formatted text
-          if (value.trim()) return <pre className="whitespace-pre-wrap text-sm">{value}</pre>;
-          return <span className="text-base-content/60 italic">No issues</span>;
+          if (value.trim()) return <pre className="whitespace-pre-wrap text-sm text-slate-700">{value}</pre>;
+          return <span className="text-slate-400 italic">No issues</span>;
         }
       }
 
@@ -115,7 +118,7 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
         if (typeof issuesArray === 'object' && issuesArray !== null) {
           issuesArray = [issuesArray];
         } else {
-          return <span className="text-base-content/60 italic">Invalid issues format</span>;
+          return <span className="text-slate-400 italic">Invalid issues format</span>;
         }
       }
 
@@ -128,51 +131,56 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
         return !resolvedStatuses.includes(status);
       });
 
-      if (activeIssues.length === 0) return <span className="text-base-content/60 italic">No active issues</span>;
+      if (activeIssues.length === 0) return <span className="text-slate-400 italic">No active issues</span>;
 
       return (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {activeIssues.map((issue, idx) => (
-            <div key={idx} className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <span className="font-bold text-amber-700 shrink-0">{idx + 1}.</span>
-                <div className="flex-1">
+            <div key={idx} className="p-4 bg-amber-50/50 border border-amber-200 rounded-xl">
+              <div className="flex items-start gap-3">
+                <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-amber-700">{idx + 1}</span>
+                </div>
+                <div className="flex-1 min-w-0">
                   {/* Category / Subcategory */}
-                  <p className="font-medium text-amber-800">
-                    {issue.category || issue.type || 'Issue'}
-                    {issue.subcategory && <span className="text-amber-600"> / {issue.subcategory}</span>}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="warning">
+                      {issue.category || issue.type || 'Issue'}
+                    </Badge>
+                    {issue.subcategory && (
+                      <span className="text-sm text-slate-600">{issue.subcategory}</span>
+                    )}
+                  </div>
                   {/* Description */}
                   {issue.description && (
-                    <p className="text-sm text-amber-700 mt-1">{issue.description}</p>
+                    <p className="text-sm text-slate-700 mt-2">{issue.description}</p>
                   )}
                   {/* Action */}
                   {issue.actionNeeded && (
-                    <p className="text-sm text-amber-600 mt-1">
-                      <span className="font-medium">Action:</span> {issue.actionNeeded}
+                    <p className="text-xs text-slate-500 mt-2">
+                      <span className="font-medium text-slate-600">Action:</span> {issue.actionNeeded}
                     </p>
                   )}
-                  {/* Status badge */}
-                  {issue.status && (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-2 ${
-                      issue.status.toLowerCase() === 'outstanding' ? 'bg-red-100 text-red-700' :
-                      issue.status.toLowerCase() === 'ordered' ? 'bg-amber-100 text-amber-700' :
-                      issue.status.toLowerCase() === 'in progress' ? 'bg-blue-100 text-blue-700' :
-                      'bg-slate-100 text-slate-700'
-                    }`}>
-                      {issue.status}
-                    </span>
-                  )}
-                  {/* Severity badge */}
-                  {issue.severity && (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold mt-2 ml-1 ${
-                      issue.severity === 'high' ? 'bg-red-100 text-red-700' :
-                      issue.severity === 'medium' ? 'bg-orange-100 text-orange-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {issue.severity}
-                    </span>
-                  )}
+                  {/* Status & Severity badges */}
+                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                    {issue.status && (
+                      <Badge variant={
+                        issue.status.toLowerCase() === 'outstanding' ? 'danger' :
+                        issue.status.toLowerCase() === 'ordered' ? 'warning' :
+                        issue.status.toLowerCase() === 'in progress' ? 'info' : 'default'
+                      } size="sm">
+                        {issue.status}
+                      </Badge>
+                    )}
+                    {issue.severity && (
+                      <Badge variant={
+                        issue.severity === 'high' ? 'danger' :
+                        issue.severity === 'medium' ? 'warning' : 'info'
+                      } size="sm">
+                        {issue.severity}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -193,7 +201,7 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
           if (value.startsWith('http') || value.startsWith('data:')) {
             photosArray = [value];
           } else {
-            return <span className="text-base-content/60 italic">No photos</span>;
+            return <span className="text-slate-400 italic">No photos</span>;
           }
         }
       }
@@ -202,7 +210,7 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
         if (typeof photosArray === 'object' && photosArray !== null && (photosArray.url || photosArray.src)) {
           photosArray = [photosArray];
         } else {
-          return <span className="text-base-content/60 italic">No photos</span>;
+          return <span className="text-slate-400 italic">No photos</span>;
         }
       }
 
@@ -221,53 +229,16 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
           // Must have a URL
           if (typeof p === 'string') return p.startsWith('http') || p.startsWith('data:');
           return p.url || p.src || p.dataUrl;
+        })
+        .map(p => {
+          if (typeof p === 'string') return { url: p };
+          return { url: p.url || p.src || p.dataUrl, caption: p.filename || p.label || p.category };
         });
 
-      if (validPhotos.length === 0) return <span className="text-base-content/60 italic">No photos</span>;
+      if (validPhotos.length === 0) return <span className="text-slate-400 italic">No photos</span>;
 
-      return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {validPhotos.map((photo, idx) => {
-            const url = typeof photo === 'string' ? photo : (photo.url || photo.src || photo.dataUrl);
-            const label = typeof photo === 'object' ? (photo.filename || photo.label || photo.category || `Photo ${idx + 1}`) : `Photo ${idx + 1}`;
-            if (!url) return null;
-            return (
-              <div key={idx} className="relative group">
-                <img
-                  src={url}
-                  alt={label}
-                  className="w-full h-28 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity border border-base-300"
-                  onClick={() => setLightboxImage({ src: url, alt: label })}
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                  <button
-                    className="btn btn-sm btn-circle btn-ghost text-white"
-                    onClick={() => setLightboxImage({ src: url, alt: label })}
-                    title="View fullscreen"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                    </svg>
-                  </button>
-                  <a
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-circle btn-ghost text-white"
-                    title="Open in new tab"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-                <p className="text-xs text-base-content/60 mt-1 truncate">{label}</p>
-              </div>
-            );
-          })}
-        </div>
-      );
+      // Use PhotoGallery component
+      return <PhotoGallery photos={validPhotos} thumbnailSize="default" showCount={false} />;
     }
 
     if (typeof value === "object") return JSON.stringify(value);
@@ -280,69 +251,87 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
       <div className="drawer drawer-end drawer-open">
         <input type="checkbox" className="drawer-toggle" />
         <div className="drawer-side z-50">
-          <label className="drawer-overlay" onClick={onClose}></label>
-          <div className="w-full max-w-2xl bg-base-100 min-h-screen p-6">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Form Submission</h2>
-              <button className="btn btn-sm btn-circle btn-ghost" onClick={onClose}>
-                ✕
-              </button>
+          <label className="drawer-overlay bg-black/50 backdrop-blur-sm" onClick={onClose}></label>
+          <div className="w-full max-w-2xl bg-white min-h-screen flex flex-col">
+            {/* Header - Sticky */}
+            <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900">Form Submission</h2>
+                <button
+                  className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={onClose}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            {isLoading ? (
-              <div className="flex justify-center py-20">
-                <span className="loading loading-spinner loading-lg"></span>
-              </div>
-            ) : !data ? (
-              <div className="text-center py-20 text-base-content/60">
-                Failed to load submission
-              </div>
-            ) : (
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoading ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+                </div>
+              ) : !data ? (
+                <div className="text-center py-20 text-slate-400">
+                  Failed to load submission
+                </div>
+              ) : (
               <>
                 {/* Form Info */}
-                <div className="card bg-base-200 mb-6">
-                  <div className="card-body">
-                    <h3 className="font-bold text-lg">{data.submission.formId?.name}</h3>
-                    <div className="flex gap-2 items-center">
-                      <div className="badge badge-outline">{data.submission.formId?.type}</div>
-                      <span className="text-sm text-base-content/60">
-                        Submitted: {new Date(data.submission.submittedAt).toLocaleString()}
+                <Card className="mb-4">
+                  <CardContent className="pt-4">
+                    <h3 className="font-bold text-lg text-slate-900">{data.submission.formId?.name}</h3>
+                    <div className="flex gap-2 items-center mt-2">
+                      <Badge variant="secondary">{data.submission.formId?.type}</Badge>
+                      <span className="text-sm text-slate-500">
+                        {new Date(data.submission.submittedAt).toLocaleString()}
                       </span>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Linked Records */}
                 {(data.submission.linkedVehicleId || data.submission.linkedAftercareCaseId || data.submission.linkedVehicleSaleId) && (
-                  <div className="card bg-base-200 mb-6">
-                    <div className="card-body">
-                      <h4 className="font-semibold mb-2">Linked Records</h4>
-                      <div className="space-y-2">
+                  <Card className="mb-4">
+                    <CardHeader title="Linked Records" />
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
                         {data.submission.linkedVehicleId && (
-                          <Link href={`/vehicles/${data.submission.linkedVehicleId._id}`} className="btn btn-sm btn-outline">
-                            🚗 Vehicle: {data.submission.linkedVehicleId.regCurrent}
+                          <Link
+                            href={`/vehicles/${data.submission.linkedVehicleId._id}`}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                          >
+                            <span>🚗</span> Vehicle: {data.submission.linkedVehicleId.regCurrent}
                           </Link>
                         )}
                         {data.submission.linkedAftercareCaseId && (
-                          <Link href={`/warranty/${data.submission.linkedAftercareCaseId._id}`} className="btn btn-sm btn-outline">
-                            🔧 Aftercare Case
+                          <Link
+                            href={`/warranty/${data.submission.linkedAftercareCaseId._id}`}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                          >
+                            <span>🔧</span> Aftercare Case
                           </Link>
                         )}
                         {data.submission.linkedVehicleSaleId && (
-                          <Link href={`/sales/${data.submission.linkedVehicleSaleId._id}`} className="btn btn-sm btn-outline">
-                            📄 Sale Record
+                          <Link
+                            href={`/sales/${data.submission.linkedVehicleSaleId._id}`}
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+                          >
+                            <span>📄</span> Sale Record
                           </Link>
                         )}
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 )}
 
                 {/* Answers */}
-                <div className="card bg-base-200 mb-6">
-                  <div className="card-body">
-                    <h4 className="font-semibold mb-4">Answers</h4>
+                <Card className="mb-4">
+                  <CardHeader title="Answers" />
+                  <CardContent>
                     <div className="space-y-4">
                       {Object.entries(data.submission.rawAnswers || {}).map(([key, value]) => {
                         // Find the field definition if available
@@ -351,79 +340,61 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
 
                         return (
                           <div key={key}>
-                            <label className="label">
-                              <span className="label-text font-semibold">{label}</span>
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                              {label}
                             </label>
-                            <div className="p-3 bg-base-100 rounded-lg">
+                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                               {formatFieldValue(value, key)}
                             </div>
                           </div>
                         );
                       })}
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
 
                 {/* Files */}
                 {data.files && data.files.length > 0 && (
-                  <div className="card bg-base-200">
-                    <div className="card-body">
-                      <h4 className="font-semibold mb-4">Uploaded Files</h4>
-                      {/* Image grid for image files */}
+                  <Card>
+                    <CardHeader title="Uploaded Files" icon="📎" />
+                    <CardContent>
+                      {/* Image files using PhotoGallery */}
                       {data.files.filter(f => isImageUrl(f.url)).length > 0 && (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                          {data.files.filter(f => isImageUrl(f.url)).map((file) => (
-                            <div key={file._id} className="relative group">
-                              <img
-                                src={file.url}
-                                alt={file.filename || "Uploaded image"}
-                                className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                onClick={() => setLightboxImage({ src: file.url, alt: file.filename })}
-                              />
-                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
-                                <button
-                                  className="btn btn-sm btn-circle btn-ghost text-white"
-                                  onClick={() => setLightboxImage({ src: file.url, alt: file.filename })}
-                                  title="View"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                  </svg>
-                                </button>
-                                <a
-                                  href={file.url}
-                                  download
-                                  className="btn btn-sm btn-circle btn-ghost text-white"
-                                  title="Download"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                  </svg>
-                                </a>
-                              </div>
-                              <p className="text-xs text-base-content/60 mt-1 truncate">{file.filename || file.fieldName}</p>
-                            </div>
-                          ))}
+                        <div className="mb-4">
+                          <PhotoGallery
+                            photos={data.files.filter(f => isImageUrl(f.url)).map(f => ({
+                              url: f.url,
+                              caption: f.filename || f.fieldName
+                            }))}
+                            thumbnailSize="lg"
+                            showCount={false}
+                          />
                         </div>
                       )}
                       {/* List for non-image files */}
                       {data.files.filter(f => !isImageUrl(f.url)).length > 0 && (
                         <div className="space-y-2">
                           {data.files.filter(f => !isImageUrl(f.url)).map((file) => (
-                            <div key={file._id} className="flex items-center justify-between p-3 bg-base-100 rounded-lg">
-                              <div>
-                                <p className="font-semibold">{file.filename || "File"}</p>
-                                <p className="text-sm text-base-content/60">
-                                  Field: {file.fieldName}
-                                  {file.size && ` • ${(file.size / 1024).toFixed(1)} KB`}
-                                </p>
+                            <div key={file._id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0">
+                                  <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-slate-800 truncate">{file.filename || "File"}</p>
+                                  <p className="text-xs text-slate-500">
+                                    {file.fieldName}
+                                    {file.size && ` • ${(file.size / 1024).toFixed(1)} KB`}
+                                  </p>
+                                </div>
                               </div>
                               <a
                                 href={file.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="btn btn-sm btn-primary"
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors flex-shrink-0"
                               >
                                 Download
                               </a>
@@ -431,11 +402,12 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
                           ))}
                         </div>
                       )}
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 )}
               </>
             )}
+            </div>
           </div>
         </div>
       </div>

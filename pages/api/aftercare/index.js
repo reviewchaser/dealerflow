@@ -2,6 +2,8 @@ import connectMongo from "@/libs/mongoose";
 import AftercareCase from "@/models/AftercareCase";
 import AftercareCaseComment from "@/models/AftercareCaseComment";
 import Contact from "@/models/Contact";
+import Vehicle from "@/models/Vehicle"; // Required for populate
+import VehicleSale from "@/models/VehicleSale"; // Required for populate
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {

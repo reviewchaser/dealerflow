@@ -33,6 +33,7 @@ export default function NewVehicle() {
     purchasePrice: "",
     salePrice: "",
     notes: "",
+    motExpiryDate: "",
   });
 
   // Close suggestions when clicking outside
@@ -107,17 +108,22 @@ export default function NewVehicle() {
 
     setIsLookingUp(true);
     try {
-      const response = await fetch("/api/dvla-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
-      });
+      // Call both DVLA and MOT APIs in parallel
+      const [dvlaResponse, motResponse] = await Promise.all([
+        fetch("/api/dvla-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
+        }),
+        fetch(`/api/mot?vrm=${encodeURIComponent(formData.vehicleReg)}`).catch(() => null),
+      ]);
 
-      const data = await response.json();
+      const dvlaData = await dvlaResponse.json();
+      const motData = motResponse?.ok ? await motResponse.json() : null;
 
-      // Handle error responses
-      if (!response.ok) {
-        const errorCode = data.errorCode || "UNKNOWN";
+      // Handle DVLA error responses
+      if (!dvlaResponse.ok) {
+        const errorCode = dvlaData.errorCode || "UNKNOWN";
         switch (errorCode) {
           case "NOT_FOUND":
             toast.error("VRM not found - please check the registration");
@@ -135,26 +141,31 @@ export default function NewVehicle() {
             toast.error("DVLA service unavailable, try again later");
             break;
           default:
-            toast.error(data.message || "Lookup failed");
+            toast.error(dvlaData.message || "Lookup failed");
         }
         return;
       }
 
-      if (data.isDummy) {
+      if (dvlaData.isDummy) {
         showDummyNotification("DVLA API");
       }
 
       setFormData((prev) => ({
         ...prev,
-        make: data.make || prev.make,
-        model: data.model || prev.model,
-        year: data.yearOfManufacture || prev.year,
-        colour: data.colour || prev.colour,
-        fuelType: data.fuelType || prev.fuelType,
-        engineSize: data.engineCapacity ? `${data.engineCapacity}cc` : prev.engineSize,
+        make: dvlaData.make || prev.make,
+        model: dvlaData.model || prev.model,
+        year: dvlaData.yearOfManufacture || prev.year,
+        colour: dvlaData.colour || prev.colour,
+        fuelType: dvlaData.fuelType || prev.fuelType,
+        engineSize: dvlaData.engineCapacity ? `${dvlaData.engineCapacity}cc` : prev.engineSize,
+        motExpiryDate: motData?.motExpiry || prev.motExpiryDate,
       }));
 
-      toast.success("Vehicle details loaded");
+      const messages = ["Vehicle details loaded"];
+      if (motData?.motExpiry) {
+        messages.push(`MOT expires: ${new Date(motData.motExpiry).toLocaleDateString()}`);
+      }
+      toast.success(messages.join(" • "));
     } catch (error) {
       toast.error("DVLA service unavailable, try again later");
     } finally {
@@ -180,6 +191,7 @@ export default function NewVehicle() {
           fuelType: formData.fuelType,
           transmission: formData.transmission,
           notes: formData.notes,
+          motExpiryDate: formData.motExpiryDate || null,
         }),
       });
 
@@ -437,7 +449,7 @@ export default function NewVehicle() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="form-control">
                 <label className="label">
                   <span className="label-text">Fuel Type</span>
@@ -481,6 +493,18 @@ export default function NewVehicle() {
                   onChange={handleChange}
                   className="input input-bordered"
                   placeholder="1.5L"
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text">MOT Expiry</span>
+                </label>
+                <input
+                  type="date"
+                  name="motExpiryDate"
+                  value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
+                  onChange={handleChange}
+                  className="input input-bordered"
                 />
               </div>
             </div>

@@ -1,5 +1,7 @@
 import connectMongo from "@/libs/mongoose";
 import CustomerPXAppraisal from "@/models/CustomerPXAppraisal";
+import Vehicle from "@/models/Vehicle"; // Required for populate
+import Contact from "@/models/Contact"; // Required for populate
 
 export default async function handler(req, res) {
   try {

@@ -3,6 +3,8 @@ import connectMongo from "@/libs/mongoose";
 import AftercareCase from "@/models/AftercareCase";
 import JobSheetShareLink from "@/models/JobSheetShareLink";
 import User from "@/models/User";
+import Vehicle from "@/models/Vehicle"; // Required for populate
+import Contact from "@/models/Contact"; // Required for populate
 import { withDealerContext } from "@/libs/authContext";
 
 // Generate a secure random token (URL-safe base64)

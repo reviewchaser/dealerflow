@@ -90,34 +90,29 @@ export default function Dashboard() {
       return res.json();
     };
 
-    Promise.all([
-      fetch("/api/dashboard/stats").then(async (res) => {
-        // Handle 403 (no dealer context) gracefully
+    // Single API call - stats now includes forms list
+    fetch("/api/dashboard/stats")
+      .then(async (res) => {
         if (res.status === 403) return { error: "No dealer context" };
         if (!res.ok) return { error: "Failed to fetch stats" };
-        const data = await safeJsonParse(res);
-        return data || { error: "Invalid response" };
-      }),
-      fetch("/api/forms").then(async (res) => {
-        if (res.status === 403) return [];
-        if (!res.ok) return [];
-        const data = await safeJsonParse(res);
-        return data || [];
-      }),
-    ])
-      .then(([statsData, formsData]) => {
+        return await safeJsonParse(res) || { error: "Invalid response" };
+      })
+      .then((statsData) => {
         if (statsData?.error) {
           console.error("Dashboard stats error:", statsData.error);
           setStats(defaultStats);
+          setForms([]);
         } else {
           setStats(statsData || defaultStats);
+          // Forms are now included in stats response
+          setForms(Array.isArray(statsData?.formsList) ? statsData.formsList : []);
         }
-        setForms(Array.isArray(formsData) ? formsData : []);
         setIsLoading(false);
       })
       .catch((err) => {
         console.error("Dashboard fetch error:", err);
         setStats(defaultStats);
+        setForms([]);
         setIsLoading(false);
       });
   }, []);
@@ -133,9 +128,9 @@ export default function Dashboard() {
   // Get top forms from stats (by submission count) or fall back to defaults
   const getTopForms = () => {
     if (stats?.topForms?.length > 0) {
-      // Map topForms to actual form objects
+      // Map topForms to actual form objects - ensure both sides are strings for comparison
       return stats.topForms
-        .map(tf => forms.find(f => (f.id || f._id) === tf.formId?.toString()))
+        .map(tf => forms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
         .filter(Boolean)
         .slice(0, 3);
     }
@@ -144,7 +139,7 @@ export default function Dashboard() {
   };
 
   const topForms = getTopForms();
-  const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id) === (f.id || f._id)));
+  const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
 
   // Get active needs attention items (only those with count > 0)
   const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
@@ -289,15 +284,29 @@ export default function Dashboard() {
                       </div>
                       <span className="font-semibold text-slate-500">More ({otherForms.length})</span>
                     </label>
-                    <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-xl bg-white rounded-2xl w-56 max-h-60 overflow-y-auto border border-slate-100 mt-2">
-                      {otherForms.map((form) => (
-                        <li key={form.id || form._id}>
-                          <button onClick={() => handleFormClick(form)} className="text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                            {form.name}
+                    <div tabIndex={0} className="dropdown-content z-20 shadow-xl bg-white rounded-xl w-64 border border-slate-200 mt-2 overflow-hidden">
+                      {/* Header */}
+                      <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50">
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">All Forms</p>
+                      </div>
+                      {/* Scrollable list */}
+                      <div className="max-h-64 overflow-y-auto overscroll-contain">
+                        {otherForms.map((form) => (
+                          <button
+                            key={form.id || form._id}
+                            onClick={() => handleFormClick(form)}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <span className="truncate">{FORM_TYPE_LABELS[form.type] || form.name}</span>
                           </button>
-                        </li>
-                      ))}
-                    </ul>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

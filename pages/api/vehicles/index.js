@@ -155,7 +155,8 @@ async function handler(req, res, ctx) {
       mileageCurrent, bodyType, fuelType, transmission, colour,
       status = "in_stock", notes, locationId, skipDefaultTasks,
       type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
-      saleType = "RETAIL" // RETAIL, TRADE - only for STOCK vehicles
+      saleType = "RETAIL", // RETAIL, TRADE - only for STOCK vehicles
+      motExpiryDate,
     } = req.body;
 
     if (!regCurrent || !make || !model) {
@@ -171,6 +172,8 @@ async function handler(req, res, ctx) {
       createdByUserId: userId,
       // Only set saleType for STOCK vehicles
       ...(type === "STOCK" && { saleType }),
+      // MOT expiry from DVSA lookup
+      ...(motExpiryDate && { motExpiryDate: new Date(motExpiryDate) }),
     };
 
     // Only add locationId if it's not empty
