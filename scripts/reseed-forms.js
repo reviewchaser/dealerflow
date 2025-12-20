@@ -1,11 +1,39 @@
-// Run with: node scripts/reseed-forms.js
-// This script force-reseeds all forms with the latest templates
+// ═══════════════════════════════════════════════════════════════════════════════
+// ⚠️  DEPRECATED - DO NOT USE
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// This script DESTRUCTIVELY reseeds PDI form only, but uses inline templates
+// which may be outdated and will overwrite any customizations.
+//
+// USE INSTEAD:
+//   node scripts/seed-forms-safe.js          # Safe seeding (non-destructive)
+//   node scripts/repair-form-templates.js    # Repair from libs/formTemplates.js
+//   node scripts/rename-form.js TYPE "Name"  # Safe rename without field reset
+//
+// If you MUST use this script, set: I_KNOW_WHAT_IM_DOING=true
+//
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const mongoose = require("mongoose");
 const path = require("path");
 
 // Load env file
 require("dotenv").config({ path: path.join(__dirname, "..", ".env.local") });
+
+// Safety check - require explicit acknowledgment
+if (process.env.I_KNOW_WHAT_IM_DOING !== "true") {
+  console.error("\n" + "═".repeat(70));
+  console.error("⚠️  THIS SCRIPT IS DEPRECATED AND DESTRUCTIVE");
+  console.error("═".repeat(70));
+  console.error("\nThis script will DELETE existing PDI form fields and recreate them");
+  console.error("from potentially outdated inline templates.\n");
+  console.error("Use instead:");
+  console.error("  node scripts/seed-forms-safe.js          # Safe seeding");
+  console.error("  node scripts/repair-form-templates.js    # Repair templates");
+  console.error("  node scripts/rename-form.js TYPE 'Name'  # Safe rename\n");
+  console.error("If you MUST run this, set: I_KNOW_WHAT_IM_DOING=true\n");
+  process.exit(1);
+}
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
