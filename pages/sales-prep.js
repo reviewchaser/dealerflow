@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Portal } from "@/components/ui/Portal";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 
 const COLUMNS = [
@@ -107,6 +108,33 @@ export default function SalesPrep() {
   // Filters state - with localStorage persistence
   const [activeFilters, setActiveFilters] = useState([]);
   const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+  const filterButtonRef = useRef(null);
+  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+
+  // Calculate popover position when opening
+  const openFiltersDropdown = useCallback(() => {
+    if (filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const viewportWidth = window.innerWidth;
+
+      // Position below the button, aligned to right edge
+      let top = rect.bottom + 8;
+      let right = viewportWidth - rect.right;
+
+      // Ensure popover doesn't go below viewport (max 70vh height + 16px padding)
+      const popoverHeight = Math.min(viewportHeight * 0.7, 600);
+      if (top + popoverHeight > viewportHeight - 16) {
+        top = Math.max(16, viewportHeight - popoverHeight - 16);
+      }
+
+      // Ensure popover doesn't go off right edge
+      right = Math.max(16, right);
+
+      setFilterPopoverPos({ top, right });
+    }
+    setShowFiltersDropdown(true);
+  }, []);
 
   // Load filters from localStorage on mount
   useEffect(() => {
@@ -1393,15 +1421,16 @@ export default function SalesPrep() {
             <div className="divider divider-horizontal mx-1"></div>
 
             {/* Consolidated Filters - Strictly Separated Desktop/Mobile */}
-            <div className="relative shrink-0">
-              {/* Trigger Button - Fixed for mobile */}
+            <div className="shrink-0">
+              {/* Trigger Button */}
               <button
+                ref={filterButtonRef}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg shrink-0 whitespace-nowrap text-sm font-medium transition-all ${
                   activeFilters.length > 0
                     ? "bg-blue-600 text-white"
                     : "bg-white border border-slate-200 text-slate-700 hover:border-slate-300"
                 }`}
-                onClick={() => setShowFiltersDropdown(!showFiltersDropdown)}
+                onClick={() => showFiltersDropdown ? setShowFiltersDropdown(false) : openFiltersDropdown()}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -1414,227 +1443,263 @@ export default function SalesPrep() {
                 )}
               </button>
 
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* DESKTOP: Fixed Popover via Portal (lg: and up) */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
               {showFiltersDropdown && (
-                <>
-                  {/* ═══════════════════════════════════════════════════════════════ */}
-                  {/* DESKTOP: Dropdown Panel (lg: and up) */}
-                  {/* ═══════════════════════════════════════════════════════════════ */}
-                  <div className="hidden lg:block">
+                <Portal>
+                  <div className="hidden lg:block fixed inset-0 z-[9998]">
                     {/* Backdrop */}
                     <div
-                      className="fixed inset-0 z-40"
+                      className="fixed inset-0"
                       onClick={() => setShowFiltersDropdown(false)}
                     />
 
-                    {/* Desktop Filter Panel */}
-                    <div className="absolute z-50 top-full right-0 mt-2 w-[720px] bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
-                      {/* 3-Column Grid with Dividers */}
-                      <div className="grid grid-cols-3 divide-x divide-slate-100">
-                        {/* Column 1: Prep Tasks */}
-                        <div className="p-5">
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Prep Tasks</h5>
-                          {[
-                            { key: "awaiting_pdi", label: "Awaiting PDI" },
-                            { key: "awaiting_valet", label: "Awaiting Valet" },
-                            { key: "awaiting_photos", label: "Awaiting Photos" },
-                            { key: "awaiting_mot", label: "Awaiting MOT" },
-                          ].map(filter => {
-                            const isActive = activeFilters.includes(filter.key);
-                            const count = getFilterCount(filter.key);
-                            return (
-                              <button
-                                key={filter.key}
-                                onClick={() => toggleFilter(filter.key)}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>{filter.label}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })}
+                    {/* Desktop Filter Panel - Fixed position, viewport-clamped */}
+                    <div
+                      className="fixed w-[360px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+                      style={{ top: filterPopoverPos.top, right: filterPopoverPos.right }}
+                    >
+                      {/* Sticky Header */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shrink-0">
+                        <h3 className="font-semibold text-slate-900">Filters</h3>
+                        <button
+                          onClick={() => setShowFiltersDropdown(false)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      {/* Scrollable Content */}
+                      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+                        {/* Prep Tasks Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Prep Tasks</h5>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "awaiting_pdi", label: "Awaiting PDI" },
+                              { key: "awaiting_valet", label: "Awaiting Valet" },
+                              { key: "awaiting_photos", label: "Awaiting Photos" },
+                              { key: "awaiting_mot", label: "Awaiting MOT" },
+                            ].map(filter => {
+                              const isActive = activeFilters.includes(filter.key);
+                              const count = getFilterCount(filter.key);
+                              return (
+                                <button
+                                  key={filter.key}
+                                  onClick={() => toggleFilter(filter.key)}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{filter.label}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
-                        {/* Column 2: Issues */}
-                        <div className="p-5">
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Issues</h5>
-                          {[
-                            { key: "needs_paint", label: "Needs Paint" },
-                            { key: "needs_mechanical", label: "Needs Mechanical" },
-                            { key: "needs_electrical", label: "Needs Electrical" },
-                          ].map(filter => {
-                            const isActive = activeFilters.includes(filter.key);
-                            const count = getFilterCount(filter.key);
-                            return (
-                              <button
-                                key={filter.key}
-                                onClick={() => toggleFilter(filter.key)}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>{filter.label}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })}
+                        {/* Issues Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Issues</h5>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "needs_paint", label: "Needs Paint" },
+                              { key: "needs_mechanical", label: "Needs Mechanical" },
+                              { key: "needs_electrical", label: "Needs Electrical" },
+                            ].map(filter => {
+                              const isActive = activeFilters.includes(filter.key);
+                              const count = getFilterCount(filter.key);
+                              return (
+                                <button
+                                  key={filter.key}
+                                  onClick={() => toggleFilter(filter.key)}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{filter.label}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
 
-                        {/* Column 3: Location + Sale Type + MOT Status */}
-                        <div className="p-5">
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Location</h5>
-                          {(() => {
-                            const isActive = activeFilters.includes("offsite");
-                            const count = getFilterCount("offsite");
-                            return (
-                              <button
-                                onClick={() => toggleFilter("offsite")}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>Offsite Only</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })()}
+                        {/* Location Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Location</h5>
+                          <div className="space-y-1.5">
+                            {(() => {
+                              const isActive = activeFilters.includes("offsite");
+                              const count = getFilterCount("offsite");
+                              return (
+                                <button
+                                  onClick={() => toggleFilter("offsite")}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>Offsite Only</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        </div>
 
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-5">Vehicle Type</h5>
-                          {[
-                            { key: "type_stock", label: "Stock Vehicles" },
-                            { key: "type_courtesy", label: "Courtesy Vehicles" },
-                            { key: "type_fleet", label: "Fleet Vehicles" },
-                          ].map(filter => {
-                            const isActive = activeFilters.includes(filter.key);
-                            const count = getFilterCount(filter.key);
-                            return (
-                              <button
-                                key={filter.key}
-                                onClick={() => toggleFilter(filter.key)}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>{filter.label}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })}
+                        {/* Vehicle Type Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Vehicle Type</h5>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "type_stock", label: "Stock Vehicles" },
+                              { key: "type_courtesy", label: "Courtesy Vehicles" },
+                              { key: "type_fleet", label: "Fleet Vehicles" },
+                            ].map(filter => {
+                              const isActive = activeFilters.includes(filter.key);
+                              const count = getFilterCount(filter.key);
+                              return (
+                                <button
+                                  key={filter.key}
+                                  onClick={() => toggleFilter(filter.key)}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{filter.label}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-5">Sale Type</h5>
-                          {[
-                            { key: "trade_only", label: "Trade Only" },
-                            { key: "retail_only", label: "Retail Only" },
-                          ].map(filter => {
-                            const isActive = activeFilters.includes(filter.key);
-                            const count = getFilterCount(filter.key);
-                            return (
-                              <button
-                                key={filter.key}
-                                onClick={() => toggleFilter(filter.key)}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>{filter.label}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })}
+                        {/* Sale Type Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Sale Type</h5>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "trade_only", label: "Trade Only" },
+                              { key: "retail_only", label: "Retail Only" },
+                            ].map(filter => {
+                              const isActive = activeFilters.includes(filter.key);
+                              const count = getFilterCount(filter.key);
+                              return (
+                                <button
+                                  key={filter.key}
+                                  onClick={() => toggleFilter(filter.key)}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{filter.label}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
 
-                          <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-5">MOT Status</h5>
-                          {[
-                            { key: "mot_expired", label: "MOT Expired" },
-                            { key: "mot_due_soon", label: "MOT Due Soon" },
-                          ].map(filter => {
-                            const isActive = activeFilters.includes(filter.key);
-                            const count = getFilterCount(filter.key);
-                            return (
-                              <button
-                                key={filter.key}
-                                onClick={() => toggleFilter(filter.key)}
-                                className={`w-full flex justify-between items-center px-3 py-2 mb-2 rounded-md text-sm font-medium transition-all ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                                    : "text-slate-600 border border-transparent hover:bg-slate-50 hover:border-slate-200"
-                                }`}
-                              >
-                                <span>{filter.label}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
-                                }`}>{count}</span>
-                              </button>
-                            );
-                          })}
+                        {/* MOT Status Section */}
+                        <div>
+                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">MOT Status</h5>
+                          <div className="space-y-1.5">
+                            {[
+                              { key: "mot_expired", label: "MOT Expired" },
+                              { key: "mot_due_soon", label: "MOT Due Soon" },
+                            ].map(filter => {
+                              const isActive = activeFilters.includes(filter.key);
+                              const count = getFilterCount(filter.key);
+                              return (
+                                <button
+                                  key={filter.key}
+                                  onClick={() => toggleFilter(filter.key)}
+                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                                    isActive
+                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+                                      : "text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  <span>{filter.label}</span>
+                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+                                  }`}>{count}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Desktop Footer */}
-                      <div className="bg-slate-50 border-t border-slate-100 p-4 flex justify-between items-center">
+                      {/* Sticky Footer */}
+                      <div className="border-t border-slate-200 p-3 bg-white flex gap-2 shrink-0">
                         <button
                           onClick={() => setActiveFilters([])}
-                          className="text-sm text-slate-500 hover:text-red-600 underline decoration-slate-300 transition-colors"
+                          className="flex-1 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                          Clear all filters
+                          Clear
                         </button>
                         <button
                           onClick={() => setShowFiltersDropdown(false)}
-                          className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-colors"
+                          className="flex-1 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors"
                         >
-                          Apply Filters
+                          Apply
                         </button>
                       </div>
                     </div>
                   </div>
+                </Portal>
+              )}
 
-                  {/* ═══════════════════════════════════════════════════════════════ */}
-                  {/* MOBILE/TABLET: Bottom Sheet (< lg screens) */}
-                  {/* ═══════════════════════════════════════════════════════════════ */}
-                  <BottomSheet
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* MOBILE/TABLET: Bottom Sheet (< lg screens) */}
+              {/* Uses its own internal Portal for correct positioning */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              <BottomSheet
                     isOpen={showFiltersDropdown}
                     onClose={() => setShowFiltersDropdown(false)}
                     hideAbove="lg"
-                    title={
-                      <div className="flex items-center gap-3">
-                        <span>Filters</span>
-                        {activeFilters.length > 0 && (
-                          <button
-                            onClick={() => setActiveFilters([])}
-                            className="text-sm text-slate-500 hover:text-red-500 transition-colors font-normal"
-                          >
-                            Reset
-                          </button>
-                        )}
-                      </div>
-                    }
+                    title="Filters"
                     footer={
-                      <button
-                        onClick={() => setShowFiltersDropdown(false)}
-                        className="w-full bg-slate-900 text-white py-3.5 rounded-xl text-base font-bold hover:bg-slate-800 active:bg-slate-700 transition-colors shadow-lg"
-                      >
-                        Apply Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
-                      </button>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setActiveFilters([])}
+                          className="flex-1 px-4 py-3 text-base font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+                        >
+                          Clear
+                        </button>
+                        <button
+                          onClick={() => setShowFiltersDropdown(false)}
+                          className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-base font-bold hover:bg-slate-800 transition-colors"
+                        >
+                          Apply {activeFilters.length > 0 && `(${activeFilters.length})`}
+                        </button>
+                      </div>
                     }
                   >
                     {/* Prep Tasks */}
@@ -1793,8 +1858,6 @@ export default function SalesPrep() {
                       );
                     })}
                   </BottomSheet>
-                </>
-              )}
             </div>
           </div>
       </div>

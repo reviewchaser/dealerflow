@@ -1,5 +1,9 @@
 /**
  * BottomSheet Component - Mobile-friendly modal that slides up from bottom
+ *
+ * IMPORTANT: Uses Portal to render outside DOM hierarchy, ensuring fixed
+ * positioning works correctly regardless of parent CSS (transform, filter, etc.)
+ *
  * Usage:
  *   <BottomSheet isOpen={isOpen} onClose={() => setIsOpen(false)} title="Filters">
  *     <FilterContent />
@@ -7,6 +11,7 @@
  */
 
 import { useEffect, useRef } from "react";
+import { Portal } from "./Portal";
 
 export function BottomSheet({
   isOpen,
@@ -23,13 +28,24 @@ export function BottomSheet({
   // Lock body scroll when open
   useEffect(() => {
     if (isOpen) {
+      // Store current scroll position and lock
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
       document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
+
+      return () => {
+        // Restore scroll position
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.overflow = "";
+        window.scrollTo(0, scrollY);
+      };
     }
-    return () => {
-      document.body.style.overflow = "";
-    };
   }, [isOpen]);
 
   // Handle escape key
@@ -49,67 +65,74 @@ export function BottomSheet({
   const hideClass = hideAbove === "lg" ? "lg:hidden" : "md:hidden";
 
   return (
-    <div className={`fixed inset-0 z-50 ${hideClass}`}>
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
+    <Portal>
+      <div className={`fixed inset-0 z-[9999] ${hideClass}`}>
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+          aria-hidden="true"
+        />
 
-      {/* Sheet */}
-      <div
-        ref={sheetRef}
-        className={`absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl flex flex-col animate-slide-up ${className}`}
-        style={{ maxHeight }}
-      >
-        {/* Handle */}
-        <div className="flex justify-center py-2">
-          <div className="w-10 h-1 bg-slate-300 rounded-full" />
-        </div>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pb-3 border-b border-slate-200">
-          <h2 className="text-lg font-bold text-slate-900">{title}</h2>
-          <button
-            onClick={onClose}
-            className="p-2 -mr-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-4">
-          {children}
-        </div>
-
-        {/* Footer - Sticky */}
-        {footer && (
-          <div className="sticky bottom-0 border-t border-slate-200 bg-white p-4 safe-area-bottom">
-            {footer}
+        {/* Sheet - Fixed to viewport bottom */}
+        <div
+          ref={sheetRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bottom-sheet-title"
+          className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl flex flex-col animate-slide-up ${className}`}
+          style={{ maxHeight }}
+        >
+          {/* Handle */}
+          <div className="flex justify-center pt-3 pb-1 shrink-0">
+            <div className="w-10 h-1 bg-slate-300 rounded-full" />
           </div>
-        )}
-      </div>
 
-      <style jsx global>{`
-        @keyframes slide-up {
-          from {
-            transform: translateY(100%);
+          {/* Header - Sticky */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shrink-0">
+            <h2 id="bottom-sheet-title" className="text-lg font-bold text-slate-900">{title}</h2>
+            <button
+              onClick={onClose}
+              className="p-2 -mr-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto overscroll-contain p-4 min-h-0">
+            {children}
+          </div>
+
+          {/* Footer - Sticky at bottom */}
+          {footer && (
+            <div
+              className="shrink-0 border-t border-slate-200 bg-white p-4"
+              style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+            >
+              {footer}
+            </div>
+          )}
+        </div>
+
+        <style jsx global>{`
+          @keyframes slide-up {
+            from {
+              transform: translateY(100%);
+            }
+            to {
+              transform: translateY(0);
+            }
           }
-          to {
-            transform: translateY(0);
+          .animate-slide-up {
+            animation: slide-up 0.3s ease-out forwards;
           }
-        }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out forwards;
-        }
-        .safe-area-bottom {
-          padding-bottom: max(1rem, env(safe-area-inset-bottom));
-        }
-      `}</style>
-    </div>
+        `}</style>
+      </div>
+    </Portal>
   );
 }
 

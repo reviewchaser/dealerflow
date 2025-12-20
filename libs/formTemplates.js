@@ -362,10 +362,10 @@ For emergencies, contact: {dealer.companyPhone}`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // Warranty Claim - Vehicle Warranty Claim Form
+  // Warranty Claim
   // ═══════════════════════════════════════════════════════════════════════════════
   {
-    name: "Vehicle Warranty Claim Form",
+    name: "Warranty Claim",
     type: "WARRANTY_CLAIM",
     visibility: "PUBLIC", // Fully public - customers can access
     isPublic: true, // Deprecated - kept for backward compat

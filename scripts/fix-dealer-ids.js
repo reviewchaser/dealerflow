@@ -19,7 +19,7 @@ async function fix() {
     { _id: warrantyForm._id },
     {
       $set: {
-        name: 'Vehicle Warranty Claim Form',
+        name: 'Warranty Claim',
         introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to page 5 of your warranty booklet.
 
 We will only accept one claim per submission, submitting more than once may delay your claim being processed.

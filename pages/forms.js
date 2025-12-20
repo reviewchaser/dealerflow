@@ -1360,49 +1360,61 @@ export default function Forms() {
                   <p className="text-sm mt-1">Please try selecting again</p>
                 </div>
               ) : (
-                /* Modern Document Card */
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 sm:p-8 max-w-3xl mx-auto flex-1">
-                  {/* Card Header with Icon, Title, and Actions */}
-                  <div className="flex items-start gap-4 mb-6 pb-6 border-b border-slate-100">
-                    {/* Large Feature Icon */}
-                    <LargeFormIcon type={submissionDetail.submission?.formId?.type || "OTHER"} />
-
-                    {/* Title Section */}
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
-                        {submissionDetail.submission?.formId?.name || "Form Submission"}
-                      </h2>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                        <span>{new Date(submissionDetail.submission?.submittedAt).toLocaleString()}</span>
-                        {submissionDetail.submission?.formId?.type && (
-                          <>
-                            <span className="text-slate-300">·</span>
-                            <span>{FORM_TYPE_LABELS[submissionDetail.submission.formId.type] || submissionDetail.submission.formId.type}</span>
-                          </>
-                        )}
-                      </div>
+                /* Modern Document Card - Compact on Mobile */
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 md:p-6 max-w-3xl mx-auto flex-1">
+                  {/* Card Header - Compact on Mobile */}
+                  <div className="flex items-start gap-3 md:gap-4 mb-4 md:mb-6 pb-4 md:pb-6 border-b border-slate-100">
+                    {/* Feature Icon - Smaller on mobile */}
+                    <div className="hidden md:block">
+                      <LargeFormIcon type={submissionDetail.submission?.formId?.type || "OTHER"} />
+                    </div>
+                    <div className="md:hidden w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+                      <FormTypeIcon type={submissionDetail.submission?.formId?.type || "OTHER"} size="w-5 h-5" />
                     </div>
 
-                    {/* Action Buttons - Top Right */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {/* Edit Button - Ghost style */}
-                      {!isEditing && (
-                        <button
-                          className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
-                          onClick={handleStartEdit}
-                        >
-                          Edit
-                        </button>
-                      )}
+                    {/* Title Section - Compact on Mobile */}
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-lg md:text-xl font-semibold text-slate-900 leading-tight">
+                        {submissionDetail.submission?.formId?.name || "Form Submission"}
+                      </h2>
+                      <p className="text-xs md:text-sm text-slate-500 mt-0.5">
+                        {new Date(submissionDetail.submission?.submittedAt).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric"
+                        })}
+                        {" · "}
+                        {new Date(submissionDetail.submission?.submittedAt).toLocaleTimeString("en-GB", {
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
 
-                      {/* Status Dropdown */}
+                    {/* Actions - Compact dropdown on mobile */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {/* Desktop: Edit + Status */}
+                      <div className="hidden md:flex items-center gap-1">
+                        {!isEditing && (
+                          <button
+                            className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                            onClick={handleStartEdit}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status Dropdown - Works on both mobile and desktop */}
                       <div className="dropdown dropdown-end">
-                        <label tabIndex={0} className="px-3 py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer flex items-center gap-1">
-                          {submissionDetail.submission?.status === "actioned" ? "Actioned" :
-                           submissionDetail.submission?.status === "archived" ? "Archived" :
-                           submissionDetail.submission?.viewed ? "Viewed" : "New"}
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        <label tabIndex={0} className="p-2 md:px-3 md:py-1.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer flex items-center gap-1">
+                          <span className="hidden md:inline">
+                            {submissionDetail.submission?.status === "actioned" ? "Actioned" :
+                             submissionDetail.submission?.status === "archived" ? "Archived" :
+                             submissionDetail.submission?.viewed ? "Viewed" : "New"}
+                          </span>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </label>
                         <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-40 border border-slate-200">
