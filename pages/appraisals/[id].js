@@ -152,7 +152,8 @@ export default function AppraisalDetail() {
         });
         if (res.ok) {
           const data = await res.json();
-          uploadedUrls.push(data.url);
+          // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+          uploadedUrls.push(data.key || data.url);
         }
       } catch (error) {
         console.error("Photo upload failed:", error);

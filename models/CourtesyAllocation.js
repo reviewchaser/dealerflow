@@ -34,4 +34,10 @@ const courtesyAllocationSchema = new mongoose.Schema(
 );
 
 courtesyAllocationSchema.plugin(toJSON);
+
+// Indexes for dashboard and courtesy queries
+courtesyAllocationSchema.index({ dealerId: 1, dateDueBack: 1, dateReturned: 1 });
+courtesyAllocationSchema.index({ dealerId: 1, status: 1 });
+courtesyAllocationSchema.index({ courtesyVehicleId: 1, status: 1 });
+
 export default mongoose.models.CourtesyAllocation || mongoose.model("CourtesyAllocation", courtesyAllocationSchema);

@@ -25,7 +25,8 @@
       "Bash(npx eslint:*)",
       "Bash(grep:*)",
       "Bash(head:*)",
-      "Bash(timeout 20 npm run dev)"
+      "Bash(timeout 20 npm run dev)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

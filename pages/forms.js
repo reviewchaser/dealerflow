@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import ShareFormModal from "@/components/ShareFormModal";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 
@@ -104,8 +105,22 @@ export default function Forms() {
   const [vrmSearch, setVrmSearch] = useState("");
   const [selectedFormId, setSelectedFormId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const dealerId = session?.user?.dealerId || "000000000000000000000000";
+
+  // Check if any filters are active
+  const hasActiveFilters = vrmSearch || searchQuery || statusFilter || filterFormType || selectedFormId;
+  const activeFilterCount = [vrmSearch, searchQuery, statusFilter, filterFormType, selectedFormId].filter(Boolean).length;
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setVrmSearch("");
+    setSearchQuery("");
+    setStatusFilter("");
+    setFilterFormType("");
+    setSelectedFormId("");
+  };
 
   useEffect(() => {
     if (status === "loading") return;
@@ -686,19 +701,57 @@ export default function Forms() {
     <DashboardLayout>
       <Head><title>Submissions | DealerFlow</title></Head>
 
-      {/* Ultra-Compact Single Toolbar */}
-      <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0 -mx-4 sm:-mx-6 lg:-mx-8 mb-0">
-        {/* Left Side: Title + Divider + Tabs */}
-        <div className="flex items-center gap-4">
+      {/* Compact Sticky Header */}
+      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 -mx-4 md:-mx-6 lg:-mx-8">
+        {/* Row 1: Title + Actions */}
+        <div className="flex items-center justify-between h-12 px-4">
           <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
 
-          {/* Vertical Divider */}
-          <div className="h-5 w-px bg-slate-200" />
+          {/* Right: Add Button + Overflow Menu */}
+          <div className="flex items-center gap-2">
+            {/* Fill Out Form Dropdown */}
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="h-9 w-9 md:w-auto md:px-3 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center justify-center gap-2 cursor-pointer transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="hidden md:inline">Fill Out Form</span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="hidden md:block h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </label>
+              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto">
+                {forms.length === 0 ? (
+                  <li><span className="text-base-content/60 text-sm">No forms available</span></li>
+                ) : (
+                  forms.map((form) => (
+                    <li key={form.id || form._id}>
+                      <button
+                        onClick={() => {
+                          const canOpenPublic = (form.visibility === "PUBLIC" || form.visibility === "SHARE_LINK" || (!form.visibility && form.isPublic));
+                          if (canOpenPublic && form.publicSlug) {
+                            window.open(`/public/forms/${form.publicSlug}`, '_blank');
+                          } else {
+                            router.push(`/forms/fill/${form.id || form._id}`);
+                          }
+                        }}
+                        className="text-sm text-left"
+                      >
+                        <span className="truncate">{form.name}</span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
 
-          {/* Compact Segmented Control */}
+        {/* Row 2: Compact Segmented Tabs */}
+        <div className="flex items-center px-4 pb-2">
           <div className="bg-slate-100 p-0.5 rounded-lg flex text-xs font-medium">
             <button
-              className={`px-3 py-1 rounded-md transition-all flex items-center ${
+              className={`px-3 py-1.5 rounded-md transition-all flex items-center gap-1.5 ${
                 activeTab === "submissions"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
@@ -707,11 +760,11 @@ export default function Forms() {
             >
               Inbox
               {newCount > 0 && (
-                <span className="w-2 h-2 rounded-full bg-red-500 inline-block ml-1.5" />
+                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
               )}
             </button>
             <button
-              className={`px-3 py-1 rounded-md transition-all ${
+              className={`px-3 py-1.5 rounded-md transition-all ${
                 activeTab === "templates"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
@@ -721,42 +774,6 @@ export default function Forms() {
               Templates
             </button>
           </div>
-        </div>
-
-        {/* Right Side: Fill Out Form Button */}
-        <div className="dropdown dropdown-end">
-          <label tabIndex={0} className="h-9 px-3 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 cursor-pointer transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="hidden sm:inline">Fill Out Form</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </label>
-          <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto">
-            {forms.length === 0 ? (
-              <li><span className="text-base-content/60 text-sm">No forms available</span></li>
-            ) : (
-              forms.map((form) => (
-                <li key={form.id || form._id}>
-                  <button
-                    onClick={() => {
-                      const canOpenPublic = (form.visibility === "PUBLIC" || form.visibility === "SHARE_LINK" || (!form.visibility && form.isPublic));
-                      if (canOpenPublic && form.publicSlug) {
-                        window.open(`/public/forms/${form.publicSlug}`, '_blank');
-                      } else {
-                        router.push(`/forms/fill/${form.id || form._id}`);
-                      }
-                    }}
-                    className="text-sm text-left"
-                  >
-                    <span className="truncate">{form.name}</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
         </div>
       </div>
 
@@ -1018,14 +1035,14 @@ export default function Forms() {
       {/* Submissions Tab - Split-View Inbox Layout */}
       {activeTab === "submissions" && (
         <>
-          {/* Filters Bar - Compact style */}
-          <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center bg-white border-b border-slate-200 py-2 px-4 -mx-4 sm:-mx-6 lg:-mx-8">
+          {/* Mobile Search + Filters Row */}
+          <div className="md:hidden flex gap-2 items-center bg-white border-b border-slate-200 py-2 px-4 -mx-4">
             {/* VRM Search */}
-            <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
+            <div className="relative flex-1 min-w-0">
               <input
                 type="text"
                 placeholder="Search VRM..."
-                className="w-full h-9 pl-9 pr-3 text-sm font-mono uppercase bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full h-10 pl-9 pr-3 text-sm font-mono uppercase bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 value={vrmSearch}
                 onChange={(e) => setVrmSearch(e.target.value.toUpperCase())}
               />
@@ -1034,46 +1051,78 @@ export default function Forms() {
               </svg>
             </div>
 
-            {/* Customer Search - Hidden on mobile */}
+            {/* Filters Button */}
+            <button
+              onClick={() => setShowMobileFilters(true)}
+              className={`h-10 px-3 flex items-center gap-2 rounded-lg text-sm font-medium transition-colors ${
+                hasActiveFilters
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="bg-white/20 text-xs px-1.5 py-0.5 rounded-full">{activeFilterCount}</span>
+              )}
+            </button>
+          </div>
+
+          {/* Desktop Filters Row */}
+          <div className="hidden md:flex flex-wrap gap-2 items-center bg-white border-b border-slate-200 py-2 px-4 -mx-6 lg:-mx-8">
+            {/* VRM Search */}
+            <div className="relative min-w-[200px] max-w-xs">
+              <input
+                type="text"
+                placeholder="Search VRM..."
+                className="w-full h-9 pl-9 pr-3 text-sm font-mono uppercase bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={vrmSearch}
+                onChange={(e) => setVrmSearch(e.target.value.toUpperCase())}
+              />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+
+            {/* Customer Search */}
             <input
               type="text"
               placeholder="Customer name..."
-              className="hidden sm:block h-9 px-3 text-sm w-40 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="h-9 px-3 text-sm w-40 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-            {/* Filter row on mobile */}
-            <div className="flex gap-2 w-full sm:w-auto">
-              {/* Status Filter */}
-              <select
-                className="flex-1 sm:flex-none h-9 px-2 sm:px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="">Status</option>
-                <option value="new">New</option>
-                <option value="viewed">Viewed</option>
-                <option value="actioned">Actioned</option>
-                <option value="archived">Archived</option>
-              </select>
-
-              {/* Form Type Filter */}
-              <select
-                className="flex-1 sm:flex-none h-9 px-2 sm:px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-                value={filterFormType}
-                onChange={(e) => setFilterFormType(e.target.value)}
-              >
-                <option value="">Type</option>
-                {formTypes.map((type) => (
-                  <option key={type} value={type}>{FORM_TYPE_LABELS[type] || type}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Specific Form Filter - Hidden on mobile */}
+            {/* Status Filter */}
             <select
-              className="hidden sm:block h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+              className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="new">New</option>
+              <option value="viewed">Viewed</option>
+              <option value="actioned">Actioned</option>
+              <option value="archived">Archived</option>
+            </select>
+
+            {/* Form Type Filter */}
+            <select
+              className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+              value={filterFormType}
+              onChange={(e) => setFilterFormType(e.target.value)}
+            >
+              <option value="">All Types</option>
+              {formTypes.map((type) => (
+                <option key={type} value={type}>{FORM_TYPE_LABELS[type] || type}</option>
+              ))}
+            </select>
+
+            {/* Specific Form Filter */}
+            <select
+              className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               value={selectedFormId}
               onChange={(e) => setSelectedFormId(e.target.value)}
             >
@@ -1084,25 +1133,115 @@ export default function Forms() {
             </select>
 
             {/* Clear Filters */}
-            {(vrmSearch || searchQuery || statusFilter || filterFormType || selectedFormId) && (
+            {hasActiveFilters && (
               <button
                 className="h-9 px-3 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                onClick={() => {
-                  setVrmSearch("");
-                  setSearchQuery("");
-                  setStatusFilter("");
-                  setFilterFormType("");
-                  setSelectedFormId("");
-                }}
+                onClick={clearAllFilters}
               >
                 Clear
               </button>
             )}
 
-            <span className="text-xs sm:text-sm text-slate-400 sm:ml-auto">
+            <span className="text-sm text-slate-400 ml-auto">
               {filteredSubmissions.length} submission{filteredSubmissions.length !== 1 ? "s" : ""}
             </span>
           </div>
+
+          {/* Mobile Filters BottomSheet */}
+          <BottomSheet
+            isOpen={showMobileFilters}
+            onClose={() => setShowMobileFilters(false)}
+            title="Filters"
+            footer={
+              <div className="flex gap-2">
+                {hasActiveFilters && (
+                  <button
+                    className="btn btn-ghost flex-1"
+                    onClick={() => {
+                      clearAllFilters();
+                      setShowMobileFilters(false);
+                    }}
+                  >
+                    Clear All
+                  </button>
+                )}
+                <button
+                  className="btn btn-primary flex-1"
+                  onClick={() => setShowMobileFilters(false)}
+                >
+                  Apply
+                </button>
+              </div>
+            }
+          >
+            <div className="space-y-4">
+              {/* Customer Name */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Customer Name</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search by name..."
+                  className="input input-bordered w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Status</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">All Status</option>
+                  <option value="new">New</option>
+                  <option value="viewed">Viewed</option>
+                  <option value="actioned">Actioned</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+
+              {/* Form Type Filter */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Form Type</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={filterFormType}
+                  onChange={(e) => setFilterFormType(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  {formTypes.map((type) => (
+                    <option key={type} value={type}>{FORM_TYPE_LABELS[type] || type}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Specific Form Filter */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Specific Form</span>
+                </label>
+                <select
+                  className="select select-bordered w-full"
+                  value={selectedFormId}
+                  onChange={(e) => setSelectedFormId(e.target.value)}
+                >
+                  <option value="">All Forms</option>
+                  {forms.map((form) => (
+                    <option key={form._id} value={form._id}>{form.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </BottomSheet>
 
           {/* Split View - 2-Column Grid on desktop, single column on mobile */}
           <div className="grid grid-cols-1 md:grid-cols-12 h-[calc(100vh-180px)] sm:h-[calc(100vh-140px)] bg-white border-x border-b border-slate-200 overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8">

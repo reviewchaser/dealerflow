@@ -380,11 +380,11 @@ export default function DashboardLayout({ children }) {
             </div>
           </div>
         </header>
-        <main className="p-4 md:p-6 lg:p-8 pb-20 md:pb-8">{children}</main>
+        <main className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">{children}</main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 md:hidden">
+      {/* Mobile Bottom Navigation - Safe area aware */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-center justify-around h-16">
           {[
             { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },

@@ -5,6 +5,7 @@ import FormSubmission from "@/models/FormSubmission";
 import FormSubmissionFile from "@/models/FormSubmissionFile";
 import CourtesyAllocation from "@/models/CourtesyAllocation";
 import Vehicle from "@/models/Vehicle";
+import Contact from "@/models/Contact"; // Required for populate
 import User from "@/models/User";
 import CalendarEvent from "@/models/CalendarEvent";
 import CalendarCategory from "@/models/CalendarCategory";

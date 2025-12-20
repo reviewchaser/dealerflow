@@ -132,6 +132,7 @@ export default function CustomerPXForm() {
   };
 
   // Helper function to upload a single file
+  // Returns S3 key (for S3 uploads) or local URL (for dev uploads)
   const uploadFile = async (file, type = "photo") => {
     if (!file) return null;
     const uploadData = new FormData();
@@ -140,7 +141,8 @@ export default function CustomerPXForm() {
     const res = await fetch("/api/vehicles/upload", { method: "POST", body: uploadData });
     if (res.ok) {
       const data = await res.json();
-      return data.url;
+      // Store S3 key for S3 uploads (permanent), or URL for local uploads
+      return data.key || data.url;
     }
     return null;
   };

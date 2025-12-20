@@ -182,7 +182,8 @@ export default function NewAppraisal() {
 
     if (!res.ok) throw new Error("Upload failed");
     const data = await res.json();
-    return data.url;
+    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+    return data.key || data.url;
   };
 
   const handleSubmit = async (e) => {

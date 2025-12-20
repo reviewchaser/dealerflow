@@ -80,9 +80,18 @@ export default function Settings() {
     try {
       const res = await fetch("/api/calendar/categories");
       const data = await res.json();
-      setCategories(data);
+      // Ensure data is an array and normalize fields
+      const categoriesArray = Array.isArray(data) ? data : (data?.categories ?? []);
+      setCategories(
+        categoriesArray.map((c) => ({
+          id: c.id ?? c._id,
+          name: c.name ?? "",
+          colour: c.colour ?? c.color ?? "#6366f1",
+        }))
+      );
     } catch (error) {
       console.error("Failed to load categories");
+      setCategories([]); // Reset to empty array on error
     }
   };
 
@@ -662,12 +671,16 @@ export default function Settings() {
             <p className="text-sm text-base-content/60">Event types for calendar (e.g. "Handover", "Test Drive")</p>
             
             <div className="space-y-2 mt-4">
-              {categories.map((cat) => (
-                <div key={cat.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: cat.colour }}></div>
-                  <span className="flex-1">{cat.name}</span>
-                </div>
-              ))}
+              {Array.isArray(categories) && categories.length > 0 ? (
+                categories.map((cat) => (
+                  <div key={cat.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: cat.colour }}></div>
+                    <span className="flex-1">{cat.name}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-base-content/50 italic">No categories yet</p>
+              )}
             </div>
 
             <form onSubmit={addCategory} className="flex gap-2 mt-4">

@@ -1,6 +1,8 @@
 import connectMongo from "@/libs/mongoose";
 import CalendarEvent from "@/models/CalendarEvent";
 import CalendarCategory from "@/models/CalendarCategory";
+import Contact from "@/models/Contact"; // Required for populate
+import Vehicle from "@/models/Vehicle"; // Required for populate
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {

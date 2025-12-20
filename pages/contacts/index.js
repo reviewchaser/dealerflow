@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
+import { MobileStageSelector } from "@/components/ui/PageShell";
 import { toast } from "react-hot-toast";
 
 export default function Contacts() {
@@ -88,8 +89,8 @@ export default function Contacts() {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+      <div className="flex flex-col gap-4 mb-6">
+        <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
             placeholder="Search by name, email or phone..."
@@ -97,20 +98,19 @@ export default function Contacts() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="submit" className="btn btn-ghost">🔍</button>
+          <button type="submit" className="btn btn-ghost">Search</button>
         </form>
-        
-        <div className="flex gap-2">
-          {["all", "seller", "buyer", "both"].map((type) => (
-            <button
-              key={type}
-              className={`btn btn-sm ${filter === type ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setFilter(type)}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-          ))}
-        </div>
+
+        <MobileStageSelector
+          stages={[
+            { value: "all", label: "All" },
+            { value: "seller", label: "Seller" },
+            { value: "buyer", label: "Buyer" },
+            { value: "both", label: "Both" },
+          ]}
+          activeStage={filter}
+          onStageChange={setFilter}
+        />
       </div>
 
       {isLoading ? (

@@ -3,9 +3,133 @@
  * Usage:
  *   <PhotoGallery photos={[{ url: '...', category: 'exterior' }]} />
  *   <PhotoGallery photos={urls} groupByCategory />
+ *
+ * Handles S3 keys (starting with "uploads/") by fetching signed URLs.
+ * IMPORTANT: Only fetches signed URLs when S3 is configured. In local dev,
+ * photos use direct URLs and no signing is needed.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+
+// Check if a URL is an S3 key that needs signing
+const isS3Key = (url) => typeof url === "string" && url.startsWith("uploads/");
+
+// Module-level cache for signed URLs (persists across component instances)
+const signedUrlCache = new Map();
+
+// Hook to resolve S3 keys to signed URLs
+// FIXED: Stable dependencies, no infinite loops, proper caching
+function useSignedUrls(photos) {
+  const [signedUrls, setSignedUrls] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const fetchedKeysRef = useRef(new Set()); // Track keys we've already fetched
+  const isMountedRef = useRef(true);
+
+  // Extract S3 keys from photos - stable calculation
+  const s3Keys = useMemo(() => {
+    const keys = new Set();
+    if (!Array.isArray(photos)) return [];
+    photos.forEach((photo) => {
+      const url = typeof photo === "string" ? photo : photo?.url;
+      if (isS3Key(url)) {
+        keys.add(url);
+      }
+    });
+    return Array.from(keys);
+  }, [photos]);
+
+  // Create stable string key for comparison
+  const s3KeysString = s3Keys.join(",");
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
+    // No S3 keys? Nothing to do
+    if (s3Keys.length === 0) return;
+
+    // Check which keys need fetching (not in cache, not already fetched)
+    const keysToFetch = s3Keys.filter(
+      (key) => !signedUrlCache.has(key) && !fetchedKeysRef.current.has(key)
+    );
+
+    // All keys already cached or fetched? Just update state from cache
+    if (keysToFetch.length === 0) {
+      const cached = {};
+      s3Keys.forEach((key) => {
+        if (signedUrlCache.has(key)) {
+          cached[key] = signedUrlCache.get(key);
+        }
+      });
+      if (Object.keys(cached).length > 0) {
+        setSignedUrls((prev) => ({ ...prev, ...cached }));
+      }
+      return;
+    }
+
+    // Mark keys as being fetched to prevent duplicate requests
+    keysToFetch.forEach((key) => fetchedKeysRef.current.add(key));
+
+    const fetchSignedUrls = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/photos/signed-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keys: keysToFetch }),
+        });
+
+        if (!res.ok) {
+          // S3 not configured or error - don't retry, just use original URLs
+          console.warn("[PhotoGallery] Signed URL fetch failed:", res.status);
+          return;
+        }
+
+        const data = await res.json();
+        if (!isMountedRef.current) return;
+
+        const newSignedUrls = {};
+        keysToFetch.forEach((key, i) => {
+          const signedUrl = data.urls?.[i];
+          if (signedUrl) {
+            newSignedUrls[key] = signedUrl;
+            signedUrlCache.set(key, signedUrl); // Cache it
+          }
+        });
+
+        if (Object.keys(newSignedUrls).length > 0) {
+          setSignedUrls((prev) => ({ ...prev, ...newSignedUrls }));
+        }
+      } catch (err) {
+        // Network error - don't retry, use original URLs
+        console.warn("[PhotoGallery] Signed URL fetch error:", err.message);
+      } finally {
+        if (isMountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchSignedUrls();
+  }, [s3KeysString]); // Only depend on the string, not the array
+
+  // Resolve a URL - return signed URL if available, otherwise original
+  const resolveUrl = useCallback(
+    (url) => {
+      if (isS3Key(url)) {
+        // Check local state first, then module cache
+        if (signedUrls[url]) return signedUrls[url];
+        if (signedUrlCache.has(url)) return signedUrlCache.get(url);
+      }
+      return url;
+    },
+    [signedUrls]
+  );
+
+  return { resolveUrl, isLoading };
+}
 
 // Category labels for display
 const CATEGORY_LABELS = {
@@ -30,13 +154,18 @@ export function PhotoGallery({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [showAll, setShowAll] = useState(false);
 
-  // Normalize photos to consistent format
-  const normalizedPhotos = photos.map((photo, idx) => {
-    if (typeof photo === "string") {
-      return { url: photo, category: "other", id: idx };
-    }
-    return { ...photo, id: photo.id || idx };
-  });
+  // Hook to resolve S3 keys to signed URLs
+  const { resolveUrl, isLoading: isLoadingUrls } = useSignedUrls(photos);
+
+  // Normalize photos to consistent format and resolve S3 keys
+  const normalizedPhotos = useMemo(() => {
+    return photos.map((photo, idx) => {
+      if (typeof photo === "string") {
+        return { url: photo, resolvedUrl: resolveUrl(photo), category: "other", id: idx };
+      }
+      return { ...photo, resolvedUrl: resolveUrl(photo.url), id: photo.id || idx };
+    });
+  }, [photos, resolveUrl]);
 
   const thumbnailSizes = {
     sm: "w-16 h-16",
@@ -147,13 +276,16 @@ export function PhotoGallery({
 }
 
 function PhotoThumbnail({ photo, size, onClick }) {
+  // Use resolvedUrl if available (for S3 signed URLs), otherwise fall back to url
+  const displayUrl = photo.resolvedUrl || photo.url;
+
   return (
     <button
       onClick={onClick}
       className={`${size} relative group rounded-lg overflow-hidden border border-slate-200 hover:border-violet-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2`}
     >
       <img
-        src={photo.url}
+        src={displayUrl}
         alt={photo.caption || photo.category || "Photo"}
         className="w-full h-full object-cover"
         loading="lazy"
@@ -214,6 +346,8 @@ function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
   if (!isOpen || !photos.length) return null;
 
   const currentPhoto = photos[currentIndex];
+  // Use resolvedUrl if available (for S3 signed URLs)
+  const displayUrl = currentPhoto.resolvedUrl || currentPhoto.url;
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < photos.length - 1;
 
@@ -264,7 +398,7 @@ function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
 
       {/* Main image */}
       <img
-        src={currentPhoto.url}
+        src={displayUrl}
         alt={currentPhoto.caption || `Photo ${currentIndex + 1}`}
         className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -283,7 +417,7 @@ function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
         )}
         <span className="w-px h-4 bg-white/30" />
         <a
-          href={currentPhoto.url}
+          href={displayUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 hover:text-violet-300 transition-colors"

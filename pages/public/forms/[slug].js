@@ -318,12 +318,15 @@ export default function PublicForm({ form, fields, dealer }) {
 
       const data = await res.json();
 
+      // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+      const storedUrl = data.key || data.url;
+
       // Store file metadata for submission
       setUploadedFiles((prev) => [
         ...prev.filter((f) => f.fieldName !== fieldName), // Replace if same field
         {
           fieldName,
-          url: data.url,
+          url: storedUrl,
           key: data.key, // S3 key for signed URL regeneration
           filename: data.filename || file.name,
           mimeType: data.type || file.type,
@@ -331,10 +334,10 @@ export default function PublicForm({ form, fields, dealer }) {
         },
       ]);
 
-      // Also store URL in formData for display
-      handleInputChange(fieldName, data.url);
+      // Also store URL/key in formData for database storage
+      handleInputChange(fieldName, storedUrl);
       toast.success("File uploaded");
-      return data.url;
+      return storedUrl;
     } catch (error) {
       console.error("Upload error:", error);
       toast.error(error.message || "Failed to upload file");

@@ -54,6 +54,10 @@ const appraisalSchema = new mongoose.Schema(
 
 appraisalSchema.plugin(toJSON);
 
+// Indexes for dashboard and common queries
+appraisalSchema.index({ dealerId: 1, decision: 1 });
+appraisalSchema.index({ dealerId: 1, createdAt: -1 });
+
 // Delete cached model to force schema update
 if (mongoose.models.Appraisal) {
   delete mongoose.models.Appraisal;

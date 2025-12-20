@@ -3,6 +3,7 @@ import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
+import { MobileStageSelector } from "@/components/ui/PageShell";
 import { toast } from "react-hot-toast";
 
 const STATUS_LABELS = {
@@ -379,21 +380,17 @@ export default function Appraisals() {
 
       {/* Filter Pills and Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex gap-2 flex-wrap">
-          {["all", "pending", "reviewed", "converted", "declined"].map((status) => (
-            <button
-              key={status}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                filter === status
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-              onClick={() => setFilter(status)}
-            >
-              {status === "all" ? "All" : STATUS_LABELS[status]}
-            </button>
-          ))}
-        </div>
+        <MobileStageSelector
+          stages={[
+            { value: "all", label: "All" },
+            { value: "pending", label: STATUS_LABELS.pending },
+            { value: "reviewed", label: STATUS_LABELS.reviewed },
+            { value: "converted", label: STATUS_LABELS.converted },
+            { value: "declined", label: STATUS_LABELS.declined },
+          ]}
+          activeStage={filter}
+          onStageChange={setFilter}
+        />
 
         {/* VRM Search Box */}
         <div className="relative" ref={vrmSearchRef}>

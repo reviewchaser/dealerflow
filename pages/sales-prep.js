@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { MobileStageSelector } from "@/components/ui/PageShell";
 
 const COLUMNS = [
   { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
@@ -1608,11 +1609,12 @@ export default function SalesPrep() {
                   </div>
 
                   {/* ═══════════════════════════════════════════════════════════════ */}
-                  {/* MOBILE: Bottom Sheet (< lg screens) */}
+                  {/* MOBILE/TABLET: Bottom Sheet (< lg screens) */}
                   {/* ═══════════════════════════════════════════════════════════════ */}
                   <BottomSheet
                     isOpen={showFiltersDropdown}
                     onClose={() => setShowFiltersDropdown(false)}
+                    hideAbove="lg"
                     title={
                       <div className="flex items-center gap-3">
                         <span>Filters</span>
@@ -1803,31 +1805,17 @@ export default function SalesPrep() {
         </div>
       ) : (
         <>
-          {/* Mobile Column Tabs */}
-          <div className="md:hidden mb-4 overflow-x-auto">
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl min-w-max">
-              {COLUMNS.map((col) => {
-                const count = getVehiclesByStatus(col.key).length;
-                return (
-                  <button
-                    key={col.key}
-                    onClick={() => setMobileActiveColumn(col.key)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                      mobileActiveColumn === col.key
-                        ? "bg-white shadow-sm text-slate-900"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    <span>{col.label}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Mobile Column Tabs - Dropdown for clearer UX */}
+          <div className="md:hidden mb-4">
+            <MobileStageSelector
+              stages={COLUMNS.map((col) => ({
+                value: col.key,
+                label: col.label,
+                count: getVehiclesByStatus(col.key).length,
+              }))}
+              activeStage={mobileActiveColumn}
+              onStageChange={setMobileActiveColumn}
+            />
           </div>
 
           {/* Mobile Single Column View */}
@@ -2013,7 +2001,7 @@ export default function SalesPrep() {
           {/* Mobile Floating Action Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="md:hidden fixed bottom-20 right-4 z-40 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
+            className="md:hidden fixed fab-safe right-4 z-40 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -4185,7 +4173,8 @@ function AddVehicleModal({ onClose, onSuccess }) {
     });
     if (!res.ok) throw new Error("Upload failed");
     const data = await res.json();
-    return data.url;
+    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+    return data.key || data.url;
   };
 
   const handleSubmit = async (e) => {
@@ -4798,7 +4787,8 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
       });
       if (res.ok) {
         const data = await res.json();
-        uploadedUrls.push(data.url);
+        // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+        uploadedUrls.push(data.key || data.url);
       }
     }
     return uploadedUrls;
@@ -4815,7 +4805,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
         photoUrls = await uploadPhotos();
         setIsUploadingPhotos(false);
       }
-      // Pass photo URLs to onSubmit
+      // Pass photo URLs/keys to onSubmit
       await onSubmit(photoUrls);
     } finally {
       setIsLoading(false);

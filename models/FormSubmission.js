@@ -51,4 +51,10 @@ const formSubmissionSchema = new mongoose.Schema(
 );
 
 formSubmissionSchema.plugin(toJSON);
+
+// Indexes for dashboard and submission queries
+formSubmissionSchema.index({ dealerId: 1, formId: 1 });
+formSubmissionSchema.index({ dealerId: 1, submittedAt: -1 });
+formSubmissionSchema.index({ dealerId: 1, status: 1 });
+
 export default mongoose.models.FormSubmission || mongoose.model("FormSubmission", formSubmissionSchema);

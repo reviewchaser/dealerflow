@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
+import { MobileStageSelector } from "@/components/ui/PageShell";
 import { toast } from "react-hot-toast";
 
 const statusColors = {
@@ -83,18 +84,20 @@ export default function Vehicles() {
         </Link>
       </div>
 
-      {/* Filter */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {["all", "in_stock", "in_prep", "live", "reserved", "sold"].map((status) => (
-          <button
-            key={status}
-            className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
-            onClick={() => setFilter(status)}
-          >
-            {status === "all" ? "All" : status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1)}
-          </button>
-        ))}
-      </div>
+      {/* Filter - Mobile uses dropdown selector, Desktop uses horizontal tabs */}
+      <MobileStageSelector
+        stages={[
+          { value: "all", label: "All" },
+          { value: "in_stock", label: "In Stock" },
+          { value: "in_prep", label: "In Prep" },
+          { value: "live", label: "Live" },
+          { value: "reserved", label: "Reserved" },
+          { value: "sold", label: "Sold" },
+        ]}
+        activeStage={filter}
+        onStageChange={setFilter}
+        className="mb-6"
+      />
 
       {isLoading ? (
         <div className="flex justify-center py-20">

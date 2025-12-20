@@ -16,6 +16,7 @@ export function BottomSheet({
   footer,
   maxHeight = "85vh",
   className = "",
+  hideAbove = "md", // "md" = hide above 768px, "lg" = hide above 1024px
 }) {
   const sheetRef = useRef(null);
 
@@ -44,8 +45,11 @@ export function BottomSheet({
 
   if (!isOpen) return null;
 
+  // Determine which breakpoint to hide at
+  const hideClass = hideAbove === "lg" ? "lg:hidden" : "md:hidden";
+
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
+    <div className={`fixed inset-0 z-50 ${hideClass}`}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"

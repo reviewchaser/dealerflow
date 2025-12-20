@@ -4,6 +4,8 @@ import Head from "next/head";
 import DashboardLayout from "@/components/DashboardLayout";
 import VehicleDrawer from "@/components/VehicleDrawer";
 import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { MobileStageSelector } from "@/components/ui/PageShell";
 import { toast } from "react-hot-toast";
 
 // Column config matching Sales & Prep style
@@ -179,6 +181,7 @@ export default function Warranty() {
 
   // Filter state (matching stock board style)
   const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [filters, setFilters] = useState({
     location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
     booked: "all",        // "all" | "booked" | "not_booked"
@@ -729,10 +732,27 @@ export default function Warranty() {
           )}
         </div>
 
-        {/* Filter Dropdown - matching stock board style */}
+        {/* Filter Button - Mobile opens BottomSheet, Desktop opens dropdown */}
         <div className="relative">
+          {/* Mobile Filter Button */}
           <button
-            className={`btn btn-sm gap-2 ${hasActiveFilters() ? "btn-primary" : "btn-outline"}`}
+            className={`md:hidden btn btn-sm gap-2 ${hasActiveFilters() ? "btn-primary" : "btn-outline"}`}
+            onClick={() => setShowMobileFilters(true)}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters
+            {hasActiveFilters() && (
+              <span className="badge badge-sm badge-secondary">
+                {Object.values(filters).filter(v => v !== "all").length}
+              </span>
+            )}
+          </button>
+
+          {/* Desktop Filter Button */}
+          <button
+            className={`hidden md:flex btn btn-sm gap-2 ${hasActiveFilters() ? "btn-primary" : "btn-outline"}`}
             onClick={() => setShowFiltersDropdown(!showFiltersDropdown)}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -746,8 +766,9 @@ export default function Warranty() {
             )}
           </button>
 
+          {/* Desktop Filter Dropdown */}
           {showFiltersDropdown && (
-            <div className="absolute z-30 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+            <div className="hidden md:block absolute z-30 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-semibold text-sm">Filters</h4>
                 {hasActiveFilters() && (
@@ -829,6 +850,103 @@ export default function Warranty() {
         </div>
       </div>
 
+      {/* Mobile Filters BottomSheet */}
+      <BottomSheet
+        isOpen={showMobileFilters}
+        onClose={() => setShowMobileFilters(false)}
+        title="Filters"
+        footer={
+          <div className="flex gap-2">
+            {hasActiveFilters() && (
+              <button
+                className="btn btn-ghost flex-1"
+                onClick={() => {
+                  clearFilters();
+                  setShowMobileFilters(false);
+                }}
+              >
+                Clear All
+              </button>
+            )}
+            <button
+              className="btn btn-primary flex-1"
+              onClick={() => setShowMobileFilters(false)}
+            >
+              Apply Filters
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {/* Location Filter */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Location</span>
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={filters.location}
+              onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+            >
+              <option value="all">All Locations</option>
+              <option value="WITH_CUSTOMER">With customer</option>
+              <option value="ON_SITE">On-site</option>
+              <option value="THIRD_PARTY">Third-party</option>
+            </select>
+          </div>
+
+          {/* Booked Filter */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Booked Status</span>
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={filters.booked}
+              onChange={(e) => setFilters({ ...filters, booked: e.target.value })}
+            >
+              <option value="all">All</option>
+              <option value="booked">Booked</option>
+              <option value="not_booked">Not Booked</option>
+            </select>
+          </div>
+
+          {/* Parts Required Filter */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Parts Required</span>
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={filters.partsRequired}
+              onChange={(e) => setFilters({ ...filters, partsRequired: e.target.value })}
+            >
+              <option value="all">All</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          {/* Priority Filter */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Priority</span>
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={filters.priority}
+              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+            >
+              <option value="all">All Priorities</option>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+        </div>
+      </BottomSheet>
+
       {/* Active filters / result count summary */}
       {(searchQuery || hasActiveFilters()) && (
         <div className="mb-4">
@@ -849,32 +967,17 @@ export default function Warranty() {
         </div>
       ) : (
         <>
-          {/* Mobile Column Tabs */}
-          <div className="md:hidden mb-4 overflow-x-auto">
-            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl min-w-max">
-              {COLUMNS.map((col) => {
-                const count = getCasesByStatus(col.key).length;
-                return (
-                  <button
-                    key={col.key}
-                    onClick={() => setMobileActiveColumn(col.key)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                      mobileActiveColumn === col.key
-                        ? "bg-white shadow-sm text-slate-900"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    <span>{col.label}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
-                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
-                    }`}>
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* Mobile Column Selector */}
+          <MobileStageSelector
+            stages={COLUMNS.map((col) => ({
+              value: col.key,
+              label: col.label,
+              count: getCasesByStatus(col.key).length,
+            }))}
+            activeStage={mobileActiveColumn}
+            onStageChange={setMobileActiveColumn}
+            className="mb-4"
+          />
 
           {/* Mobile Single Column View */}
           <div className="md:hidden">
@@ -1005,7 +1108,7 @@ export default function Warranty() {
           {/* Mobile Floating Action Button */}
           <button
             onClick={() => setShowAddModal(true)}
-            className="md:hidden fixed bottom-20 right-4 z-40 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
+            className="md:hidden fixed fab-safe right-4 z-40 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -60,6 +60,10 @@ const customerPXAppraisalSchema = new mongoose.Schema(
 
 customerPXAppraisalSchema.plugin(toJSON);
 
+// Indexes for dashboard and PX queries
+customerPXAppraisalSchema.index({ dealerId: 1, decision: 1 });
+customerPXAppraisalSchema.index({ dealerId: 1, createdAt: -1 });
+
 // Delete cached model to force schema update
 if (mongoose.models.CustomerPXAppraisal) {
   delete mongoose.models.CustomerPXAppraisal;

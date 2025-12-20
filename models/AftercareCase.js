@@ -139,4 +139,10 @@ const aftercareCaseSchema = new mongoose.Schema(
 );
 
 aftercareCaseSchema.plugin(toJSON);
+
+// Indexes for dashboard and common queries
+aftercareCaseSchema.index({ dealerId: 1, boardStatus: 1 });
+aftercareCaseSchema.index({ dealerId: 1, status: 1 });
+aftercareCaseSchema.index({ dealerId: 1, createdAt: -1 });
+
 export default mongoose.models.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);

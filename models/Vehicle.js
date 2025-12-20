@@ -72,4 +72,11 @@ const vehicleSchema = new mongoose.Schema(
 );
 
 vehicleSchema.plugin(toJSON);
+
+// Indexes for dashboard and common queries
+vehicleSchema.index({ dealerId: 1, status: 1 });
+vehicleSchema.index({ dealerId: 1, createdAt: -1 });
+vehicleSchema.index({ dealerId: 1, motExpiryDate: 1, status: 1 });
+vehicleSchema.index({ dealerId: 1, type: 1 });
+
 export default mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);

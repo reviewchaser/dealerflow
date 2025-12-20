@@ -4,6 +4,7 @@ import JobSheetShareLink from "@/models/JobSheetShareLink";
 import Vehicle from "@/models/Vehicle";
 import VehicleIssue from "@/models/VehicleIssue";
 import AftercareCase from "@/models/AftercareCase";
+import Contact from "@/models/Contact"; // Required for populate
 import Dealer from "@/models/Dealer";
 
 // Hash token with SHA256

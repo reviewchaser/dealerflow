@@ -23,4 +23,9 @@ const calendarEventSchema = new mongoose.Schema(
 );
 
 calendarEventSchema.plugin(toJSON);
+
+// Indexes for dashboard and calendar queries
+calendarEventSchema.index({ dealerId: 1, startDatetime: 1 });
+calendarEventSchema.index({ dealerId: 1, startDatetime: 1, categoryId: 1 });
+
 export default mongoose.models.CalendarEvent || mongoose.model("CalendarEvent", calendarEventSchema);
