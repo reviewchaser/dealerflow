@@ -12,6 +12,12 @@
  * - motExpiryDate
  * - transmission
  * - engineCapacity
+ *
+ * TODO: Recall Support
+ * Outstanding vehicle recalls are NOT available from the current DVLA VES or MOT History APIs.
+ * To display recall information, a separate integration with the DVSA (Driver and Vehicle Standards Agency)
+ * Vehicle Recall service would be required: https://www.gov.uk/check-vehicle-recall
+ * The DVSA does not currently offer a public API for recall data.
  */
 
 /**

@@ -11,7 +11,7 @@ import { MobileStageSelector } from "@/components/ui/PageShell";
 const COLUMNS = [
   { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
   { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
-  { key: "live", label: "Sold In Progress", gradient: "from-purple-100/60", accent: "border-l-purple-400", accentBg: "bg-purple-400" },
+  { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
   { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
   { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
 ];
@@ -93,14 +93,19 @@ export default function SalesPrep() {
 
   // Issues state
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
   const [issueForm, setIssueForm] = useState({
     category: "",
     subcategory: "",
     description: "",
     actionNeeded: "",
+    priority: "medium",
+    location: "",
     status: "outstanding",
     notes: "",
     photos: [],
+    partsRequired: false,
+    partsDetails: "",
   });
   const [issueUpdateContent, setIssueUpdateContent] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
@@ -645,6 +650,54 @@ export default function SalesPrep() {
       toast.success("Issue updated");
     } catch (error) {
       toast.error("Failed to update issue");
+    }
+  };
+
+  // Open edit issue modal with prefilled data
+  const openEditIssue = (issue) => {
+    setEditingIssue(issue);
+    setIssueForm({
+      category: issue.category?.toLowerCase() || "",
+      subcategory: issue.subcategory || "",
+      description: issue.description || "",
+      actionNeeded: issue.actionNeeded || "",
+      priority: issue.priority || "medium",
+      location: issue.location || "",
+      status: issue.status?.toLowerCase().replace(" ", "_") || "outstanding",
+      notes: issue.notes || "",
+      photos: issue.photos || [],
+      partsRequired: issue.partsRequired || false,
+      partsDetails: issue.partsDetails || "",
+    });
+    setShowAddIssueModal(true);
+  };
+
+  // Save edited issue
+  const saveEditedIssue = async (photoUrls = []) => {
+    if (!editingIssue) return;
+    try {
+      const updates = {
+        ...issueForm,
+        photos: [...(issueForm.photos || []), ...photoUrls],
+      };
+      await updateIssue(editingIssue.id, updates);
+      setShowAddIssueModal(false);
+      setEditingIssue(null);
+      setIssueForm({
+        category: "",
+        subcategory: "",
+        description: "",
+        actionNeeded: "",
+        priority: "medium",
+        location: "",
+        status: "outstanding",
+        notes: "",
+        photos: [],
+        partsRequired: false,
+        partsDetails: "",
+      });
+    } catch (error) {
+      toast.error("Failed to save issue");
     }
   };
 
@@ -1894,7 +1947,7 @@ export default function SalesPrep() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 )},
-                Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+                Cosmetic: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-100", icon: (
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                   </svg>
@@ -1953,7 +2006,7 @@ export default function SalesPrep() {
                           {/* Tags - Modern Pill Style */}
                           <div className="flex gap-1.5 flex-wrap mb-3">
                             {vehicle.locationId && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -1975,7 +2028,7 @@ export default function SalesPrep() {
                               </span>
                             )}
                             {vehicle.type === "FLEET_OTHER" && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0066CC] text-white uppercase">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
@@ -2149,7 +2202,7 @@ export default function SalesPrep() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                       )},
-                      Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+                      Cosmetic: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-100", icon: (
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                         </svg>
@@ -2209,7 +2262,7 @@ export default function SalesPrep() {
                               </span>
                             )}
                             {vehicle.type === "FLEET_OTHER" && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0066CC] text-white uppercase">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
@@ -2251,7 +2304,7 @@ export default function SalesPrep() {
                               );
                             })}
                             {vehicle.locationId && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -2573,7 +2626,7 @@ export default function SalesPrep() {
                                 setShowLabelsDropdown(false);
                                 setShowAddLabelModal(true);
                               }}
-                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors text-left text-indigo-600"
+                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors text-left text-[#0066CC]"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -3075,25 +3128,44 @@ export default function SalesPrep() {
               {activeTab === "issues" && (
                 <div className="space-y-4">
                   <button
-                    className="btn btn-primary btn-sm w-full"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white text-sm font-medium rounded-xl shadow-sm shadow-[#0066CC]/25 hover:shadow-md transition-all"
                     onClick={() => setShowAddIssueModal(true)}
                   >
-                    + Add Issue
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Issue
                   </button>
 
                   {selectedVehicle.issues && selectedVehicle.issues.length > 0 ? (
                     <div className="space-y-3">
                       {selectedVehicle.issues.map((issue) => (
-                        <div key={issue.id} className="card bg-base-200">
-                          <div className="card-body p-4">
-                            {/* Header with badges and status */}
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <span className="badge badge-sm">{issue.category}</span>
-                                {issue.subcategory && <span className="badge badge-sm badge-ghost ml-1">{issue.subcategory}</span>}
+                        <div key={issue.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                          {/* Issue Header with Status Bar */}
+                          <div className={`px-4 py-3 border-b border-slate-100 ${
+                            issue.status === "Complete" ? "bg-emerald-50/50" :
+                            issue.status === "In Progress" ? "bg-amber-50/50" :
+                            issue.status === "Ordered" ? "bg-blue-50/50" :
+                            "bg-red-50/50"
+                          }`}>
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+                                  {issue.category}
+                                </span>
+                                {issue.subcategory && (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                    {issue.subcategory}
+                                  </span>
+                                )}
                               </div>
                               <select
-                                className="select select-bordered select-xs"
+                                className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border-0 cursor-pointer transition-colors ${
+                                  issue.status === "Complete" ? "bg-emerald-100 text-emerald-700" :
+                                  issue.status === "In Progress" ? "bg-amber-100 text-amber-700" :
+                                  issue.status === "Ordered" ? "bg-blue-100 text-blue-700" :
+                                  "bg-red-100 text-red-700"
+                                }`}
                                 value={issue.status || "Outstanding"}
                                 onChange={(e) => updateIssue(issue.id, { status: e.target.value })}
                               >
@@ -3103,123 +3175,185 @@ export default function SalesPrep() {
                                 <option value="Complete">Complete</option>
                               </select>
                             </div>
+                          </div>
 
-                            {/* Issue details */}
-                            <p className="text-sm font-medium">{issue.description}</p>
-                            {issue.actionNeeded && (
-                              <p className="text-xs text-base-content/60 mt-1">Action: {issue.actionNeeded}</p>
-                            )}
-                            {issue.notes && (
-                              <p className="text-xs text-base-content/60 mt-1">Notes: {issue.notes}</p>
-                            )}
+                          {/* Issue Body */}
+                          <div className="p-4 space-y-3">
+                            {/* Description */}
+                            <p className="text-sm font-medium text-slate-800">{issue.description}</p>
 
-                            {/* Photos */}
-                            {issue.photos && issue.photos.length > 0 && (
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {issue.photos.map((photo, idx) => (
-                                  <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">
-                                    <img
-                                      src={photo}
-                                      alt={`Issue photo ${idx + 1}`}
-                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity border border-base-300"
-                                    />
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* Updates Timeline */}
-                            <div className="mt-3">
-                              <button
-                                className="btn btn-ghost btn-xs w-full justify-between"
-                                onClick={() => setExpandedIssues(prev => ({
-                                  ...prev,
-                                  [issue.id]: !prev[issue.id]
-                                }))}
-                              >
-                                <span>
-                                  {expandedIssues[issue.id] ? "Hide" : "Show"} Updates
-                                  {issue.updates?.length > 0 && ` (${issue.updates.length})`}
-                                </span>
-                                <span>{expandedIssues[issue.id] ? "▲" : "▼"}</span>
-                              </button>
-
-                              {expandedIssues[issue.id] && (
-                                <div className="mt-3 space-y-3">
-                                  {/* Creation timestamp */}
-                                  <div className="flex gap-2 text-xs">
-                                    <div className="w-1 bg-base-300 rounded"></div>
-                                    <p className="text-base-content/60">
-                                      Created {formatDate(issue.createdAt)}
-                                    </p>
-                                  </div>
-
-                                  {/* Updates timeline */}
-                                  {issue.updates && issue.updates.length > 0 ? (
-                                    issue.updates.map((update, idx) => (
-                                      <div key={idx} className="flex gap-2 text-xs">
-                                        <div className="w-1 bg-primary rounded"></div>
-                                        <div className="flex-1">
-                                          <p className="font-medium">{update.userName || "User"}</p>
-                                          <p className="text-sm mt-1">{update.content}</p>
-                                          <p className="text-base-content/60 mt-1">
-                                            {formatDate(update.createdAt)}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    ))
-                                  ) : (
-                                    <p className="text-xs text-base-content/60 text-center py-2">
-                                      No updates yet
-                                    </p>
-                                  )}
-
-                                  {/* Add update input */}
-                                  <div className="flex gap-2 mt-3">
-                                    <input
-                                      type="text"
-                                      className="input input-bordered input-sm flex-1"
-                                      placeholder="Add an update..."
-                                      value={issueUpdateContent[issue.id] || ""}
-                                      onChange={(e) => setIssueUpdateContent(prev => ({
-                                        ...prev,
-                                        [issue.id]: e.target.value
-                                      }))}
-                                      onKeyPress={(e) => {
-                                        if (e.key === "Enter") {
-                                          addIssueUpdate(issue.id, issueUpdateContent[issue.id]);
-                                        }
-                                      }}
-                                    />
-                                    <button
-                                      className="btn btn-primary btn-sm"
-                                      onClick={() => addIssueUpdate(issue.id, issueUpdateContent[issue.id])}
-                                    >
-                                      Add
-                                    </button>
-                                  </div>
+                            {/* Details Grid */}
+                            <div className="space-y-2">
+                              {issue.actionNeeded && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5 w-14">Action</span>
+                                  <p className="text-sm text-slate-600">{issue.actionNeeded}</p>
+                                </div>
+                              )}
+                              {issue.notes && (
+                                <div className="flex items-start gap-2">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5 w-14">Notes</span>
+                                  <p className="text-sm text-slate-600">{issue.notes}</p>
                                 </div>
                               )}
                             </div>
 
-                            {/* Delete button */}
-                            <div className="flex justify-end mt-2">
-                              <button
-                                className="btn btn-ghost btn-xs text-error"
-                                onClick={() => {
-                                  if (confirm("Delete this issue?")) deleteIssue(issue.id);
-                                }}
+                            {/* Parts Details */}
+                            {issue.partsRequired && (
+                              <div className="flex items-start gap-2 p-3 bg-[#0066CC]/5 rounded-xl border border-[#0066CC]/10">
+                                <div className="w-7 h-7 rounded-lg bg-[#0066CC]/10 flex items-center justify-center shrink-0">
+                                  <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                  </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+                                    Parts Required
+                                  </span>
+                                  {issue.partsDetails && (
+                                    <p className="text-sm text-slate-600 mt-1">{issue.partsDetails}</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Photos */}
+                            {issue.photos && issue.photos.length > 0 && (
+                              <div className="pt-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">
+                                  Photos ({issue.photos.length})
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  {issue.photos.map((photo, idx) => (
+                                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="group">
+                                      <img
+                                        src={photo}
+                                        alt={`Issue photo ${idx + 1}`}
+                                        className="w-16 h-16 object-cover rounded-xl border-2 border-slate-200 group-hover:border-[#0066CC] group-hover:scale-105 transition-all"
+                                      />
+                                    </a>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Updates Accordion */}
+                          <div className="border-t border-slate-100">
+                            <button
+                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                              onClick={() => setExpandedIssues(prev => ({
+                                ...prev,
+                                [issue.id]: !prev[issue.id]
+                              }))}
+                            >
+                              <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                Updates {issue.updates?.length > 0 && `(${issue.updates.length})`}
+                              </span>
+                              <svg
+                                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expandedIssues[issue.id] ? "rotate-180" : ""}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
-                                Delete
-                              </button>
-                            </div>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+
+                            {expandedIssues[issue.id] && (
+                              <div className="px-4 pb-4 space-y-3 bg-slate-50/50">
+                                {/* Creation timestamp */}
+                                <div className="flex gap-3 text-xs">
+                                  <div className="w-1 bg-slate-200 rounded-full"></div>
+                                  <p className="text-slate-500">
+                                    Created {formatDate(issue.createdAt)}
+                                  </p>
+                                </div>
+
+                                {/* Updates timeline */}
+                                {issue.updates && issue.updates.length > 0 ? (
+                                  issue.updates.map((update, idx) => (
+                                    <div key={idx} className="flex gap-3">
+                                      <div className="w-1 bg-[#0066CC]/30 rounded-full"></div>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <p className="text-sm font-semibold text-slate-700">{update.userName || "User"}</p>
+                                          <span className="text-xs text-slate-400">{formatDate(update.createdAt)}</span>
+                                        </div>
+                                        <p className="text-sm text-slate-600">{update.content}</p>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-xs text-slate-400 text-center py-2">No updates yet</p>
+                                )}
+
+                                {/* Add update input */}
+                                <div className="flex gap-2 pt-2">
+                                  <input
+                                    type="text"
+                                    className="flex-1 px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:border-[#0066CC] focus:ring-1 focus:ring-[#0066CC]/20 outline-none transition-all"
+                                    placeholder="Add an update..."
+                                    value={issueUpdateContent[issue.id] || ""}
+                                    onChange={(e) => setIssueUpdateContent(prev => ({
+                                      ...prev,
+                                      [issue.id]: e.target.value
+                                    }))}
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter") {
+                                        addIssueUpdate(issue.id, issueUpdateContent[issue.id]);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    className="px-4 py-2 bg-[#0066CC] hover:bg-[#0055AA] text-white text-sm font-medium rounded-xl transition-colors"
+                                    onClick={() => addIssueUpdate(issue.id, issueUpdateContent[issue.id])}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions Footer */}
+                          <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-50/50 border-t border-slate-100">
+                            <button
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-[#0066CC] hover:bg-[#0066CC]/5 rounded-lg transition-colors"
+                              onClick={() => openEditIssue(issue)}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              onClick={() => {
+                                if (confirm("Delete this issue?")) deleteIssue(issue.id);
+                              }}
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-base-content/60">
-                      No issues recorded
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">No issues recorded</p>
+                      <p className="text-xs text-slate-400 mt-1">Add an issue to track problems with this vehicle</p>
                     </div>
                   )}
                 </div>
@@ -3305,8 +3439,8 @@ export default function SalesPrep() {
                           <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                             activity.type === "VEHICLE_CREATED" ? "bg-green-100" :
                             activity.type === "STATUS_CHANGED" ? "bg-blue-100" :
-                            activity.type === "TYPE_CHANGED" ? "bg-violet-100" :
-                            activity.type === "LOCATION_CHANGED" ? "bg-indigo-100" :
+                            activity.type === "TYPE_CHANGED" ? "bg-[#0066CC]/10" :
+                            activity.type === "LOCATION_CHANGED" ? "bg-[#0066CC]/10" :
                             activity.type === "TASK_COMPLETED" ? "bg-emerald-100" :
                             activity.type === "TASK_STATUS_UPDATED" ? "bg-amber-100" :
                             activity.type === "TASK_PROGRESS_UPDATED" ? "bg-orange-100" :
@@ -3331,18 +3465,18 @@ export default function SalesPrep() {
                               </svg>
                             )}
                             {activity.type === "TYPE_CHANGED" && (
-                              <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                               </svg>
                             )}
                             {activity.type === "LOCATION_CHANGED" && (
-                              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
                             )}
                             {activity.type === "DETAILS_UPDATED" && (
-                              <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                               </svg>
                             )}
@@ -3491,19 +3625,25 @@ export default function SalesPrep() {
         <AddIssueModal
           issueForm={issueForm}
           setIssueForm={setIssueForm}
+          isEditing={!!editingIssue}
           onClose={() => {
             setShowAddIssueModal(false);
+            setEditingIssue(null);
             setIssueForm({
               category: "",
               subcategory: "",
               description: "",
               actionNeeded: "",
+              priority: "medium",
+              location: "",
               status: "outstanding",
               notes: "",
               photos: [],
+              partsRequired: false,
+              partsDetails: "",
             });
           }}
-          onSubmit={addIssue}
+          onSubmit={editingIssue ? saveEditedIssue : addIssue}
         />
       )}
 
@@ -4377,7 +4517,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 <input
                   type="text"
                   placeholder="Registration"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg uppercase font-mono text-slate-900 placeholder-slate-400 focus:bg-white focus:border-transparent focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg uppercase font-mono text-slate-900 placeholder-slate-400 focus:bg-white focus:border-transparent focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
                   value={formData.regCurrent}
                   onChange={(e) => {
                     const newValue = e.target.value.toUpperCase();
@@ -4471,32 +4611,32 @@ function AddVehicleModal({ onClose, onSuccess }) {
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Make *</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.make}
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.make}
                   onChange={(e) => setFormData({ ...formData, make: e.target.value })} required />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Model *</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.model}
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })} required />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Year</label>
-                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.year}
+                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.year}
                   onChange={(e) => setFormData({ ...formData, year: e.target.value })} />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mileage</label>
-                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.mileageCurrent}
+                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.mileageCurrent}
                   onChange={(e) => setFormData({ ...formData, mileageCurrent: e.target.value })} />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Colour</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" value={formData.colour}
+                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.colour}
                   onChange={(e) => setFormData({ ...formData, colour: e.target.value })} />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fuel Type</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType}
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType}
                   onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}>
                   <option value="">Select...</option>
                   <option value="Petrol">Petrol</option>
@@ -4509,7 +4649,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MOT Expiry Date</label>
                 <input
                   type="date"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
                   value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
                   onChange={(e) => setFormData({ ...formData, motExpiryDate: e.target.value })}
                 />
@@ -4519,7 +4659,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Transmission</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission}
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission}
                   onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}>
                   <option value="">Select...</option>
                   <option value="Manual">Manual</option>
@@ -4537,7 +4677,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Vehicle Type</label>
                 <select
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                   value={formData.type}
                   onChange={(e) => {
                     const newType = e.target.value;
@@ -4559,7 +4699,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 <div className="form-control">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sale Type</label>
                   <select
-                    className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                    className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                     value={formData.saleType || "RETAIL"}
                     onChange={(e) => setFormData({ ...formData, saleType: e.target.value })}
                   >
@@ -4582,7 +4722,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Location</h4>
             <div className="form-control">
               <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={formData.locationId}
                 onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
               >
@@ -4600,17 +4740,17 @@ function AddVehicleModal({ onClose, onSuccess }) {
             <div className="space-y-4">
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">V5 Document</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setV5File(e.target.files[0])} />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Service History</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setServiceHistoryFile(e.target.files[0])} />
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
+                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
                   onChange={(e) => setFaultCodesFile(e.target.files[0])} />
               </div>
               <div className="form-control">
@@ -4627,7 +4767,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                     <input
                       type="text"
                       placeholder="Document name"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
                       value={doc.name}
                       onChange={(e) => {
                         const updated = [...otherDocuments];
@@ -4637,7 +4777,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                     />
                     <input
                       type="file"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium file:text-xs hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 transition-all duration-200 outline-none"
+                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium file:text-xs hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] transition-all duration-200 outline-none"
                       onChange={(e) => {
                         const updated = [...otherDocuments];
                         updated[idx].file = e.target.files[0];
@@ -4711,7 +4851,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Prep Checklist Template</h4>
             <div className="form-control">
               <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={selectedTemplate}
                 onChange={(e) => setSelectedTemplate(e.target.value)}
               >
@@ -4727,7 +4867,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 <div className="text-sm text-slate-600 space-y-2">
                   {["PDI", "Valet", "Photos", "MOT Check", "Advert"].map((task, idx) => (
                     <div key={idx} className="flex items-center gap-2">
-                      <span className="text-violet-500">✓</span>
+                      <span className="text-[#0066CC]">✓</span>
                       <span>{task}</span>
                     </div>
                   ))}
@@ -4741,7 +4881,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
             <div className="form-control">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
               <textarea
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
                 rows={4}
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -4759,7 +4899,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={isLoading}
             >
               {isLoading ? <><span className="loading loading-spinner loading-sm"></span><span>Saving...</span></> : "Add Vehicle"}
@@ -4814,7 +4954,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
   );
 }
 
-function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
+function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
   const [isLoading, setIsLoading] = useState(false);
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
@@ -4879,7 +5019,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
     <div className="modal modal-open">
       <div className="modal-box max-w-2xl bg-white">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-slate-900">Add Issue</h3>
+          <h3 className="text-xl font-bold text-slate-900">{isEditing ? "Edit Issue" : "Add Issue"}</h3>
           <button
             type="button"
             onClick={onClose}
@@ -4895,7 +5035,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             <div className="form-control">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
               <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={issueForm.category}
                 onChange={(e) => {
                   setIssueForm({ ...issueForm, category: e.target.value, subcategory: "" });
@@ -4919,7 +5059,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subcategory</label>
                 <select
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                   value={issueForm.subcategory}
                   onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
                 >
@@ -4937,7 +5077,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 font-mono placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 font-mono placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
                   value={issueForm.faultCodes || ""}
                   onChange={(e) => setIssueForm({ ...issueForm, faultCodes: e.target.value })}
                   placeholder="e.g. P0301, P0420, C1234"
@@ -4949,7 +5089,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             <div className="form-control col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description *</label>
               <textarea
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
                 value={issueForm.description}
                 onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
                 placeholder={issueForm.category === "fault_codes" ? "Describe what the fault codes indicate..." : "Describe the issue..."}
@@ -4962,7 +5102,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Action Needed</label>
               <input
                 type="text"
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
                 value={issueForm.actionNeeded}
                 onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
                 placeholder="What needs to be done?"
@@ -4970,9 +5110,33 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </div>
 
             <div className="form-control">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Priority</label>
+              <select
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                value={issueForm.priority || "medium"}
+                onChange={(e) => setIssueForm({ ...issueForm, priority: e.target.value })}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+
+            <div className="form-control">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Location</label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
+                value={issueForm.location || ""}
+                onChange={(e) => setIssueForm({ ...issueForm, location: e.target.value })}
+                placeholder="e.g., Front Left, Rear Bumper"
+              />
+            </div>
+
+            <div className="form-control">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
               <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
                 value={issueForm.status}
                 onChange={(e) => setIssueForm({ ...issueForm, status: e.target.value })}
               >
@@ -4993,7 +5157,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
                     checked={issueForm.partsRequired || false}
                     onChange={(e) => setIssueForm({ ...issueForm, partsRequired: e.target.checked })}
                   />
-                  <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:border-violet-500 peer-checked:bg-violet-500 transition-all duration-200 flex items-center justify-center">
+                  <div className="w-5 h-5 rounded border-2 border-slate-300 peer-checked:border-[#0066CC] peer-checked:bg-[#0066CC] transition-all duration-200 flex items-center justify-center">
                     <svg className="w-3 h-3 text-white opacity-0 peer-checked:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
@@ -5007,7 +5171,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
               <div className="form-control col-span-2">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Parts Details</label>
                 <textarea
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
                   value={issueForm.partsDetails || ""}
                   onChange={(e) => setIssueForm({ ...issueForm, partsDetails: e.target.value })}
                   placeholder="Supplier, part numbers, who ordered, ETA..."
@@ -5019,7 +5183,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             <div className="form-control col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notes</label>
               <textarea
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none resize-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
                 value={issueForm.notes}
                 onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
                 placeholder="Additional notes..."
@@ -5035,7 +5199,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
                 accept="image/*"
                 multiple
                 onChange={handlePhotoChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-violet-50 file:text-violet-700 file:font-medium hover:file:bg-violet-100 focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
               />
               {photoPreviews.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -5066,7 +5230,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               disabled={isLoading || isUploadingPhotos}
             >
               {isLoading || isUploadingPhotos ? (

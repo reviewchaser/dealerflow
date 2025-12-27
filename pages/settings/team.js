@@ -31,6 +31,16 @@ export default function TeamSettings() {
   const [inviteRole, setInviteRole] = useState("STAFF");
   const [inviting, setInviting] = useState(false);
 
+  // Create user form (direct creation without email invite)
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "STAFF",
+  });
+  const [creatingUser, setCreatingUser] = useState(false);
+
   useEffect(() => {
     fetchTeamData();
   }, []);
@@ -193,6 +203,41 @@ export default function TeamSettings() {
     }
   };
 
+  // Create user directly (no email invite)
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!createUserForm.name.trim() || !createUserForm.email.trim() || !createUserForm.password) {
+      return toast.error("Please fill in all fields");
+    }
+    if (createUserForm.password.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+
+    setCreatingUser(true);
+    try {
+      const res = await fetch("/api/team/create-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createUserForm),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("User created successfully");
+        setShowCreateUserModal(false);
+        setCreateUserForm({ name: "", email: "", password: "", role: "STAFF" });
+        fetchTeamData();
+      } else {
+        toast.error(data.error || "Failed to create user");
+      }
+    } catch (error) {
+      toast.error("Failed to create user");
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Head>
@@ -286,9 +331,20 @@ export default function TeamSettings() {
                       </>
                     )}
                   </button>
+                  <div className="divider divider-horizontal mx-1">or</div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowCreateUserModal(true)}
+                  >
+                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                    </svg>
+                    Create User
+                  </button>
                 </form>
                 <p className="text-xs text-base-content/50 mt-2">
-                  Invites expire after 7 days
+                  Invites expire after 7 days. Use "Create User" to add team members without sending an invite email.
                 </p>
               </div>
             </div>
@@ -456,6 +512,118 @@ export default function TeamSettings() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {showCreateUserModal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold">Create User</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateUserModal(false);
+                  setCreateUserForm({ name: "", email: "", password: "", role: "STAFF" });
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreateUser}>
+              <div className="space-y-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Name *</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered w-full"
+                    placeholder="John Smith"
+                    value={createUserForm.name}
+                    onChange={(e) => setCreateUserForm({ ...createUserForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Email *</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="input input-bordered w-full"
+                    placeholder="john@example.com"
+                    value={createUserForm.email}
+                    onChange={(e) => setCreateUserForm({ ...createUserForm, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Password *</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="input input-bordered w-full"
+                    placeholder="Minimum 6 characters"
+                    value={createUserForm.password}
+                    onChange={(e) => setCreateUserForm({ ...createUserForm, password: e.target.value })}
+                    minLength={6}
+                    required
+                  />
+                  <label className="label">
+                    <span className="label-text-alt text-base-content/50">The user can log in immediately with this password</span>
+                  </label>
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Role</span>
+                  </label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={createUserForm.role}
+                    onChange={(e) => setCreateUserForm({ ...createUserForm, role: e.target.value })}
+                  >
+                    {ROLES.map((role) => (
+                      <option
+                        key={role}
+                        value={role}
+                        disabled={role === "OWNER" && !isOwner}
+                      >
+                        {role} - {ROLE_DESCRIPTIONS[role]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-action">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowCreateUserModal(false);
+                    setCreateUserForm({ name: "", email: "", password: "", role: "STAFF" });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={creatingUser}
+                >
+                  {creatingUser ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    "Create User"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowCreateUserModal(false)} />
         </div>
       )}
     </DashboardLayout>

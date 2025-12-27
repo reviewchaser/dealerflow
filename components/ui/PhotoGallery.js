@@ -282,7 +282,7 @@ function PhotoThumbnail({ photo, size, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`${size} relative group rounded-lg overflow-hidden border border-slate-200 hover:border-violet-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2`}
+      className={`${size} relative group rounded-lg overflow-hidden border border-slate-200 hover:border-[#0066CC] transition-all focus:outline-none focus:ring-2 focus:ring-[#0066CC] focus:ring-offset-2`}
     >
       <img
         src={displayUrl}
@@ -420,7 +420,7 @@ function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
           href={displayUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 hover:text-violet-300 transition-colors"
+          className="flex items-center gap-1 hover:text-[#0066CC]/70 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

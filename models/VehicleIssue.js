@@ -20,6 +20,12 @@ const vehicleIssueSchema = new mongoose.Schema(
       caption: { type: String },  // Optional caption/description
     }],
     actionNeeded: { type: String },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high"],
+      default: "medium"
+    },
+    location: { type: String }, // e.g. "Front Left", "Rear Bumper", "Interior Dashboard"
     status: {
       type: String,
       enum: ["Outstanding", "Ordered", "In Progress", "Complete"],

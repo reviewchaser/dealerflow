@@ -272,7 +272,7 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
             <div className="flex-1 overflow-y-auto p-6">
               {isLoading ? (
                 <div className="flex justify-center py-20">
-                  <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin"></div>
+                  <div className="w-8 h-8 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin"></div>
                 </div>
               ) : !data ? (
                 <div className="text-center py-20 text-slate-400">
@@ -394,7 +394,7 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
                                 href={file.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors flex-shrink-0"
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors flex-shrink-0"
                               >
                                 Download
                               </a>

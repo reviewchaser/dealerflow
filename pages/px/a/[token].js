@@ -373,7 +373,7 @@ export default function ShareLinkAppraisalForm() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
+            className="w-full py-4 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-semibold text-lg shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 hover:from-[#0055BB] hover:to-[#119D8D] disabled:opacity-50 transition-all"
           >
             {isSubmitting ? (
               <span className="flex items-center justify-center gap-2">

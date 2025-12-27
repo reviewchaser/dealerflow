@@ -264,7 +264,7 @@ export default function Appraisals() {
           <div className="relative" ref={newDropdownRef}>
             <button
               onClick={() => setShowNewDropdown(!showNewDropdown)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-indigo-700 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-medium shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 hover:from-[#0055BB] hover:to-[#119D8D] transition-all"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -299,8 +299,8 @@ export default function Appraisals() {
                   }}
                   className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-10 h-10 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                     </svg>
                   </div>
@@ -475,7 +475,7 @@ export default function Appraisals() {
             <div className="flex justify-center gap-3">
               <Link
                 href="/appraisals/new"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-medium shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -541,7 +541,7 @@ export default function Appraisals() {
                 <div className="flex items-center gap-4 text-sm text-slate-400 sm:ml-4">
                   {/* Source Badge */}
                   <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                    type === "px" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+                    type === "px" ? "bg-[#14B8A6]/10 text-[#14B8A6]" : "bg-[#0066CC]/10 text-[#0066CC]"
                   }`}>
                     {type === "px" ? "Customer PX" : "Dealer"}
                   </span>
@@ -587,7 +587,7 @@ export default function Appraisals() {
                       disabled={isConverting === id}
                       className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-white rounded-lg text-sm font-medium shadow-lg transition-all disabled:opacity-50 ${
                         a.decision === "pending"
-                          ? "bg-indigo-600 shadow-indigo-200 hover:shadow-indigo-300 hover:bg-indigo-700"
+                          ? "bg-[#0066CC] shadow-[#0066CC]/20 hover:shadow-[#0066CC]/30 hover:bg-[#0055BB]"
                           : "bg-gradient-to-r from-emerald-500 to-green-500 shadow-emerald-200 hover:shadow-emerald-300"
                       }`}
                     >
@@ -673,8 +673,8 @@ export default function Appraisals() {
             </button>
 
             <div className="text-center mb-6">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#14B8A6]/10 flex items-center justify-center">
+                <svg className="w-6 h-6 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               </div>

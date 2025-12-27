@@ -17,7 +17,7 @@ const VARIANTS = {
   info: "bg-blue-100 text-blue-700 border-blue-200",
 
   // Brand
-  primary: "bg-violet-100 text-violet-700 border-violet-200",
+  primary: "bg-[#0066CC]/10 text-[#0066CC] border-[#0066CC]/20",
   accent: "bg-cyan-100 text-cyan-700 border-cyan-200",
 
   // Special
@@ -47,7 +47,7 @@ export function Badge({
     warning: "bg-amber-500",
     danger: "bg-red-500",
     info: "bg-blue-500",
-    primary: "bg-violet-500",
+    primary: "bg-[#0066CC]",
     default: "bg-slate-500",
   };
 

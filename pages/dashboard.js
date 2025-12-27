@@ -18,9 +18,8 @@ const FORM_TYPE_LABELS = {
 };
 
 // Default priority forms - PDI is always first as it's the most common daily task
-// These are shown when there's no usage data, or PDI is forced to always be first
 const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
-const ALWAYS_FIRST_FORM_TYPE = "PDI"; // PDI always shows as the first quick form
+const ALWAYS_FIRST_FORM_TYPE = "PDI";
 
 // Needs Attention item configurations
 const NEEDS_ATTENTION_ITEMS = [
@@ -28,38 +27,88 @@ const NEEDS_ATTENTION_ITEMS = [
     key: "soldInProgress",
     label: "Sold in progress",
     href: "/sales-prep",
-    color: "bg-amber-500",
+    color: "warning",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
     description: "vehicles awaiting delivery"
   },
   {
     key: "warrantyNotBookedIn",
     label: "Warranty not booked in",
     href: "/warranty",
-    color: "bg-red-500",
+    color: "danger",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    ),
     description: "cases need scheduling"
   },
   {
     key: "eventsToday",
     label: "Events today",
     href: "/calendar",
-    color: "bg-blue-500",
+    color: "info",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
     description: "on your calendar"
   },
   {
     key: "courtesyDueBack",
     label: "Courtesy due back",
     href: "/warranty",
-    color: "bg-amber-500",
+    color: "warning",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    ),
     description: "vehicles due today or overdue"
   },
   {
     key: "motExpiringSoon",
     label: "MOT expiring soon",
     href: "/sales-prep",
-    color: "bg-red-500",
+    color: "danger",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    ),
     description: "within 14 days"
   }
 ];
+
+// Color mappings for needs attention
+const ATTENTION_COLORS = {
+  warning: {
+    bg: "bg-gradient-to-br from-amber-50 to-orange-50",
+    border: "border-amber-200",
+    icon: "bg-amber-100 text-amber-600",
+    badge: "bg-amber-500 text-white",
+    text: "text-amber-900"
+  },
+  danger: {
+    bg: "bg-gradient-to-br from-red-50 to-rose-50",
+    border: "border-red-200",
+    icon: "bg-red-100 text-red-600",
+    badge: "bg-red-500 text-white",
+    text: "text-red-900"
+  },
+  info: {
+    bg: "bg-gradient-to-br from-blue-50 to-cyan-50",
+    border: "border-blue-200",
+    icon: "bg-blue-100 text-blue-600",
+    badge: "bg-blue-500 text-white",
+    text: "text-blue-900"
+  }
+};
 
 export default function Dashboard() {
   const router = useRouter();
@@ -67,7 +116,6 @@ export default function Dashboard() {
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Default empty stats object to prevent crashes
   const defaultStats = {
     appraisals: { total: 0, pending: 0 },
     vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
@@ -82,7 +130,6 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Helper to safely parse JSON responses
     const safeJsonParse = async (res) => {
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
@@ -92,7 +139,6 @@ export default function Dashboard() {
       return res.json();
     };
 
-    // Single API call - stats now includes forms list
     fetch("/api/dashboard/stats")
       .then(async (res) => {
         if (res.status === 403) return { error: "No dealer context" };
@@ -106,7 +152,6 @@ export default function Dashboard() {
           setForms([]);
         } else {
           setStats(statsData || defaultStats);
-          // Forms are now included in stats response
           setForms(Array.isArray(statsData?.formsList) ? statsData.formsList : []);
         }
         setIsLoading(false);
@@ -127,37 +172,27 @@ export default function Dashboard() {
     }
   };
 
-  // Get top forms - PDI is always first, then by usage stats or defaults
   const getTopForms = () => {
-    // Find PDI form - it should always be first
     const pdiForm = forms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
-
     let otherTopForms = [];
     if (stats?.topForms?.length > 0) {
-      // Map topForms to actual form objects - ensure both sides are strings for comparison
-      // Exclude PDI since we're adding it first
       otherTopForms = stats.topForms
         .map(tf => forms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
         .filter(f => f && f.type !== ALWAYS_FIRST_FORM_TYPE)
         .slice(0, 2);
     } else {
-      // Fallback to default priority forms (excluding PDI)
       otherTopForms = forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
     }
-
-    // PDI first, then other top forms
     return pdiForm ? [pdiForm, ...otherTopForms] : otherTopForms;
   };
 
   const topForms = getTopForms();
   const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
 
-  // Get active needs attention items (only those with count > 0)
   const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
     stats?.needsAttention?.[item.key] > 0
   );
 
-  // Check if today strip has any data to show
   const hasTodayData = stats?.today && (
     stats.today.events > 0 ||
     stats.today.deliveries > 0 ||
@@ -169,60 +204,88 @@ export default function Dashboard() {
     <DashboardLayout>
       <Head><title>Dashboard | DealerFlow</title></Head>
 
-      {/* Header - Compact */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-slate-500 text-sm mt-1">Here's what needs attention today</p>
-      </div>
+      {/* Hero Header with Rich Gradient */}
+      <div className="relative -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 pt-8 pb-10 mb-8 hero-gradient border-b border-slate-200/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+              </h1>
+              <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+            </div>
+            <div className="hidden md:flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-bold text-slate-800">
+                  {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#14B8A6] flex items-center justify-center text-white shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-20">
-          <span className="loading loading-spinner loading-lg"></span>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {/* Today Strip - Only show if there's data */}
+          {/* Today's Activity Pills */}
           {hasTodayData && (
-            <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap shadow-sm">
-              <span className="text-sm font-semibold text-slate-700">Today</span>
+            <div className="mt-6 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today</span>
               <div className="h-4 w-px bg-slate-300" />
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
                 {(stats?.today?.events ?? 0) > 0 && (
-                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#0066CC]/20 text-[#0066CC] rounded-xl text-sm font-semibold hover:bg-[#0066CC]/5 hover:border-[#0066CC]/40 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066CC] animate-pulse" />
                     {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
                   </Link>
                 )}
                 {(stats?.today?.deliveries ?? 0) > 0 && (
-                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                     {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
                   </Link>
                 )}
                 {(stats?.today?.testDrives ?? 0) > 0 && (
-                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium hover:bg-cyan-200 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-cyan-200 text-cyan-700 rounded-xl text-sm font-semibold hover:bg-cyan-50 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
                     {stats.today.testDrives} test drive{stats.today.testDrives !== 1 ? "s" : ""}
                   </Link>
                 )}
                 {(stats?.today?.courtesyDueBack ?? 0) > 0 && (
-                  <Link href="/warranty" className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <Link href="/warranty" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                     {stats.today.courtesyDueBack} courtesy due
                   </Link>
                 )}
               </div>
             </div>
           )}
+        </div>
+      </div>
 
-          {/* Top Row - KPI Cards with micro-context */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+            <p className="text-sm text-slate-500 font-medium">Loading dashboard...</p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-8">
+
+          {/* KPI Cards Row - Mixed Variants */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <StatsCard
               title="Pending Appraisals"
               value={stats?.appraisals?.pending ?? 0}
               trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
               icon="📋"
               color="primary"
+              variant="gradient"
             />
             <StatsCard
               title="Total Stock"
@@ -230,83 +293,94 @@ export default function Dashboard() {
               trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
               icon="🚗"
               color="secondary"
+              variant="gradient"
             />
             <StatsCard
-              title="Advertised"
-              value={stats?.vehicles?.inPrep ?? 0}
-              trend={stats?.vehicles?.live > 0 ? `${stats.vehicles.live} sold in progress` : null}
-              icon="📢"
-              color="accent"
+              title="Vehicles Sold"
+              value={stats?.vehicles?.live ?? 0}
+              trend={stats?.vehicles?.delivered > 0 ? `${stats.vehicles.delivered} delivered` : null}
+              icon="🏆"
+              color="success"
+              variant="outlined"
             />
             <StatsCard
               title="Avg Rating"
               value={stats?.reviews?.avgRating ?? "N/A"}
               trend={
                 typeof stats?.reviews?.lastReviewDays === "number"
-                  ? `Last review: ${stats.reviews.lastReviewDays}d ago`
+                  ? `Last: ${stats.reviews.lastReviewDays}d ago`
                   : stats?.reviews?.count === 0
                   ? "No reviews yet"
                   : null
               }
               icon="⭐"
               color="warning"
+              variant="outlined"
             />
           </div>
 
-          {/* Quick Forms - Touch Cards Grid */}
+          {/* Quick Forms Section */}
           {forms.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Quick Forms</span>
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Quick Forms</h2>
+                    <p className="text-xs text-slate-500">Launch frequently used forms</p>
+                  </div>
                 </div>
-                <Link href="/forms" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">All Submissions →</Link>
+                <Link href="/forms" className="text-sm text-[#0066CC] hover:text-[#0055BB] font-semibold transition-colors flex items-center gap-1">
+                  All Submissions
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Top form buttons - Touch Cards */}
                 {topForms.map((form) => (
                   <button
                     key={form.id || form._id}
                     onClick={() => handleFormClick(form)}
-                    className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer text-left"
+                    className="group bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 p-5 rounded-xl flex flex-col items-center gap-3 hover:border-[#0066CC] hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer"
                   >
-                    <div className="bg-blue-50 text-blue-600 p-2 rounded-lg shrink-0">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center group-hover:bg-[#0066CC] group-hover:text-white transition-colors">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <span className="font-semibold text-slate-700 truncate">
+                    <span className="font-bold text-slate-700 text-sm text-center">
                       {FORM_TYPE_LABELS[form.type] || form.name}
                     </span>
                   </button>
                 ))}
-                {/* More Forms Card */}
                 {otherForms.length > 0 && (
                   <div className="dropdown dropdown-end">
                     <label
                       tabIndex={0}
-                      className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-slate-400 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer w-full"
+                      className="group bg-slate-100 border-2 border-dashed border-slate-300 p-5 rounded-xl flex flex-col items-center gap-3 hover:border-slate-400 hover:bg-slate-50 transition-all cursor-pointer w-full"
                     >
-                      <div className="bg-slate-100 text-slate-500 p-2 rounded-lg shrink-0">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
                         </svg>
                       </div>
-                      <span className="font-semibold text-slate-500">More ({otherForms.length})</span>
+                      <span className="font-bold text-slate-500 text-sm">+{otherForms.length} More</span>
                     </label>
-                    <div tabIndex={0} className="dropdown-content z-20 shadow-xl bg-white rounded-xl w-64 border border-slate-200 mt-2 overflow-hidden">
-                      {/* Header */}
-                      <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">All Forms</p>
+                    <div tabIndex={0} className="dropdown-content z-20 shadow-2xl bg-white rounded-xl w-64 border border-slate-200 mt-2 overflow-hidden">
+                      <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">All Forms</p>
                       </div>
-                      {/* Scrollable list */}
-                      <div className="max-h-64 overflow-y-auto overscroll-contain">
+                      <div className="max-h-64 overflow-y-auto">
                         {otherForms.map((form) => (
                           <button
                             key={form.id || form._id}
                             onClick={() => handleFormClick(form)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0"
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-[#0066CC]/5 hover:text-[#0066CC] transition-colors border-b border-slate-50 last:border-0"
                           >
                             <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
                               <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -324,212 +398,256 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Middle Row - Needs Attention + Dealer Actions */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Needs Attention - 2/3 width - Task Style */}
-            <div className="lg:col-span-2 bg-white border border-red-100 rounded-2xl p-1 shadow-sm">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
-                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h3 className="text-base font-bold text-slate-800">Needs Attention</h3>
-              </div>
-              {activeNeedsAttention.length > 0 ? (
-                <div className="p-2">
-                  {activeNeedsAttention.map((item) => (
-                    <Link
-                      key={item.key}
-                      href={item.href}
-                      className="flex items-center gap-4 p-3 hover:bg-red-50/50 rounded-lg cursor-pointer transition-colors"
-                    >
-                      {/* Soft Circle Counter */}
-                      <div className="bg-red-100 text-red-600 font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0">
-                        {stats?.needsAttention?.[item.key] ?? 0}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                        <p className="text-xs text-slate-500">{item.description}</p>
-                      </div>
-                      <svg className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8 m-2 bg-emerald-50 rounded-xl">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <p className="text-emerald-700 font-semibold text-sm">All clear!</p>
-                    <p className="text-xs text-emerald-600/70 mt-0.5">Nothing needs attention right now</p>
+          {/* Middle Row - Needs Attention + Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Needs Attention - Modern Card Layout */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-red-50/50 to-amber-50/50">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Needs Attention</h2>
+                    <p className="text-xs text-slate-500">Items requiring your immediate action</p>
                   </div>
                 </div>
-              )}
+                {activeNeedsAttention.length > 0 ? (
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {activeNeedsAttention.map((item) => {
+                      const colors = ATTENTION_COLORS[item.color];
+                      return (
+                        <Link
+                          key={item.key}
+                          href={item.href}
+                          className={`${colors.bg} ${colors.border} border rounded-xl p-4 hover:shadow-md transition-all group`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={`w-10 h-10 rounded-xl ${colors.icon} flex items-center justify-center flex-shrink-0`}>
+                              {item.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`${colors.badge} px-2 py-0.5 rounded-full text-xs font-bold`}>
+                                  {stats?.needsAttention?.[item.key] ?? 0}
+                                </span>
+                                <span className={`text-sm font-bold ${colors.text}`}>{item.label}</span>
+                              </div>
+                              <p className="text-xs text-slate-600">{item.description}</p>
+                            </div>
+                            <svg className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                        <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <p className="text-lg font-bold text-emerald-700">All clear!</p>
+                      <p className="text-sm text-emerald-600/70 mt-1">Nothing needs attention right now</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Dealer Actions - 1/3 width - Command Cards */}
-            <div className="bg-slate-50/50 rounded-2xl p-4">
-              <div className="flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <h3 className="text-base font-bold text-slate-800">Quick Actions</h3>
+            {/* Quick Actions - Command Palette Style */}
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#0EA5E9] flex items-center justify-center text-white shadow-lg">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Quick Actions</h2>
+                  <p className="text-xs text-slate-500">Shortcuts to common tasks</p>
+                </div>
               </div>
               <div className="space-y-3">
-                {/* Add Vehicle Card */}
-                <Link href="/sales-prep" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
-                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                <Link href="/sales-prep" className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
-                  <span className="font-semibold text-slate-700">Add Vehicle</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">Add Vehicle</span>
+                    <span className="text-xs text-slate-500">Add to stock</span>
+                  </div>
                 </Link>
 
-                {/* New Appraisal Card */}
-                <Link href="/appraisals/new" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
-                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                <Link href="/appraisals/new" className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <span className="font-semibold text-slate-700">New Appraisal</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">New Appraisal</span>
+                    <span className="text-xs text-slate-500">Value a vehicle</span>
+                  </div>
                 </Link>
 
-                {/* View Submissions Card */}
-                <Link href="/forms" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
-                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+                <Link href="/forms" className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                   </div>
-                  <span className="font-semibold text-slate-700">View Submissions</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">View Submissions</span>
+                    <span className="text-xs text-slate-500">Review form data</span>
+                  </div>
                 </Link>
 
-                {/* Invite Team Card - Distinct Purple Style */}
-                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-2 border-violet-200 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 hover:scale-[1.02] transition-all">
-                  <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white p-2 rounded-lg shadow">
+                <Link href="/settings/team" className="action-card border-2 border-dashed border-[#0066CC]/30 bg-[#0066CC]/5 hover:bg-[#0066CC]/10 hover:border-[#0066CC]/50">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#14B8A6] text-white flex items-center justify-center shadow">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                   </div>
-                  <div>
-                    <span className="font-semibold text-violet-700 block">Invite Team</span>
-                    <span className="text-xs text-violet-500">Add staff members</span>
+                  <div className="flex-1">
+                    <span className="font-bold text-[#0066CC] block">Invite Team</span>
+                    <span className="text-xs text-[#0066CC]/70">Add staff members</span>
                   </div>
                 </Link>
               </div>
             </div>
           </div>
 
-          {/* Bottom Row - Recent Lists */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Bottom Row - Recent Activity Cards */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Recent Appraisals */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900">Recent Appraisals</h3>
-                <Link href="/appraisals" className="text-xs font-bold text-blue-600 uppercase tracking-wide hover:underline">View All</Link>
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Recent Appraisals</h3>
+                </div>
+                <Link href="/appraisals" className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
+                  View All
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
               </div>
 
               {stats?.recent?.appraisals?.length > 0 ? (
-                <div className="overflow-y-auto max-h-[240px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {/* Column Headers */}
-                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-2">
-                    <div className="col-span-4">Vehicle</div>
-                    <div className="col-span-4">Contact</div>
-                    <div className="col-span-4 text-right">Status</div>
-                  </div>
-                  {/* Data Rows */}
-                  <div className="space-y-1">
-                    {stats.recent.appraisals.map((a) => (
-                      <div
-                        key={a.id}
-                        onClick={() => router.push(`/appraisals/${a.id}`)}
-                        className="grid grid-cols-12 gap-2 items-center py-4 hover:bg-slate-50 transition-colors cursor-pointer rounded-lg -mx-2 px-2"
-                      >
-                        <div className="col-span-4">
-                          <span className="font-mono text-xs bg-[#fcd34d] border border-yellow-500/50 rounded px-1.5 py-0.5 text-slate-900 font-bold">{a.vehicleReg}</span>
-                        </div>
-                        <div className="col-span-4">
-                          <p className="text-sm text-slate-600 truncate">{a.contactId?.name || "—"}</p>
-                        </div>
-                        <div className="col-span-4 text-right">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            a.decision === "purchased" || a.decision === "converted"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : a.decision === "not_purchased" || a.decision === "declined"
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}>
-                            {a.decision}
-                          </span>
-                        </div>
+                <div className="divide-y divide-slate-100">
+                  {stats.recent.appraisals.slice(0, 5).map((a) => (
+                    <div
+                      key={a.id}
+                      onClick={() => router.push(`/appraisals/${a.id}`)}
+                      className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center border border-slate-200">
+                        <span className="font-mono text-xs font-bold text-slate-600">{a.vehicleReg?.slice(0, 4)}</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-sm">{a.vehicleReg}</p>
+                        <p className="text-xs text-slate-500 truncate">{a.contactId?.name || "No contact"}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        a.decision === "purchased" || a.decision === "converted"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : a.decision === "not_purchased" || a.decision === "declined"
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}>
+                        {a.decision}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center py-10 bg-slate-50 rounded-xl">
-                  <p className="text-slate-400 text-sm">No appraisals yet</p>
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-slate-500 text-sm font-medium">No appraisals yet</p>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Pending Prep */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-slate-900">Pending Prep</h3>
-                <Link href="/sales-prep" className="text-xs font-bold text-blue-600 uppercase tracking-wide hover:underline">View All</Link>
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">Pending Prep</h3>
+                </div>
+                <Link href="/sales-prep" className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
+                  View All
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
               </div>
 
               {stats?.recent?.vehicles?.length > 0 ? (
-                <div className="overflow-y-auto max-h-[240px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                  {/* Column Headers */}
-                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-2">
-                    <div className="col-span-4">Vehicle</div>
-                    <div className="col-span-4">Reg</div>
-                    <div className="col-span-4 text-right">Status</div>
-                  </div>
-                  {/* Data Rows */}
-                  <div className="space-y-1">
-                    {stats.recent.vehicles.map((v) => (
-                      <div
-                        key={v.id}
-                        onClick={() => router.push("/sales-prep")}
-                        className="grid grid-cols-12 gap-2 items-center py-4 hover:bg-slate-50 transition-colors cursor-pointer rounded-lg -mx-2 px-2"
-                      >
-                        <div className="col-span-4">
-                          <p className="font-bold text-slate-700 text-sm truncate">{v.make} {v.model}</p>
-                        </div>
-                        <div className="col-span-4">
-                          <span className="font-mono text-xs bg-[#fcd34d] border border-yellow-500/50 rounded px-1.5 py-0.5 text-slate-900 font-bold">{v.regCurrent}</span>
-                        </div>
-                        <div className="col-span-4 text-right">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                            v.status === "delivered"
-                              ? "bg-slate-100 text-slate-600 border-slate-200"
-                              : v.status === "live"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : v.status === "in_prep"
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : v.status === "in_stock"
-                              ? "bg-blue-50 text-blue-700 border-blue-200"
-                              : "bg-amber-50 text-amber-700 border-amber-200"
-                          }`}>
-                            {v.status.replace("_", " ")}
-                          </span>
-                        </div>
+                <div className="divide-y divide-slate-100">
+                  {stats.recent.vehicles.slice(0, 5).map((v) => (
+                    <div
+                      key={v.id}
+                      onClick={() => router.push("/sales-prep")}
+                      className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-100 to-yellow-50 flex items-center justify-center border border-amber-200">
+                        <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 4h8m-8 4h4m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
                       </div>
-                    ))}
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-sm">{v.make} {v.model}</p>
+                        <p className="text-xs text-slate-500">{v.regCurrent}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        v.status === "delivered"
+                          ? "bg-slate-100 text-slate-600"
+                          : v.status === "live"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : v.status === "in_prep"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {v.status.replace("_", " ")}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="flex items-center justify-center py-10 bg-slate-50 rounded-xl">
-                  <p className="text-slate-400 text-sm">No vehicles yet</p>
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 4h8m-8 4h4m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <p className="text-slate-500 text-sm font-medium">No vehicles yet</p>
+                  </div>
                 </div>
               )}
             </div>

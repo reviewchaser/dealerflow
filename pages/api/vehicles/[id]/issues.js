@@ -28,7 +28,7 @@ async function handler(req, res, ctx) {
 
   if (req.method === "POST") {
     try {
-      const { category, subcategory, description, photos, actionNeeded, status, notes, partsRequired, partsDetails } = req.body;
+      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails } = req.body;
 
       if (!category || !subcategory || !description) {
         return res.status(400).json({ error: "Category, subcategory, and description are required" });
@@ -67,6 +67,8 @@ async function handler(req, res, ctx) {
         description,
         photos: photos || [],
         actionNeeded,
+        priority: priority || "medium",
+        location: location || null,
         status: mappedStatus,
         notes,
         partsRequired: partsRequired || false,

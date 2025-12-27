@@ -176,7 +176,7 @@ export default function PublicAppraisalView() {
 
         {/* Proposed Price (if available) */}
         {appraisal.proposedPurchasePrice && (
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="bg-gradient-to-r from-[#0066CC] to-[#14B8A6] rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-semibold mb-2">Proposed Purchase Price</h3>
             <p className="text-4xl font-bold">
               £{appraisal.proposedPurchasePrice.toLocaleString()}

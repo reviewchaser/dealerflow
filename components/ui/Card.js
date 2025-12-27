@@ -10,7 +10,7 @@
 export function Card({ children, className = "", variant = "default", ...props }) {
   const variants = {
     default: "bg-white border border-slate-200 shadow-sm",
-    accent: "bg-violet-50/50 border-2 border-violet-200",
+    accent: "bg-[#0066CC]/5 border-2 border-[#0066CC]/20",
     success: "bg-emerald-50/50 border-2 border-emerald-200",
     warning: "bg-amber-50/50 border-2 border-amber-200",
     danger: "bg-red-50/50 border-2 border-red-200",
@@ -38,7 +38,7 @@ export function CardHeader({
 }) {
   const variants = {
     default: "bg-white border-b border-slate-100",
-    accent: "bg-violet-100/50 border-b border-violet-200",
+    accent: "bg-[#0066CC]/10 border-b border-[#0066CC]/20",
     success: "bg-emerald-100/50 border-b border-emerald-200",
     warning: "bg-amber-100/50 border-b border-amber-200",
     danger: "bg-red-100/50 border-b border-red-200",

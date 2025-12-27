@@ -11,7 +11,7 @@ export const DEFAULT_BOARD_COLUMNS = [
   { key: "in_stock", label: "In Stock", order: 0, color: "slate" },
   { key: "in_prep", label: "In Prep", order: 1, color: "amber" },
   { key: "live", label: "Advertised", order: 2, color: "blue" },
-  { key: "sold", label: "Sold - In Progress", order: 3, color: "purple" },
+  { key: "sold", label: "Sold - In Progress", order: 3, color: "cyan" },
   { key: "reserved", label: "Reserved", order: 4, color: "pink" },
   { key: "delivered", label: "Delivered", order: 5, color: "green" },
 ];

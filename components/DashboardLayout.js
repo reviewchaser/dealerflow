@@ -74,7 +74,7 @@ const ChevronDownIcon = ({ className }) => (
 const navigation = [
   { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
   { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
-  { name: "Customer/Warranty", href: "/warranty", Icon: WrenchIcon },
+  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
   { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
   { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
   { name: "Reviews", href: "/reviews", Icon: StarIcon },
@@ -175,13 +175,13 @@ export default function DashboardLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-base-200">
+    <div className="min-h-screen bg-[#f8fafc]">
       {sidebarOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar - Theme-aware with Collapse */}
-      <aside className={`fixed top-0 left-0 z-50 h-full bg-base-100 border-r border-base-300 transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}>
+      {/* Sidebar - Modern design with brand colors */}
+      <aside className={`fixed top-0 left-0 z-50 h-full bg-white border-r border-slate-100 shadow-sm transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}>
         {/* Mobile close button */}
         <div className="flex items-center justify-end h-12 px-4 lg:hidden">
           <button className="text-base-content/50 hover:text-base-content hover:bg-base-200 rounded-lg p-2 transition-colors" onClick={() => setSidebarOpen(false)}>
@@ -210,9 +210,71 @@ export default function DashboardLayout({ children }) {
         </div>
 
         {/* Navigation */}
-        <nav className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"}`}>
+        <nav className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto`}>
+          {/* Main Section */}
+          {!sidebarCollapsed && (
+            <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Main
+            </p>
+          )}
           <ul className="space-y-1">
-            {navigation.map((item) => {
+            {navigation.slice(0, 3).map((item) => {
+              const { Icon } = item;
+              const isActive = router.pathname.startsWith(item.href);
+              return (
+                <li key={item.name} className="relative group">
+                  <Link
+                    href={item.href}
+                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+                    } ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+                        : "hover:bg-slate-50"
+                    }`}
+                    title={sidebarCollapsed ? item.name : undefined}
+                  >
+                    {/* Active indicator bar */}
+                    {isActive && !sidebarCollapsed && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+                    )}
+                    {/* Icon with colored container */}
+                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+                    } ${
+                      isActive
+                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                    }`}>
+                      <Icon className="w-[18px] h-[18px]" />
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className={`text-sm transition-colors ${
+                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+                      }`}>{item.name}</span>
+                    )}
+                  </Link>
+                  {/* Tooltip for collapsed state */}
+                  {sidebarCollapsed && (
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+                      {item.name}
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Management Section */}
+          {!sidebarCollapsed && (
+            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              Management
+            </p>
+          )}
+          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+          <ul className="space-y-1">
+            {navigation.slice(3, 7).map((item) => {
               const { Icon } = item;
 
               if (item.children) {
@@ -223,35 +285,50 @@ export default function DashboardLayout({ children }) {
                   <li key={item.name}>
                     <button
                       onClick={() => setExpandedMenus(prev => ({ ...prev, [item.name]: !prev[item.name] }))}
-                      className={`flex items-center w-full rounded-lg transition-all ${
-                        sidebarCollapsed ? "justify-center p-2.5" : "justify-between gap-3 px-3 py-2.5"
+                      className={`flex items-center w-full rounded-xl transition-all duration-200 group ${
+                        sidebarCollapsed ? "justify-center p-2" : "justify-between gap-3 px-3 py-2.5"
                       } ${
                         isActive
-                          ? "bg-primary/10 text-primary font-semibold"
-                          : "text-base-content/60 hover:bg-base-200 hover:text-base-content"
+                          ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+                          : "hover:bg-slate-50"
                       }`}
                       title={sidebarCollapsed ? item.name : undefined}
                     >
                       <div className={`flex items-center ${sidebarCollapsed ? "" : "gap-3"}`}>
-                        <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-base-content/50"}`} />
-                        {!sidebarCollapsed && <span>{item.name}</span>}
+                        <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+                          sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+                        } ${
+                          isActive
+                            ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                            : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                        }`}>
+                          <Icon className="w-[18px] h-[18px]" />
+                        </div>
+                        {!sidebarCollapsed && (
+                          <span className={`text-sm transition-colors ${
+                            isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+                          }`}>{item.name}</span>
+                        )}
                       </div>
-                      {!sidebarCollapsed && <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isActive ? "text-primary" : "text-base-content/50"}`} />}
+                      {!sidebarCollapsed && (
+                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isActive ? "text-[#0066CC]" : "text-slate-400"}`} />
+                      )}
                     </button>
                     {!sidebarCollapsed && isExpanded && (
-                      <ul className="mt-1 ml-4 space-y-1 border-l border-base-300 pl-4">
+                      <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
                         {item.children.map((child) => {
                           const isChildActive = router.pathname === child.href || router.asPath === child.href;
                           return (
                             <li key={child.name}>
                               <Link
                                 href={child.href}
-                                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all text-sm ${
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
                                   isChildActive
-                                    ? "bg-primary/10 text-primary font-semibold"
-                                    : "text-base-content/50 hover:bg-base-200 hover:text-base-content/80"
+                                    ? "bg-[#0066CC]/10 text-[#0066CC] font-semibold"
+                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                                 }`}
                               >
+                                {isChildActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0066CC]" />}
                                 <span>{child.name}</span>
                               </Link>
                             </li>
@@ -268,22 +345,96 @@ export default function DashboardLayout({ children }) {
                 <li key={item.name} className="relative group">
                   <Link
                     href={item.href}
-                    className={`flex items-center rounded-lg transition-all ${
-                      sidebarCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5"
+                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
                     } ${
                       isActive
-                        ? "bg-primary/10 text-primary font-semibold"
-                        : "text-base-content/60 hover:bg-base-200 hover:text-base-content"
+                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+                        : "hover:bg-slate-50"
                     }`}
                     title={sidebarCollapsed ? item.name : undefined}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? "text-primary" : "text-base-content/50"}`} />
-                    {!sidebarCollapsed && <span>{item.name}</span>}
+                    {/* Active indicator bar */}
+                    {isActive && !sidebarCollapsed && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+                    )}
+                    {/* Icon with colored container */}
+                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+                    } ${
+                      isActive
+                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                    }`}>
+                      <Icon className="w-[18px] h-[18px]" />
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className={`text-sm transition-colors ${
+                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+                      }`}>{item.name}</span>
+                    )}
                   </Link>
                   {/* Tooltip for collapsed state */}
                   {sidebarCollapsed && (
-                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2 py-1 bg-neutral text-neutral-content text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50">
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
                       {item.name}
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Settings Section */}
+          {!sidebarCollapsed && (
+            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              System
+            </p>
+          )}
+          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+          <ul className="space-y-1">
+            {navigation.slice(7).map((item) => {
+              const { Icon } = item;
+              const isActive = router.pathname.startsWith(item.href);
+              return (
+                <li key={item.name} className="relative group">
+                  <Link
+                    href={item.href}
+                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+                    } ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+                        : "hover:bg-slate-50"
+                    }`}
+                    title={sidebarCollapsed ? item.name : undefined}
+                  >
+                    {/* Active indicator bar */}
+                    {isActive && !sidebarCollapsed && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+                    )}
+                    {/* Icon with colored container */}
+                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+                    } ${
+                      isActive
+                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                    }`}>
+                      <Icon className="w-[18px] h-[18px]" />
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className={`text-sm transition-colors ${
+                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+                      }`}>{item.name}</span>
+                    )}
+                  </Link>
+                  {/* Tooltip for collapsed state */}
+                  {sidebarCollapsed && (
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+                      {item.name}
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
                     </div>
                   )}
                 </li>
@@ -293,11 +444,11 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         {/* Footer - Collapse Toggle + SaaS Branding */}
-        <div className={`mt-auto border-t border-base-200 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+        <div className={`mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {/* Collapse Toggle Button */}
           <button
             onClick={toggleSidebarCollapsed}
-            className={`hidden lg:flex items-center w-full rounded-lg text-base-content/50 hover:text-base-content hover:bg-base-200 transition-all ${
+            className={`hidden lg:flex items-center w-full rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all duration-200 ${
               sidebarCollapsed ? "justify-center p-2" : "gap-2 px-3 py-2"
             }`}
             title={sidebarCollapsed ? "Expand sidebar ([ or Ctrl+B)" : "Collapse sidebar ([ or Ctrl+B)"}
@@ -308,8 +459,8 @@ export default function DashboardLayout({ children }) {
             {!sidebarCollapsed && <span className="text-sm">Collapse</span>}
           </button>
           {!sidebarCollapsed && (
-            <p className="text-xs text-base-content/40 text-center mt-3">
-              Powered by <span className="font-medium">DealerFlow</span>
+            <p className="text-[11px] text-slate-300 text-center mt-3">
+              Powered by <span className="font-semibold text-slate-400">DealerFlow</span>
             </p>
           )}
         </div>
@@ -317,7 +468,7 @@ export default function DashboardLayout({ children }) {
 
       {/* Main content */}
       <div className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"}`}>
-        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 bg-base-100 border-b border-base-300">
+        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-white/95 backdrop-blur-md border-b border-slate-100">
           <button className="lg:hidden btn btn-ghost btn-sm" onClick={() => setSidebarOpen(true)}>
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -327,12 +478,12 @@ export default function DashboardLayout({ children }) {
           <div className="flex items-center gap-3">
             {/* Quick Add Form Button */}
             <div className="dropdown dropdown-end">
-              <label tabIndex={0} className="btn btn-circle btn-sm btn-primary">
+              <label tabIndex={0} className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#0066CC] hover:bg-[#0055AA] text-white cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
               </label>
-              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-56 max-h-80 overflow-y-auto">
+              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-xl w-56 max-h-80 overflow-y-auto border border-slate-100">
                 {forms.length === 0 ? (
                   <li><span className="text-base-content/60 text-sm">No forms available</span></li>
                 ) : (
@@ -383,14 +534,14 @@ export default function DashboardLayout({ children }) {
         <main className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">{children}</main>
       </div>
 
-      {/* Mobile Bottom Navigation - Safe area aware */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-300 md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+      {/* Mobile Bottom Navigation - Safe area aware with modern styling */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-100 md:hidden shadow-lg shadow-slate-200/50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-center justify-around h-16">
           {[
-            { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
+            { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
             { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
             { name: "Warranty", href: "/warranty", Icon: WrenchIcon },
-            { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+            { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {
             const isActive = item.href && router.pathname.startsWith(item.href);
@@ -398,15 +549,19 @@ export default function DashboardLayout({ children }) {
             if (item.isMore) {
               return (
                 <div key={item.name} className="dropdown dropdown-top dropdown-end">
-                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-3 py-2 cursor-pointer">
-                    <item.Icon className="w-5 h-5 text-base-content/40" />
-                    <span className="text-[10px] mt-1 text-base-content/40">{item.name}</span>
+                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-2 py-1.5 cursor-pointer group">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC] transition-all">
+                      <item.Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
                   </label>
-                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-xl w-48 mb-2 border border-base-300">
-                    <li><Link href="/appraisals" className="text-sm">Appraisals</Link></li>
-                    <li><Link href="/reviews" className="text-sm">Reviews</Link></li>
-                    <li><Link href="/calendar" className="text-sm">Calendar</Link></li>
-                    <li><Link href="/settings" className="text-sm">Settings</Link></li>
+                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
+                    <li><Link href="/appraisals" className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+                    <li><Link href="/reviews" className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+                    <li><Link href="/calendar" className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+                    <div className="divider my-1 px-3"></div>
+                    <li><Link href="/settings" className="text-sm py-2.5 rounded-xl">Settings</Link></li>
                   </ul>
                 </div>
               );
@@ -416,12 +571,18 @@ export default function DashboardLayout({ children }) {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex flex-col items-center justify-center h-full px-3 py-2 transition-colors ${
-                  isActive ? "text-primary" : "text-base-content/40"
-                }`}
+                className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
               >
-                <item.Icon className={`w-5 h-5 ${isActive ? "text-primary" : ""}`} />
-                <span className={`text-[10px] mt-1 ${isActive ? "font-semibold" : ""}`}>{item.name}</span>
+                <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+                  isActive
+                    ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/30"
+                    : "bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                }`}>
+                  <item.Icon className="w-5 h-5" />
+                </div>
+                <span className={`text-[10px] mt-0.5 transition-colors ${
+                  isActive ? "font-semibold text-[#0066CC]" : "text-slate-400 group-hover:text-[#0066CC]"
+                }`}>{item.name}</span>
               </Link>
             );
           })}
