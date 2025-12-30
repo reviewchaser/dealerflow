@@ -23,4 +23,4 @@ const leadSchema = new mongoose.Schema(
 );
 
 leadSchema.plugin(toJSON);
-export default mongoose.models.Lead || mongoose.model("Lead", leadSchema);
+export default mongoose.models?.Lead || mongoose.model("Lead", leadSchema);

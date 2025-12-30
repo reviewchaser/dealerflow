@@ -30,7 +30,7 @@ async function handler(req, res, ctx) {
     const {
       customerName, customerEmail, customerPhone,
       vehicleReg, regAtPurchase, summary, details, source = "manual",
-      priority = "normal", warrantyType
+      priority = "normal", warrantyType, attachments
     } = req.body;
 
     if (!customerName) {
@@ -55,6 +55,30 @@ async function handler(req, res, ctx) {
       });
     }
 
+    // Build initial events
+    const initialEvents = [{
+      type: "CASE_CREATED",
+      createdAt: new Date(),
+      summary: "Case created"
+    }];
+
+    // Process attachments if provided
+    const processedAttachments = [];
+    if (attachments && Array.isArray(attachments) && attachments.length > 0) {
+      attachments.forEach(att => {
+        processedAttachments.push({
+          url: att.url,
+          filename: att.filename || "attachment",
+          uploadedAt: new Date()
+        });
+      });
+      initialEvents.push({
+        type: "ATTACHMENT_ADDED",
+        createdAt: new Date(),
+        summary: `${attachments.length} file(s) attached`
+      });
+    }
+
     // Create case with CASE_CREATED event
     const aftercareCase = await AftercareCase.create({
       dealerId,
@@ -67,11 +91,8 @@ async function handler(req, res, ctx) {
       warrantyType: warrantyType || undefined,
       boardStatus: "not_booked_in",
       status: "new",
-      events: [{
-        type: "CASE_CREATED",
-        createdAt: new Date(),
-        summary: "Case created"
-      }]
+      attachments: processedAttachments,
+      events: initialEvents
     });
 
     // Create initial comment with claim details

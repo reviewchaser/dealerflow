@@ -118,6 +118,25 @@ export default async function handler(req, res) {
     // Use shared normalizer for consistent response shape
     const normalizedData = normalizeDvlaResponse(data);
 
+    // Build dvlaDetails object for storage
+    const dvlaDetails = {
+      co2Emissions: data.co2Emissions || null,
+      engineCapacity: data.engineCapacity || null,
+      fuelType: data.fuelType || null,
+      markedForExport: data.markedForExport || false,
+      monthOfFirstRegistration: data.monthOfFirstRegistration || null,
+      motStatus: data.motStatus || null,
+      motExpiryDate: data.motExpiryDate || null,
+      revenueWeight: data.revenueWeight || null,
+      taxDueDate: data.taxDueDate || null,
+      taxStatus: data.taxStatus || null,
+      yearOfManufacture: data.yearOfManufacture || null,
+      euroStatus: data.euroStatus || null,
+      dateOfLastV5CIssued: data.dateOfLastV5CIssued || null,
+      wheelplan: data.wheelplan || null,
+      typeApproval: data.typeApproval || null,
+    };
+
     // Also include legacy field names for backwards compatibility
     const vehicleData = {
       ...normalizedData,
@@ -127,6 +146,9 @@ export default async function handler(req, res) {
       yearOfManufacture: normalizedData.year,
       // Flag if model is missing (needs manual entry)
       modelMissing: !normalizedData.model || normalizedData.model.trim() === "",
+      // Full DVLA details for storage
+      dvlaDetails,
+      lastDvlaFetchAt: new Date().toISOString(),
     };
 
     return res.status(200).json(vehicleData);
@@ -180,8 +202,8 @@ function generateDummyData(vehicleReg) {
     colour: "BLUE",
     yearOfManufacture: 2019,
     engineCapacity: 1500,
-    fuelType: "PETROL",
-    transmission: "MANUAL",
+    fuelType: "Petrol",
+    transmission: "Manual",
     taxStatus: "Taxed",
     taxDueDate: "2025-03-01",
     motStatus: motStatus,
@@ -191,6 +213,25 @@ function generateDummyData(vehicleReg) {
   // Normalize using shared normalizer
   const normalizedData = normalizeDvlaResponse(rawData);
 
+  // Build dvlaDetails object
+  const dvlaDetails = {
+    co2Emissions: rawData.co2Emissions || null,
+    engineCapacity: rawData.engineCapacity || null,
+    fuelType: rawData.fuelType || null,
+    markedForExport: rawData.markedForExport || false,
+    monthOfFirstRegistration: rawData.monthOfFirstRegistration || null,
+    motStatus: rawData.motStatus || null,
+    motExpiryDate: rawData.motExpiryDate || null,
+    revenueWeight: rawData.revenueWeight || null,
+    taxDueDate: rawData.taxDueDate || null,
+    taxStatus: rawData.taxStatus || null,
+    yearOfManufacture: rawData.yearOfManufacture || null,
+    euroStatus: rawData.euroStatus || null,
+    dateOfLastV5CIssued: rawData.dateOfLastV5CIssued || null,
+    wheelplan: rawData.wheelplan || null,
+    typeApproval: rawData.typeApproval || null,
+  };
+
   return {
     ...normalizedData,
     isDummy: true,
@@ -199,5 +240,8 @@ function generateDummyData(vehicleReg) {
     registrationNumber: normalizedData.vrm,
     yearOfManufacture: normalizedData.year,
     modelMissing: false,
+    // Full DVLA details for storage
+    dvlaDetails,
+    lastDvlaFetchAt: new Date().toISOString(),
   };
 }

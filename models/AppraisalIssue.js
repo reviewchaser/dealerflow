@@ -28,4 +28,4 @@ const appraisalIssueSchema = new mongoose.Schema(
 );
 
 appraisalIssueSchema.plugin(toJSON);
-export default mongoose.models.AppraisalIssue || mongoose.model("AppraisalIssue", appraisalIssueSchema);
+export default mongoose.models?.AppraisalIssue || mongoose.model("AppraisalIssue", appraisalIssueSchema);

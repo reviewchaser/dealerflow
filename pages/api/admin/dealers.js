@@ -20,9 +20,9 @@ async function handler(req, res, ctx) {
       const enrichedDealers = await Promise.all(
         dealers.map(async (dealer) => {
           const [usersCount, vehiclesCount, ownerMembership] = await Promise.all([
-            DealerMembership.countDocuments({ dealerId: dealer._id, status: "ACTIVE" }),
+            DealerMembership.countDocuments({ dealerId: dealer._id, removedAt: null }),
             Vehicle.countDocuments({ dealerId: dealer._id }),
-            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", status: "ACTIVE" })
+            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", removedAt: null })
               .populate("userId", "email fullName name")
               .lean(),
           ]);

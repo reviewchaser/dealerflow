@@ -1,266 +1,249 @@
+// /pages/api/ai/case-review.js
+
 import connectMongo from "@/libs/mongoose";
+import { withDealerContext } from "@/libs/authContext";
+import { getOpenAIClient, safeJsonParse } from "@/libs/openai";
+
 import AftercareCase from "@/models/AftercareCase";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
 import Vehicle from "@/models/Vehicle";
 import VehicleTask from "@/models/VehicleTask";
 import VehicleIssue from "@/models/VehicleIssue";
 import FormSubmission from "@/models/FormSubmission";
-import { withDealerContext } from "@/libs/authContext";
+
+function clampArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(Boolean);
+  return [String(v)].filter(Boolean);
+}
 
 async function handler(req, res, ctx) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  if (!process.env.OPENAI_API_KEY) {
+    return res.status(500).json({
+      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+    });
+  }
+
+  const openai = getOpenAIClient();
+  if (!openai) {
+    return res.status(500).json({ error: "OpenAI client not available" });
   }
 
   await connectMongo();
   const { dealerId, userId } = ctx;
-  const { caseId } = req.body;
 
-  if (!caseId) {
-    return res.status(400).json({ error: "caseId is required" });
-  }
+  const { caseId, regenerate = false } = req.body || {};
+  if (!caseId) return res.status(400).json({ error: "caseId is required" });
 
-  // Load case with populated fields
+  // Load the aftercare case
   const aftercareCase = await AftercareCase.findOne({ _id: caseId, dealerId })
-    .populate("contactId")
-    .populate("vehicleId")
+    .populate("contactId", "name email phone")
+    .populate("vehicleId", "make model regCurrent year mileage fuelType engineSize")
     .lean();
 
-  if (!aftercareCase) {
-    return res.status(404).json({ error: "Case not found" });
+  if (!aftercareCase) return res.status(404).json({ error: "Case not found" });
+
+  // If already generated and not regenerating, return cached
+  if (aftercareCase.aiReview?.payload && !regenerate) {
+    return res.status(200).json({
+      ok: true,
+      cached: true,
+      aiReview: aftercareCase.aiReview,
+    });
   }
 
-  // Build context for AI prompt
-  const contextParts = [];
+  // Comments (useful context)
+  const comments = await AftercareCaseComment.find({ aftercareCaseId: caseId })
+    .sort({ createdAt: 1 })
+    .lean();
 
-  // Customer info
-  const contact = aftercareCase.contactId;
-  if (contact) {
-    contextParts.push(`Customer: ${contact.name || "Unknown"}`);
-  }
-
-  // Vehicle info
-  const vehicle = aftercareCase.vehicleId;
-  if (vehicle) {
-    const vehicleInfo = [
-      vehicle.make,
-      vehicle.model,
-      vehicle.year,
-      vehicle.engineSize,
-      vehicle.fuelType,
-      vehicle.mileage ? `${vehicle.mileage} miles` : null,
-    ].filter(Boolean).join(" ");
-    contextParts.push(`Vehicle: ${vehicleInfo}`);
-    contextParts.push(`Registration: ${aftercareCase.regAtPurchase || vehicle.regCurrent || "Unknown"}`);
-  } else if (aftercareCase.regAtPurchase) {
-    contextParts.push(`Registration at purchase: ${aftercareCase.regAtPurchase}`);
-  }
-
-  // Warranty type
-  if (aftercareCase.warrantyType) {
-    contextParts.push(`Warranty type: ${aftercareCase.warrantyType}`);
-  }
-
-  // Issue summary/description
-  if (aftercareCase.summary) {
-    contextParts.push(`Issue summary: ${aftercareCase.summary}`);
-  }
-
-  // Details (may contain fault codes or additional info)
-  if (aftercareCase.details) {
-    if (typeof aftercareCase.details === "object") {
-      if (aftercareCase.details.faultCodes) {
-        contextParts.push(`Fault codes: ${aftercareCase.details.faultCodes}`);
-      }
-      if (aftercareCase.details.description) {
-        contextParts.push(`Description: ${aftercareCase.details.description}`);
-      }
-    } else if (typeof aftercareCase.details === "string") {
-      contextParts.push(`Details: ${aftercareCase.details}`);
-    }
-  }
-
-  // Case attachments count
-  const caseAttachmentCount = aftercareCase.attachments?.length || 0;
-  if (caseAttachmentCount > 0) {
-    const filenames = aftercareCase.attachments.map(a => a.filename).filter(Boolean).join(", ");
-    contextParts.push(`Case attachments: ${caseAttachmentCount} file(s)${filenames ? ` (${filenames})` : ""}`);
-  }
-
-  // If linked to a vehicle, get recent tasks and issues
-  if (vehicle?._id) {
-    const recentTasks = await VehicleTask.find({ vehicleId: vehicle._id })
+  // If linked to a vehicle, include recent tasks/issues
+  let recentTasks = [];
+  let recentIssues = [];
+  if (aftercareCase.vehicleId?._id) {
+    recentTasks = await VehicleTask.find({ vehicleId: aftercareCase.vehicleId._id })
       .sort({ updatedAt: -1 })
       .limit(10)
       .lean();
 
-    if (recentTasks.length > 0) {
-      const taskSummary = recentTasks.map(t =>
-        `${t.name}: ${t.status}${t.notes ? ` - ${t.notes}` : ""}`
-      ).join("; ");
-      contextParts.push(`Recent vehicle tasks: ${taskSummary}`);
-    }
-
-    const recentIssues = await VehicleIssue.find({ vehicleId: vehicle._id })
+    recentIssues = await VehicleIssue.find({ vehicleId: aftercareCase.vehicleId._id })
       .sort({ updatedAt: -1 })
       .limit(10)
       .lean();
-
-    if (recentIssues.length > 0) {
-      const issueSummary = recentIssues.map(i =>
-        `${i.category}/${i.subcategory}: ${i.description} (${i.status})`
-      ).join("; ");
-      contextParts.push(`Recent vehicle issues: ${issueSummary}`);
+  } else if (aftercareCase.vehicleId) {
+    // In case it wasn't populated correctly for some reason
+    const v = await Vehicle.findById(aftercareCase.vehicleId).lean();
+    if (v?._id) {
+      recentTasks = await VehicleTask.find({ vehicleId: v._id }).sort({ updatedAt: -1 }).limit(10).lean();
+      recentIssues = await VehicleIssue.find({ vehicleId: v._id }).sort({ updatedAt: -1 }).limit(10).lean();
     }
   }
 
-  // If linked to form submissions, include key answers
-  if (aftercareCase.linkedSubmissionIds?.length > 0) {
-    const submissions = await FormSubmission.find({
-      _id: { $in: aftercareCase.linkedSubmissionIds }
-    }).populate("formId").lean();
-
-    for (const sub of submissions) {
-      const formName = sub.formId?.name || "Form";
-      if (sub.rawAnswers && typeof sub.rawAnswers === "object") {
-        // Extract key fields (skip internal fields)
-        const keyAnswers = Object.entries(sub.rawAnswers)
-          .filter(([key]) => !key.startsWith("_"))
-          .map(([key, val]) => `${key}: ${typeof val === "object" ? JSON.stringify(val) : val}`)
-          .slice(0, 15) // Limit to avoid token explosion
-          .join("; ");
-        if (keyAnswers) {
-          contextParts.push(`${formName} submission: ${keyAnswers}`);
-        }
-      }
-    }
+  // Linked form submissions (optional)
+  let linkedSubmissions = [];
+  if (aftercareCase.linkedSubmissionIds?.length) {
+    linkedSubmissions = await FormSubmission.find({ _id: { $in: aftercareCase.linkedSubmissionIds } })
+      .populate("formId", "name")
+      .lean();
   }
 
-  // Build the AI prompt
-  const contextText = contextParts.join("\n");
+  const customer = aftercareCase.contactId || {};
+  const vehicle = aftercareCase.vehicleId || {};
 
-  const prompt = `You are an expert automotive warranty specialist working for a UK car dealership. Analyse the following warranty/aftercare case and provide guidance.
+  const issueText =
+    aftercareCase.details?.issueDescription ||
+    aftercareCase.issueDescription ||
+    aftercareCase.summary ||
+    aftercareCase.details?.description ||
+    "No description provided";
 
-CASE CONTEXT:
-${contextText}
+  const daysOpen = Math.floor(
+    (Date.now() - new Date(aftercareCase.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+  );
 
-You MUST respond with valid JSON only. No markdown code fences, no explanation, no text outside the JSON object.
-Output exactly this structure with all 6 keys:
+  const context = {
+    customer: {
+      name: customer.name || "Unknown",
+      email: customer.email || null,
+      phone: customer.phone || null,
+    },
+    vehicle: {
+      make: vehicle.make || aftercareCase.details?.vehicleMake || "Unknown",
+      model: vehicle.model || aftercareCase.details?.vehicleModel || "",
+      reg: aftercareCase.regAtPurchase || vehicle.regCurrent || "Unknown",
+      year: vehicle.year || null,
+      mileage: vehicle.mileage || aftercareCase.details?.mileageAtPurchase || null,
+      fuelType: vehicle.fuelType || null,
+      engineSize: vehicle.engineSize || null,
+    },
+    case: {
+      warrantyType: aftercareCase.warrantyType || "Dealer Warranty",
+      source: aftercareCase.source || "Manual",
+      priority: aftercareCase.priority || "normal",
+      status: aftercareCase.boardStatus || "not_booked_in",
+      repairLocation: aftercareCase.repairLocationType || "WITH_CUSTOMER",
+      partsRequired: !!aftercareCase.partsRequired,
+      partsDetails: aftercareCase.partsDetails || aftercareCase.partsNotes || null,
+      courtesyRequired: !!aftercareCase.courtesyRequired,
+      purchaseDate: aftercareCase.purchaseDate || aftercareCase.details?.dateOfPurchase || null,
+      daysOpen,
+    },
+    issueReported: issueText,
+    recentComments: comments.slice(-6).map((c) => ({
+      text: (c.text || "").slice(0, 700),
+      isInternal: !!c.isInternal,
+      createdAt: c.createdAt,
+    })),
+    recentVehicleTasks: recentTasks.slice(0, 10).map((t) => ({
+      name: t.name,
+      status: t.status,
+      notes: t.notes ? String(t.notes).slice(0, 400) : null,
+    })),
+    recentVehicleIssues: recentIssues.slice(0, 10).map((i) => ({
+      category: i.category,
+      subcategory: i.subcategory,
+      description: i.description ? String(i.description).slice(0, 400) : "",
+      status: i.status,
+    })),
+    linkedSubmissions: linkedSubmissions.slice(0, 5).map((s) => {
+      const formName = s.formId?.name || "Form";
+      const answers = s.rawAnswers && typeof s.rawAnswers === "object" ? s.rawAnswers : {};
+      const keyPairs = Object.entries(answers)
+        .filter(([k]) => !k.startsWith("_"))
+        .slice(0, 15)
+        .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`);
+      return { formName, keyAnswers: keyPairs };
+    }),
+  };
+
+  const prompt = `
+You are an expert automotive aftersales/warranty specialist working for a UK car dealership.
+
+Analyse this aftersales/warranty case and produce guidance that a service advisor can use.
+
+You MUST return valid JSON ONLY (no markdown, no commentary) with EXACTLY these keys:
 {
-  "summary": "A concise 2-3 sentence summary of the case and the reported issue",
-  "possibleCauses": ["Possible cause 1", "Possible cause 2", "..."],
-  "recommendedSteps": ["1. First step to take", "2. Second step", "..."],
-  "warrantyConsiderations": ["Consideration 1 about warranty coverage", "..."],
-  "draftCustomerReply": "A polite UK-tone reply to the customer acknowledging their issue and advising them not to undertake any work without prior authorisation from the dealership",
-  "draftInternalNote": "A brief internal note summarising the case for staff reference"
+  "summary": "2-3 sentence summary of what’s happening and current status",
+  "possibleCauses": ["2-5 plausible causes, cautious language"],
+  "recommendedSteps": ["2-6 practical next steps for the dealership"],
+  "warrantyConsiderations": ["2-5 points about warranty coverage / evidence needed / exclusions"],
+  "draftCustomerReply": "A short professional UK-tone customer message. Must advise customer not to undertake work without dealer authorisation.",
+  "draftInternalNote": "Internal staff note summarising facts + what to do next"
 }
 
-Requirements:
-- Use cautious language: "possible", "may", "suggest", "could indicate"
-- Keep the customer reply professional and empathetic
-- The customer reply MUST advise not to undertake work without authorisation
-- Provide 2-5 items for each array field
-- Be specific to this vehicle and issue where possible`;
+Case context (JSON):
+${JSON.stringify(context, null, 2)}
 
-  // Call Claude API
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-
-  if (!apiKey) {
-    return res.status(500).json({
-      error: "AI service not configured. Please set ANTHROPIC_API_KEY environment variable."
-    });
-  }
+Rules:
+- Use cautious language: may, could, possible, suggests
+- Be specific to the vehicle and issue where possible
+- Customer reply must be empathetic and must include: do not authorise/undertake repairs without dealer approval
+`.trim();
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 1500,
-        messages: [{ role: "user", content: prompt }],
-      }),
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "Return JSON only. No markdown. No extra keys.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.4,
+      max_tokens: 1200,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Claude API error:", errorText);
-      return res.status(500).json({ error: "AI service error. Please try again." });
-    }
-
-    const data = await response.json();
-    const aiText = data.content?.[0]?.text;
-
-    if (!aiText) {
-      return res.status(500).json({ error: "No response from AI service" });
-    }
-
-    // Parse and validate JSON response
+    const raw = completion.choices?.[0]?.message?.content || "";
     let payload;
     try {
-      // Clean up potential markdown code fences
-      const cleanedText = aiText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      payload = JSON.parse(cleanedText);
+      payload = safeJsonParse(raw);
     } catch (parseError) {
-      console.error("AI response parse error:", aiText);
-      return res.status(500).json({
-        error: "AI returned invalid response format. Please try again."
-      });
+      console.error("AI returned non-JSON:", raw);
+      return res.status(500).json({ error: "AI returned invalid JSON. Try again." });
     }
 
-    // Validate required keys exist
-    const requiredKeys = [
-      "summary",
-      "possibleCauses",
-      "recommendedSteps",
-      "warrantyConsiderations",
-      "draftCustomerReply",
-      "draftInternalNote"
-    ];
-
-    const missingKeys = requiredKeys.filter(key => !(key in payload));
-    if (missingKeys.length > 0) {
-      console.error("AI response missing keys:", missingKeys, payload);
-      return res.status(500).json({
-        error: `AI response missing required fields: ${missingKeys.join(", ")}`
-      });
-    }
-
-    // Ensure arrays are arrays
-    if (!Array.isArray(payload.possibleCauses)) payload.possibleCauses = [payload.possibleCauses].filter(Boolean);
-    if (!Array.isArray(payload.recommendedSteps)) payload.recommendedSteps = [payload.recommendedSteps].filter(Boolean);
-    if (!Array.isArray(payload.warrantyConsiderations)) payload.warrantyConsiderations = [payload.warrantyConsiderations].filter(Boolean);
-
-    // Save to case document
-    const aiReview = {
-      generatedAt: new Date(),
-      generatedByUserId: userId,
-      payload
+    // normalize / validate shape defensively
+    const normalized = {
+      summary: payload.summary ? String(payload.summary).trim() : "",
+      possibleCauses: clampArray(payload.possibleCauses),
+      recommendedSteps: clampArray(payload.recommendedSteps),
+      warrantyConsiderations: clampArray(payload.warrantyConsiderations),
+      draftCustomerReply: payload.draftCustomerReply ? String(payload.draftCustomerReply).trim() : "",
+      draftInternalNote: payload.draftInternalNote ? String(payload.draftInternalNote).trim() : "",
     };
 
-    // Also add timeline event
+    const aiReview = {
+      payload: normalized,
+      generatedAt: new Date(),
+      generatedByUserId: userId,
+      model: "gpt-4o-mini",
+    };
+
     const event = {
       type: "AI_REVIEW_GENERATED",
       createdAt: new Date(),
       createdByUserId: userId,
-      summary: "AI case review generated"
+      summary: "AI case review generated",
     };
 
-    await AftercareCase.findByIdAndUpdate(caseId, {
-      aiReview,
-      $push: { events: event }
-    });
+    await AftercareCase.updateOne(
+      { _id: caseId, dealerId },
+      {
+        $set: { aiReview },
+        $push: { events: event },
+      }
+    );
 
     return res.status(200).json({
-      success: true,
-      aiReview
+      ok: true,
+      cached: false,
+      aiReview,
     });
-
-  } catch (error) {
-    console.error("AI case review error:", error);
+  } catch (err) {
+    console.error("OpenAI case-review error:", err);
     return res.status(500).json({ error: "Failed to generate AI review" });
   }
 }

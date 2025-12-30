@@ -16,4 +16,4 @@ const vehicleAttachmentSchema = new mongoose.Schema(
 );
 
 vehicleAttachmentSchema.plugin(toJSON);
-export default mongoose.models.VehicleAttachment || mongoose.model("VehicleAttachment", vehicleAttachmentSchema);
+export default mongoose.models?.VehicleAttachment || mongoose.model("VehicleAttachment", vehicleAttachmentSchema);

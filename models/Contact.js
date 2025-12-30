@@ -16,4 +16,4 @@ const contactSchema = new mongoose.Schema(
 );
 
 contactSchema.plugin(toJSON);
-export default mongoose.models.Contact || mongoose.model("Contact", contactSchema);
+export default mongoose.models?.Contact || mongoose.model("Contact", contactSchema);

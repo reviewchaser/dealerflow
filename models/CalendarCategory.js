@@ -11,4 +11,4 @@ const calendarCategorySchema = new mongoose.Schema(
 );
 
 calendarCategorySchema.plugin(toJSON);
-export default mongoose.models.CalendarCategory || mongoose.model("CalendarCategory", calendarCategorySchema);
+export default mongoose.models?.CalendarCategory || mongoose.model("CalendarCategory", calendarCategorySchema);

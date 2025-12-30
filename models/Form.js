@@ -37,9 +37,5 @@ formSchema.index({ dealerId: 1, publicSlug: 1 }, { unique: true, sparse: true })
 
 formSchema.plugin(toJSON);
 
-// Delete cached model to force schema update (needed after index changes)
-if (mongoose.models.Form) {
-  delete mongoose.models.Form;
-}
-
-export default mongoose.model("Form", formSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.Form || mongoose.model("Form", formSchema);

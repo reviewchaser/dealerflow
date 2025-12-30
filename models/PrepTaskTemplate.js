@@ -11,4 +11,4 @@ const prepTaskTemplateSchema = new mongoose.Schema(
 );
 
 prepTaskTemplateSchema.plugin(toJSON);
-export default mongoose.models.PrepTaskTemplate || mongoose.model("PrepTaskTemplate", prepTaskTemplateSchema);
+export default mongoose.models?.PrepTaskTemplate || mongoose.model("PrepTaskTemplate", prepTaskTemplateSchema);

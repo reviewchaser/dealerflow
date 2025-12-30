@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatsCard from "@/components/StatsCard";
 
@@ -112,9 +113,52 @@ const ATTENTION_COLORS = {
 
 export default function Dashboard() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [stats, setStats] = useState(null);
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Check if we should redirect to tenant URL (legacy route access)
+  useEffect(() => {
+    async function checkForTenantRedirect() {
+      // Skip if already on a tenant route
+      if (router.asPath.startsWith("/app/")) return;
+
+      try {
+        const res = await fetch("/api/dealers/memberships");
+        if (!res.ok) return;
+
+        const dealers = await res.json();
+
+        if (dealers.length === 0) {
+          // No dealers - redirect to create dealer
+          router.push("/onboarding/create-dealer");
+          return;
+        }
+
+        if (dealers.length === 1) {
+          // Single dealer - redirect to tenant route
+          setIsRedirecting(true);
+          router.replace(`/app/${dealers[0].slug}/dashboard`);
+          return;
+        }
+
+        if (dealers.length > 1) {
+          // Multiple dealers - show picker
+          setIsRedirecting(true);
+          router.push("/choose-dealer");
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking dealer redirect:", err);
+      }
+    }
+
+    if (session) {
+      checkForTenantRedirect();
+    }
+  }, [session, router]);
 
   const defaultStats = {
     appraisals: { total: 0, pending: 0 },

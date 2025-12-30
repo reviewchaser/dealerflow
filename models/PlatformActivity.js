@@ -83,5 +83,5 @@ platformActivitySchema.statics.log = async function (type, data = {}) {
   }
 };
 
-export default mongoose.models.PlatformActivity ||
+export default mongoose.models?.PlatformActivity ||
   mongoose.model("PlatformActivity", platformActivitySchema);

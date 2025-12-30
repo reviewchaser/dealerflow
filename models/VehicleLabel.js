@@ -11,4 +11,4 @@ const vehicleLabelSchema = new mongoose.Schema(
 );
 
 vehicleLabelSchema.plugin(toJSON);
-export default mongoose.models.VehicleLabel || mongoose.model("VehicleLabel", vehicleLabelSchema);
+export default mongoose.models?.VehicleLabel || mongoose.model("VehicleLabel", vehicleLabelSchema);

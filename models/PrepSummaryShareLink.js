@@ -48,5 +48,5 @@ const prepSummaryShareLinkSchema = new mongoose.Schema(
 
 prepSummaryShareLinkSchema.plugin(toJSON);
 
-export default mongoose.models.PrepSummaryShareLink ||
+export default mongoose.models?.PrepSummaryShareLink ||
   mongoose.model("PrepSummaryShareLink", prepSummaryShareLinkSchema);

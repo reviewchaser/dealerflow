@@ -11,4 +11,4 @@ const vehicleTaskTemplateSchema = new mongoose.Schema(
 );
 
 vehicleTaskTemplateSchema.plugin(toJSON);
-export default mongoose.models.VehicleTaskTemplate || mongoose.model("VehicleTaskTemplate", vehicleTaskTemplateSchema);
+export default mongoose.models?.VehicleTaskTemplate || mongoose.model("VehicleTaskTemplate", vehicleTaskTemplateSchema);

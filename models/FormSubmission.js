@@ -57,4 +57,4 @@ formSubmissionSchema.index({ dealerId: 1, formId: 1 });
 formSubmissionSchema.index({ dealerId: 1, submittedAt: -1 });
 formSubmissionSchema.index({ dealerId: 1, status: 1 });
 
-export default mongoose.models.FormSubmission || mongoose.model("FormSubmission", formSubmissionSchema);
+export default mongoose.models?.FormSubmission || mongoose.model("FormSubmission", formSubmissionSchema);

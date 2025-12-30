@@ -24,8 +24,8 @@ MONGODB_URI=your_mongodb_connection_string
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your_secret_key_here
 
-# Claude API (Optional - will work without it using generic hints)
-ANTHROPIC_API_KEY=sk-ant-xxxxx
+# OpenAI API (Optional - will work without it using generic hints)
+OPENAI_API_KEY=sk-xxxxx
 ```
 
 ### Step 3: Start the Development Server
@@ -141,7 +141,7 @@ curl -X POST http://localhost:3000/api/ai-hints \
 
 ### 3. Without API Key
 
-If you haven't set `ANTHROPIC_API_KEY`, you'll get generic hints:
+If you haven't set `OPENAI_API_KEY`, you'll get generic hints:
 - Service history and MOT history
 - Brake pads and discs condition
 - Tyre tread depth and condition
@@ -230,7 +230,7 @@ dealerflow/
 │       │       ├── index.js    ✅ NEW - Submissions API
 │       │       └── [id].js     ✅ NEW - Single submission
 │       ├── seed-forms.js       ✅ NEW - Seed standard forms
-│       └── ai-hints.js         ✅ UPDATED - AI hints with Claude
+│       └── ai-hints.js         ✅ UPDATED - AI hints with OpenAI
 │
 └── components/
     ├── ShareFormModal.js       ✅ NEW - Share modal with QR
@@ -252,7 +252,7 @@ dealerflow/
 - Check browser console for errors
 
 ### AI hints returning generic hints?
-- Check that `ANTHROPIC_API_KEY` is set in `.env.local`
+- Check that `OPENAI_API_KEY` is set in `.env.local`
 - Restart the dev server after adding the env variable
 
 ### Public forms showing "Form Not Found"?
@@ -272,7 +272,7 @@ dealerflow/
 - [x] Complete forms system with 9 templates
 - [x] Public shareable forms with QR codes
 - [x] Forms dashboard with Templates & Submissions tabs
-- [x] AI hints for vehicle appraisals (Claude integration)
+- [x] AI hints for vehicle appraisals (OpenAI integration)
 - [x] All necessary database models
 - [x] Forms API endpoints
 - [x] Share functionality (email, WhatsApp, SMS, QR)
@@ -295,7 +295,7 @@ dealerflow/
 ## 🎯 Next Steps
 
 1. **Test the forms system** - Create submissions, share forms
-2. **Configure Claude API** (optional) - For AI hints
+2. **Configure OpenAI API** (optional) - For AI hints
 3. **Customize form templates** - Adjust fields as needed
 4. **Integrate into existing pages** - Link from dashboard, etc.
 5. **Set up file storage** - For actual file uploads (S3, Cloudinary, etc.)

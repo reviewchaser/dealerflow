@@ -18,4 +18,4 @@ const aiHintCacheSchema = new mongoose.Schema(
 aiHintCacheSchema.index({ make: 1, model: 1, engineSize: 1, fuelType: 1 });
 
 aiHintCacheSchema.plugin(toJSON);
-export default mongoose.models.AIHintCache || mongoose.model("AIHintCache", aiHintCacheSchema);
+export default mongoose.models?.AIHintCache || mongoose.model("AIHintCache", aiHintCacheSchema);

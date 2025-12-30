@@ -26,9 +26,12 @@ const courtesyAllocationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["OUT", "RETURNED"],
+      enum: ["RESERVED", "OUT", "RETURNED", "CANCELLED"],
       default: "OUT"
     },
+    // Start and end dates for the booking (for overlap calculation)
+    startAt: { type: Date }, // When booking starts (defaults to dateOut if not set)
+    endAt: { type: Date },   // Expected end of booking (defaults to dateDueBack if not set)
   },
   { timestamps: true }
 );
@@ -39,5 +42,7 @@ courtesyAllocationSchema.plugin(toJSON);
 courtesyAllocationSchema.index({ dealerId: 1, dateDueBack: 1, dateReturned: 1 });
 courtesyAllocationSchema.index({ dealerId: 1, status: 1 });
 courtesyAllocationSchema.index({ courtesyVehicleId: 1, status: 1 });
+// Index for overlap queries (checking availability by date range)
+courtesyAllocationSchema.index({ courtesyVehicleId: 1, startAt: 1, endAt: 1, status: 1 });
 
-export default mongoose.models.CourtesyAllocation || mongoose.model("CourtesyAllocation", courtesyAllocationSchema);
+export default mongoose.models?.CourtesyAllocation || mongoose.model("CourtesyAllocation", courtesyAllocationSchema);

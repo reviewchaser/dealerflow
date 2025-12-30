@@ -2,8 +2,33 @@
  * OpenAI Client Helper
  *
  * Server-side only helper for OpenAI API access.
- * Reads API key from environment variables.
+ * Provides a singleton client and helper functions.
  */
+
+import OpenAI from "openai";
+
+// Singleton client - created once and reused
+let _client = null;
+
+/**
+ * Get or create the OpenAI client singleton
+ * Always call this function - don't use a top-level export
+ * because env vars may not be available at module load time.
+ * @returns {OpenAI | null}
+ */
+export function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("[OpenAI] OPENAI_API_KEY not set - AI features disabled");
+    return null;
+  }
+  if (!_client) {
+    _client = new OpenAI({
+      apiKey: apiKey,
+    });
+  }
+  return _client;
+}
 
 /**
  * Get the OpenAI API key from environment
@@ -15,6 +40,31 @@ export function getAIConfig() {
     apiKey,
     isConfigured: !!apiKey,
   };
+}
+
+/**
+ * Safely parse JSON from AI response
+ * Strips code fences if present and throws clear error if parsing fails
+ * @param {string} text - Raw text from AI
+ * @returns {object} Parsed JSON object
+ * @throws {Error} If parsing fails
+ */
+export function safeJsonParse(text) {
+  if (!text) {
+    throw new Error("Empty AI response - cannot parse JSON");
+  }
+
+  // Strip markdown code fences if present
+  const cleaned = text
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    throw new Error(`Failed to parse AI JSON response: ${e.message}. Raw text: ${cleaned.slice(0, 200)}...`);
+  }
 }
 
 /**
@@ -36,62 +86,42 @@ export const AI_SUGGESTION_SCHEMA = {
  * @returns {Promise<object>} Parsed JSON response
  */
 export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
-  const { apiKey, isConfigured } = getAIConfig();
+  const { isConfigured } = getAIConfig();
 
   if (!isConfigured) {
     return {
       success: false,
-      error: "AI not configured",
+      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
       errorCode: "NOT_CONFIGURED",
       isDummy: true,
       data: generateDummySuggestions(),
     };
   }
 
+  const client = getOpenAIClient();
+  if (!client) {
+    return {
+      success: false,
+      error: "OpenAI client not available",
+      errorCode: "CLIENT_ERROR",
+      isDummy: true,
+      data: generateDummySuggestions(),
+    };
+  }
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: options.model || "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: options.temperature || 0.3,
-        max_tokens: options.maxTokens || 1500,
-        response_format: { type: "json_object" },
-      }),
+    const response = await client.chat.completions.create({
+      model: options.model || "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: options.temperature || 0.3,
+      max_tokens: options.maxTokens || 1500,
+      response_format: { type: "json_object" },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[OpenAI] API error:", response.status, errorText);
-
-      if (response.status === 401) {
-        return {
-          success: false,
-          error: "AI authentication failed",
-          errorCode: "AUTH_FAILED",
-          isDummy: true,
-          data: generateDummySuggestions(),
-        };
-      }
-
-      return {
-        success: false,
-        error: "AI service error",
-        errorCode: "SERVICE_ERROR",
-        isDummy: true,
-        data: generateDummySuggestions(),
-      };
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = response.choices?.[0]?.message?.content;
 
     if (!content) {
       return {
@@ -104,7 +134,7 @@ export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
     }
 
     // Parse JSON response
-    const parsed = JSON.parse(content);
+    const parsed = safeJsonParse(content);
     return {
       success: true,
       isDummy: false,
@@ -112,10 +142,21 @@ export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
     };
   } catch (error) {
     console.error("[OpenAI] Error:", error.message);
+
+    if (error.status === 401) {
+      return {
+        success: false,
+        error: "OpenAI authentication failed. Check your API key.",
+        errorCode: "AUTH_FAILED",
+        isDummy: true,
+        data: generateDummySuggestions(),
+      };
+    }
+
     return {
       success: false,
-      error: "AI service unavailable",
-      errorCode: "NETWORK_ERROR",
+      error: "OpenAI service unavailable",
+      errorCode: "SERVICE_ERROR",
       isDummy: true,
       data: generateDummySuggestions(),
     };
@@ -130,7 +171,7 @@ function generateDummySuggestions() {
     suspected_issues: [
       {
         title: "Unable to generate AI suggestions",
-        why: "AI service is not configured or unavailable",
+        why: "OpenAI service is not configured or unavailable. Please set OPENAI_API_KEY.",
         urgency: "low",
       },
     ],

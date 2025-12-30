@@ -422,13 +422,34 @@ export default async function handler(req, res) {
 
             if (existingCase) {
               // Append submission to existing case
-              await AftercareCase.findByIdAndUpdate(existingCase._id, {
+              const updateOps = {
                 $addToSet: { linkedSubmissionIds: submission._id },
                 // Update details with latest submission info
                 $set: {
                   warrantyType: warrantyType || existingCase.warrantyType,
                 }
-              });
+              };
+
+              // Transfer any files from the form submission to case attachments
+              const submissionFiles = await FormSubmissionFile.find({ formSubmissionId: submission._id });
+              if (submissionFiles.length > 0) {
+                const newAttachments = submissionFiles.map(f => ({
+                  url: f.url,
+                  filename: f.filename || `${f.fieldName}_file`,
+                  uploadedAt: new Date(),
+                }));
+                updateOps.$push = {
+                  attachments: { $each: newAttachments },
+                  events: {
+                    type: "ATTACHMENT_ADDED",
+                    createdAt: new Date(),
+                    summary: `${submissionFiles.length} file(s) added from warranty form submission`,
+                    metadata: { sourceSubmissionId: submission._id }
+                  }
+                };
+              }
+
+              await AftercareCase.findByIdAndUpdate(existingCase._id, updateOps);
 
               // Link submission to case
               await FormSubmission.findByIdAndUpdate(submission._id, {
@@ -449,6 +470,30 @@ export default async function handler(req, res) {
                 if (vehicle) {
                   linkedVehicleId = vehicle._id;
                 }
+              }
+
+              // Get any files from the form submission to add as attachments
+              const submissionFiles = await FormSubmissionFile.find({ formSubmissionId: submission._id });
+              const initialAttachments = submissionFiles.map(f => ({
+                url: f.url,
+                filename: f.filename || `${f.fieldName}_file`,
+                uploadedAt: new Date(),
+              }));
+
+              const initialEvents = [{
+                type: "CASE_CREATED",
+                createdAt: new Date(),
+                summary: "Warranty claim submitted via form",
+                metadata: { sourceSubmissionId: submission._id }
+              }];
+
+              if (submissionFiles.length > 0) {
+                initialEvents.push({
+                  type: "ATTACHMENT_ADDED",
+                  createdAt: new Date(),
+                  summary: `${submissionFiles.length} file(s) attached from form submission`,
+                  metadata: { sourceSubmissionId: submission._id }
+                });
               }
 
               const newCase = await AftercareCase.create({
@@ -476,6 +521,8 @@ export default async function handler(req, res) {
                 regAtPurchase: vrmNormalized,
                 warrantyType,
                 linkedSubmissionIds: [submission._id],
+                attachments: initialAttachments,
+                events: initialEvents,
               });
 
               // Link submission to case

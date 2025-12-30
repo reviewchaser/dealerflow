@@ -29,9 +29,5 @@ const formFieldSchema = new mongoose.Schema(
 
 formFieldSchema.plugin(toJSON);
 
-// Delete cached model to force schema update (needed after enum changes)
-if (mongoose.models.FormField) {
-  delete mongoose.models.FormField;
-}
-
-export default mongoose.model("FormField", formFieldSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.FormField || mongoose.model("FormField", formFieldSchema);

@@ -1,0 +1,5782 @@
+{
+  "timestamp": "2025-12-28T21:43:04.134Z",
+  "collections": {
+    "forms": [
+      {
+        "_id": "6943dece4c6f461b33ea746e",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "PDI (Pre-Delivery Inspection)",
+        "type": "PDI",
+        "visibility": "SHARE_LINK",
+        "isPublic": false,
+        "publicSlug": "pdi",
+        "createdAt": "2025-12-18T11:00:30.978Z",
+        "updatedAt": "2025-12-20T00:53:45.702Z",
+        "__v": 0,
+        "introText": "Complete all sections of this Pre-Delivery Inspection before vehicle handover.",
+        "schemaVersion": 1,
+        "termsText": null,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "IN_PREP",
+            "ADVERTISED"
+          ]
+        }
+      },
+      {
+        "_id": "6943ded64c6f461b33ea7542",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Test Drive Request",
+        "type": "TEST_DRIVE",
+        "visibility": "PUBLIC",
+        "isPublic": true,
+        "publicSlug": "test-drive",
+        "createdAt": "2025-12-18T11:00:38.853Z",
+        "updatedAt": "2025-12-20T00:53:48.617Z",
+        "__v": 0,
+        "introText": "Please complete this form to book a test drive. You must bring your valid driving licence on the day.",
+        "termsText": "By signing this form, I confirm that:\n- I hold a valid UK driving licence\n- I am covered by {dealer.companyName}'s insurance for the duration of the test drive\n- I will follow all road traffic laws\n- I am responsible for any parking or speeding fines incurred during the test drive\n- I will not allow any other person to drive the vehicle",
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "IN_PREP",
+            "ADVERTISED",
+            "LIVE"
+          ]
+        }
+      },
+      {
+        "_id": "6943ded84c6f461b33ea7570",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Courtesy Car Out",
+        "type": "COURTESY_OUT",
+        "visibility": "INTERNAL",
+        "isPublic": false,
+        "publicSlug": "courtesy-out",
+        "createdAt": "2025-12-18T11:00:40.556Z",
+        "updatedAt": "2025-12-20T00:53:49.361Z",
+        "__v": 0,
+        "introText": "Complete this form when issuing a courtesy vehicle to a customer.",
+        "termsText": "TERMS OF USE - COURTESY VEHICLE\n\n1. The vehicle must be returned with the same fuel level as when collected.\n2. The driver is responsible for any parking fines, speeding tickets, or congestion charges.\n3. The vehicle must not be driven outside the UK.\n4. Only named drivers on this form may drive the vehicle.\n5. Any damage must be reported immediately to {dealer.companyName}.\n6. The vehicle is covered by our insurance policy. Excess of £500 applies for any claims.\n7. The vehicle must be returned on the agreed date unless prior arrangement is made.\n\nFor emergencies, contact: {dealer.companyPhone}",
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "COURTESY"
+          ],
+          "vehicleType": "COURTESY"
+        }
+      },
+      {
+        "_id": "6943deda4c6f461b33ea75ac",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Courtesy Car Return",
+        "type": "COURTESY_IN",
+        "visibility": "INTERNAL",
+        "isPublic": false,
+        "publicSlug": "courtesy-in",
+        "createdAt": "2025-12-18T11:00:42.793Z",
+        "updatedAt": "2025-12-20T00:53:50.319Z",
+        "__v": 0,
+        "introText": "Complete this form when a courtesy vehicle is returned.",
+        "termsText": null,
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "COURTESY"
+          ],
+          "vehicleType": "COURTESY"
+        }
+      },
+      {
+        "_id": "6943dedc4c6f461b33ea75d4",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Vehicle Delivery",
+        "type": "DELIVERY",
+        "visibility": "SHARE_LINK",
+        "isPublic": false,
+        "publicSlug": "delivery",
+        "createdAt": "2025-12-18T11:00:44.279Z",
+        "updatedAt": "2025-12-20T00:53:50.985Z",
+        "__v": 0,
+        "introText": "Complete this form when handing over a vehicle to the customer.",
+        "termsText": null,
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "SOLD",
+            "ADVERTISED"
+          ]
+        }
+      },
+      {
+        "_id": "6943dedd4c6f461b33ea75f4",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Service Receipt",
+        "type": "SERVICE_RECEIPT",
+        "visibility": "INTERNAL",
+        "isPublic": false,
+        "publicSlug": "service-receipt",
+        "createdAt": "2025-12-18T11:00:45.464Z",
+        "updatedAt": "2025-12-20T00:53:51.808Z",
+        "__v": 0,
+        "introText": null,
+        "termsText": null,
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "IN_PREP",
+            "ADVERTISED",
+            "SOLD",
+            "DELIVERED"
+          ]
+        }
+      },
+      {
+        "_id": "6943dede4c6f461b33ea7610",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Warranty Claim",
+        "type": "WARRANTY_CLAIM",
+        "visibility": "PUBLIC",
+        "isPublic": true,
+        "publicSlug": "warranty-claim",
+        "createdAt": "2025-12-18T11:00:46.502Z",
+        "updatedAt": "2025-12-20T00:53:52.513Z",
+        "__v": 0,
+        "introText": "Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to page 5 of your warranty booklet.\n\nWe will only accept one claim per submission, submitting more than once may delay your claim being processed.\n\nPlease allow up to 48 hours for a response.\n\nPLEASE NOTE: ONLY THE PURCHASER OF THE VEHICLE CAN SUBMIT A CLAIM AND MUST HAVE REGISTERED THEIR WARRANTY.",
+        "termsText": "• I understand that I can use this form to report an issue however, it may not be a claimable issue.\n• I understand it may take up to 48 hours to receive a response to this claim form, and not to report the issue again as this may delay the claim further.\n• I understand that if I go ahead and undertake work without authorisation I am liable for the costs.",
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": {
+          "enabled": true,
+          "statuses": [
+            "SOLD",
+            "DELIVERED"
+          ]
+        }
+      },
+      {
+        "_id": "6943dee04c6f461b33ea763c",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "name": "Review & Feedback",
+        "type": "REVIEW_FEEDBACK",
+        "visibility": "PUBLIC",
+        "isPublic": true,
+        "publicSlug": "review",
+        "createdAt": "2025-12-18T11:00:48.168Z",
+        "updatedAt": "2025-12-20T00:53:53.167Z",
+        "__v": 0,
+        "introText": "We'd love to hear about your experience! Your feedback helps us improve our service.",
+        "termsText": null,
+        "schemaVersion": 1,
+        "updatedSource": "repair",
+        "vrmLookup": null
+      }
+    ],
+    "formfields": [
+      {
+        "_id": "6945f3990b89331bb0ea5563",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Vehicle Information",
+        "fieldName": "_section_vehicle",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea5565",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Vehicle Registration",
+        "fieldName": "vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea5567",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Make",
+        "fieldName": "make",
+        "type": "TEXT",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea5569",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Model",
+        "fieldName": "model",
+        "type": "TEXT",
+        "required": true,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea556b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Mileage",
+        "fieldName": "mileage",
+        "type": "NUMBER",
+        "required": true,
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea556d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Colour",
+        "fieldName": "colour",
+        "type": "TEXT",
+        "required": true,
+        "order": 6,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3990b89331bb0ea556f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Number of Keys",
+        "fieldName": "num_keys",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "1",
+            "2",
+            "3+"
+          ]
+        },
+        "order": 7,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5571",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Interior Checks",
+        "fieldName": "_section_interior",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5573",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Seat Adjustment",
+        "fieldName": "seat_adjustment",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5575",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Seat Belts",
+        "fieldName": "seat_belts",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 12,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5577",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Sun Visor/Sunroof",
+        "fieldName": "sun_visor",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 13,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5579",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Glove Box",
+        "fieldName": "glove_box",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 14,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea557b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Windows Front/Rear",
+        "fieldName": "windows",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 15,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea557d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Wipers",
+        "fieldName": "wipers",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 16,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea557f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Washer System",
+        "fieldName": "washer",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 17,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5581",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Sat Nav",
+        "fieldName": "sat_nav",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 18,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5583",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Horn",
+        "fieldName": "horn",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 19,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5585",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Fuel Gauge",
+        "fieldName": "fuel_gauge",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5587",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Temp Gauge",
+        "fieldName": "temp_gauge",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5589",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Dash Lights",
+        "fieldName": "dash_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 22,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea558b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Audio System",
+        "fieldName": "audio_system",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 23,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea558d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Steering Wheel Controls",
+        "fieldName": "steering_controls",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 24,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea558f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Rear Camera",
+        "fieldName": "rear_camera",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 25,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5591",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Parking Sensors Front",
+        "fieldName": "parking_sensors_front",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 26,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5593",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Parking Sensors Rear",
+        "fieldName": "parking_sensors_rear",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 27,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5595",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Clock",
+        "fieldName": "clock",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 28,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5597",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Steering Tilt/Lock",
+        "fieldName": "steering_tilt",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 29,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea5599",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "12V Outlet",
+        "fieldName": "outlet_12v",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea559b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Mirrors",
+        "fieldName": "mirrors",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 31,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea559d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Heated Seats",
+        "fieldName": "heated_seats",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 32,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea559f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Air Conditioning",
+        "fieldName": "air_con",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 33,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea55a1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Key Fobs Working",
+        "fieldName": "key_fobs",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair/Replace",
+            "N/A"
+          ]
+        },
+        "order": 34,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea55a3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Equipment Checks",
+        "fieldName": "_section_equipment",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea55a5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Jack & Wrench",
+        "fieldName": "jack_wrench",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Present",
+            "Missing",
+            "N/A"
+          ]
+        },
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea55a7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Locking Wheel Nut Location",
+        "fieldName": "locking_nut_location",
+        "type": "TEXT",
+        "required": false,
+        "order": 42,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39a0b89331bb0ea55a9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Parcel Shelf",
+        "fieldName": "parcel_shelf",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Present",
+            "Missing",
+            "N/A"
+          ]
+        },
+        "order": 43,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55ab",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Exterior Checks",
+        "fieldName": "_section_exterior",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 50,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55ad",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Wiper Blades",
+        "fieldName": "wiper_blades",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace",
+            "N/A"
+          ]
+        },
+        "order": 51,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55af",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Bonnet",
+        "fieldName": "bonnet",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 52,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55b1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Boot",
+        "fieldName": "boot",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 53,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55b3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Door Locks",
+        "fieldName": "door_locks",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 54,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55b5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Central Locking",
+        "fieldName": "central_locking",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 55,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55b7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Exhaust",
+        "fieldName": "exhaust",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 56,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55b9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Fuel Cap",
+        "fieldName": "fuel_cap",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 57,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55bb",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Aerial",
+        "fieldName": "aerial",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 58,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55bd",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Wing Mirrors",
+        "fieldName": "wing_mirrors",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair",
+            "N/A"
+          ]
+        },
+        "order": 59,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55bf",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Windscreen Condition",
+        "fieldName": "windscreen",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Chip",
+            "Crack",
+            "Replace"
+          ]
+        },
+        "order": 60,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55c1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyres & Wheels",
+        "fieldName": "_section_tyres",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 70,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55c3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Size Front",
+        "fieldName": "tyre_size_front",
+        "type": "TEXT",
+        "required": true,
+        "order": 71,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55c5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Size Rear",
+        "fieldName": "tyre_size_rear",
+        "type": "TEXT",
+        "required": true,
+        "order": 72,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55c7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Runflat Tyres",
+        "fieldName": "runflat",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Yes",
+            "No"
+          ]
+        },
+        "order": 73,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55c9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Depth - Front Left (mm)",
+        "fieldName": "tyre_depth_fl",
+        "type": "NUMBER",
+        "required": true,
+        "order": 74,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55cb",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Depth - Front Right (mm)",
+        "fieldName": "tyre_depth_fr",
+        "type": "NUMBER",
+        "required": true,
+        "order": 75,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55cd",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Depth - Rear Left (mm)",
+        "fieldName": "tyre_depth_rl",
+        "type": "NUMBER",
+        "required": true,
+        "order": 76,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55cf",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Depth - Rear Right (mm)",
+        "fieldName": "tyre_depth_rr",
+        "type": "NUMBER",
+        "required": true,
+        "order": 77,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55d1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Pad Depth - Front Left (mm)",
+        "fieldName": "brake_pad_fl",
+        "type": "NUMBER",
+        "required": true,
+        "order": 78,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55d3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Pad Depth - Front Right (mm)",
+        "fieldName": "brake_pad_fr",
+        "type": "NUMBER",
+        "required": true,
+        "order": 79,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55d5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Pad Depth - Rear Left (mm)",
+        "fieldName": "brake_pad_rl",
+        "type": "NUMBER",
+        "required": true,
+        "order": 80,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55d7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Pad Depth - Rear Right (mm)",
+        "fieldName": "brake_pad_rr",
+        "type": "NUMBER",
+        "required": true,
+        "order": 81,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55d9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Wheels Condition",
+        "fieldName": "wheels_condition",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Good",
+            "Minor Damage",
+            "Needs Refurb"
+          ]
+        },
+        "order": 82,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55db",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tyre Pressure/Valves",
+        "fieldName": "tyre_pressure",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Adjusted",
+            "Issue"
+          ]
+        },
+        "order": 83,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55dd",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Discs",
+        "fieldName": "brake_discs",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Worn",
+            "Replace"
+          ]
+        },
+        "order": 84,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55df",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Light Checks",
+        "fieldName": "_section_lights",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 90,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55e1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Headlights",
+        "fieldName": "headlights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 91,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55e3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Lights",
+        "fieldName": "brake_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 92,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55e5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Fog Lights",
+        "fieldName": "fog_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "N/A"
+          ]
+        },
+        "order": 93,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55e7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Reverse Lights",
+        "fieldName": "reverse_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 94,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55e9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Indicators",
+        "fieldName": "indicators",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 95,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55eb",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Number Plate Lights",
+        "fieldName": "number_plate_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 96,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55ed",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Hazard Lights",
+        "fieldName": "hazard_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Repair"
+          ]
+        },
+        "order": 97,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55ef",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Interior Lights",
+        "fieldName": "interior_lights",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Replace Bulb",
+            "Repair"
+          ]
+        },
+        "order": 98,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55f1",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Road Test",
+        "fieldName": "_section_road_test",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 100,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55f3",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Parking Brake",
+        "fieldName": "parking_brake",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Adjust",
+            "Repair"
+          ]
+        },
+        "order": 101,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55f5",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Steering Effort",
+        "fieldName": "steering_effort",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Normal",
+            "Heavy",
+            "Light"
+          ]
+        },
+        "order": 102,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55f7",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Tracking",
+        "fieldName": "tracking",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Needs Alignment"
+          ]
+        },
+        "order": 103,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55f9",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Cruise Control",
+        "fieldName": "cruise_control",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Not Working",
+            "N/A"
+          ]
+        },
+        "order": 104,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55fb",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Odometer Matches",
+        "fieldName": "odometer_matches",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Yes",
+            "No"
+          ]
+        },
+        "order": 105,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55fd",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Heaters Working",
+        "fieldName": "heaters",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Not Working"
+          ]
+        },
+        "order": 106,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea55ff",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Steering Vibration",
+        "fieldName": "steering_vibration",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "None",
+            "Minor",
+            "Significant"
+          ]
+        },
+        "order": 107,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea5601",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Wobble",
+        "fieldName": "brake_wobble",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "None",
+            "Minor",
+            "Significant"
+          ]
+        },
+        "order": 108,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea5603",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Suspension",
+        "fieldName": "suspension",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Noisy",
+            "Repair"
+          ]
+        },
+        "order": 109,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea5605",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "CV Joints",
+        "fieldName": "cv_joints",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Clicking",
+            "Replace"
+          ]
+        },
+        "order": 110,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea5607",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Clutch",
+        "fieldName": "clutch",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Slipping",
+            "N/A (Auto)"
+          ]
+        },
+        "order": 111,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39b0b89331bb0ea5609",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Gear Change",
+        "fieldName": "gear_change",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "OK",
+            "Repair"
+          ]
+        },
+        "order": 112,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea560b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Engine Checks",
+        "fieldName": "_section_engine",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 120,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea560d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Oil Level",
+        "fieldName": "oil_level",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Low",
+            "Topped Up"
+          ]
+        },
+        "order": 121,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea560f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Brake Fluid",
+        "fieldName": "brake_fluid",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Low",
+            "Topped Up"
+          ]
+        },
+        "order": 122,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5611",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Screen Wash",
+        "fieldName": "screen_wash",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Low",
+            "Topped Up"
+          ]
+        },
+        "order": 123,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5613",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Coolant Level",
+        "fieldName": "coolant_level",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Low",
+            "Topped Up"
+          ]
+        },
+        "order": 124,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5615",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Power Steering Fluid",
+        "fieldName": "power_steering",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Low",
+            "N/A (Electric)"
+          ]
+        },
+        "order": 125,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5617",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Battery Condition",
+        "fieldName": "battery",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Good",
+            "Weak",
+            "Replace"
+          ]
+        },
+        "order": 126,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5619",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Ignition",
+        "fieldName": "ignition",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Issue"
+          ]
+        },
+        "order": 127,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea561b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Fuel System",
+        "fieldName": "fuel_system",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Leak",
+            "Issue"
+          ]
+        },
+        "order": 128,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea561d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Radiator",
+        "fieldName": "radiator",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Okay",
+            "Leak",
+            "Damage"
+          ]
+        },
+        "order": 129,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea561f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Cooling Fan",
+        "fieldName": "cooling_fan",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Working",
+            "Not Working"
+          ]
+        },
+        "order": 130,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5621",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "DPF Soot Level",
+        "fieldName": "dpf_soot",
+        "type": "RADIO",
+        "required": false,
+        "options": {
+          "choices": [
+            "OK",
+            "Repair/Replace"
+          ]
+        },
+        "order": 131,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5623",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Issues Found",
+        "fieldName": "_section_issues",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 133,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5625",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Add issues that need attention. These will be automatically added to the vehicle's issue list.",
+        "fieldName": "_issues_help",
+        "type": "PARAGRAPH",
+        "required": false,
+        "order": 134,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5627",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Issues",
+        "fieldName": "pdi_issues",
+        "type": "PDI_ISSUES",
+        "required": false,
+        "order": 135,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5629",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Sign-off",
+        "fieldName": "_section_signoff",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 140,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea562b",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Notes / Recommendations",
+        "fieldName": "notes",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 141,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea562d",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Photos",
+        "fieldName": "photos",
+        "type": "FILE",
+        "required": false,
+        "order": 142,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea562f",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "PDI Carried Out By",
+        "fieldName": "inspector_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 143,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5631",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Date",
+        "fieldName": "pdi_date",
+        "type": "DATE",
+        "required": true,
+        "order": 144,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5633",
+        "formId": "6943dece4c6f461b33ea746e",
+        "label": "Inspector Signature",
+        "fieldName": "inspector_signature",
+        "type": "SIGNATURE",
+        "required": true,
+        "order": 145,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5639",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Date of Test Drive",
+        "fieldName": "date",
+        "type": "DATE",
+        "required": true,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea563b",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Time",
+        "fieldName": "time",
+        "type": "TIME",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea563d",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Your Details",
+        "fieldName": "_section_customer",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea563f",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "First Name",
+        "fieldName": "first_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 6,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5641",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Last Name",
+        "fieldName": "last_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 7,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5643",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Email",
+        "fieldName": "email",
+        "type": "TEXT",
+        "required": true,
+        "order": 8,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5645",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Contact Number",
+        "fieldName": "phone",
+        "type": "TEXT",
+        "required": true,
+        "order": 9,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5647",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Driving Licence",
+        "fieldName": "_section_licence",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 15,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea5649",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Upload Driving Licence (Front)",
+        "fieldName": "licence_photo",
+        "type": "FILE",
+        "required": true,
+        "order": 16,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39c0b89331bb0ea564b",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Address (if different from licence)",
+        "fieldName": "_section_address",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea564d",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Street Address",
+        "fieldName": "address_street",
+        "type": "TEXT",
+        "required": false,
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea564f",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Address Line 2",
+        "fieldName": "address_line2",
+        "type": "TEXT",
+        "required": false,
+        "order": 22,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5651",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "City",
+        "fieldName": "address_city",
+        "type": "TEXT",
+        "required": false,
+        "order": 23,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5653",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Post Code",
+        "fieldName": "address_postcode",
+        "type": "TEXT",
+        "required": false,
+        "order": 24,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5655",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Vehicle Details",
+        "fieldName": "_section_vehicle",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5657",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Vehicle Registration",
+        "fieldName": "vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 31,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5659",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Vehicle Make",
+        "fieldName": "vehicle_make",
+        "type": "TEXT",
+        "required": false,
+        "order": 32,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": true,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea565b",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Vehicle Model",
+        "fieldName": "vehicle_model",
+        "type": "TEXT",
+        "required": false,
+        "order": 33,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": true,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea565d",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Where did you find this vehicle?",
+        "fieldName": "source",
+        "type": "DROPDOWN",
+        "required": true,
+        "options": {
+          "choices": [
+            "AutoTrader",
+            "eBay",
+            "Facebook",
+            "Google",
+            "Referral",
+            "Walk-in",
+            "Other"
+          ]
+        },
+        "order": 35,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea565f",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Terms & Conditions",
+        "fieldName": "_section_terms",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5661",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "I agree to the Terms & Conditions",
+        "fieldName": "agree_terms",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5663",
+        "formId": "6943ded64c6f461b33ea7542",
+        "label": "Signature",
+        "fieldName": "signature",
+        "type": "SIGNATURE",
+        "required": true,
+        "order": 42,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5669",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Vehicle Details",
+        "fieldName": "_section_vehicle",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea566b",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Courtesy Vehicle Registration",
+        "fieldName": "courtesy_vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea566d",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Current Mileage",
+        "fieldName": "mileage_out",
+        "type": "NUMBER",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea566f",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Date/Time Out",
+        "fieldName": "datetime_out",
+        "type": "DATETIME",
+        "required": true,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5671",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Expected Return Date",
+        "fieldName": "date_due_back",
+        "type": "DATE",
+        "required": true,
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5673",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Fuel Level",
+        "fieldName": "fuel_out",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Empty",
+            "1/4",
+            "1/2",
+            "3/4",
+            "Full"
+          ]
+        },
+        "order": 6,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5675",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Customer Vehicle Registration",
+        "fieldName": "customer_vehicle_reg",
+        "type": "TEXT",
+        "required": false,
+        "order": 7,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "placeholder": "Customer's vehicle being repaired (if applicable)",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5677",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Driver Information",
+        "fieldName": "_section_driver",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5679",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "First Name",
+        "fieldName": "driver_first_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea567b",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Last Name",
+        "fieldName": "driver_last_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 12,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea567d",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Mobile Number",
+        "fieldName": "driver_phone",
+        "type": "TEXT",
+        "required": true,
+        "order": 13,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea567f",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Date of Birth",
+        "fieldName": "driver_dob",
+        "type": "DATE",
+        "required": true,
+        "order": 14,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5681",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Street Address",
+        "fieldName": "driver_address_street",
+        "type": "TEXT",
+        "required": true,
+        "order": 15,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5683",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "City",
+        "fieldName": "driver_address_city",
+        "type": "TEXT",
+        "required": true,
+        "order": 16,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5685",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "County",
+        "fieldName": "driver_address_county",
+        "type": "TEXT",
+        "required": false,
+        "order": 17,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5687",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Post Code",
+        "fieldName": "driver_address_postcode",
+        "type": "TEXT",
+        "required": true,
+        "order": 18,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea5689",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Additional Driver (Optional)",
+        "fieldName": "_section_additional",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 25,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea568b",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Additional Driver Name",
+        "fieldName": "additional_driver_name",
+        "type": "TEXT",
+        "required": false,
+        "order": 26,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39d0b89331bb0ea568d",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Additional Driver Mobile",
+        "fieldName": "additional_driver_phone",
+        "type": "TEXT",
+        "required": false,
+        "order": 27,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea568f",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Additional Driver DOB",
+        "fieldName": "additional_driver_dob",
+        "type": "DATE",
+        "required": false,
+        "order": 28,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea5691",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Documents",
+        "fieldName": "_section_docs",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 35,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea5693",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Upload Driving Licence (Front & Back)",
+        "fieldName": "licence_photos",
+        "type": "FILE",
+        "required": true,
+        "order": 36,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea5695",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Condition Report",
+        "fieldName": "_section_condition",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea5697",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Existing Damage Notes",
+        "fieldName": "existing_damage",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "placeholder": "Note any existing scratches, dents, etc.",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea5699",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Condition Photos",
+        "fieldName": "condition_photos",
+        "type": "FILE",
+        "required": false,
+        "order": 42,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea569b",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Agreement",
+        "fieldName": "_section_agreement",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 50,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea569d",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "I have read and agree to the terms of use",
+        "fieldName": "terms_accepted",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 51,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea569f",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "I confirm the fuel level and mileage are correct",
+        "fieldName": "confirm_details",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 52,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56a1",
+        "formId": "6943ded84c6f461b33ea7570",
+        "label": "Driver Signature",
+        "fieldName": "signature",
+        "type": "SIGNATURE",
+        "required": true,
+        "order": 53,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56a7",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Vehicle Details",
+        "fieldName": "_section_vehicle",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56a9",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Courtesy Vehicle Registration",
+        "fieldName": "courtesy_vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56ab",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Date/Time Returned",
+        "fieldName": "datetime_returned",
+        "type": "DATETIME",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56ad",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Mileage In",
+        "fieldName": "mileage_in",
+        "type": "NUMBER",
+        "required": true,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56af",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Fuel Level",
+        "fieldName": "fuel_in",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Empty",
+            "1/4",
+            "1/2",
+            "3/4",
+            "Full"
+          ]
+        },
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56b1",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Customer Vehicle Registration",
+        "fieldName": "customer_vehicle_reg",
+        "type": "TEXT",
+        "required": false,
+        "order": 6,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "placeholder": "Customer's vehicle being repaired (if applicable)",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56b3",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Driver Information",
+        "fieldName": "_section_driver",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56b5",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Driver Name",
+        "fieldName": "driver_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56b7",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Return Condition",
+        "fieldName": "_section_condition",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56b9",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Vehicle returned clean",
+        "fieldName": "returned_clean",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56bb",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "No new damage",
+        "fieldName": "no_new_damage",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 22,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56bd",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "All belongings removed",
+        "fieldName": "belongings_removed",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 23,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56bf",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Fuel level acceptable",
+        "fieldName": "fuel_acceptable",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 24,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56c1",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Issues / Disclosure",
+        "fieldName": "_section_issues",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56c3",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Any damage or issues to report?",
+        "fieldName": "issues_notes",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 31,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56c5",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Damage Photos",
+        "fieldName": "damage_photos",
+        "type": "FILE",
+        "required": false,
+        "order": 32,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56c7",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Sign-off",
+        "fieldName": "_section_signoff",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56c9",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Driver Signature",
+        "fieldName": "signature",
+        "type": "SIGNATURE",
+        "required": true,
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39e0b89331bb0ea56cb",
+        "formId": "6943deda4c6f461b33ea75ac",
+        "label": "Staff Member Name",
+        "fieldName": "staff_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 42,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56d1",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Vehicle Details",
+        "fieldName": "_section_vehicle",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56d3",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Vehicle Registration",
+        "fieldName": "vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56d5",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Date",
+        "fieldName": "delivery_date",
+        "type": "DATE",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56d7",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Time",
+        "fieldName": "delivery_time",
+        "type": "TIME",
+        "required": true,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56d9",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Customer Details",
+        "fieldName": "_section_customer",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56db",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Customer First Name",
+        "fieldName": "customer_first_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56dd",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Customer Last Name",
+        "fieldName": "customer_last_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 12,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56df",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Documentation",
+        "fieldName": "_section_docs",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56e1",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Photo of Invoice with ID",
+        "fieldName": "invoice_id_photo",
+        "type": "FILE",
+        "required": true,
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56e3",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Photo of Customer with Vehicle",
+        "fieldName": "customer_vehicle_photo",
+        "type": "FILE",
+        "required": true,
+        "order": 22,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56e5",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Consent",
+        "fieldName": "_section_consent",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56e7",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Do you consent for the delivery photo to be used on our website/social media?",
+        "fieldName": "photo_consent",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Yes",
+            "No"
+          ]
+        },
+        "order": 31,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56e9",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Sign-off",
+        "fieldName": "_section_signoff",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56eb",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Customer Signature",
+        "fieldName": "customer_signature",
+        "type": "SIGNATURE",
+        "required": true,
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56ed",
+        "formId": "6943dedc4c6f461b33ea75d4",
+        "label": "Staff Member Name",
+        "fieldName": "staff_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 42,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56f3",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "REGISTRATION",
+        "fieldName": "vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56f5",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "MILEAGE",
+        "fieldName": "mileage",
+        "type": "NUMBER",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56f7",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "MAKE",
+        "fieldName": "make",
+        "type": "TEXT",
+        "required": false,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f39f0b89331bb0ea56f9",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "MODEL",
+        "fieldName": "model",
+        "type": "TEXT",
+        "required": false,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea56fb",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "WORK CARRIED OUT",
+        "fieldName": "_section_work",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea56fd",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "OIL FILTER",
+        "fieldName": "oil_filter",
+        "type": "BOOLEAN",
+        "required": false,
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea56ff",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "AIR FILTER",
+        "fieldName": "air_filter",
+        "type": "BOOLEAN",
+        "required": false,
+        "order": 12,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5701",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "CABIN FILTER",
+        "fieldName": "cabin_filter",
+        "type": "BOOLEAN",
+        "required": false,
+        "order": 13,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5703",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "SPARK PLUGS",
+        "fieldName": "spark_plugs",
+        "type": "BOOLEAN",
+        "required": false,
+        "order": 14,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5705",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "PRE-DELIVERY INSPECTION",
+        "fieldName": "pdi_done",
+        "type": "BOOLEAN",
+        "required": false,
+        "order": 15,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5707",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "ADDITIONAL WORKS",
+        "fieldName": "_section_additional",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5709",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "ADDITIONAL WORKS",
+        "fieldName": "additional_works",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea570b",
+        "formId": "6943dedd4c6f461b33ea75f4",
+        "label": "DATE CARRIED OUT",
+        "fieldName": "service_date",
+        "type": "DATE",
+        "required": true,
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": true,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5711",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Purchase Information",
+        "fieldName": "_section_purchase",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5713",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Registration at time of purchase",
+        "fieldName": "vrm",
+        "type": "TEXT",
+        "required": true,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": true,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5715",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Purchase Date",
+        "fieldName": "purchase_date",
+        "type": "DATE",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5717",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Vehicle Make and Model",
+        "fieldName": "vehicle_make_model",
+        "type": "TEXT",
+        "required": false,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5719",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Exact Mileage",
+        "fieldName": "exact_mileage",
+        "type": "TEXT",
+        "required": true,
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "placeholder": "e.g. 23456",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea571b",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Customer Details",
+        "fieldName": "_section_customer",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 10,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea571d",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Customer Name",
+        "fieldName": "customer_name",
+        "type": "TEXT",
+        "required": true,
+        "order": 11,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea571f",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Email",
+        "fieldName": "email",
+        "type": "TEXT",
+        "required": true,
+        "order": 12,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5721",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Phone Number",
+        "fieldName": "phone",
+        "type": "TEXT",
+        "required": true,
+        "order": 13,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "helpText": "Please enter a valid phone number",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5723",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Street Address",
+        "fieldName": "address_street",
+        "type": "TEXT",
+        "required": true,
+        "order": 14,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5725",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Address Line 2",
+        "fieldName": "address_line2",
+        "type": "TEXT",
+        "required": false,
+        "order": 15,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5727",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "City",
+        "fieldName": "address_city",
+        "type": "TEXT",
+        "required": true,
+        "order": 16,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea5729",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "County / State",
+        "fieldName": "address_county",
+        "type": "TEXT",
+        "required": false,
+        "order": 17,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea572b",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Postcode",
+        "fieldName": "address_postcode",
+        "type": "TEXT",
+        "required": true,
+        "order": 18,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea572d",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Issue Description",
+        "fieldName": "_section_issue",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 20,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a00b89331bb0ea572f",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Please describe the issue in as much detail as possible",
+        "fieldName": "issue_description",
+        "type": "TEXTAREA",
+        "required": true,
+        "order": 21,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "helpText": "Include any warning lights on the dashboard, noises, symptoms, when the issue occurs, etc.",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5731",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Upload Pictures / Videos",
+        "fieldName": "issue_media",
+        "type": "FILE",
+        "required": false,
+        "order": 22,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "helpText": "You can upload multiple files. Drag and drop or click to select.",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5733",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Warranty Information",
+        "fieldName": "_section_warranty",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 30,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5735",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Warranty Type",
+        "fieldName": "warranty_type",
+        "type": "DROPDOWN",
+        "required": true,
+        "options": {
+          "choices": [
+            "Dealer Warranty",
+            "External Warranty"
+          ]
+        },
+        "order": 31,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "placeholder": "Please Select",
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5737",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "Terms & Conditions",
+        "fieldName": "_section_terms",
+        "type": "SECTION_HEADER",
+        "required": false,
+        "order": 40,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5739",
+        "formId": "6943dede4c6f461b33ea7610",
+        "label": "I agree and I have read the terms and condition details above.",
+        "fieldName": "agree_terms",
+        "type": "BOOLEAN",
+        "required": true,
+        "order": 41,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea573f",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "Your Name",
+        "fieldName": "name",
+        "type": "TEXT",
+        "required": true,
+        "order": 1,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5741",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "Email (optional)",
+        "fieldName": "email",
+        "type": "TEXT",
+        "required": false,
+        "order": 2,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5743",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "Overall Rating",
+        "fieldName": "rating",
+        "type": "RATING",
+        "required": true,
+        "order": 3,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5745",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "What did we do well?",
+        "fieldName": "positive_feedback",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 4,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5747",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "What could we improve?",
+        "fieldName": "improvement_feedback",
+        "type": "TEXTAREA",
+        "required": false,
+        "order": 5,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      },
+      {
+        "_id": "6945f3a10b89331bb0ea5749",
+        "formId": "6943dee04c6f461b33ea763c",
+        "label": "Would you recommend us to friends and family?",
+        "fieldName": "would_recommend",
+        "type": "RADIO",
+        "required": true,
+        "options": {
+          "choices": [
+            "Definitely",
+            "Probably",
+            "Not Sure",
+            "Probably Not",
+            "Definitely Not"
+          ]
+        },
+        "order": 6,
+        "visible": true,
+        "isDefault": true,
+        "isCustom": false,
+        "vrmLookup": false,
+        "hiddenWhenStockSelected": false,
+        "uppercase": false,
+        "__v": 0
+      }
+    ],
+    "dealers": [
+      {
+        "_id": "6943debd4c6f461b33ea742d",
+        "name": "My New Motor LTD",
+        "status": "ACTIVE",
+        "logoUrl": "",
+        "slug": "my-new-motor-ltd",
+        "formCustomText": {},
+        "completedOnboarding": true,
+        "timezone": "Europe/London",
+        "onboarding": {
+          "enabledModules": {
+            "salesPrep": true,
+            "appraisals": true,
+            "warranty": false,
+            "reviews": false
+          },
+          "enabledForms": [],
+          "completedSteps": [
+            "modules"
+          ]
+        },
+        "boardConfig": {
+          "columns": [
+            {
+              "key": "in_stock",
+              "label": "In Stock",
+              "order": 0,
+              "color": "slate",
+              "_id": "6943decd4c6f461b33ea744f"
+            },
+            {
+              "key": "in_prep",
+              "label": "In Prep",
+              "order": 1,
+              "color": "amber",
+              "_id": "6943decd4c6f461b33ea7450"
+            },
+            {
+              "key": "live",
+              "label": "Advertised",
+              "order": 2,
+              "color": "blue",
+              "_id": "6943decd4c6f461b33ea7451"
+            },
+            {
+              "key": "sold",
+              "label": "Sold - In Progress",
+              "order": 3,
+              "color": "purple",
+              "_id": "6943decd4c6f461b33ea7452"
+            },
+            {
+              "key": "reserved",
+              "label": "Reserved",
+              "order": 4,
+              "color": "pink",
+              "_id": "6943decd4c6f461b33ea7453"
+            },
+            {
+              "key": "delivered",
+              "label": "Delivered",
+              "order": 5,
+              "color": "green",
+              "_id": "6943decd4c6f461b33ea7454"
+            }
+          ]
+        },
+        "taskAutoComplete": {
+          "enabled": true,
+          "mappings": [
+            {
+              "formType": "PDI",
+              "taskName": "Pre-Delivery Inspection",
+              "_id": "6943dece4c6f461b33ea7468"
+            },
+            {
+              "formType": "DELIVERY",
+              "taskName": "Delivery / Handover",
+              "_id": "6943dece4c6f461b33ea7469"
+            },
+            {
+              "formType": "SERVICE_RECEIPT",
+              "taskName": "Service / Oil & Filter",
+              "_id": "6943dece4c6f461b33ea746a"
+            }
+          ]
+        },
+        "createdAt": "2025-12-18T11:00:13.931Z",
+        "updatedAt": "2025-12-18T11:09:30.912Z",
+        "__v": 1,
+        "companyEmail": "accounts@mynewmotor.co.uk",
+        "companyName": "My New Motor LTD",
+        "companyPhone": "07828662881",
+        "primaryContactEmail": "accounts@mynewmotor.co.uk",
+        "primaryContactPhone": "07828662881",
+        "defaultTaskTemplateGroupId": "6943dece4c6f461b33ea7457"
+      }
+    ],
+    "appraisalissues": [],
+    "courtesyallocations": [
+      {
+        "_id": "69440193610e9768df06754b",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "courtesyVehicleId": "6944011e0550efb466687fc5",
+        "aftercareCaseId": "6943e13479717727921a2b69",
+        "customerVehicleRegNormalized": "X5GTA",
+        "dateOut": "2025-12-18T13:28:51.270Z",
+        "dateDueBack": null,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "source": "MANUAL",
+        "status": "RETURNED",
+        "createdAt": "2025-12-18T13:28:51.271Z",
+        "updatedAt": "2025-12-27T09:17:13.941Z",
+        "__v": 0,
+        "dateReturned": "2025-12-27T09:17:13.941Z",
+        "fuelLevelIn": null,
+        "mileageIn": null
+      },
+      {
+        "_id": "69505e503b41d9c36eb9c498",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "courtesyVehicleId": "6944011e0550efb466687fc5",
+        "aftercareCaseId": "6943e13479717727921a2b69",
+        "customerVehicleRegNormalized": "X5GTA",
+        "dateOut": "2025-12-27T22:31:44.828Z",
+        "dateDueBack": null,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "source": "MANUAL",
+        "status": "RETURNED",
+        "createdAt": "2025-12-27T22:31:44.834Z",
+        "updatedAt": "2025-12-28T21:13:30.495Z",
+        "__v": 0,
+        "dateReturned": "2025-12-28T21:13:30.495Z",
+        "fuelLevelIn": null,
+        "mileageIn": null
+      },
+      {
+        "_id": "69519d8a5a2a16a5148a5fb4",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "courtesyVehicleId": "6944011e0550efb466687fc5",
+        "aftercareCaseId": "6950675795d800157210d6a3",
+        "customerVehicleRegNormalized": "X7HYTA",
+        "dateOut": "2025-12-28T21:13:46.747Z",
+        "dateDueBack": null,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "source": "MANUAL",
+        "status": "RETURNED",
+        "createdAt": "2025-12-28T21:13:46.748Z",
+        "updatedAt": "2025-12-28T21:14:01.643Z",
+        "__v": 0,
+        "dateReturned": "2025-12-28T21:14:01.643Z",
+        "fuelLevelIn": null,
+        "mileageIn": null
+      },
+      {
+        "_id": "69519da45a2a16a5148a6092",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "courtesyVehicleId": "6944011e0550efb466687fc5",
+        "aftercareCaseId": "694424be9c6c64ad5a5b2c88",
+        "customerVehicleRegNormalized": "X5GTA",
+        "dateOut": "2025-12-28T21:14:12.902Z",
+        "dateDueBack": null,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "source": "MANUAL",
+        "status": "RETURNED",
+        "createdAt": "2025-12-28T21:14:12.902Z",
+        "updatedAt": "2025-12-28T21:17:47.878Z",
+        "__v": 0,
+        "dateReturned": "2025-12-28T21:17:47.876Z",
+        "fuelLevelIn": null,
+        "mileageIn": null
+      },
+      {
+        "_id": "69519e865a2a16a5148a62d9",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "courtesyVehicleId": "6944011e0550efb466687fc5",
+        "aftercareCaseId": "6943e13479717727921a2b69",
+        "customerVehicleRegNormalized": "X5GTA",
+        "dateOut": "2025-12-28T21:17:58.452Z",
+        "dateDueBack": null,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "source": "MANUAL",
+        "status": "OUT",
+        "createdAt": "2025-12-28T21:17:58.453Z",
+        "updatedAt": "2025-12-28T21:17:58.453Z",
+        "__v": 0
+      }
+    ],
+    "reviewrequests": [],
+    "reviewresponses": [],
+    "aftercarecases": [
+      {
+        "_id": "6943e13479717727921a2b69",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "contactId": "6943e13479717727921a2b65",
+        "vehicleId": null,
+        "source": "warranty_claim_form",
+        "status": "new",
+        "boardStatus": "on_site",
+        "priority": "normal",
+        "summary": "test",
+        "details": {
+          "issueDescription": "test",
+          "mileage": "1233",
+          "purchaseDate": "2019-02-02",
+          "vehicleMakeModel": "ford",
+          "customerAddress": {
+            "street": "The Barn, Bath Road, Farmborough",
+            "line2": "Farmborough",
+            "city": "Bath",
+            "county": "Avon",
+            "postcode": "BA20BR"
+          }
+        },
+        "regAtPurchase": "X5GTA",
+        "warrantyType": "Dealer Warranty",
+        "linkedSubmissionIds": [
+          "6943e13479717727921a2b61"
+        ],
+        "repairLocationType": "ON_SITE",
+        "partsRequired": false,
+        "courtesyRequired": true,
+        "aiReview": {
+          "payload": {
+            "possibleCauses": [],
+            "recommendedSteps": [],
+            "warrantyConsiderations": []
+          }
+        },
+        "attachments": [],
+        "events": [
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-18T11:11:04.028Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "6943e148069491ea516e156f"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-18T11:11:05.238Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "6943e149069491ea516e1583"
+          },
+          {
+            "type": "BOOKING_UPDATED",
+            "createdAt": "2025-12-18T13:28:36.326Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking set: 26 Dec, 13:28",
+            "metadata": {
+              "oldBookedAt": null,
+              "newBookedAt": "2025-12-26T13:28:00.000Z"
+            },
+            "_id": "69440184610e9768df0674ab"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:28:44.257Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "6944018c610e9768df0674c2"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:28:44.522Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "6944018c610e9768df0674d5"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:28:44.872Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "6944018c610e9768df0674ea"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:28:45.129Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "6944018d610e9768df0674fb"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:28:45.940Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "6944018d610e9768df06750f"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-18T13:28:47.652Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "6944018f610e9768df067523"
+          },
+          {
+            "type": "COURTESY_ALLOCATED",
+            "createdAt": "2025-12-18T13:28:51.347Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW allocated",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69440193610e9768df06754b",
+              "dueBack": null
+            },
+            "_id": "69440193610e9768df06754d"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-18T13:28:52.147Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69440194610e9768df067562"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:30:46.368Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "69440206610e9768df06769b"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:30:50.096Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "6944020a610e9768df0676af"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:36:48.844Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "694403700550efb46668837f"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:36:50.294Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "694403720550efb466688393"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T13:36:51.100Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "694403730550efb4666883a7"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-18T17:19:50.571Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"With customer\" to \"On-site\"",
+            "metadata": {
+              "fromLocation": "WITH_CUSTOMER",
+              "toLocation": "ON_SITE"
+            },
+            "_id": "694437b6db1653185c938f1c"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-18T17:20:01.646Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts required marked",
+            "metadata": {
+              "partsRequired": true,
+              "wasRequired": false
+            },
+            "_id": "694437c1db1653185c938f2f"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-18T17:20:06.571Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "694437c6db1653185c938f42"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "createdAt": "2025-12-18T17:20:24.286Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Status changed from \"Not Booked In\" to \"On Site\"",
+            "metadata": {
+              "fromStatus": "not_booked_in",
+              "toStatus": "on_site"
+            },
+            "_id": "694437d8db1653185c938f67"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "createdAt": "2025-12-18T17:20:24.311Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Status changed from \"Not Booked In\" to \"On Site\"",
+            "metadata": {
+              "fromStatus": "not_booked_in",
+              "toStatus": "on_site"
+            },
+            "_id": "694437d8db1653185c938f69"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "createdAt": "2025-12-20T00:59:23.459Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Status changed from \"On Site\" to \"Not Booked In\"",
+            "metadata": {
+              "fromStatus": "on_site",
+              "toStatus": "not_booked_in"
+            },
+            "_id": "6945f4eb44bb623b62c45e37"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-20T00:59:27.973Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"On-site\" to \"With customer\"",
+            "metadata": {
+              "fromLocation": "ON_SITE",
+              "toLocation": "WITH_CUSTOMER"
+            },
+            "_id": "6945f4ef44bb623b62c45e5e"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-20T00:59:28.552Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"On-site\" to \"With customer\"",
+            "metadata": {
+              "fromLocation": "ON_SITE",
+              "toLocation": "WITH_CUSTOMER"
+            },
+            "_id": "6945f4f044bb623b62c45e72"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-20T00:59:32.061Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"With customer\" to \"On-site\"",
+            "metadata": {
+              "fromLocation": "WITH_CUSTOMER",
+              "toLocation": "ON_SITE"
+            },
+            "_id": "6945f4f444bb623b62c45e86"
+          },
+          {
+            "type": "COURTESY_RETURNED",
+            "createdAt": "2025-12-27T09:17:14.021Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW returned",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69440193610e9768df06754b"
+            },
+            "_id": "694fa41ac10a1b04ba941a86"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-27T09:17:16.339Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "694fa41c0bdacdf32684ff22"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-27T14:52:57.031Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 28 Dec, 13:28",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-26T13:28:00.000Z",
+              "newBookingDateTime": "2025-12-28T13:28:00.000Z"
+            },
+            "_id": "694ff2c96ab405b26ef4b0a3"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-27T14:53:04.321Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 29 Dec, 13:28",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-28T13:28:00.000Z",
+              "newBookingDateTime": "2025-12-29T13:28:00.000Z"
+            },
+            "_id": "694ff2d06ab405b26ef4b0bb"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-27T22:31:39.091Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69505e4b3b41d9c36eb9c46e"
+          },
+          {
+            "type": "COURTESY_ALLOCATED",
+            "createdAt": "2025-12-27T22:31:44.863Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW allocated",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69505e503b41d9c36eb9c498",
+              "dueBack": null
+            },
+            "_id": "69505e503b41d9c36eb9c49a"
+          },
+          {
+            "type": "STATUS_CHANGED",
+            "createdAt": "2025-12-27T22:40:32.938Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Status changed from \"Not Booked In\" to \"On Site\"",
+            "metadata": {
+              "fromStatus": "not_booked_in",
+              "toStatus": "on_site"
+            },
+            "_id": "695060603b41d9c36eb9c789"
+          },
+          {
+            "type": "COURTESY_RETURNED",
+            "createdAt": "2025-12-28T21:13:30.526Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW returned",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69505e503b41d9c36eb9c498"
+            },
+            "_id": "69519d7a5a2a16a5148a5f53"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:07.333Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519ddb5a2a16a5148a60fd"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:08.087Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519ddc5a2a16a5148a6111"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:25.980Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519ded5a2a16a5148a61ca"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:17:41.259Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519e755a2a16a5148a620b"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:17:55.966Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519e835a2a16a5148a629d"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:17:56.876Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519e845a2a16a5148a62b1"
+          },
+          {
+            "type": "COURTESY_ALLOCATED",
+            "createdAt": "2025-12-28T21:17:58.475Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW allocated",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69519e865a2a16a5148a62d9",
+              "dueBack": null
+            },
+            "_id": "69519e865a2a16a5148a62db"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-28T21:18:13.745Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 3 Dec, 13:28",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-29T13:28:00.000Z",
+              "newBookingDateTime": "2025-12-03T13:28:00.000Z"
+            },
+            "_id": "69519e955a2a16a5148a631e"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-28T21:18:14.082Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 1 Dec, 13:28",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-03T13:28:00.000Z",
+              "newBookingDateTime": "2025-12-01T13:28:00.000Z"
+            },
+            "_id": "69519e965a2a16a5148a6338"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-28T21:18:16.504Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 1 Jan, 13:28",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-01T13:28:00.000Z",
+              "newBookingDateTime": "2025-01-01T13:28:00.000Z"
+            },
+            "_id": "69519e985a2a16a5148a6352"
+          },
+          {
+            "type": "PARTS_UPDATED",
+            "createdAt": "2025-12-28T21:18:19.250Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Parts no longer required",
+            "metadata": {
+              "partsRequired": false,
+              "wasRequired": true
+            },
+            "_id": "69519e9b5a2a16a5148a6366"
+          }
+        ],
+        "createdAt": "2025-12-18T11:10:44.632Z",
+        "updatedAt": "2025-12-28T21:18:19.250Z",
+        "__v": 0,
+        "bookedInAt": "2025-01-01T13:28:00.000Z",
+        "linkedCalendarEventId": "69440184610e9768df0674a9",
+        "courtesyAllocationId": "69519e865a2a16a5148a62d9"
+      },
+      {
+        "_id": "694424be9c6c64ad5a5b2c88",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "contactId": "694424be9c6c64ad5a5b2c84",
+        "vehicleId": "6943fbcda0248f21ed92c9ed",
+        "source": "warranty_claim_form",
+        "status": "new",
+        "boardStatus": "on_site",
+        "priority": "normal",
+        "summary": "test",
+        "details": {
+          "issueDescription": "test",
+          "mileage": "123123",
+          "purchaseDate": "2019-02-02",
+          "vehicleMakeModel": "Porsche",
+          "customerAddress": {
+            "street": "The Barn, Bath Road",
+            "city": "Bath",
+            "county": "Avon",
+            "postcode": "BA2 0BR"
+          }
+        },
+        "regAtPurchase": "X5GTA",
+        "warrantyType": "Dealer Warranty",
+        "linkedSubmissionIds": [
+          "694424bd9c6c64ad5a5b2c80"
+        ],
+        "repairLocationType": "WITH_CUSTOMER",
+        "partsRequired": false,
+        "courtesyRequired": true,
+        "aiReview": {
+          "payload": {
+            "possibleCauses": [],
+            "recommendedSteps": [],
+            "warrantyConsiderations": []
+          }
+        },
+        "attachments": [],
+        "events": [
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-19T18:06:54.249Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "6945943eb74fef21d94ddc42"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-19T18:06:55.375Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "6945943fb74fef21d94ddc57"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-19T18:06:56.969Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69459440b74fef21d94ddc6c"
+          },
+          {
+            "type": "WARRANTY_BOOKED_IN",
+            "createdAt": "2025-12-27T23:07:07.525Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking set: 30 Dec, 23:07",
+            "metadata": {
+              "bookingDateTime": "2025-12-30T23:07:00.000Z"
+            },
+            "_id": "6950669b95d800157210d171"
+          },
+          {
+            "type": "WARRANTY_STAGE_MOVED",
+            "createdAt": "2025-12-27T23:07:07.563Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Auto-moved from \"Not Booked In\" to \"Booked In\" (booking set)",
+            "metadata": {
+              "fromStatus": "not_booked_in",
+              "toStatus": "on_site",
+              "source": "SYSTEM",
+              "reason": "BOOKING_SET"
+            },
+            "_id": "6950669b95d800157210d172"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-27T23:07:26.692Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 3 Jan, 23:07",
+            "metadata": {
+              "oldBookingDateTime": "2025-12-30T23:07:00.000Z",
+              "newBookingDateTime": "2026-01-03T23:07:00.000Z"
+            },
+            "_id": "695066ae95d800157210d1b3"
+          },
+          {
+            "type": "COURTESY_ALLOCATED",
+            "createdAt": "2025-12-28T21:14:12.925Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW allocated",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69519da45a2a16a5148a6092",
+              "dueBack": null
+            },
+            "_id": "69519da45a2a16a5148a6094"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:15.270Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519de35a2a16a5148a614e"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:15.720Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519de35a2a16a5148a6163"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:16.259Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519de45a2a16a5148a6178"
+          },
+          {
+            "type": "COURTESY_RETURNED",
+            "createdAt": "2025-12-28T21:17:47.901Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW returned",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69519da45a2a16a5148a6092"
+            },
+            "_id": "69519e7b5a2a16a5148a624b"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-28T21:18:56.033Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 30 Dec, 23:07",
+            "metadata": {
+              "oldBookingDateTime": "2026-01-03T23:07:00.000Z",
+              "newBookingDateTime": "2025-12-30T23:07:00.000Z"
+            },
+            "_id": "69519ec05a2a16a5148a63e9"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:19:00.113Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519ec45a2a16a5148a63fe"
+          }
+        ],
+        "createdAt": "2025-12-18T15:58:54.391Z",
+        "updatedAt": "2025-12-28T21:19:00.113Z",
+        "__v": 0,
+        "bookedInAt": "2025-12-30T23:07:00.000Z",
+        "linkedCalendarEventId": "6950669b95d800157210d16f",
+        "previousBoardStatusBeforeBookedIn": "not_booked_in",
+        "courtesyAllocationId": "69519da45a2a16a5148a6092"
+      },
+      {
+        "_id": "6950675795d800157210d6a3",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "contactId": "6943e13479717727921a2b65",
+        "source": "manual",
+        "status": "new",
+        "boardStatus": "on_site",
+        "priority": "normal",
+        "summary": "test issue summary",
+        "details": {
+          "vehicleReg": "X5GTA44",
+          "regAtPurchase": "X7HYTA"
+        },
+        "regAtPurchase": "X7HYTA",
+        "warrantyType": "Dealer Warranty",
+        "linkedSubmissionIds": [],
+        "events": [
+          {
+            "type": "CASE_CREATED",
+            "createdAt": "2025-12-27T23:10:15.736Z",
+            "summary": "Case created",
+            "_id": "6950675795d800157210d6a4"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-27T23:10:44.904Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"With customer\" to \"On-site\"",
+            "metadata": {
+              "fromLocation": "WITH_CUSTOMER",
+              "toLocation": "ON_SITE"
+            },
+            "_id": "6950677495d800157210d757"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-27T23:10:45.455Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"On-site\" to \"Third-party\"",
+            "metadata": {
+              "fromLocation": "ON_SITE",
+              "toLocation": "THIRD_PARTY"
+            },
+            "_id": "6950677595d800157210d76b"
+          },
+          {
+            "type": "LOCATION_UPDATED",
+            "createdAt": "2025-12-27T23:10:46.918Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Repair location changed from \"Third-party\" to \"On-site\"",
+            "metadata": {
+              "fromLocation": "THIRD_PARTY",
+              "toLocation": "ON_SITE"
+            },
+            "_id": "6950677695d800157210d77f"
+          },
+          {
+            "type": "WARRANTY_BOOKED_IN",
+            "createdAt": "2025-12-28T21:13:15.237Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking set: 28 Jan, 21:13",
+            "metadata": {
+              "bookingDateTime": "2026-01-28T21:13:00.000Z"
+            },
+            "_id": "69519d6b5a2a16a5148a5ee5"
+          },
+          {
+            "type": "WARRANTY_STAGE_MOVED",
+            "createdAt": "2025-12-28T21:13:15.255Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Auto-moved from \"Not Booked In\" to \"Booked In\" (booking set)",
+            "metadata": {
+              "fromStatus": "not_booked_in",
+              "toStatus": "on_site",
+              "source": "SYSTEM",
+              "reason": "BOOKING_SET"
+            },
+            "_id": "69519d6b5a2a16a5148a5ee6"
+          },
+          {
+            "type": "WARRANTY_BOOKING_UPDATED",
+            "createdAt": "2025-12-28T21:13:16.783Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Booking updated: 6 Feb, 21:13",
+            "metadata": {
+              "oldBookingDateTime": "2026-01-28T21:13:00.000Z",
+              "newBookingDateTime": "2026-02-06T21:13:00.000Z"
+            },
+            "_id": "69519d6c5a2a16a5148a5efe"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:13:19.603Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519d6f5a2a16a5148a5f12"
+          },
+          {
+            "type": "COURTESY_ALLOCATED",
+            "createdAt": "2025-12-28T21:13:46.770Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW allocated",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69519d8a5a2a16a5148a5fb4",
+              "dueBack": null
+            },
+            "_id": "69519d8a5a2a16a5148a5fb6"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:13:47.841Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519d8b5a2a16a5148a5fde"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:13:53.763Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car marked as required",
+            "metadata": {
+              "courtesyRequired": true
+            },
+            "_id": "69519d915a2a16a5148a5ff2"
+          },
+          {
+            "type": "COURTESY_RETURNED",
+            "createdAt": "2025-12-28T21:14:01.665Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy vehicle RF67HLW returned",
+            "metadata": {
+              "courtesyVrm": "RF67HLW",
+              "allocationId": "69519d8a5a2a16a5148a5fb4"
+            },
+            "_id": "69519d995a2a16a5148a6030"
+          },
+          {
+            "type": "COURTESY_REQUIRED_TOGGLED",
+            "createdAt": "2025-12-28T21:15:21.506Z",
+            "createdByUserId": "6943de9b4c6f461b33ea7415",
+            "createdByName": "George Arnold",
+            "summary": "Courtesy car no longer required",
+            "metadata": {
+              "courtesyRequired": false
+            },
+            "_id": "69519de95a2a16a5148a61a1"
+          }
+        ],
+        "repairLocationType": "ON_SITE",
+        "partsRequired": false,
+        "courtesyRequired": false,
+        "aiReview": {
+          "payload": {
+            "possibleCauses": [],
+            "recommendedSteps": [],
+            "warrantyConsiderations": []
+          }
+        },
+        "attachments": [],
+        "createdAt": "2025-12-27T23:10:15.740Z",
+        "updatedAt": "2025-12-28T21:15:21.506Z",
+        "__v": 0,
+        "bookedInAt": "2026-02-06T21:13:00.000Z",
+        "linkedCalendarEventId": "69519d6b5a2a16a5148a5ee3",
+        "previousBoardStatusBeforeBookedIn": "not_booked_in",
+        "courtesyAllocationId": "69519d8a5a2a16a5148a5fb4"
+      }
+    ],
+    "vehicles": [
+      {
+        "_id": "6943e2b279717727921a2d42",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": null,
+        "regCurrent": "B9SCS",
+        "make": "MERCEDES-BENZ",
+        "model": "test",
+        "year": 2019,
+        "mileageCurrent": 123122,
+        "fuelType": "PETROL",
+        "transmission": "",
+        "colour": "RED",
+        "status": "in_stock",
+        "motStatus": "unknown",
+        "notes": "",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdAt": "2025-12-18T11:17:06.314Z",
+        "updatedAt": "2025-12-18T13:04:28.394Z",
+        "__v": 0,
+        "motExpiryDate": "2026-01-01T00:00:00.000Z"
+      },
+      {
+        "_id": "6943fbcda0248f21ed92c9ed",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "X5GTA",
+        "make": "PORSCHE",
+        "model": "test",
+        "year": 2022,
+        "mileageCurrent": null,
+        "fuelType": "ELECTRICITY",
+        "transmission": "",
+        "colour": "WHITE",
+        "status": "in_stock",
+        "motStatus": "unknown",
+        "notes": "",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "createdAt": "2025-12-18T13:04:13.265Z",
+        "updatedAt": "2025-12-27T14:51:40.719Z",
+        "__v": 0,
+        "motExpiryDate": "2026-03-21T00:00:00.000Z"
+      },
+      {
+        "_id": "6943fd8aa0248f21ed92cb79",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "V9SCS",
+        "make": "MERCEDES-BENZ",
+        "model": "Unknown",
+        "year": 2022,
+        "mileageCurrent": 2221,
+        "fuelType": "DIESEL",
+        "colour": "BLUE",
+        "status": "in_stock",
+        "motStatus": "unknown",
+        "v5Url": null,
+        "serviceHistoryUrl": null,
+        "notes": "testing",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdAt": "2025-12-18T13:11:38.235Z",
+        "updatedAt": "2025-12-18T13:11:38.235Z",
+        "__v": 0
+      },
+      {
+        "_id": "6944011e0550efb466687fc5",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "COURTESY",
+        "saleType": null,
+        "regCurrent": "RF67HLW",
+        "make": "FORD",
+        "model": "RANGER",
+        "year": 2018,
+        "mileageCurrent": 123121,
+        "fuelType": "DIESEL",
+        "transmission": "",
+        "colour": "WHITE",
+        "status": "in_stock",
+        "motStatus": "unknown",
+        "notes": "",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "createdAt": "2025-12-18T13:26:54.281Z",
+        "updatedAt": "2025-12-18T13:28:26.234Z",
+        "__v": 0
+      },
+      {
+        "_id": "6944248a22598ff94d085363",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "CA51EAN",
+        "make": "FORD",
+        "model": "transit",
+        "year": 2018,
+        "mileageCurrent": 119,
+        "fuelType": "DIESEL",
+        "transmission": "",
+        "colour": "GREY",
+        "status": "in_stock",
+        "motExpiryDate": "2026-01-02T00:00:00.000Z",
+        "motStatus": "unknown",
+        "notes": "",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "createdAt": "2025-12-18T15:58:02.080Z",
+        "updatedAt": "2025-12-18T15:58:02.080Z",
+        "__v": 0
+      },
+      {
+        "_id": "6944253ebfe6e4b999e6aaa0",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "X5GTA",
+        "make": "PORSCHE",
+        "model": "test",
+        "year": 2022,
+        "mileageCurrent": 123,
+        "fuelType": "Petrol",
+        "colour": "WHITE",
+        "status": "in_stock",
+        "motStatus": "unknown",
+        "v5Url": null,
+        "serviceHistoryUrl": null,
+        "notes": "test",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdAt": "2025-12-18T16:01:02.393Z",
+        "updatedAt": "2025-12-27T14:52:25.384Z",
+        "__v": 0,
+        "motExpiryDate": "2026-04-26T00:00:00.000Z"
+      },
+      {
+        "_id": "69442f2e1f857969db97494c",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "B2",
+        "make": "PORSCHE",
+        "model": "asd",
+        "year": 2025,
+        "mileageCurrent": 123,
+        "fuelType": "ELECTRICITY",
+        "colour": "GREY",
+        "status": "in_stock",
+        "motExpiryDate": "2026-02-21T00:00:00.000Z",
+        "motStatus": "unknown",
+        "v5Url": null,
+        "serviceHistoryUrl": null,
+        "notes": "test",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdAt": "2025-12-18T16:43:26.803Z",
+        "updatedAt": "2025-12-27T14:52:17.148Z",
+        "__v": 0
+      },
+      {
+        "_id": "6945dd05619ba325037d5eb8",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "CP67UWO",
+        "make": "VOLKSWAGEN",
+        "model": "test",
+        "year": 2018,
+        "mileageCurrent": 1231233,
+        "fuelType": "DIESEL",
+        "colour": "GREY",
+        "status": "in_stock",
+        "motExpiryDate": null,
+        "motStatus": "unknown",
+        "v5Url": null,
+        "serviceHistoryUrl": null,
+        "notes": "dcdsdsdsf",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdAt": "2025-12-19T23:17:25.917Z",
+        "updatedAt": "2025-12-22T16:27:21.313Z",
+        "__v": 0
+      },
+      {
+        "_id": "6950667c95d800157210cf68",
+        "dealerId": "6943debd4c6f461b33ea742d",
+        "type": "STOCK",
+        "saleType": "RETAIL",
+        "regCurrent": "KW69GDZ",
+        "make": "FORD",
+        "model": "Transit Custom",
+        "year": 2019,
+        "mileageCurrent": null,
+        "fuelType": "DIESEL",
+        "transmission": "Manual",
+        "colour": "GREY",
+        "status": "in_stock",
+        "motExpiryDate": "2026-10-27T00:00:00.000Z",
+        "motStatus": "unknown",
+        "notes": "",
+        "labels": [],
+        "testDriveCount": 0,
+        "createdByUserId": "6943de9b4c6f461b33ea7415",
+        "createdAt": "2025-12-27T23:06:36.095Z",
+        "updatedAt": "2025-12-27T23:06:36.095Z",
+        "__v": 0
+      }
+    ]
+  }
+}

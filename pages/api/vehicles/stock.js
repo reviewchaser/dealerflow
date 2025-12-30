@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       };
 
       const vehicles = await Vehicle.find(query)
-        .sort({ regCurrent: 1 })
+        .sort({ createdAt: -1 }) // Sort newest first for duplicate VRMs
         .lean();
 
       // Transform and optionally filter by search term

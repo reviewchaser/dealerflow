@@ -17,4 +17,4 @@ const reviewResponseSchema = new mongoose.Schema(
 );
 
 reviewResponseSchema.plugin(toJSON);
-export default mongoose.models.ReviewResponse || mongoose.model("ReviewResponse", reviewResponseSchema);
+export default mongoose.models?.ReviewResponse || mongoose.model("ReviewResponse", reviewResponseSchema);

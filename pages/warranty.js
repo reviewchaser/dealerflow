@@ -156,6 +156,7 @@ export default function Warranty() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newComment, setNewComment] = useState("");
   const [commentAttachments, setCommentAttachments] = useState([]);
+  const [isUploadingCaseMedia, setIsUploadingCaseMedia] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [aiDiagnostics, setAiDiagnostics] = useState(null);
@@ -502,6 +503,47 @@ export default function Warranty() {
       }
     }
     setCommentAttachments([...commentAttachments, ...uploadedFiles]);
+  };
+
+  // Upload media to case (not comment)
+  const handleCaseMediaUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0 || !selectedCase) return;
+
+    setIsUploadingCaseMedia(true);
+    const uploadedFiles = [];
+
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.url) {
+          uploadedFiles.push({ url: data.url, filename: data.filename || file.name });
+        }
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    if (uploadedFiles.length > 0) {
+      try {
+        await fetch(`/api/aftercare/${selectedCase.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ _addAttachments: uploadedFiles }),
+        });
+        toast.success(`${uploadedFiles.length} file(s) added to case`);
+        fetchCaseDetail(selectedCase.id);
+      } catch (err) {
+        toast.error("Failed to add media to case");
+      }
+    }
+
+    setIsUploadingCaseMedia(false);
+    // Reset the input
+    e.target.value = "";
   };
 
   const addComment = async () => {
@@ -2057,6 +2099,70 @@ export default function Warranty() {
                 </div>
               )}
 
+              {/* Attachments/Media */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">
+                    Attachments {(selectedCase.attachments?.length || 0) > 0 && (
+                      <span className="ml-1 text-slate-400 font-normal">({selectedCase.attachments.length})</span>
+                    )}
+                  </h3>
+                  <label className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors cursor-pointer">
+                    {isUploadingCaseMedia ? (
+                      <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    )}
+                    Add Media
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,video/*,.pdf"
+                      className="hidden"
+                      onChange={handleCaseMediaUpload}
+                      disabled={isUploadingCaseMedia}
+                    />
+                  </label>
+                </div>
+                <div className="p-4">
+                  {selectedCase.attachments?.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedCase.attachments.map((att, i) => (
+                        <a
+                          key={i}
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block aspect-square bg-slate-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                        >
+                          {att.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                            <img src={att.url} alt={att.filename} className="w-full h-full object-cover" />
+                          ) : att.url.match(/\.(mp4|webm|mov)$/i) ? (
+                            <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                              <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-2">
+                              <svg className="w-6 h-6 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="text-xs text-slate-500 text-center truncate w-full">{att.filename}</span>
+                            </div>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 text-center py-2">No attachments yet. Click "Add Media" to upload photos or documents.</p>
+                  )}
+                </div>
+              </div>
+
               {/* Timeline */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
@@ -2411,21 +2517,60 @@ export default function Warranty() {
 
 function AddCaseModal({ onClose, onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [mediaAttachments, setMediaAttachments] = useState([]);
   const [formData, setFormData] = useState({
     customerName: "", customerEmail: "", customerPhone: "",
     vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
-    warrantyType: "",
+    warrantyType: "", mileage: "",
+    addressStreet: "", addressCity: "", addressPostcode: "",
   });
+
+  const handleMediaUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    setIsUploadingMedia(true);
+    const uploadedFiles = [];
+    for (const file of files) {
+      const formDataObj = new FormData();
+      formDataObj.append("file", file);
+      try {
+        const res = await fetch("/api/vehicles/upload", { method: "POST", body: formDataObj });
+        const data = await res.json();
+        if (data.url) {
+          uploadedFiles.push({ url: data.url, filename: data.filename || file.name });
+        }
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+    setMediaAttachments([...mediaAttachments, ...uploadedFiles]);
+    setIsUploadingMedia(false);
+    e.target.value = "";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.customerName) return toast.error("Customer name required");
     setIsLoading(true);
     try {
+      const payload = {
+        ...formData,
+        source: "manual",
+        attachments: mediaAttachments,
+        details: {
+          mileage: formData.mileage,
+          customerAddress: {
+            street: formData.addressStreet,
+            city: formData.addressCity,
+            postcode: formData.addressPostcode,
+          }
+        }
+      };
       const res = await fetch("/api/aftercare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, source: "manual" }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to create");
       toast.success("Case created!");
@@ -2461,7 +2606,7 @@ function AddCaseModal({ onClose, onSuccess }) {
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="form-control">
-              <label className="label"><span className="label-text">Current Reg</span></label>
+              <label className="label"><span className="label-text">Current Reg (If different)</span></label>
               <input type="text" className="input input-bordered uppercase" value={formData.vehicleReg}
                 onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })} />
             </div>
@@ -2493,9 +2638,70 @@ function AddCaseModal({ onClose, onSuccess }) {
             </div>
           </div>
           <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Current Mileage</span></label>
+            <input type="number" className="input input-bordered" placeholder="e.g. 45000"
+              value={formData.mileage}
+              onChange={(e) => setFormData({ ...formData, mileage: e.target.value })} />
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Customer Address</span></label>
+            <input type="text" className="input input-bordered mb-2" placeholder="Street address"
+              value={formData.addressStreet}
+              onChange={(e) => setFormData({ ...formData, addressStreet: e.target.value })} />
+            <div className="grid grid-cols-2 gap-2">
+              <input type="text" className="input input-bordered" placeholder="City"
+                value={formData.addressCity}
+                onChange={(e) => setFormData({ ...formData, addressCity: e.target.value })} />
+              <input type="text" className="input input-bordered uppercase" placeholder="Postcode"
+                value={formData.addressPostcode}
+                onChange={(e) => setFormData({ ...formData, addressPostcode: e.target.value.toUpperCase() })} />
+            </div>
+          </div>
+          <div className="form-control mt-3">
             <label className="label"><span className="label-text">Issue Summary</span></label>
             <textarea className="textarea textarea-bordered" value={formData.summary}
               onChange={(e) => setFormData({ ...formData, summary: e.target.value })}></textarea>
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Photos/Documents</span></label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {mediaAttachments.map((att, i) => (
+                <div key={i} className="relative w-16 h-16 bg-slate-100 rounded overflow-hidden group">
+                  {att.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                    <img src={att.url} alt={att.filename} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 p-1">
+                      {att.filename}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    className="absolute top-0 right-0 bg-red-500 text-white w-4 h-4 text-xs flex items-center justify-center rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setMediaAttachments(mediaAttachments.filter((_, j) => j !== i))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+            <label className="btn btn-outline btn-sm gap-2 w-fit cursor-pointer">
+              {isUploadingMedia ? (
+                <span className="loading loading-spinner loading-xs"></span>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              )}
+              Add Photos
+              <input
+                type="file"
+                multiple
+                accept="image/*,.pdf"
+                className="hidden"
+                onChange={handleMediaUpload}
+                disabled={isUploadingMedia}
+              />
+            </label>
           </div>
           <div className="modal-action">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>

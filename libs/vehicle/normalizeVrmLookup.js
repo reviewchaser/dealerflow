@@ -13,12 +13,28 @@
  * - transmission
  * - engineCapacity
  *
- * TODO: Recall Support
- * Outstanding vehicle recalls are NOT available from the current DVLA VES or MOT History APIs.
- * To display recall information, a separate integration with the DVSA (Driver and Vehicle Standards Agency)
- * Vehicle Recall service would be required: https://www.gov.uk/check-vehicle-recall
- * The DVSA does not currently offer a public API for recall data.
+ * ========================================================================
+ * TODO: VEHICLE RECALL SUPPORT (Feature Flag: ENABLE_RECALL_CHECK)
+ * ========================================================================
+ * Outstanding vehicle recalls are NOT available from the DVLA VES API.
+ * The VES API does not include recall data in its response schema.
+ *
+ * Future Implementation Requirements:
+ * 1. The DVSA (Driver and Vehicle Standards Agency) does not currently offer
+ *    a public API for recall data.
+ * 2. Manual check is available at: https://www.gov.uk/check-vehicle-recall
+ * 3. If DVSA releases an API, implement:
+ *    - New API route: /api/dvsa/recalls
+ *    - Add to Vehicle model: recallDetails { hasOutstandingRecalls, recalls[], lastRecallCheckAt }
+ *    - Update VehicleDrawer to show recall warnings
+ *    - Add recall badge to vehicle list views
+ *
+ * DO NOT implement recall UI/filters until official DVLA/DVSA field names are confirmed.
+ * ========================================================================
  */
+
+// Feature flag placeholder for recalls (set via environment variable when ready)
+export const ENABLE_RECALL_CHECK = process.env.NEXT_PUBLIC_ENABLE_RECALL_CHECK === "true";
 
 /**
  * Normalize a VRM string (trim, uppercase, remove spaces)
@@ -129,24 +145,24 @@ export function normalizeFuelType(fuelType) {
 
   const normalized = fuelType.toUpperCase().trim();
 
-  // Map common variations
+  // Map common variations to capitalized form (for form select compatibility)
   const fuelMap = {
-    PETROL: "PETROL",
-    DIESEL: "DIESEL",
-    ELECTRIC: "ELECTRIC",
-    HYBRID: "HYBRID",
-    "HYBRID ELECTRIC": "HYBRID",
-    "PLUG-IN HYBRID": "HYBRID",
-    "PETROL/ELECTRIC HYBRID": "HYBRID",
-    "DIESEL/ELECTRIC HYBRID": "HYBRID",
-    GAS: "GAS",
+    PETROL: "Petrol",
+    DIESEL: "Diesel",
+    ELECTRIC: "Electric",
+    HYBRID: "Hybrid",
+    "HYBRID ELECTRIC": "Hybrid",
+    "PLUG-IN HYBRID": "Hybrid",
+    "PETROL/ELECTRIC HYBRID": "Hybrid",
+    "DIESEL/ELECTRIC HYBRID": "Hybrid",
+    GAS: "Gas",
     LPG: "LPG",
     CNG: "CNG",
-    "BI FUEL": "BI FUEL",
-    HYDROGEN: "HYDROGEN",
+    "BI FUEL": "Bi Fuel",
+    HYDROGEN: "Hydrogen",
   };
 
-  return fuelMap[normalized] || normalized;
+  return fuelMap[normalized] || fuelType;
 }
 
 /**
@@ -159,18 +175,18 @@ export function normalizeTransmission(transmission) {
 
   const normalized = transmission.toUpperCase().trim();
 
-  // Map common variations
+  // Map common variations to capitalized form (for form select compatibility)
   const transMap = {
-    MANUAL: "MANUAL",
-    AUTOMATIC: "AUTOMATIC",
-    AUTO: "AUTOMATIC",
-    SEMI: "SEMI-AUTO",
-    "SEMI-AUTOMATIC": "SEMI-AUTO",
-    "SEMI-AUTO": "SEMI-AUTO",
+    MANUAL: "Manual",
+    AUTOMATIC: "Automatic",
+    AUTO: "Automatic",
+    SEMI: "Semi-Auto",
+    "SEMI-AUTOMATIC": "Semi-Auto",
+    "SEMI-AUTO": "Semi-Auto",
     CVT: "CVT",
   };
 
-  return transMap[normalized] || normalized;
+  return transMap[normalized] || transmission;
 }
 
 /**

@@ -20,4 +20,4 @@ const vehicleSaleSchema = new mongoose.Schema(
 );
 
 vehicleSaleSchema.plugin(toJSON);
-export default mongoose.models.VehicleSale || mongoose.model("VehicleSale", vehicleSaleSchema);
+export default mongoose.models?.VehicleSale || mongoose.model("VehicleSale", vehicleSaleSchema);

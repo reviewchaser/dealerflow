@@ -24,4 +24,4 @@ const appraisalShareLinkSchema = new mongoose.Schema(
 );
 
 appraisalShareLinkSchema.plugin(toJSON);
-export default mongoose.models.AppraisalShareLink || mongoose.model("AppraisalShareLink", appraisalShareLinkSchema);
+export default mongoose.models?.AppraisalShareLink || mongoose.model("AppraisalShareLink", appraisalShareLinkSchema);

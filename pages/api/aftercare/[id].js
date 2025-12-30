@@ -71,7 +71,7 @@ async function handler(req, res, ctx) {
   }
 
   if (req.method === "PUT") {
-    const { boardStatus, _eventType, _eventMetadata, ...otherUpdates } = req.body;
+    const { boardStatus, _eventType, _eventMetadata, _addAttachments, ...otherUpdates } = req.body;
 
     // Get user name for event tracking
     let userName = null;
@@ -82,6 +82,42 @@ async function handler(req, res, ctx) {
 
     // Build events array
     const events = [];
+
+    // Handle adding new attachments
+    if (_addAttachments && Array.isArray(_addAttachments) && _addAttachments.length > 0) {
+      const newAttachments = _addAttachments.map(a => ({
+        url: a.url,
+        filename: a.filename || "attachment",
+        uploadedAt: new Date(),
+        uploadedByUserId: userId
+      }));
+
+      // Find case and add attachments
+      await AftercareCase.updateOne(
+        { _id: id, dealerId },
+        {
+          $push: {
+            attachments: { $each: newAttachments },
+            events: {
+              type: "ATTACHMENT_ADDED",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `${newAttachments.length} file(s) added`,
+            }
+          }
+        }
+      );
+
+      // If this was ONLY an attachment add, return early with success
+      if (!boardStatus && !_eventType && Object.keys(otherUpdates).length === 0) {
+        const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+          .populate("contactId")
+          .populate("vehicleId")
+          .lean();
+        return res.status(200).json({ ok: true, case: aftercareCase });
+      }
+    }
 
     // Check if boardStatus is changing
     if (boardStatus) {

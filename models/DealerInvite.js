@@ -181,5 +181,5 @@ dealerInviteSchema.methods.regenerateToken = async function () {
   return rawToken;
 };
 
-export default mongoose.models.DealerInvite ||
+export default mongoose.models?.DealerInvite ||
   mongoose.model("DealerInvite", dealerInviteSchema);

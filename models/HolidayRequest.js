@@ -94,4 +94,4 @@ holidayRequestSchema.statics.computeTotalDays = function(startDate, endDate, sta
 };
 
 holidayRequestSchema.plugin(toJSON);
-export default mongoose.models.HolidayRequest || mongoose.model("HolidayRequest", holidayRequestSchema);
+export default mongoose.models?.HolidayRequest || mongoose.model("HolidayRequest", holidayRequestSchema);

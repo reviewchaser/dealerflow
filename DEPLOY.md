@@ -35,7 +35,7 @@ EMAIL_FROM=your-email
 
 # External APIs
 DVLA_API_KEY=<for-vehicle-lookup>
-ANTHROPIC_API_KEY=<for-ai-features>
+OPENAI_API_KEY=<for-ai-features>
 
 # File Storage (S3)
 S3_ACCESS_KEY=<aws-access-key>

@@ -16,4 +16,4 @@ const vehicleLocationSchema = new mongoose.Schema(
 );
 
 vehicleLocationSchema.plugin(toJSON);
-export default mongoose.models.VehicleLocation || mongoose.model("VehicleLocation", vehicleLocationSchema);
+export default mongoose.models?.VehicleLocation || mongoose.model("VehicleLocation", vehicleLocationSchema);

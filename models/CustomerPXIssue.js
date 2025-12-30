@@ -36,9 +36,5 @@ const customerPXIssueSchema = new mongoose.Schema(
 
 customerPXIssueSchema.plugin(toJSON);
 
-// Delete cached model to force schema update
-if (mongoose.models.CustomerPXIssue) {
-  delete mongoose.models.CustomerPXIssue;
-}
-
-export default mongoose.model("CustomerPXIssue", customerPXIssueSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.CustomerPXIssue || mongoose.model("CustomerPXIssue", customerPXIssueSchema);

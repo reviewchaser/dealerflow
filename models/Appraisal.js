@@ -58,9 +58,5 @@ appraisalSchema.plugin(toJSON);
 appraisalSchema.index({ dealerId: 1, decision: 1 });
 appraisalSchema.index({ dealerId: 1, createdAt: -1 });
 
-// Delete cached model to force schema update
-if (mongoose.models.Appraisal) {
-  delete mongoose.models.Appraisal;
-}
-
-export default mongoose.model("Appraisal", appraisalSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.Appraisal || mongoose.model("Appraisal", appraisalSchema);

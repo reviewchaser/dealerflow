@@ -53,4 +53,4 @@ const vehicleIssueSchema = new mongoose.Schema(
 );
 
 vehicleIssueSchema.plugin(toJSON);
-export default mongoose.models.VehicleIssue || mongoose.model("VehicleIssue", vehicleIssueSchema);
+export default mongoose.models?.VehicleIssue || mongoose.model("VehicleIssue", vehicleIssueSchema);

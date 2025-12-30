@@ -10,4 +10,4 @@ const vehicleLabelAssignmentSchema = new mongoose.Schema(
 );
 
 vehicleLabelAssignmentSchema.plugin(toJSON);
-export default mongoose.models.VehicleLabelAssignment || mongoose.model("VehicleLabelAssignment", vehicleLabelAssignmentSchema);
+export default mongoose.models?.VehicleLabelAssignment || mongoose.model("VehicleLabelAssignment", vehicleLabelAssignmentSchema);

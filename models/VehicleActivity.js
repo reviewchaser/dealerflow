@@ -104,7 +104,7 @@ vehicleActivitySchema.statics.log = async function ({
   });
 };
 
-export default mongoose.models.VehicleActivity ||
+export default mongoose.models?.VehicleActivity ||
   mongoose.model("VehicleActivity", vehicleActivitySchema);
 
 export { ACTIVITY_TYPES };

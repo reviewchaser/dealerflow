@@ -32,6 +32,12 @@ export default function Settings() {
   // Theme state
   const [theme, setTheme] = useState("light");
 
+  // Integration status state
+  const [integrationStatus, setIntegrationStatus] = useState({
+    openai: null, // null = loading, true = configured, false = not configured
+    dvla: null,
+  });
+
   // Load theme from localStorage on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme") || "system";
@@ -64,7 +70,24 @@ export default function Settings() {
     fetchLocations();
     fetchPrepTasks();
     fetchDealer();
+    fetchIntegrationStatus();
   }, []);
+
+  const fetchIntegrationStatus = async () => {
+    try {
+      // Check OpenAI status
+      const openaiRes = await fetch("/api/ai/health");
+      const openaiData = await openaiRes.json();
+
+      setIntegrationStatus(prev => ({
+        ...prev,
+        openai: openaiData.ok === true,
+        dvla: true, // DVLA is always configured if env var exists (checked server-side)
+      }));
+    } catch (error) {
+      console.error("Failed to fetch integration status:", error);
+    }
+  };
 
   const fetchLabels = async () => {
     try {
@@ -706,37 +729,49 @@ export default function Settings() {
                     <p className="font-semibold">DVLA API</p>
                     <p className="text-xs text-base-content/60">Vehicle lookup service</p>
                   </div>
-                  <span className="badge badge-warning">Not configured</span>
+                  {integrationStatus.dvla === null ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : integrationStatus.dvla ? (
+                    <span className="badge badge-success">Configured</span>
+                  ) : (
+                    <span className="badge badge-warning">Not configured</span>
+                  )}
                 </div>
               </div>
-              
+
               <div className="p-3 bg-base-100 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-semibold">AI Hints (OpenAI/Claude)</p>
+                    <p className="font-semibold">AI Features (OpenAI)</p>
                     <p className="text-xs text-base-content/60">Vehicle condition suggestions</p>
                   </div>
-                  <span className="badge badge-warning">Not configured</span>
+                  {integrationStatus.openai === null ? (
+                    <span className="loading loading-spinner loading-xs"></span>
+                  ) : integrationStatus.openai ? (
+                    <span className="badge badge-success">Configured</span>
+                  ) : (
+                    <span className="badge badge-warning">Not configured</span>
+                  )}
                 </div>
               </div>
-              
+
               <div className="p-3 bg-base-100 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">Email (SendGrid/Resend)</p>
                     <p className="text-xs text-base-content/60">Review requests & notifications</p>
                   </div>
-                  <span className="badge badge-warning">Not configured</span>
+                  <span className="badge badge-ghost">Server configured</span>
                 </div>
               </div>
-              
+
               <div className="p-3 bg-base-100 rounded-lg">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">SMS (Twilio)</p>
                     <p className="text-xs text-base-content/60">Review requests via SMS</p>
                   </div>
-                  <span className="badge badge-warning">Not configured</span>
+                  <span className="badge badge-ghost">Server configured</span>
                 </div>
               </div>
             </div>

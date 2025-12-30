@@ -12,4 +12,4 @@ const vehicleRegHistorySchema = new mongoose.Schema(
 );
 
 vehicleRegHistorySchema.plugin(toJSON);
-export default mongoose.models.VehicleRegHistory || mongoose.model("VehicleRegHistory", vehicleRegHistorySchema);
+export default mongoose.models?.VehicleRegHistory || mongoose.model("VehicleRegHistory", vehicleRegHistorySchema);

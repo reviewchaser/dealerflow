@@ -109,6 +109,29 @@ export const authOptions = {
     ] : []),
   ],
   callbacks: {
+    redirect: async ({ url, baseUrl }) => {
+      // Handle post-login redirects to tenant-aware URLs
+      // If redirecting to /dashboard, check if we should use tenant URL
+      if (url === `${baseUrl}/dashboard` || url === "/dashboard") {
+        try {
+          // We can't access token here, so we'll let the dashboard handle the redirect
+          // The dashboard will check dealer context and redirect if needed
+          return `${baseUrl}/dashboard`;
+        } catch (error) {
+          console.error("[Redirect Callback] Error:", error);
+        }
+      }
+      // Allow relative URLs
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      // Allow same-origin URLs
+      if (url.startsWith(baseUrl)) {
+        return url;
+      }
+      // Default to base URL
+      return baseUrl;
+    },
     jwt: async ({ token, user, account }) => {
       // On sign in, add user info to token
       if (user) {

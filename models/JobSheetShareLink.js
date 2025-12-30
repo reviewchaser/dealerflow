@@ -26,4 +26,4 @@ const jobSheetShareLinkSchema = new mongoose.Schema(
 );
 
 jobSheetShareLinkSchema.plugin(toJSON);
-export default mongoose.models.JobSheetShareLink || mongoose.model("JobSheetShareLink", jobSheetShareLinkSchema);
+export default mongoose.models?.JobSheetShareLink || mongoose.model("JobSheetShareLink", jobSheetShareLinkSchema);

@@ -85,9 +85,5 @@ const dealerSchema = new mongoose.Schema(
 
 dealerSchema.plugin(toJSON);
 
-// Delete cached model to force schema update
-if (mongoose.models.Dealer) {
-  delete mongoose.models.Dealer;
-}
-
-export default mongoose.model("Dealer", dealerSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.Dealer || mongoose.model("Dealer", dealerSchema);

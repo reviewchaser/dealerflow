@@ -106,8 +106,17 @@ export default function Forms() {
   const [selectedFormId, setSelectedFormId] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const dealerId = session?.user?.dealerId || "000000000000000000000000";
+
+  // Detect mobile breakpoint (matches Tailwind's md: breakpoint at 768px)
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Check if any filters are active
   const hasActiveFilters = vrmSearch || searchQuery || statusFilter || filterFormType || selectedFormId;
@@ -181,8 +190,10 @@ export default function Forms() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setSubmissions(data);
-        // Auto-select the most recent submission (first item since sorted newest first)
-        if (data.length > 0 && !selectedSubmission) {
+        // Auto-select the most recent submission on desktop only (not on mobile)
+        // On mobile, we want to show the list first
+        const isDesktop = window.innerWidth >= 768;
+        if (data.length > 0 && !selectedSubmission && isDesktop) {
           setSelectedSubmission(data[0]);
         }
       } else {

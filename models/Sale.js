@@ -40,4 +40,4 @@ const saleSchema = new mongoose.Schema(
 
 saleSchema.plugin(toJSON);
 
-export default mongoose.models.Sale || mongoose.model("Sale", saleSchema);
+export default mongoose.models?.Sale || mongoose.model("Sale", saleSchema);

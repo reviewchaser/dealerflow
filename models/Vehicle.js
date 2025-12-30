@@ -5,7 +5,7 @@ import toJSON from "./plugins/toJSON";
  * Vehicle Model
  *
  * SERVERLESS-SAFE PATTERN:
- * The export uses `mongoose.models.Vehicle || mongoose.model(...)` to prevent
+ * The export uses `mongoose.models?.Vehicle || mongoose.model(...)` to prevent
  * OverwriteModelError during Vercel/serverless hot reloads and cold starts.
  *
  * IMPORTANT FOR POPULATE:
@@ -50,6 +50,25 @@ const vehicleSchema = new mongoose.Schema(
       default: "unknown"
     },
     taxExpiryDate: { type: Date },
+    // DVLA Vehicle Enquiry Service details
+    dvlaDetails: {
+      co2Emissions: { type: Number },
+      engineCapacity: { type: Number },
+      fuelType: { type: String },
+      markedForExport: { type: Boolean },
+      monthOfFirstRegistration: { type: String },
+      motStatus: { type: String },
+      motExpiryDate: { type: String },
+      revenueWeight: { type: Number },
+      taxDueDate: { type: String },
+      taxStatus: { type: String },
+      yearOfManufacture: { type: Number },
+      euroStatus: { type: String },
+      dateOfLastV5CIssued: { type: String },
+      wheelplan: { type: String },
+      typeApproval: { type: String },
+    },
+    lastDvlaFetchAt: { type: Date },
     serviceDueDate: { type: Date },
     v5Url: { type: String },
     serviceHistoryUrl: { type: String },
@@ -79,4 +98,4 @@ vehicleSchema.index({ dealerId: 1, createdAt: -1 });
 vehicleSchema.index({ dealerId: 1, motExpiryDate: 1, status: 1 });
 vehicleSchema.index({ dealerId: 1, type: 1 });
 
-export default mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);
+export default mongoose.models?.Vehicle || mongoose.model("Vehicle", vehicleSchema);

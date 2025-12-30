@@ -2,6 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import AIHintCache from "@/models/AIHintCache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth/[...nextauth]";
+import { getOpenAIClient, safeJsonParse } from "@/libs/openai";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // Generate new hints using Claude API
+    // Generate new hints using OpenAI
     const hintsText = await generateHints({ make, model, year, engineSize, fuelType, mileage });
 
     // Cache the result
@@ -61,7 +62,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       hints: hintsArray,
       source: "ai",
-      isDummy: !process.env.ANTHROPIC_API_KEY,
+      isDummy: !process.env.OPENAI_API_KEY,
     });
   } catch (error) {
     console.error("Error generating AI hints:", error);
@@ -82,9 +83,9 @@ function parseHintsToArray(hintsText) {
 }
 
 async function generateHints({ make, model, year, engineSize, fuelType, mileage }) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const openai = getOpenAIClient();
 
-  if (!apiKey) {
+  if (!openai) {
     // Return generic hints if no API key
     return `Common things to check on ${make} ${model}:\n• Service history and MOT history\n• Brake pads and discs condition\n• Tyre tread depth and condition\n• Fluid levels (oil, coolant, brake fluid)\n• Electrical systems and warning lights\n• Previous accident or bodywork damage`;
   }
@@ -100,34 +101,26 @@ Please provide 3-6 specific, actionable things the appraiser should check for th
 Format your response as a simple bullet list using • as bullets. Be concise and specific to this vehicle.`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
-        max_tokens: 500,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      }),
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
-    if (!response.ok) {
-      throw new Error(`Claude API error: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    return data.content[0].text;
+    return response.choices?.[0]?.message?.content || getGenericHints(make, model);
   } catch (error) {
-    console.error("Claude API error:", error);
+    console.error("OpenAI API error:", error);
     // Return generic hints as fallback
-    return `Common things to check on ${make} ${model}:\n• Service history and MOT history\n• Brake pads and discs condition\n• Tyre tread depth and condition\n• Fluid levels (oil, coolant, brake fluid)\n• Electrical systems and warning lights\n• Previous accident or bodywork damage`;
+    return getGenericHints(make, model);
   }
+}
+
+function getGenericHints(make, model) {
+  return `Common things to check on ${make} ${model}:\n• Service history and MOT history\n• Brake pads and discs condition\n• Tyre tread depth and condition\n• Fluid levels (oil, coolant, brake fluid)\n• Electrical systems and warning lights\n• Previous accident or bodywork damage`;
 }

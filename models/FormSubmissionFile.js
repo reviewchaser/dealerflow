@@ -14,4 +14,4 @@ const formSubmissionFileSchema = new mongoose.Schema(
 );
 
 formSubmissionFileSchema.plugin(toJSON);
-export default mongoose.models.FormSubmissionFile || mongoose.model("FormSubmissionFile", formSubmissionFileSchema);
+export default mongoose.models?.FormSubmissionFile || mongoose.model("FormSubmissionFile", formSubmissionFileSchema);

@@ -35,6 +35,8 @@ export default function NewVehicle() {
     notes: "",
     motExpiryDate: "",
   });
+  const [dvlaDetails, setDvlaDetails] = useState(null);
+  const [lastDvlaFetchAt, setLastDvlaFetchAt] = useState(null);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -108,22 +110,22 @@ export default function NewVehicle() {
 
     setIsLookingUp(true);
     try {
-      // Call both DVLA and MOT APIs in parallel
+      // Call both new DVLA VES endpoint and MOT APIs in parallel
       const [dvlaResponse, motResponse] = await Promise.all([
-        fetch("/api/dvla-lookup", {
+        fetch("/api/dvla/vehicle-enquiry", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
+          body: JSON.stringify({ registrationNumber: formData.vehicleReg }),
         }),
         fetch(`/api/mot?vrm=${encodeURIComponent(formData.vehicleReg)}`).catch(() => null),
       ]);
 
-      const dvlaData = await dvlaResponse.json();
+      const dvlaResult = await dvlaResponse.json();
       const motData = motResponse?.ok ? await motResponse.json() : null;
 
       // Handle DVLA error responses
-      if (!dvlaResponse.ok) {
-        const errorCode = dvlaData.errorCode || "UNKNOWN";
+      if (!dvlaResult.ok) {
+        const errorCode = dvlaResult.code || "UNKNOWN";
         switch (errorCode) {
           case "NOT_FOUND":
             toast.error("VRM not found - please check the registration");
@@ -132,40 +134,67 @@ export default function NewVehicle() {
             toast.error("Invalid registration format");
             break;
           case "NOT_CONFIGURED":
-          case "AUTH_FAILED":
-          case "ACCESS_DENIED":
             toast.error("DVLA integration not configured");
             break;
-          case "NETWORK_ERROR":
-          case "SERVICE_ERROR":
+          case "RATE_LIMIT":
+            toast.error("Too many requests, please try again later");
+            break;
+          case "DVLA_ERROR":
             toast.error("DVLA service unavailable, try again later");
             break;
           default:
-            toast.error(dvlaData.message || "Lookup failed");
+            toast.error(dvlaResult.message || "Lookup failed");
         }
         return;
       }
 
-      if (dvlaData.isDummy) {
+      const dvlaData = dvlaResult.data;
+
+      if (dvlaResult.isDummy) {
         showDummyNotification("DVLA API");
       }
 
+      // Store DVLA details for persisting when vehicle is saved
+      setDvlaDetails(dvlaData.dvlaDetails);
+      setLastDvlaFetchAt(dvlaData.lastDvlaFetchAt);
+
       // Use DVLA data primarily, but fallback to MOT data for fields DVLA often misses
       // MOT API (DVSA) typically has better model/fuelType data than DVLA
+
+      // Normalize fuel type from DVLA (uppercase) to form format (capitalized)
+      const normalizeFuelForForm = (fuelType) => {
+        if (!fuelType) return "";
+        const fuelMap = {
+          PETROL: "Petrol",
+          DIESEL: "Diesel",
+          ELECTRIC: "Electric",
+          HYBRID: "Hybrid",
+          "HYBRID ELECTRIC": "Hybrid",
+          "PLUG-IN HYBRID": "Hybrid",
+          "PETROL/ELECTRIC HYBRID": "Hybrid",
+          "DIESEL/ELECTRIC HYBRID": "Hybrid",
+        };
+        return fuelMap[fuelType.toUpperCase()] || fuelType;
+      };
+
+      const rawFuel = dvlaData.dvlaDetails?.fuelType || motData?.fuelType || "";
+      const normalizedFuel = normalizeFuelForForm(rawFuel);
+
       setFormData((prev) => ({
         ...prev,
         make: dvlaData.make || motData?.make || prev.make,
-        model: dvlaData.model || motData?.model || prev.model,
+        model: motData?.model || prev.model, // DVLA doesn't return model, use MOT data
         year: dvlaData.yearOfManufacture || motData?.manufactureYear || prev.year,
         colour: dvlaData.colour || motData?.primaryColour || prev.colour,
-        fuelType: dvlaData.fuelType || motData?.fuelType || prev.fuelType,
-        engineSize: dvlaData.engineCapacity ? `${dvlaData.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
-        motExpiryDate: motData?.motExpiry || prev.motExpiryDate,
+        fuelType: normalizedFuel || prev.fuelType,
+        engineSize: dvlaData.dvlaDetails?.engineCapacity ? `${dvlaData.dvlaDetails.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
+        motExpiryDate: dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
       }));
 
       const messages = ["Vehicle details loaded"];
-      if (motData?.motExpiry) {
-        messages.push(`MOT expires: ${new Date(motData.motExpiry).toLocaleDateString()}`);
+      if (dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry) {
+        const motDate = dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry;
+        messages.push(`MOT expires: ${new Date(motDate).toLocaleDateString()}`);
       }
       toast.success(messages.join(" • "));
     } catch (error) {
@@ -194,6 +223,9 @@ export default function NewVehicle() {
           transmission: formData.transmission,
           notes: formData.notes,
           motExpiryDate: formData.motExpiryDate || null,
+          // Include DVLA details if available from lookup
+          dvlaDetails: dvlaDetails || null,
+          lastDvlaFetchAt: lastDvlaFetchAt || null,
         }),
       });
 

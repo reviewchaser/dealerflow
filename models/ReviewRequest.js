@@ -25,4 +25,4 @@ const reviewRequestSchema = new mongoose.Schema(
 );
 
 reviewRequestSchema.plugin(toJSON);
-export default mongoose.models.ReviewRequest || mongoose.model("ReviewRequest", reviewRequestSchema);
+export default mongoose.models?.ReviewRequest || mongoose.model("ReviewRequest", reviewRequestSchema);

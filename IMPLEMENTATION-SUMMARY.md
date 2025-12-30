@@ -92,7 +92,7 @@ Body: { dealerId: "your-dealer-id" }
 
 **API Endpoint:** `pages/api/ai-hints.js`
 
-Integrated Claude API for vehicle-specific appraisal hints:
+Integrated OpenAI for vehicle-specific appraisal hints:
 - Caches hints in database to reduce API costs
 - Provides make/model specific recommendations
 - Falls back to generic hints if API key not configured
@@ -113,7 +113,7 @@ Body: {
 
 **Environment Variable Required:**
 ```
-ANTHROPIC_API_KEY=your_claude_api_key
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 ### 7. Forms API Endpoints
@@ -158,8 +158,8 @@ yarn add qrcode.react
 Add to your `.env.local`:
 
 ```env
-# Claude API for AI Hints (optional - will use generic hints if not set)
-ANTHROPIC_API_KEY=your_claude_api_key_here
+# OpenAI API for AI features (optional - will use generic hints if not set)
+OPENAI_API_KEY=your_openai_api_key_here
 
 # MongoDB Connection (should already exist)
 MONGODB_URI=your_mongodb_connection_string
@@ -295,7 +295,7 @@ models/
 - 9 pre-built industry-standard forms
 
 ### ✅ AI-Powered Appraisals
-- Claude API integration for vehicle-specific hints
+- OpenAI integration for vehicle-specific hints
 - Intelligent caching to reduce API costs
 - Fallback to generic hints when offline
 
@@ -328,7 +328,7 @@ models/
 
 3. **QR Code Package**: Make sure to install `qrcode.react` or the ShareFormModal won't work.
 
-4. **AI Hints**: Will work without ANTHROPIC_API_KEY but will provide generic hints instead of vehicle-specific recommendations.
+4. **AI Hints**: Will work without OPENAI_API_KEY but will provide generic hints instead of vehicle-specific recommendations.
 
 5. **MongoDB Indexes**: Consider adding indexes on frequently queried fields:
    - `Form.publicSlug`

@@ -54,6 +54,7 @@ export default function SalesPrep() {
   const [vehicles, setVehicles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [draggedCard, setDraggedCard] = useState(null);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
@@ -339,6 +340,61 @@ export default function SalesPrep() {
       toast.success(`Moved to ${newStatus.replace("_", " ")}`);
     } catch (error) {
       toast.error("Failed to update");
+    }
+  };
+
+  // DVLA lookup for existing vehicle in drawer
+  const lookupVehicleDVLA = async () => {
+    if (!selectedVehicle?.regCurrent) {
+      toast.error("No registration to lookup");
+      return;
+    }
+    setIsLookingUpDrawer(true);
+    try {
+      const res = await fetch("/api/dvla-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vehicleReg: selectedVehicle.regCurrent }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error(data.message || data.error || "Vehicle not found");
+        return;
+      }
+
+      if (data.isDummy) showDummyNotification("DVLA API");
+
+      // Update the vehicle with DVLA data
+      const updatePayload = {
+        make: data.make || selectedVehicle.make,
+        model: data.model || selectedVehicle.model,
+        year: data.yearOfManufacture || data.year || selectedVehicle.year,
+        colour: data.colour || selectedVehicle.colour,
+        fuelType: data.fuelType || selectedVehicle.fuelType,
+        transmission: data.transmission || selectedVehicle.transmission,
+        motExpiryDate: data.motExpiryDate || selectedVehicle.motExpiryDate,
+        dvlaDetails: data.dvlaDetails || null,
+        lastDvlaFetchAt: data.lastDvlaFetchAt || new Date().toISOString(),
+      };
+
+      await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatePayload),
+      });
+
+      // Refresh vehicle data
+      const updatedRes = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+      const updatedVehicle = await updatedRes.json();
+      setSelectedVehicle(updatedVehicle);
+      fetchVehicles();
+
+      toast.success(`Updated: ${data.make} ${data.model || ""} (${data.yearOfManufacture || ""})`);
+    } catch (error) {
+      toast.error("Lookup failed - please try again");
+    } finally {
+      setIsLookingUpDrawer(false);
     }
   };
 
@@ -2051,6 +2107,14 @@ export default function SalesPrep() {
                                 MOT {motStatus.label}
                               </span>
                             )}
+                            {motStatus?.type === "valid" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT {vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : motStatus.label}
+                              </span>
+                            )}
                             {motStatus?.type === "unknown" && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2285,6 +2349,14 @@ export default function SalesPrep() {
                                 MOT {motStatus.label}
                               </span>
                             )}
+                            {motStatus?.type === "valid" && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT {vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : motStatus.label}
+                              </span>
+                            )}
                             {motStatus?.type === "unknown" && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2508,20 +2580,38 @@ export default function SalesPrep() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="form-control">
                         <label className="text-xs font-medium text-slate-600 mb-1 block">Registration</label>
-                        <input
-                          type="text"
-                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900"
-                          value={selectedVehicle.regCurrent || ""}
-                          onChange={(e) => setSelectedVehicle({ ...selectedVehicle, regCurrent: e.target.value.toUpperCase() })}
-                          onBlur={async () => {
-                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ regCurrent: selectedVehicle.regCurrent }),
-                            });
-                            fetchVehicles();
-                          }}
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            className="input input-sm bg-slate-50 border-slate-200 text-slate-900 flex-1 font-mono uppercase"
+                            value={selectedVehicle.regCurrent || ""}
+                            onChange={(e) => setSelectedVehicle({ ...selectedVehicle, regCurrent: e.target.value.toUpperCase() })}
+                            onBlur={async () => {
+                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ regCurrent: selectedVehicle.regCurrent }),
+                              });
+                              fetchVehicles();
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            onClick={lookupVehicleDVLA}
+                            disabled={isLookingUpDrawer}
+                            title="Lookup DVLA data for this registration"
+                          >
+                            {isLookingUpDrawer ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : (
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">Click lookup to refresh DVLA data</p>
                       </div>
                       <div className="form-control">
                         <label className="text-xs font-medium text-slate-600 mb-1 block">VIN</label>
@@ -4152,8 +4242,11 @@ function AddVehicleModal({ onClose, onSuccess }) {
     regCurrent: "", make: "", model: "", year: "", mileageCurrent: "",
     fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
     motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
+    engineCapacity: "", // Engine capacity in cc (autofilled from lookup or manual entry)
     type: "STOCK", // STOCK, COURTESY, FLEET_OTHER
     saleType: "RETAIL", // RETAIL, TRADE - only used when type is STOCK
+    dvlaDetails: null, // DVLA VES extended details
+    lastDvlaFetchAt: null, // When DVLA lookup was performed
   });
 
   // Appraisal lookup state
@@ -4351,11 +4444,16 @@ function AddVehicleModal({ onClose, onSuccess }) {
         ...prev,
         make: data.make || prev.make,
         model: data.model || prev.model,
-        year: data.yearOfManufacture || prev.year,
+        year: data.yearOfManufacture || data.year || prev.year,
         colour: data.colour || prev.colour,
         fuelType: data.fuelType || prev.fuelType,
         transmission: data.transmission || prev.transmission,
         motExpiryDate: data.motExpiryDate || prev.motExpiryDate,
+        // Engine capacity from DVLA (in cc)
+        engineCapacity: data.engineCapacity || data.dvlaDetails?.engineCapacity || prev.engineCapacity,
+        // Store full DVLA details for API persistence
+        dvlaDetails: data.dvlaDetails || null,
+        lastDvlaFetchAt: data.lastDvlaFetchAt || null,
       }));
 
       toast.success(`Found: ${data.make} ${data.model || ""} (${data.yearOfManufacture || ""})`);
@@ -4636,13 +4734,15 @@ function AddVehicleModal({ onClose, onSuccess }) {
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fuel Type</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType}
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType?.toUpperCase() || ""}
                   onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}>
                   <option value="">Select...</option>
-                  <option value="Petrol">Petrol</option>
-                  <option value="Diesel">Diesel</option>
-                  <option value="Hybrid">Hybrid</option>
-                  <option value="Electric">Electric</option>
+                  <option value="PETROL">Petrol</option>
+                  <option value="DIESEL">Diesel</option>
+                  <option value="HYBRID">Hybrid</option>
+                  <option value="ELECTRIC">Electric</option>
+                  <option value="LPG">LPG</option>
+                  <option value="CNG">CNG</option>
                 </select>
               </div>
               <div className="form-control">
@@ -4659,13 +4759,27 @@ function AddVehicleModal({ onClose, onSuccess }) {
               </div>
               <div className="form-control">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Transmission</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission}
+                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission?.toUpperCase() || ""}
                   onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}>
                   <option value="">Select...</option>
-                  <option value="Manual">Manual</option>
-                  <option value="Automatic">Automatic</option>
-                  <option value="Semi-Auto">Semi-Auto</option>
+                  <option value="MANUAL">Manual</option>
+                  <option value="AUTOMATIC">Automatic</option>
+                  <option value="SEMI-AUTO">Semi-Auto</option>
+                  <option value="CVT">CVT</option>
                 </select>
+              </div>
+              <div className="form-control">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Engine Capacity (cc)</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
+                  placeholder="e.g., 1500"
+                  value={formData.engineCapacity || ""}
+                  onChange={(e) => setFormData({ ...formData, engineCapacity: e.target.value })}
+                />
+                <p className="text-xs text-slate-400 mt-1.5">
+                  {formData.engineCapacity ? "" : "Auto-filled by VRM lookup"}
+                </p>
               </div>
             </div>
           </div>

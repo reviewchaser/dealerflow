@@ -66,5 +66,5 @@ dealerMembershipSchema.methods.isLastOwner = async function () {
   return ownerCount <= 1;
 };
 
-export default mongoose.models.DealerMembership ||
+export default mongoose.models?.DealerMembership ||
   mongoose.model("DealerMembership", dealerMembershipSchema);

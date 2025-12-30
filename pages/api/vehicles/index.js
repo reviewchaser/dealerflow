@@ -157,6 +157,8 @@ async function handler(req, res, ctx) {
       type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
       saleType = "RETAIL", // RETAIL, TRADE - only for STOCK vehicles
       motExpiryDate,
+      dvlaDetails, // DVLA VES data
+      lastDvlaFetchAt,
     } = req.body;
 
     if (!regCurrent || !make || !model) {
@@ -174,6 +176,9 @@ async function handler(req, res, ctx) {
       ...(type === "STOCK" && { saleType }),
       // MOT expiry from DVSA lookup
       ...(motExpiryDate && { motExpiryDate: new Date(motExpiryDate) }),
+      // DVLA VES details
+      ...(dvlaDetails && { dvlaDetails }),
+      ...(lastDvlaFetchAt && { lastDvlaFetchAt: new Date(lastDvlaFetchAt) }),
     };
 
     // Only add locationId if it's not empty

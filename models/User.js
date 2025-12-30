@@ -112,4 +112,4 @@ userSchema.statics.findByEmailWithPassword = function (email) {
   return this.findOne({ email: email.toLowerCase() }).select("+passwordHash");
 };
 
-export default mongoose.models.User || mongoose.model("User", userSchema);
+export default mongoose.models?.User || mongoose.model("User", userSchema);

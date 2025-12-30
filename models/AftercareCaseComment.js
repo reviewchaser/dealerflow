@@ -17,4 +17,4 @@ const aftercareCaseCommentSchema = new mongoose.Schema(
 );
 
 aftercareCaseCommentSchema.plugin(toJSON);
-export default mongoose.models.AftercareCaseComment || mongoose.model("AftercareCaseComment", aftercareCaseCommentSchema);
+export default mongoose.models?.AftercareCaseComment || mongoose.model("AftercareCaseComment", aftercareCaseCommentSchema);

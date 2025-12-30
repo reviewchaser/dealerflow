@@ -28,4 +28,4 @@ calendarEventSchema.plugin(toJSON);
 calendarEventSchema.index({ dealerId: 1, startDatetime: 1 });
 calendarEventSchema.index({ dealerId: 1, startDatetime: 1, categoryId: 1 });
 
-export default mongoose.models.CalendarEvent || mongoose.model("CalendarEvent", calendarEventSchema);
+export default mongoose.models?.CalendarEvent || mongoose.model("CalendarEvent", calendarEventSchema);

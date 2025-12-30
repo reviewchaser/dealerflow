@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { signOut } from "next-auth/react";
+import { useDealer } from "@/contexts/DealerContext";
+import { appPath } from "@/libs/appPath";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -84,6 +86,8 @@ const navigation = [
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
+  const { dealerSlug } = useDealer(); // Get dealer slug from tenant context (null if legacy route)
+  const getPath = (path) => appPath(dealerSlug, path); // Helper to generate tenant-aware paths
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
@@ -149,7 +153,7 @@ export default function DashboardLayout({ children }) {
       .then(async (res) => {
         // 403 = no dealer membership - redirect to create dealer
         if (res.status === 403 && !router.pathname.startsWith("/onboarding")) {
-          router.push("/onboarding/create-dealer");
+          router.push(getPath("/onboarding/create-dealer"));
           return null;
         }
         if (!res.ok) return null;
@@ -160,7 +164,7 @@ export default function DashboardLayout({ children }) {
         setDealer(data);
         // Redirect to onboarding wizard if not completed (skip if already on onboarding page)
         if (data && !data.completedOnboarding && !router.pathname.startsWith("/onboarding")) {
-          router.push("/onboarding");
+          router.push(getPath("/onboarding"));
         }
       })
       .catch(() => {});
@@ -193,7 +197,7 @@ export default function DashboardLayout({ children }) {
 
         {/* Logo Area - Dealer's Logo takes prominence */}
         <div className={`flex flex-col items-center transition-all duration-300 ${sidebarCollapsed ? "p-3" : "p-6"}`}>
-          <Link href="/dashboard" className="block">
+          <Link href={getPath("/dashboard")} className="block">
             {dealer?.logoUrl ? (
               <img
                 src={dealer.logoUrl}
@@ -220,11 +224,12 @@ export default function DashboardLayout({ children }) {
           <ul className="space-y-1">
             {navigation.slice(0, 3).map((item) => {
               const { Icon } = item;
-              const isActive = router.pathname.startsWith(item.href);
+              const itemPath = getPath(item.href);
+              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
-                    href={item.href}
+                    href={itemPath}
                     className={`relative flex items-center rounded-xl transition-all duration-200 ${
                       sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
                     } ${
@@ -317,11 +322,12 @@ export default function DashboardLayout({ children }) {
                     {!sidebarCollapsed && isExpanded && (
                       <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
                         {item.children.map((child) => {
-                          const isChildActive = router.pathname === child.href || router.asPath === child.href;
+                          const childPath = getPath(child.href);
+                          const isChildActive = router.pathname === child.href || router.asPath === child.href || router.asPath.includes(child.href);
                           return (
                             <li key={child.name}>
                               <Link
-                                href={child.href}
+                                href={childPath}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
                                   isChildActive
                                     ? "bg-[#0066CC]/10 text-[#0066CC] font-semibold"
@@ -340,11 +346,12 @@ export default function DashboardLayout({ children }) {
                 );
               }
 
-              const isActive = router.pathname.startsWith(item.href);
+              const itemPath = getPath(item.href);
+              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
-                    href={item.href}
+                    href={itemPath}
                     className={`relative flex items-center rounded-xl transition-all duration-200 ${
                       sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
                     } ${
@@ -396,11 +403,12 @@ export default function DashboardLayout({ children }) {
           <ul className="space-y-1">
             {navigation.slice(7).map((item) => {
               const { Icon } = item;
-              const isActive = router.pathname.startsWith(item.href);
+              const itemPath = getPath(item.href);
+              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
-                    href={item.href}
+                    href={itemPath}
                     className={`relative flex items-center rounded-xl transition-all duration-200 ${
                       sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
                     } ${
@@ -510,7 +518,7 @@ export default function DashboardLayout({ children }) {
               </label>
               <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-52">
                 <li>
-                  <Link href="/settings" className="text-sm">
+                  <Link href={getPath("/settings")} className="text-sm">
                     <CogIcon className="w-4 h-4" />
                     Settings
                   </Link>
@@ -544,7 +552,8 @@ export default function DashboardLayout({ children }) {
             { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {
-            const isActive = item.href && router.pathname.startsWith(item.href);
+            const itemPath = item.href ? getPath(item.href) : null;
+            const isActive = item.href && (router.pathname.startsWith(item.href) || router.asPath.includes(item.href));
 
             if (item.isMore) {
               return (
@@ -557,11 +566,11 @@ export default function DashboardLayout({ children }) {
                   </label>
                   <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
                     <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
-                    <li><Link href="/appraisals" className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
-                    <li><Link href="/reviews" className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
-                    <li><Link href="/calendar" className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+                    <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+                    <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+                    <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
                     <div className="divider my-1 px-3"></div>
-                    <li><Link href="/settings" className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
                   </ul>
                 </div>
               );
@@ -570,7 +579,7 @@ export default function DashboardLayout({ children }) {
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={itemPath}
                 className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
               >
                 <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${

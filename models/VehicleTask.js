@@ -105,5 +105,5 @@ const vehicleTaskSchema = new mongoose.Schema(
 
 vehicleTaskSchema.plugin(toJSON);
 
-export default mongoose.models.VehicleTask || mongoose.model("VehicleTask", vehicleTaskSchema);
+export default mongoose.models?.VehicleTask || mongoose.model("VehicleTask", vehicleTaskSchema);
 export { TASK_PROGRESS, PARTS_STATUS, SUPPLIER_TYPE, SUPPLIER_TYPE_LABELS };

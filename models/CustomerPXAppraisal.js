@@ -64,9 +64,5 @@ customerPXAppraisalSchema.plugin(toJSON);
 customerPXAppraisalSchema.index({ dealerId: 1, decision: 1 });
 customerPXAppraisalSchema.index({ dealerId: 1, createdAt: -1 });
 
-// Delete cached model to force schema update
-if (mongoose.models.CustomerPXAppraisal) {
-  delete mongoose.models.CustomerPXAppraisal;
-}
-
-export default mongoose.model("CustomerPXAppraisal", customerPXAppraisalSchema);
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.CustomerPXAppraisal || mongoose.model("CustomerPXAppraisal", customerPXAppraisalSchema);

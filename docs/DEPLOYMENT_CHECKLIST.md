@@ -69,9 +69,9 @@ Stripe is not required for MVP. Without it, billing features won't be available.
 
 | Variable | Description |
 |----------|-------------|
-| `ANTHROPIC_API_KEY` | Claude API key for AI hints |
+| `OPENAI_API_KEY` | OpenAI API key for AI features |
 
-Without this, AI-powered appraisal hints will fall back to generic advice.
+Without this, AI-powered appraisal hints and case reviews will fall back to generic advice.
 
 ## Pre-Deployment Steps
 

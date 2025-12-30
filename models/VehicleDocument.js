@@ -17,4 +17,4 @@ const vehicleDocumentSchema = new mongoose.Schema(
 );
 
 vehicleDocumentSchema.plugin(toJSON);
-export default mongoose.models.VehicleDocument || mongoose.model("VehicleDocument", vehicleDocumentSchema);
+export default mongoose.models?.VehicleDocument || mongoose.model("VehicleDocument", vehicleDocumentSchema);

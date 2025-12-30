@@ -29,6 +29,34 @@ const formatDate = (date) => {
   });
 };
 
+// DVLA Details formatting helpers
+const formatMonthYear = (monthStr) => {
+  // Format YYYY-MM to "Dec 2004"
+  if (!monthStr) return null;
+  try {
+    const [year, month] = monthStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  } catch {
+    return monthStr;
+  }
+};
+
+const formatEngineCapacity = (cc) => {
+  if (!cc) return null;
+  return `${cc.toLocaleString()} cc`;
+};
+
+const formatCo2 = (g) => {
+  if (!g) return null;
+  return `${g} g/km`;
+};
+
+const formatWeight = (kg) => {
+  if (!kg) return null;
+  return `${kg.toLocaleString()} kg`;
+};
+
 const STATUS_LABELS = {
   in_stock: "In Prep",
   in_prep: "Advertised",
@@ -340,6 +368,136 @@ export default function VehicleDrawer({
                           {vehicle.motExpiryDate ? formatDate(vehicle.motExpiryDate) : "—"}
                         </p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* DVLA Details Section */}
+                  {vehicle.dvlaDetails && Object.values(vehicle.dvlaDetails).some(v => v != null) && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">DVLA Details</h3>
+                          {vehicle.lastDvlaFetchAt && (
+                            <span className="text-[10px] text-slate-400 ml-auto">
+                              Last updated: {formatDate(vehicle.lastDvlaFetchAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        {vehicle.dvlaDetails.monthOfFirstRegistration && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">First Registered</span>
+                            <p className="text-slate-700 mt-0.5">{formatMonthYear(vehicle.dvlaDetails.monthOfFirstRegistration)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.engineCapacity && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Engine Capacity</span>
+                            <p className="text-slate-700 mt-0.5">{formatEngineCapacity(vehicle.dvlaDetails.engineCapacity)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.fuelType && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.fuelType}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.co2Emissions && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">CO2 Emissions</span>
+                            <p className="text-slate-700 mt-0.5">{formatCo2(vehicle.dvlaDetails.co2Emissions)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.euroStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Euro Status</span>
+                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.euroStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.revenueWeight && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Revenue Weight</span>
+                            <p className="text-slate-700 mt-0.5">{formatWeight(vehicle.dvlaDetails.revenueWeight)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.taxStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Status</span>
+                            <p className={`mt-0.5 ${
+                              vehicle.dvlaDetails.taxStatus === "Taxed" ? "text-emerald-600 font-medium" :
+                              vehicle.dvlaDetails.taxStatus === "SORN" ? "text-amber-600 font-medium" :
+                              "text-red-600 font-medium"
+                            }`}>{vehicle.dvlaDetails.taxStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.taxDueDate && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Due Date</span>
+                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.taxDueDate)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.motStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Status (DVLA)</span>
+                            <p className={`mt-0.5 ${
+                              vehicle.dvlaDetails.motStatus === "Valid" ? "text-emerald-600 font-medium" :
+                              vehicle.dvlaDetails.motStatus === "No details held by DVLA" ? "text-slate-400" :
+                              "text-red-600 font-medium"
+                            }`}>{vehicle.dvlaDetails.motStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.dateOfLastV5CIssued && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">V5C Issued</span>
+                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.dateOfLastV5CIssued)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.markedForExport && (
+                          <div className="col-span-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Marked for Export
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Safety Recalls Check */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Safety Recalls</h3>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-slate-500 mb-3">Check for outstanding manufacturer safety recalls on this vehicle via the official DVSA service.</p>
+                      <a
+                        href="https://www.check-vehicle-recall.service.gov.uk/start"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-xl transition-colors border border-amber-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Check for Recalls
+                      </a>
+                      <p className="text-xs text-slate-400 mt-2 text-center">VRM: <span className="font-mono font-medium text-slate-600">{vehicle.regCurrent || vehicle.vrm}</span></p>
                     </div>
                   </div>
 
