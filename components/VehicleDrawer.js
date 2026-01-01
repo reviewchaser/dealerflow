@@ -1,7 +1,50 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import VehicleImageUploader from "@/components/VehicleImageUploader";
 import VehicleImageGallery from "@/components/VehicleImageGallery";
+
+// Helper to get viewable URL (handles signed URL fallback for private buckets)
+const getViewableUrl = async (urlOrKey) => {
+  if (!urlOrKey) return null;
+
+  // If it's a data URL or local path, return as-is
+  if (urlOrKey.startsWith("data:") || urlOrKey.startsWith("/")) {
+    return urlOrKey;
+  }
+
+  // If it looks like an S3 key (no protocol), get signed URL
+  if (!urlOrKey.startsWith("http")) {
+    try {
+      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(urlOrKey)}`);
+      if (res.ok) {
+        const { signedUrl } = await res.json();
+        return signedUrl;
+      }
+    } catch (err) {
+      console.error("[VehicleDrawer] Failed to get signed URL:", err);
+    }
+  }
+
+  // Return the original URL (may be public or already signed)
+  return urlOrKey;
+};
+
+// Helper to open file with signed URL fallback
+const openFileWithFallback = async (urlOrKey, e) => {
+  if (e) e.preventDefault();
+
+  try {
+    const viewableUrl = await getViewableUrl(urlOrKey);
+    if (viewableUrl) {
+      window.open(viewableUrl, "_blank");
+    } else {
+      toast.error("Could not open file");
+    }
+  } catch (err) {
+    console.error("[VehicleDrawer] Error opening file:", err);
+    toast.error("Failed to open file");
+  }
+};
 
 // Helper for relative time display
 const relativeTime = (date) => {
@@ -807,27 +850,38 @@ export default function VehicleDrawer({
                             </div>
                           )}
 
-                          {/* Attachments */}
+                          {/* Attachments (new format - objects with key/url) */}
                           {issue.attachments?.length > 0 && (
                             <div className="pt-2">
                               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
                                 Attachments ({issue.attachments.length})
                               </p>
                               <div className="flex flex-wrap gap-2">
-                                {issue.attachments.map((attachment, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={attachment}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors"
-                                  >
-                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                    </svg>
-                                    File {idx + 1}
-                                  </a>
-                                ))}
+                                {issue.attachments.map((attachment, idx) => {
+                                  // Handle both object format {key, url} and legacy string format
+                                  const attachmentKey = typeof attachment === "object" ? (attachment.key || attachment.url) : attachment;
+                                  const fileName = typeof attachment === "object" ? (attachment.fileName || attachment.caption || `File ${idx + 1}`) : `File ${idx + 1}`;
+                                  const isImage = typeof attachment === "object" && attachment.contentType?.startsWith("image/");
+
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => openFileWithFallback(attachmentKey, e)}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                                    >
+                                      {isImage ? (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                        </svg>
+                                      )}
+                                      {fileName}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -918,12 +972,10 @@ export default function VehicleDrawer({
                     {vehicle.documents?.length > 0 ? (
                       <div className="space-y-2">
                         {vehicle.documents.map((doc) => (
-                          <a
+                          <button
                             key={doc.id}
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group"
+                            onClick={(e) => openFileWithFallback(doc.key || doc.url, e)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group text-left cursor-pointer"
                           >
                             {/* Document Icon */}
                             <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-[#0066CC]/10 flex items-center justify-center shrink-0 transition-colors">
@@ -950,7 +1002,7 @@ export default function VehicleDrawer({
                             <svg className="w-5 h-5 text-slate-300 group-hover:text-[#0066CC] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
-                          </a>
+                          </button>
                         ))}
                       </div>
                     ) : (

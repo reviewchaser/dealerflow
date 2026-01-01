@@ -1,8 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { toast } from "react-hot-toast";
+
+// Helper to get viewable URL (handles signed URL fallback for private buckets)
+const getViewableUrl = async (urlOrKey) => {
+  if (!urlOrKey) return null;
+
+  // If it's a data URL or local path, return as-is
+  if (urlOrKey.startsWith("data:") || urlOrKey.startsWith("/")) {
+    return urlOrKey;
+  }
+
+  // If it looks like an S3 key (no protocol), get signed URL
+  if (!urlOrKey.startsWith("http")) {
+    try {
+      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(urlOrKey)}`);
+      if (res.ok) {
+        const { signedUrl } = await res.json();
+        return signedUrl;
+      }
+    } catch (err) {
+      console.error("[SubmissionDrawer] Failed to get signed URL:", err);
+    }
+  }
+
+  // Return the original URL (may be public or already signed)
+  return urlOrKey;
+};
+
+// Helper to open/download file with signed URL fallback
+const handleFileDownload = async (urlOrKey, filename) => {
+  try {
+    // First try to get a signed URL if needed
+    const viewableUrl = await getViewableUrl(urlOrKey);
+    if (viewableUrl) {
+      window.open(viewableUrl, "_blank");
+    } else {
+      toast.error("Could not open file");
+    }
+  } catch (err) {
+    console.error("[SubmissionDrawer] Error opening file:", err);
+    toast.error("Failed to open file");
+  }
+};
 
 // Image lightbox component
 function ImageLightbox({ src, alt, onClose }) {
@@ -390,14 +433,12 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
                                   </p>
                                 </div>
                               </div>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors flex-shrink-0"
+                              <button
+                                onClick={() => handleFileDownload(file.key || file.url, file.filename)}
+                                className="px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors flex-shrink-0 cursor-pointer"
                               >
                                 Download
-                              </a>
+                              </button>
                             </div>
                           ))}
                         </div>

@@ -100,7 +100,6 @@ export default function Forms() {
   const [templateTypeFilter, setTemplateTypeFilter] = useState(router.query.type || "");
 
   // Filters for submissions
-  const [filterFormType, setFilterFormType] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [vrmSearch, setVrmSearch] = useState("");
   const [selectedFormId, setSelectedFormId] = useState("");
@@ -119,15 +118,14 @@ export default function Forms() {
   }, []);
 
   // Check if any filters are active
-  const hasActiveFilters = vrmSearch || searchQuery || statusFilter || filterFormType || selectedFormId;
-  const activeFilterCount = [vrmSearch, searchQuery, statusFilter, filterFormType, selectedFormId].filter(Boolean).length;
+  const hasActiveFilters = vrmSearch || searchQuery || statusFilter || selectedFormId;
+  const activeFilterCount = [vrmSearch, searchQuery, statusFilter, selectedFormId].filter(Boolean).length;
 
   // Clear all filters
   const clearAllFilters = () => {
     setVrmSearch("");
     setSearchQuery("");
     setStatusFilter("");
-    setFilterFormType("");
     setSelectedFormId("");
   };
 
@@ -144,7 +142,7 @@ export default function Forms() {
 
   useEffect(() => {
     applyFilters();
-  }, [submissions, filterFormType, searchQuery, vrmSearch, selectedFormId, statusFilter]);
+  }, [submissions, searchQuery, vrmSearch, selectedFormId, statusFilter]);
 
   useEffect(() => {
     applyTemplateFilters();
@@ -257,10 +255,6 @@ export default function Forms() {
   const applyFilters = () => {
     // Exclude REVIEW_FEEDBACK submissions - they appear in dedicated Reviews page
     let filtered = [...submissions].filter(s => s.formId?.type !== "REVIEW_FEEDBACK");
-
-    if (filterFormType) {
-      filtered = filtered.filter((s) => s.formId?.type === filterFormType);
-    }
 
     if (selectedFormId) {
       filtered = filtered.filter((s) => s.formId?._id === selectedFormId);
@@ -1164,19 +1158,7 @@ export default function Forms() {
               <option value="archived">Archived</option>
             </select>
 
-            {/* Form Type Filter */}
-            <select
-              className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
-              value={filterFormType}
-              onChange={(e) => setFilterFormType(e.target.value)}
-            >
-              <option value="">All Types</option>
-              {formTypes.map((type) => (
-                <option key={type} value={type}>{FORM_TYPE_LABELS[type] || type}</option>
-              ))}
-            </select>
-
-            {/* Specific Form Filter */}
+            {/* Form Filter */}
             <select
               className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
               value={selectedFormId}
@@ -1263,24 +1245,7 @@ export default function Forms() {
                 </select>
               </div>
 
-              {/* Form Type Filter */}
-              <div className="form-control">
-                <label className="label">
-                  <span className="label-text font-medium">Form Type</span>
-                </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={filterFormType}
-                  onChange={(e) => setFilterFormType(e.target.value)}
-                >
-                  <option value="">All Types</option>
-                  {formTypes.map((type) => (
-                    <option key={type} value={type}>{FORM_TYPE_LABELS[type] || type}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Specific Form Filter */}
+              {/* Form Filter */}
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-medium">Specific Form</span>

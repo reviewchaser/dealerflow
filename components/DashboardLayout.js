@@ -86,6 +86,10 @@ const navigation = [
   { name: "Settings", href: "/settings", Icon: CogIcon },
 ];
 
+// Cache key for logo URL in localStorage
+const LOGO_CACHE_KEY = "dealerflow_logo_url";
+const DEALER_NAME_CACHE_KEY = "dealerflow_dealer_name";
+
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const { dealerSlug } = useDealer(); // Get dealer slug from tenant context (null if legacy route)
@@ -95,6 +99,9 @@ export default function DashboardLayout({ children }) {
   const [expandedMenus, setExpandedMenus] = useState({});
   const [forms, setForms] = useState([]);
   const [dealer, setDealer] = useState(null);
+  const [dealerLoading, setDealerLoading] = useState(true);
+  const [cachedLogo, setCachedLogo] = useState(null);
+  const [cachedName, setCachedName] = useState(null);
   const [debugContext, setDebugContext] = useState(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
   const [showMobileQuickAdd, setShowMobileQuickAdd] = useState(false);
@@ -102,6 +109,18 @@ export default function DashboardLayout({ children }) {
   const [isMobile, setIsMobile] = useState(false);
   const quickAddButtonRef = useRef(null);
   const quickAddMenuRef = useRef(null);
+
+  // Load cached logo immediately on mount (before API call)
+  useEffect(() => {
+    try {
+      const storedLogo = localStorage.getItem(LOGO_CACHE_KEY);
+      const storedName = localStorage.getItem(DEALER_NAME_CACHE_KEY);
+      if (storedLogo) setCachedLogo(storedLogo);
+      if (storedName) setCachedName(storedName);
+    } catch {
+      // localStorage not available
+    }
+  }, []);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -204,14 +223,32 @@ export default function DashboardLayout({ children }) {
         return res.json();
       })
       .then(data => {
+        setDealerLoading(false);
         if (!data) return;
         setDealer(data);
+
+        // Cache logo URL for instant display on next load
+        try {
+          if (data.logoUrl) {
+            localStorage.setItem(LOGO_CACHE_KEY, data.logoUrl);
+          } else {
+            localStorage.removeItem(LOGO_CACHE_KEY);
+          }
+          if (data.name) {
+            localStorage.setItem(DEALER_NAME_CACHE_KEY, data.name);
+          }
+        } catch {
+          // localStorage not available
+        }
+
         // Redirect to onboarding wizard if not completed (skip if already on onboarding page)
         if (data && !data.completedOnboarding && !router.pathname.startsWith("/onboarding")) {
           router.push(getPath("/onboarding"));
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setDealerLoading(false);
+      });
   }, [router]);
 
   const handleFormClick = (form) => {
@@ -242,18 +279,39 @@ export default function DashboardLayout({ children }) {
         {/* Logo Area - Dealer's Logo takes prominence */}
         <div className={`flex flex-col items-center transition-all duration-300 ${sidebarCollapsed ? "p-3" : "p-6"}`}>
           <Link href={getPath("/dashboard")} className="block">
-            {dealer?.logoUrl ? (
-              <img
-                src={dealer.logoUrl}
-                alt={dealer?.name || "Logo"}
-                className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"}`}
-              />
-            ) : (
-              <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
-                <TruckIcon className={`text-primary transition-all duration-300 ${sidebarCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
-                {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{dealer?.name || "DealerFlow"}</span>}
-              </div>
-            )}
+            {(() => {
+              // Use dealer logo if loaded, otherwise use cached logo
+              const logoUrl = dealer?.logoUrl || cachedLogo;
+              const displayName = dealer?.name || cachedName;
+
+              if (logoUrl) {
+                return (
+                  <img
+                    src={logoUrl}
+                    alt={displayName || "Logo"}
+                    className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"}`}
+                  />
+                );
+              }
+
+              // Show loading placeholder while fetching dealer (only if no cached logo)
+              if (dealerLoading && !cachedLogo) {
+                return (
+                  <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
+                    <div className={`animate-pulse bg-slate-200 rounded-lg transition-all duration-300 ${sidebarCollapsed ? "w-8 h-8" : "w-8 h-8"}`} />
+                    {!sidebarCollapsed && <div className="animate-pulse bg-slate-200 rounded h-6 w-24" />}
+                  </div>
+                );
+              }
+
+              // No logo - show text fallback (only after loading complete)
+              return (
+                <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
+                  <TruckIcon className={`text-primary transition-all duration-300 ${sidebarCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
+                  {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{displayName || "DealerFlow"}</span>}
+                </div>
+              );
+            })()}
           </Link>
         </div>
 
