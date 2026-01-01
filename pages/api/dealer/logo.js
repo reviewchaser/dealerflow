@@ -36,22 +36,36 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 /**
- * Check if S3 is configured
+ * Required R2/S3 environment variables
+ */
+const REQUIRED_ENV_VARS = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET", "S3_ENDPOINT"];
+
+/**
+ * Check if S3/R2 is configured
  */
 function isS3Configured() {
-  return !!(
-    process.env.S3_ACCESS_KEY &&
-    process.env.S3_SECRET_KEY &&
-    process.env.S3_BUCKET
-  );
+  return REQUIRED_ENV_VARS.every((key) => !!process.env[key]);
 }
 
 /**
- * Get S3 client
+ * Validate R2 config and throw with clear error if missing
+ */
+function validateR2Config() {
+  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required R2 environment variables: ${missing.join(", ")}`);
+  }
+}
+
+/**
+ * Get S3 client configured for Cloudflare R2
  */
 function getS3Client() {
+  validateR2Config();
+
   return new S3Client({
-    region: process.env.S3_REGION || "eu-west-2",
+    region: process.env.S3_REGION || "auto",
+    endpoint: process.env.S3_ENDPOINT,
     credentials: {
       accessKeyId: process.env.S3_ACCESS_KEY,
       secretAccessKey: process.env.S3_SECRET_KEY,
