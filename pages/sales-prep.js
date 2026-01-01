@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
@@ -9,7 +10,7 @@ import { Portal } from "@/components/ui/Portal";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 
 const COLUMNS = [
-  { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
   { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
   { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
   { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
@@ -51,6 +52,7 @@ const getVehicleDuration = (vehicle) => {
 };
 
 export default function SalesPrep() {
+  const router = useRouter();
   const [vehicles, setVehicles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -197,6 +199,15 @@ export default function SalesPrep() {
     fetchLocations();
     fetchLabels();
   }, []);
+
+  // Handle addVehicle query param (from Quick Add menu)
+  useEffect(() => {
+    if (router.query.addVehicle === "1") {
+      setShowAddModal(true);
+      // Remove the query param from URL without reload
+      router.replace("/sales-prep", undefined, { shallow: true });
+    }
+  }, [router.query.addVehicle]);
 
   const fetchVehicles = async () => {
     try {
@@ -2164,6 +2175,45 @@ export default function SalesPrep() {
                               </div>
                             </div>
                           )}
+
+                          {/* Mobile Move Button */}
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                            <div className="dropdown dropdown-end">
+                              <label
+                                tabIndex={0}
+                                className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Move
+                              </label>
+                              <ul
+                                tabIndex={0}
+                                className="dropdown-content z-[100] menu p-2 shadow-xl bg-white rounded-xl w-48 border border-slate-100"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {COLUMNS.filter(c => c.key !== col.key).map((targetCol) => (
+                                  <li key={targetCol.key}>
+                                    <button
+                                      className="flex items-center gap-2 text-sm py-2.5"
+                                      onClick={async (e) => {
+                                        e.stopPropagation();
+                                        await updateVehicleStatus(vehicle.id, targetCol.key);
+                                        toast.success(`Moved to ${targetCol.label}`);
+                                        // Close dropdown by blurring
+                                        document.activeElement?.blur();
+                                      }}
+                                    >
+                                      <span className={`w-2 h-2 rounded-full ${targetCol.accentBg}`}></span>
+                                      {targetCol.label}
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -2293,6 +2343,22 @@ export default function SalesPrep() {
                         className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border border-slate-100/50 overflow-hidden ${draggedCard?.id === vehicle.id ? "opacity-40 scale-95" : ""}`}
                         onClick={() => openVehicleDrawer(vehicle)}
                       >
+                        {/* Vehicle Thumbnail */}
+                        {(vehicle.primaryImageUrl || vehicle.images?.[0]?.url) && (
+                          <div className="relative w-full h-24 bg-slate-100">
+                            <img
+                              src={vehicle.primaryImageUrl || vehicle.images[0].url}
+                              alt={`${vehicle.make} ${vehicle.model}`}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                            {vehicle.images?.length > 1 && (
+                              <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
+                                +{vehicle.images.length - 1}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="p-3">
                           {/* Title with Registration Badge */}
                           <div className="flex justify-between items-start mb-2">

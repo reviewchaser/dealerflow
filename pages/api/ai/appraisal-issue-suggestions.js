@@ -88,6 +88,7 @@ Generate your response as valid JSON with the exact schema specified.`;
     return res.status(200).json({
       success: true,
       isDummy: true,
+      errorCode: result.errorCode,
       message: result.error || "AI not configured - showing placeholder",
       suggestions: result.data,
     });

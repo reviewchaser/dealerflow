@@ -141,8 +141,9 @@ export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
       data: parsed,
     };
   } catch (error) {
-    console.error("[OpenAI] Error:", error.message);
+    console.error("[OpenAI] Error:", error.message, error.status);
 
+    // Handle specific OpenAI error types
     if (error.status === 401) {
       return {
         success: false,
@@ -153,9 +154,39 @@ export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
       };
     }
 
+    if (error.status === 429) {
+      return {
+        success: false,
+        error: "Rate limit exceeded. Please try again in a moment.",
+        errorCode: "RATE_LIMIT",
+        isDummy: true,
+        data: generateDummySuggestions(),
+      };
+    }
+
+    if (error.status === 500 || error.status === 502 || error.status === 503) {
+      return {
+        success: false,
+        error: "OpenAI service is temporarily unavailable. Please try again later.",
+        errorCode: "SERVICE_UNAVAILABLE",
+        isDummy: true,
+        data: generateDummySuggestions(),
+      };
+    }
+
+    if (error.status === 400) {
+      return {
+        success: false,
+        error: "Invalid request to OpenAI API.",
+        errorCode: "BAD_REQUEST",
+        isDummy: true,
+        data: generateDummySuggestions(),
+      };
+    }
+
     return {
       success: false,
-      error: "OpenAI service unavailable",
+      error: error.message || "OpenAI service error",
       errorCode: "SERVICE_ERROR",
       isDummy: true,
       data: generateDummySuggestions(),

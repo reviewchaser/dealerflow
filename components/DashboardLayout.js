@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { signOut } from "next-auth/react";
 import { useDealer } from "@/contexts/DealerContext";
 import { appPath } from "@/libs/appPath";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Portal } from "@/components/ui/Portal";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -95,6 +97,48 @@ export default function DashboardLayout({ children }) {
   const [dealer, setDealer] = useState(null);
   const [debugContext, setDebugContext] = useState(null);
   const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+  const [showMobileQuickAdd, setShowMobileQuickAdd] = useState(false);
+  const [showDesktopQuickAdd, setShowDesktopQuickAdd] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const quickAddButtonRef = useRef(null);
+  const quickAddMenuRef = useRef(null);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Click outside handler for desktop quick add dropdown
+  useEffect(() => {
+    if (!showDesktopQuickAdd) return;
+
+    const handleClickOutside = (e) => {
+      if (
+        quickAddButtonRef.current &&
+        !quickAddButtonRef.current.contains(e.target) &&
+        quickAddMenuRef.current &&
+        !quickAddMenuRef.current.contains(e.target)
+      ) {
+        setShowDesktopQuickAdd(false);
+      }
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        setShowDesktopQuickAdd(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showDesktopQuickAdd]);
 
   // Load sidebar collapsed state from localStorage
   useEffect(() => {
@@ -484,30 +528,16 @@ export default function DashboardLayout({ children }) {
           </button>
           <div className="flex-1 lg:flex-none" />
           <div className="flex items-center gap-3">
-            {/* Quick Add Form Button */}
-            <div className="dropdown dropdown-end">
-              <label tabIndex={0} className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#0066CC] hover:bg-[#0055AA] text-white cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </label>
-              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-xl w-56 max-h-80 overflow-y-auto border border-slate-100">
-                {forms.length === 0 ? (
-                  <li><span className="text-base-content/60 text-sm">No forms available</span></li>
-                ) : (
-                  forms.map((form) => (
-                    <li key={form.id || form._id}>
-                      <button
-                        onClick={() => handleFormClick(form)}
-                        className="text-sm text-left"
-                      >
-                        <span className="truncate">{form.name}</span>
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
-            </div>
+            {/* Quick Add Button - Desktop Portal dropdown, Mobile bottom sheet */}
+            <button
+              ref={quickAddButtonRef}
+              onClick={() => isMobile ? setShowMobileQuickAdd(true) : setShowDesktopQuickAdd(!showDesktopQuickAdd)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#0066CC] hover:bg-[#0055AA] text-white cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
 
             {/* User Menu */}
             <div className="dropdown dropdown-end">
@@ -655,6 +685,133 @@ export default function DashboardLayout({ children }) {
             </div>
           )}
         </div>
+      )}
+
+      {/* Mobile Quick Add Bottom Sheet */}
+      <BottomSheet
+        isOpen={showMobileQuickAdd}
+        onClose={() => setShowMobileQuickAdd(false)}
+        title="Quick Actions"
+        maxHeight="80dvh"
+      >
+        <div className="space-y-1 overflow-y-auto">
+          {/* Quick Actions Section */}
+          <div className="px-2 pb-2">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Quick Actions</p>
+            <Link
+              href={getPath("/appraisals/new")}
+              onClick={() => setShowMobileQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 flex items-center justify-center">
+                <ClipboardIcon className="w-5 h-5 text-[#0066CC]" />
+              </div>
+              <span className="font-medium text-slate-900">New Appraisal</span>
+            </Link>
+            <Link
+              href={getPath("/sales-prep?addVehicle=1")}
+              onClick={() => setShowMobileQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                <TruckIcon className="w-5 h-5 text-emerald-600" />
+              </div>
+              <span className="font-medium text-slate-900">Add Vehicle</span>
+            </Link>
+          </div>
+
+          {/* Forms Section */}
+          {forms.length > 0 && (
+            <div className="px-2 pb-4 border-t border-slate-100 pt-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Forms</p>
+              <div className="space-y-0.5">
+                {forms.map((form) => (
+                  <button
+                    key={form.id || form._id}
+                    onClick={() => {
+                      handleFormClick(form);
+                      setShowMobileQuickAdd(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <DocumentTextIcon className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <span className="font-medium text-slate-900 truncate">{form.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </BottomSheet>
+
+      {/* Desktop Quick Add Portal Dropdown */}
+      {showDesktopQuickAdd && !isMobile && (
+        <Portal>
+          <div
+            ref={quickAddMenuRef}
+            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 w-64 max-h-[70vh] overflow-y-auto"
+            style={{
+              top: quickAddButtonRef.current
+                ? quickAddButtonRef.current.getBoundingClientRect().bottom + 8
+                : 72,
+              right: 16,
+              zIndex: 99999,
+            }}
+          >
+            {/* Quick Actions Section */}
+            <div className="p-3 border-b border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Quick Actions</p>
+              <div className="space-y-1">
+                <Link
+                  href={getPath("/appraisals/new")}
+                  onClick={() => setShowDesktopQuickAdd(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                    <ClipboardIcon className="w-4 h-4 text-[#0066CC]" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">New Appraisal</span>
+                </Link>
+                <Link
+                  href={getPath("/sales-prep?addVehicle=1")}
+                  onClick={() => setShowDesktopQuickAdd(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <TruckIcon className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Add Vehicle</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Forms Section */}
+            {forms.length > 0 && (
+              <div className="p-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Forms</p>
+                <div className="space-y-1">
+                  {forms.map((form) => (
+                    <button
+                      key={form.id || form._id}
+                      onClick={() => {
+                        handleFormClick(form);
+                        setShowDesktopQuickAdd(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <DocumentTextIcon className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <span className="text-sm font-medium text-slate-900 truncate">{form.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Portal>
       )}
     </div>
   );

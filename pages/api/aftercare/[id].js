@@ -144,9 +144,9 @@ async function handler(req, res, ctx) {
       THIRD_PARTY: "Third-party"
     };
 
-    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED)
+    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED, CUSTOMER_CONTACTED, CONTACT_REMINDER_SET)
     // Note: BOOKING_UPDATED is now handled separately with auto-move logic below
-    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED"].includes(_eventType)) {
+    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED", "CUSTOMER_CONTACTED", "CONTACT_REMINDER_SET"].includes(_eventType)) {
       let summary = "";
       switch (_eventType) {
         case "LOCATION_UPDATED":
@@ -164,6 +164,16 @@ async function handler(req, res, ctx) {
         case "COURTESY_REQUIRED_TOGGLED":
           summary = _eventMetadata?.courtesyRequired ? "Courtesy car marked as required" : "Courtesy car no longer required";
           break;
+        case "CUSTOMER_CONTACTED":
+          summary = _eventMetadata?.note ? `Customer contacted: ${_eventMetadata.note}` : "Customer contacted";
+          break;
+        case "CONTACT_REMINDER_SET":
+          if (_eventMetadata?.nextContactAt) {
+            summary = `Contact reminder set for ${new Date(_eventMetadata.nextContactAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`;
+          } else {
+            summary = "Contact reminder cleared";
+          }
+          break;
       }
 
       events.push({
@@ -174,6 +184,16 @@ async function handler(req, res, ctx) {
         summary,
         metadata: _eventMetadata || {}
       });
+    }
+
+    // Handle contact tracking field updates
+    if (_eventType === "CUSTOMER_CONTACTED") {
+      otherUpdates.lastContactedAt = new Date();
+      otherUpdates.lastContactedByUserId = userId;
+      otherUpdates.lastContactedByName = userName;
+    }
+    if (_eventType === "CONTACT_REMINDER_SET") {
+      otherUpdates.nextContactAt = _eventMetadata?.nextContactAt ? new Date(_eventMetadata.nextContactAt) : null;
     }
 
     // Build update object

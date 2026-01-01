@@ -45,15 +45,26 @@ export default withDealerContext(async (req, res, ctx) => {
     const reviewer = await User.findById(userId).lean();
     const reviewerName = reviewer?.name || user?.name || user?.email || "Admin";
 
-    // If there's a linked calendar event (from previous approval), delete it
-    if (request.linkedCalendarEventId) {
+    // Delete all linked calendar events (from previous approval)
+    const existingEventIds = [
+      ...(request.linkedCalendarEventIds || []),
+      ...(request.linkedCalendarEventId ? [request.linkedCalendarEventId] : [])
+    ];
+
+    if (existingEventIds.length > 0) {
       try {
-        await CalendarEvent.findByIdAndDelete(request.linkedCalendarEventId);
+        await CalendarEvent.deleteMany({
+          _id: { $in: existingEventIds },
+          dealerId
+        });
       } catch (err) {
-        console.warn("Could not delete calendar event:", err.message);
+        console.warn("Could not delete calendar events:", err.message);
       }
-      request.linkedCalendarEventId = null;
     }
+
+    // Clear the linked event IDs
+    request.linkedCalendarEventId = null;
+    request.linkedCalendarEventIds = [];
 
     // Update request status
     request.status = "REJECTED";

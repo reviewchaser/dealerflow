@@ -73,7 +73,10 @@ const aftercareCaseSchema = new mongoose.Schema(
           "WARRANTY_BOOKED_IN",
           "WARRANTY_BOOKING_UPDATED",
           "WARRANTY_BOOKING_CANCELLED",
-          "WARRANTY_STAGE_MOVED"
+          "WARRANTY_STAGE_MOVED",
+          // Customer contact tracking
+          "CUSTOMER_CONTACTED",
+          "CONTACT_REMINDER_SET"
         ],
         required: true
       },
@@ -83,6 +86,12 @@ const aftercareCaseSchema = new mongoose.Schema(
       summary: { type: String },
       metadata: { type: mongoose.Schema.Types.Mixed }
     }],
+
+    // Customer contact tracking
+    lastContactedAt: { type: Date },
+    lastContactedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    lastContactedByName: { type: String }, // snapshot for display
+    nextContactAt: { type: Date }, // reminder - when to contact again
 
     // Repair Location - tracks where the vehicle currently is
     repairLocationType: {
@@ -144,5 +153,7 @@ aftercareCaseSchema.plugin(toJSON);
 aftercareCaseSchema.index({ dealerId: 1, boardStatus: 1 });
 aftercareCaseSchema.index({ dealerId: 1, status: 1 });
 aftercareCaseSchema.index({ dealerId: 1, createdAt: -1 });
+// Index for contact reminders due
+aftercareCaseSchema.index({ dealerId: 1, nextContactAt: 1 });
 
 export default mongoose.models?.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);

@@ -19,7 +19,7 @@ const DEFAULT_STATS = {
   reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
   forms: { total: 0, submissions: 0 },
   recent: { appraisals: [], vehicles: [], formSubmissions: [] },
-  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
   today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
   topForms: [],
   oldestAppraisalDays: null,
@@ -55,6 +55,10 @@ async function handleStats(req, res, ctx) {
   const motDueSoon = new Date();
   motDueSoon.setDate(motDueSoon.getDate() + 14);
 
+  // 48 hours ago for new warranty cases
+  const fortyEightHoursAgo = new Date();
+  fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
   const [
     totalAppraisals, pendingAppraisals,
     totalVehicles, inStockVehicles, inPrepVehicles, liveVehicles, deliveredVehicles,
@@ -67,6 +71,8 @@ async function handleStats(req, res, ctx) {
     eventsToday,
     courtesyDueBack,
     motExpiringSoon,
+    contactDue,
+    newWarrantyCases,
     // Additional data
     oldestPendingAppraisal,
     lastReview
@@ -103,6 +109,18 @@ async function handleStats(req, res, ctx) {
       dealerId,
       motExpiryDate: { $exists: true, $ne: null, $lte: motDueSoon },
       status: { $nin: ["delivered", "archived"] }
+    }),
+    // Needs Attention: Contact due (nextContactAt is today or earlier)
+    AftercareCase.countDocuments({
+      dealerId,
+      nextContactAt: { $exists: true, $ne: null, $lte: endOfToday },
+      status: { $in: ["new", "in_progress"] }
+    }),
+    // Needs Attention: New warranty cases (created within last 48 hours)
+    AftercareCase.countDocuments({
+      dealerId,
+      createdAt: { $gte: fortyEightHoursAgo },
+      status: { $in: ["new", "in_progress"] }
     }),
     // Oldest pending appraisal (sort ascending to get oldest)
     Appraisal.findOne({ dealerId, decision: "pending" })
@@ -224,7 +242,9 @@ async function handleStats(req, res, ctx) {
       warrantyNotBookedIn,
       eventsToday,
       courtesyDueBack,
-      motExpiringSoon
+      motExpiringSoon,
+      contactDue,
+      newWarrantyCases
     },
     // Today strip
     today: {

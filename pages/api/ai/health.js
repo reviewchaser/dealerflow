@@ -5,18 +5,21 @@
  *
  * Returns the status of the OpenAI configuration.
  * Used for diagnostics and debugging.
+ * Protected by dealer context authentication.
  *
  * Response:
  * - ok: boolean - whether AI is configured and ready
  * - provider: "openai" - the AI provider (always OpenAI)
  * - model: string - the default model used
- * - hasOpenAIKey: boolean - whether the key is present
+ * - hasKey: boolean - whether the key is present
  * - keyPrefix: string - first 7 chars of the key for verification
  * - message: string - human-readable status message
  * - error: string - error code if not ok
  */
 
-export default function handler(req, res) {
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -29,9 +32,9 @@ export default function handler(req, res) {
       ok: false,
       provider: "openai",
       model: model,
-      hasOpenAIKey: false,
+      hasKey: false,
       keyPrefix: null,
-      error: "missing OPENAI_API_KEY",
+      error: "MISSING_KEY",
       message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
     });
   }
@@ -42,9 +45,9 @@ export default function handler(req, res) {
       ok: false,
       provider: "openai",
       model: model,
-      hasOpenAIKey: true,
+      hasKey: true,
       keyPrefix: apiKey.slice(0, 7) + "...",
-      error: "invalid OPENAI_API_KEY format",
+      error: "INVALID_KEY_FORMAT",
       message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
     });
   }
@@ -53,8 +56,10 @@ export default function handler(req, res) {
     ok: true,
     provider: "openai",
     model: model,
-    hasOpenAIKey: true,
+    hasKey: true,
     keyPrefix: apiKey.slice(0, 7) + "...",
     message: "OpenAI is configured and ready",
   });
 }
+
+export default withDealerContext(handler);

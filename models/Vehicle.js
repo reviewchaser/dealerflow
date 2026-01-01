@@ -76,6 +76,13 @@ const vehicleSchema = new mongoose.Schema(
     websiteUrl: { type: String },
     notes: { type: String },
     labels: [{ type: mongoose.Schema.Types.ObjectId, ref: "VehicleLabel" }],
+    // Vehicle images (stored in R2)
+    images: [{
+      url: { type: String, required: true },
+      key: { type: String, required: true },
+      uploadedAt: { type: Date, default: Date.now },
+    }],
+    primaryImageUrl: { type: String },
     // Form integrations
     testDriveCount: { type: Number, default: 0 },
     pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },

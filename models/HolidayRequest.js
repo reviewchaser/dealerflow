@@ -38,7 +38,10 @@ const holidayRequestSchema = new mongoose.Schema(
     reviewedByName: { type: String },
     reviewedAt: { type: Date },
     adminNote: { type: String },
+    // Legacy single event ID - kept for backwards compatibility
     linkedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
+    // Array of daily calendar event IDs (one per day in the range)
+    linkedCalendarEventIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" }],
   },
   { timestamps: true }
 );

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import VehicleImageUploader from "@/components/VehicleImageUploader";
+import VehicleImageGallery from "@/components/VehicleImageGallery";
 
 // Helper for relative time display
 const relativeTime = (date) => {
@@ -87,6 +89,29 @@ export default function VehicleDrawer({
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedIssues, setExpandedIssues] = useState({});
 
+  // Lock body scroll when drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.overflow = "hidden";
+      document.body.style.width = "100%";
+
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.overflow = "";
+        document.body.style.width = "";
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen && vehicleId) {
       fetchVehicle();
@@ -113,23 +138,31 @@ export default function VehicleDrawer({
   return (
     <div
       className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
-      style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
+      style={{
+        touchAction: "none",
+        overscrollBehavior: "none",
+        WebkitOverflowScrolling: "touch",
+      }}
     >
-      {/* Backdrop with blur */}
+      {/* Backdrop with blur - captures all pointer/touch events outside drawer */}
       <div
         className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
         onClick={onClose}
+        style={{ touchAction: "none" }}
       />
 
-      {/* Drawer - Locked horizontal scroll, modern styling */}
+      {/* Drawer - Uses 100dvh for proper mobile Safari height, locked horizontal scroll */}
       <div
-        className={`relative bg-[#f8fafc] h-full flex flex-col ${
+        className={`relative bg-[#f8fafc] flex flex-col ${
           isStacked ? "w-full max-w-2xl" : "w-full max-w-3xl"
-        } min-w-0 translate-x-0 overscroll-y-contain overflow-x-hidden shadow-2xl`}
+        } min-w-0 translate-x-0 overflow-x-hidden shadow-2xl`}
         style={{
+          height: "100dvh",
+          maxHeight: "100dvh",
           touchAction: "pan-y",
           WebkitOverflowScrolling: "touch",
           overscrollBehaviorX: "none",
+          overscrollBehaviorY: "contain",
         }}
       >
         {isLoading ? (
@@ -211,6 +244,11 @@ export default function VehicleDrawer({
                   { id: "documents", label: "Documents", count: vehicle.documents?.length, icon: (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  )},
+                  { id: "images", label: "Images", count: vehicle.images?.length, icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   )},
                 ].map((tab) => (
@@ -926,6 +964,39 @@ export default function VehicleDrawer({
                         <p className="text-xs text-slate-400 mt-1">No documents have been uploaded</p>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Images Tab */}
+              {activeTab === "images" && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Vehicle Images</h3>
+                      </div>
+                      {!readOnly && (
+                        <VehicleImageUploader
+                          vehicleId={vehicle.id}
+                          onUploadComplete={(updatedVehicle) => setVehicle(updatedVehicle)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <VehicleImageGallery
+                      vehicleId={vehicle.id}
+                      images={vehicle.images || []}
+                      primaryImageUrl={vehicle.primaryImageUrl}
+                      onUpdate={(updatedVehicle) => setVehicle(updatedVehicle)}
+                      editable={!readOnly}
+                    />
                   </div>
                 </div>
               )}

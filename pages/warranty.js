@@ -188,6 +188,7 @@ export default function Warranty() {
     booked: "all",        // "all" | "booked" | "not_booked"
     partsRequired: "all", // "all" | "yes" | "no"
     priority: "all",      // "all" | "low" | "normal" | "high" | "critical"
+    contactDue: "all",    // "all" | "due" | "not_due"
   });
 
   // Mobile column selection
@@ -441,6 +442,42 @@ export default function Warranty() {
     e.dataTransfer.dropEffect = "move";
   };
 
+  // Mobile-friendly move function (no drag required)
+  const moveCaseToStatus = async (caseItem, newStatus) => {
+    const caseId = caseItem.id || caseItem._id;
+    if (caseItem.boardStatus === newStatus) return;
+
+    // Optimistic update
+    setCases(prev => prev.map(c =>
+      (c.id || c._id) === caseId ? { ...c, boardStatus: newStatus } : c
+    ));
+
+    try {
+      const res = await fetch(`/api/aftercare/${caseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardStatus: newStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to update status");
+      }
+      toast.success(`Moved to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`);
+      if (data.case) {
+        setCases(prev => prev.map(c =>
+          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+        ));
+      }
+    } catch (err) {
+      console.error("Move error:", err);
+      toast.error(err.message || "Failed to move case");
+      // Revert optimistic update
+      setCases(prev => prev.map(c =>
+        (c.id || c._id) === caseId ? { ...c, boardStatus: caseItem.boardStatus } : c
+      ));
+    }
+  };
+
   const handleDragEnd = () => {
     setDraggedCard(null);
   };
@@ -616,18 +653,42 @@ export default function Warranty() {
           additionalContext: selectedCase.details ? JSON.stringify(selectedCase.details) : null,
         }),
       });
+
+      // Handle auth errors separately
+      if (res.status === 401 || res.status === 403) {
+        setAiDiagnostics({
+          suggestions: null,
+          isDummy: true,
+          errorCode: "UNAUTHORIZED",
+          errorMessage: "Please sign in to use AI features.",
+        });
+        return;
+      }
+
       const data = await res.json();
       if (data.success) {
         setAiDiagnostics({
           suggestions: data.suggestions,
           isDummy: data.isDummy,
+          errorCode: data.isDummy ? "NOT_CONFIGURED" : null,
+          errorMessage: data.message,
         });
       } else {
-        toast.error(data.error || "Failed to get AI suggestions");
+        setAiDiagnostics({
+          suggestions: null,
+          isDummy: true,
+          errorCode: data.errorCode || "SERVICE_ERROR",
+          errorMessage: data.error || "Failed to get AI suggestions",
+        });
       }
     } catch (error) {
       console.error("AI diagnostics error:", error);
-      toast.error("Failed to get AI suggestions");
+      setAiDiagnostics({
+        suggestions: null,
+        isDummy: true,
+        errorCode: "SERVICE_ERROR",
+        errorMessage: "Failed to connect to AI service",
+      });
     } finally {
       setIsLoadingDiagnostics(false);
     }
@@ -683,6 +744,15 @@ export default function Warranty() {
       filtered = filtered.filter(c => (c.priority || "normal") === filters.priority);
     }
 
+    // Apply contact due filter
+    if (filters.contactDue === "due") {
+      const now = new Date();
+      filtered = filtered.filter(c => c.nextContactAt && new Date(c.nextContactAt) <= now);
+    } else if (filters.contactDue === "not_due") {
+      const now = new Date();
+      filtered = filtered.filter(c => !c.nextContactAt || new Date(c.nextContactAt) > now);
+    }
+
     return filtered;
   };
 
@@ -691,7 +761,8 @@ export default function Warranty() {
     return filters.location !== "all" ||
            filters.booked !== "all" ||
            filters.partsRequired !== "all" ||
-           filters.priority !== "all";
+           filters.priority !== "all" ||
+           filters.contactDue !== "all";
   };
 
   // Clear all filters
@@ -701,6 +772,7 @@ export default function Warranty() {
       booked: "all",
       partsRequired: "all",
       priority: "all",
+      contactDue: "all",
     });
   };
 
@@ -907,6 +979,20 @@ export default function Warranty() {
                     <option value="critical">Critical</option>
                   </select>
                 </div>
+
+                {/* Contact Due Filter */}
+                <div className="form-control">
+                  <label className="label label-text text-xs py-0">Contact Due</label>
+                  <select
+                    className="select select-bordered select-sm w-full"
+                    value={filters.contactDue}
+                    onChange={(e) => setFilters({ ...filters, contactDue: e.target.value })}
+                  >
+                    <option value="all">All</option>
+                    <option value="due">Due Today</option>
+                    <option value="not_due">Not Due</option>
+                  </select>
+                </div>
               </div>
 
               <button
@@ -1012,6 +1098,22 @@ export default function Warranty() {
               <option value="normal">Normal</option>
               <option value="high">High</option>
               <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          {/* Contact Due Filter */}
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text font-medium">Contact Due</span>
+            </label>
+            <select
+              className="select select-bordered w-full"
+              value={filters.contactDue}
+              onChange={(e) => setFilters({ ...filters, contactDue: e.target.value })}
+            >
+              <option value="all">All</option>
+              <option value="due">Due Today</option>
+              <option value="not_due">Not Due</option>
             </select>
           </div>
         </div>
@@ -1130,6 +1232,16 @@ export default function Warranty() {
                               </div>
                             )}
 
+                            {/* Contact due badge */}
+                            {caseItem.nextContactAt && new Date(caseItem.nextContactAt) <= new Date() && (
+                              <div className="flex items-center gap-1 mb-1.5 text-xs text-orange-600">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="font-medium">Contact due</span>
+                              </div>
+                            )}
+
                             {/* Footer row: Days open + icons */}
                             <div className="flex items-center justify-between text-xs text-slate-500">
                               <span className="font-medium">{daysOpen}d open</span>
@@ -1158,6 +1270,43 @@ export default function Warranty() {
                                     {activityCount}
                                   </span>
                                 )}
+                              </div>
+                            </div>
+
+                            {/* Mobile Move Button */}
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+                              <div className="dropdown dropdown-end">
+                                <label
+                                  tabIndex={0}
+                                  className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                  </svg>
+                                  Move
+                                </label>
+                                <ul
+                                  tabIndex={0}
+                                  className="dropdown-content z-[100] menu p-2 shadow-xl bg-white rounded-xl w-48 border border-slate-100"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {COLUMNS.filter(c => c.key !== col.key).map((targetCol) => (
+                                    <li key={targetCol.key}>
+                                      <button
+                                        className="flex items-center gap-2 text-sm py-2.5"
+                                        onClick={async (e) => {
+                                          e.stopPropagation();
+                                          await moveCaseToStatus(caseItem, targetCol.key);
+                                          document.activeElement?.blur();
+                                        }}
+                                      >
+                                        <span className={`w-2 h-2 rounded-full ${targetCol.accentBg}`}></span>
+                                        {targetCol.label}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
                             </div>
                           </div>
@@ -1573,6 +1722,95 @@ export default function Warranty() {
                 </div>
               </div>
 
+              {/* Customer Contact Tracking Section */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-slate-900">Customer Contact</h3>
+                  {selectedCase.nextContactAt && new Date(selectedCase.nextContactAt) <= new Date() && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Contact Due
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Last Contacted Info */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Last Contacted</span>
+                      <p className="text-sm text-slate-900 mt-0.5">
+                        {selectedCase.lastContactedAt ? (
+                          <>
+                            {new Date(selectedCase.lastContactedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            {selectedCase.lastContactedByName && (
+                              <span className="text-slate-500"> by {selectedCase.lastContactedByName}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-slate-400">Not contacted yet</span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const note = window.prompt("Add a note about this contact (optional):");
+                        await updateCase({
+                          _eventType: "CUSTOMER_CONTACTED",
+                          _eventMetadata: { note: note || null }
+                        }, "Customer contacted");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Mark Contacted
+                    </button>
+                  </div>
+
+                  {/* Contact Reminder */}
+                  <div className="pt-3 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Contact Reminder</span>
+                      {selectedCase.nextContactAt && (
+                        <button
+                          onClick={async () => {
+                            await updateCase({
+                              _eventType: "CONTACT_REMINDER_SET",
+                              _eventMetadata: { nextContactAt: null }
+                            }, "Contact reminder cleared");
+                          }}
+                          className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+                        value={selectedCase.nextContactAt ? new Date(selectedCase.nextContactAt).toISOString().slice(0, 16) : ""}
+                        onChange={async (e) => {
+                          const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
+                          await updateCase({
+                            _eventType: "CONTACT_REMINDER_SET",
+                            _eventMetadata: { nextContactAt: newDate }
+                          }, newDate ? "Contact reminder set" : "Contact reminder cleared");
+                        }}
+                      />
+                    </div>
+                    {selectedCase.nextContactAt && (
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        Reminder will show on dashboard and warranty board
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Repair Location Section */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
@@ -1582,37 +1820,80 @@ export default function Warranty() {
                   </span>
                 </div>
                 <div className="p-4 space-y-4">
-                  {/* Location Type Segmented Control */}
+                  {/* Location Type Segmented Control - Modern Pill Selector */}
                   <div>
                     <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">Location Type</label>
-                    <div className="bg-slate-100 rounded-lg p-1 flex">
+                    <div className="flex flex-wrap gap-2">
                       {[
-                        { key: "WITH_CUSTOMER", label: "With Customer", icon: "🏠" },
-                        { key: "ON_SITE", label: "On-site", icon: "🏢" },
-                        { key: "THIRD_PARTY", label: "Third-party", icon: "🔧" },
-                      ].map(loc => (
-                        <button
-                          key={loc.key}
-                          onClick={async () => {
-                            if ((selectedCase.repairLocationType || "WITH_CUSTOMER") !== loc.key) {
-                              const oldValue = selectedCase.repairLocationType || "WITH_CUSTOMER";
-                              await updateCase({
-                                repairLocationType: loc.key,
-                                _eventType: "LOCATION_UPDATED",
-                                _eventMetadata: { fromLocation: oldValue, toLocation: loc.key }
-                              }, "Repair location updated");
-                            }
-                          }}
-                          className={`flex-1 px-2 py-2 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1 ${
-                            (selectedCase.repairLocationType || "WITH_CUSTOMER") === loc.key
-                              ? `${REPAIR_LOCATION_STYLES[loc.key]?.bg} ${REPAIR_LOCATION_STYLES[loc.key]?.text} shadow-sm`
-                              : "text-slate-500 hover:text-slate-700"
-                          }`}
-                        >
-                          <span>{loc.icon}</span>
-                          <span className="hidden sm:inline">{loc.label}</span>
-                        </button>
-                      ))}
+                        {
+                          key: "WITH_CUSTOMER",
+                          label: "With Customer",
+                          icon: (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                          ),
+                          selectedBg: "bg-slate-700",
+                          selectedText: "text-white",
+                          selectedBorder: "border-slate-700",
+                        },
+                        {
+                          key: "ON_SITE",
+                          label: "On-site",
+                          icon: (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                          ),
+                          selectedBg: "bg-emerald-600",
+                          selectedText: "text-white",
+                          selectedBorder: "border-emerald-600",
+                        },
+                        {
+                          key: "THIRD_PARTY",
+                          label: "Third-party",
+                          icon: (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                          ),
+                          selectedBg: "bg-teal-600",
+                          selectedText: "text-white",
+                          selectedBorder: "border-teal-600",
+                        },
+                      ].map(loc => {
+                        const isSelected = (selectedCase.repairLocationType || "WITH_CUSTOMER") === loc.key;
+                        return (
+                          <button
+                            key={loc.key}
+                            onClick={async () => {
+                              if (!isSelected) {
+                                // Optimistic update
+                                const oldValue = selectedCase.repairLocationType || "WITH_CUSTOMER";
+                                setSelectedCase(prev => ({ ...prev, repairLocationType: loc.key }));
+                                await updateCase({
+                                  repairLocationType: loc.key,
+                                  _eventType: "LOCATION_UPDATED",
+                                  _eventMetadata: { fromLocation: oldValue, toLocation: loc.key }
+                                }, "Location updated");
+                              }
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                              isSelected
+                                ? `${loc.selectedBg} ${loc.selectedText} ${loc.selectedBorder} shadow-md`
+                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                            }`}
+                          >
+                            {loc.icon}
+                            <span>{loc.label}</span>
+                            {isSelected && (
+                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -2079,6 +2360,8 @@ export default function Warranty() {
                     suggestions={aiDiagnostics?.suggestions}
                     isLoading={isLoadingDiagnostics}
                     isDummy={aiDiagnostics?.isDummy}
+                    errorCode={aiDiagnostics?.errorCode}
+                    errorMessage={aiDiagnostics?.errorMessage}
                     onCopyToNotes={(text) => {
                       setNewComment((prev) => prev ? prev + "\n\n" + text : text);
                       toast.success("Added to comment draft");

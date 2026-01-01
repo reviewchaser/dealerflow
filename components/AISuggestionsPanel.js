@@ -22,10 +22,56 @@ const URGENCY_LABELS = {
   high: "High",
 };
 
+// Error display helper - returns user-friendly message based on error code
+function getErrorDisplay(errorCode, errorMessage) {
+  switch (errorCode) {
+    case "NOT_CONFIGURED":
+    case "MISSING_KEY":
+      return {
+        title: "AI Not Configured",
+        message: "OpenAI API key is not set. Please contact your administrator.",
+        type: "warning",
+      };
+    case "AUTH_FAILED":
+    case "INVALID_KEY_FORMAT":
+      return {
+        title: "AI Authentication Error",
+        message: "The OpenAI API key is invalid. Please check your configuration.",
+        type: "error",
+      };
+    case "RATE_LIMIT":
+      return {
+        title: "Rate Limit Exceeded",
+        message: "Too many requests. Please wait a moment and try again.",
+        type: "warning",
+      };
+    case "SERVICE_UNAVAILABLE":
+      return {
+        title: "AI Service Unavailable",
+        message: "OpenAI is temporarily unavailable. Please try again later.",
+        type: "warning",
+      };
+    case "UNAUTHORIZED":
+      return {
+        title: "Not Authorised",
+        message: "Please sign in to use AI features.",
+        type: "error",
+      };
+    default:
+      return {
+        title: "AI Error",
+        message: errorMessage || "An error occurred while generating suggestions.",
+        type: "error",
+      };
+  }
+}
+
 export default function AISuggestionsPanel({
   suggestions,
   isLoading,
   isDummy,
+  errorCode,
+  errorMessage,
   onCopyToNotes,
   className = "",
 }) {
@@ -149,6 +195,23 @@ export default function AISuggestionsPanel({
               <span className="loading loading-dots loading-md"></span>
               <p className="mt-2 text-sm">Analysing...</p>
             </div>
+          ) : isDummy && errorCode ? (
+            // Show error message with proper styling when in dummy mode due to error
+            (() => {
+              const errorDisplay = getErrorDisplay(errorCode, errorMessage);
+              const alertClass = errorDisplay.type === "error" ? "alert-error" : "alert-warning";
+              return (
+                <div className={`alert ${alertClass} shadow-sm`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <h3 className="font-bold text-sm">{errorDisplay.title}</h3>
+                    <p className="text-xs">{errorDisplay.message}</p>
+                  </div>
+                </div>
+              );
+            })()
           ) : suggestions ? (
             <>
               {/* Suspected Issues */}

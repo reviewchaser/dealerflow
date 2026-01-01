@@ -74,43 +74,52 @@ export default withDealerContext(async (req, res, ctx) => {
       });
     }
 
-    // For all-day events, set times to start/end of day
-    const startDatetime = new Date(request.startDate);
-    startDatetime.setHours(0, 0, 0, 0);
+    // Idempotent cleanup: Delete any existing linked calendar events first
+    const existingEventIds = [
+      ...(request.linkedCalendarEventIds || []),
+      ...(request.linkedCalendarEventId ? [request.linkedCalendarEventId] : [])
+    ];
 
-    const endDatetime = new Date(request.endDate);
-    endDatetime.setHours(23, 59, 59, 999);
-
-    // Idempotent: Update existing calendar event or create new one
-    let calendarEvent;
-    if (request.linkedCalendarEventId) {
-      // Update existing calendar event (e.g., if dates were edited)
-      calendarEvent = await CalendarEvent.findByIdAndUpdate(
-        request.linkedCalendarEventId,
-        {
-          title: `${request.type} - ${request.userName}`,
-          description: request.notes || `${request.type} request`,
-          categoryId: holidayCategory._id,
-          startDatetime,
-          endDatetime,
-        },
-        { new: true }
-      );
+    if (existingEventIds.length > 0) {
+      await CalendarEvent.deleteMany({
+        _id: { $in: existingEventIds },
+        dealerId
+      });
     }
 
-    if (!calendarEvent) {
-      // Create new calendar event
-      calendarEvent = await CalendarEvent.create({
+    // Create one calendar event per day in the range (inclusive)
+    const createdEventIds = [];
+    const currentDate = new Date(start);
+    currentDate.setHours(0, 0, 0, 0);
+
+    while (currentDate <= end) {
+      // Create event for this day
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Format day label (e.g., "Day 1 of 5")
+      const dayNumber = Math.ceil((currentDate - start) / (1000 * 60 * 60 * 24)) + 1;
+      const dayLabel = totalDays > 1 ? ` (Day ${dayNumber}/${totalDays})` : "";
+
+      const calendarEvent = await CalendarEvent.create({
         dealerId,
-        title: `${request.type} - ${request.userName}`,
+        title: `${request.type} - ${request.userName}${dayLabel}`,
         description: request.notes || `${request.type} request`,
         categoryId: holidayCategory._id,
-        startDatetime,
-        endDatetime,
+        startDatetime: dayStart,
+        endDatetime: dayEnd,
         assignedUserId: request.userId,
         createdByUserId: userId,
         linkedHolidayRequestId: request._id,
       });
+
+      createdEventIds.push(calendarEvent._id);
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
     }
 
     // Update request status
@@ -119,7 +128,10 @@ export default withDealerContext(async (req, res, ctx) => {
     request.reviewedByName = reviewerName;
     request.reviewedAt = new Date();
     request.adminNote = adminNote || null;
-    request.linkedCalendarEventId = calendarEvent._id;
+    // Store all event IDs
+    request.linkedCalendarEventIds = createdEventIds;
+    // Also set legacy single ID to first event for backwards compat
+    request.linkedCalendarEventId = createdEventIds[0] || null;
 
     await request.save();
 

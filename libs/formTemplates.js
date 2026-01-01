@@ -154,7 +154,7 @@ export const FORM_TEMPLATES = [
     visibility: "PUBLIC", // Fully public - customers can access
     isPublic: true, // Deprecated - kept for backward compat
     publicSlug: "test-drive",
-    introText: "Please complete this form to book a test drive. You must bring your valid driving licence on the day.",
+    introText: "Please complete this form to book a test drive. You can scan your driving licence to auto-fill your details.",
     vrmLookup: { enabled: true, statuses: ["IN_PREP", "ADVERTISED", "LIVE"] },
     termsText: `By signing this form, I confirm that:
 - I hold a valid UK driving licence
@@ -163,27 +163,38 @@ export const FORM_TEMPLATES = [
 - I am responsible for any parking or speeding fines incurred during the test drive
 - I will not allow any other person to drive the vehicle`,
     fields: [
+      // Step 1: Scan Driving Licence (OCR extraction enabled)
+      { label: "Scan Your Driving Licence", fieldName: "_section_licence_scan", type: "SECTION_HEADER", order: 1 },
+      { label: "Take a photo or upload your driving licence (front)", fieldName: "licence_photo", type: "LICENCE_SCAN", required: true, order: 2, helpText: "We'll automatically extract your details to speed up the process" },
+
       // Test Drive Details - date defaults to today, time defaults to current time (handled in frontend)
-      { label: "Date of Test Drive", fieldName: "date", type: "DATE", required: true, order: 1 },
-      { label: "Time", fieldName: "time", type: "TIME", required: true, order: 2 },
-      { label: "Your Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 5 },
-      { label: "First Name", fieldName: "first_name", type: "TEXT", required: true, order: 6 },
-      { label: "Last Name", fieldName: "last_name", type: "TEXT", required: true, order: 7 },
-      { label: "Email", fieldName: "email", type: "TEXT", required: true, order: 8 },
-      { label: "Contact Number", fieldName: "phone", type: "TEXT", required: true, order: 9 },
-      { label: "Driving Licence", fieldName: "_section_licence", type: "SECTION_HEADER", order: 15 },
-      { label: "Upload Driving Licence (Front)", fieldName: "licence_photo", type: "FILE", required: true, order: 16 },
-      { label: "Address (if different from licence)", fieldName: "_section_address", type: "SECTION_HEADER", order: 20 },
-      { label: "Street Address", fieldName: "address_street", type: "TEXT", required: false, order: 21 },
-      { label: "Address Line 2", fieldName: "address_line2", type: "TEXT", required: false, order: 22 },
-      { label: "City", fieldName: "address_city", type: "TEXT", required: false, order: 23 },
-      { label: "Post Code", fieldName: "address_postcode", type: "TEXT", required: false, order: 24 },
+      { label: "Test Drive Details", fieldName: "_section_testdrive", type: "SECTION_HEADER", order: 5 },
+      { label: "Date of Test Drive", fieldName: "date", type: "DATE", required: true, order: 6, defaultToday: true },
+      { label: "Time", fieldName: "time", type: "TIME", required: true, order: 7, defaultNow: true },
+
+      // Your Details - auto-filled from licence if scanned
+      { label: "Your Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 10 },
+      { label: "First Name", fieldName: "first_name", type: "TEXT", required: true, order: 11, autoFillFromLicence: "firstName" },
+      { label: "Last Name", fieldName: "last_name", type: "TEXT", required: true, order: 12, autoFillFromLicence: "lastName" },
+      { label: "Email", fieldName: "email", type: "TEXT", required: true, order: 13 },
+      { label: "Contact Number", fieldName: "phone", type: "TEXT", required: true, order: 14 },
+
+      // Address - auto-filled from licence if scanned
+      { label: "Address", fieldName: "_section_address", type: "SECTION_HEADER", order: 20 },
+      { label: "Street Address", fieldName: "address_street", type: "TEXT", required: true, order: 21, autoFillFromLicence: "addressLine1" },
+      { label: "Address Line 2", fieldName: "address_line2", type: "TEXT", required: false, order: 22, autoFillFromLicence: "addressLine2" },
+      { label: "City", fieldName: "address_city", type: "TEXT", required: true, order: 23, autoFillFromLicence: "town" },
+      { label: "Post Code", fieldName: "address_postcode", type: "TEXT", required: true, order: 24, autoFillFromLicence: "postcode" },
+
+      // Vehicle Details
       { label: "Vehicle Details", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 30 },
       { label: "Vehicle Registration", fieldName: "vrm", type: "TEXT", required: true, order: 31, vrmLookup: true },
       // Make and Model are hidden when vehicle is selected from stock (handled in frontend)
       { label: "Vehicle Make", fieldName: "vehicle_make", type: "TEXT", required: false, order: 32, hiddenWhenStockSelected: true },
       { label: "Vehicle Model", fieldName: "vehicle_model", type: "TEXT", required: false, order: 33, hiddenWhenStockSelected: true },
       { label: "Where did you find this vehicle?", fieldName: "source", type: "DROPDOWN", required: true, order: 35, options: { choices: ["AutoTrader", "eBay", "Facebook", "Google", "Referral", "Walk-in", "Other"] } },
+
+      // Terms & Conditions
       { label: "Terms & Conditions", fieldName: "_section_terms", type: "SECTION_HEADER", order: 40 },
       { label: "I agree to the Terms & Conditions", fieldName: "agree_terms", type: "BOOLEAN", required: true, order: 41 },
       { label: "Signature", fieldName: "signature", type: "SIGNATURE", required: true, order: 42 },

@@ -46,6 +46,10 @@ export default function FillForm() {
   const [vrmLookupConfig, setVrmLookupConfig] = useState(null);
   // Dealer info for token replacement
   const [dealer, setDealer] = useState(null);
+  // Licence extraction state
+  const [isExtractingLicence, setIsExtractingLicence] = useState(false);
+  const [licenceExtracted, setLicenceExtracted] = useState(false);
+  const [licenceExtractionError, setLicenceExtractionError] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -878,6 +882,170 @@ export default function FillForm() {
               </svg>
               Add Issue
             </button>
+          </div>
+        );
+
+      case "LICENCE_SCAN":
+        // Licence scan with OCR extraction
+        const handleLicenceCapture = async (file) => {
+          if (!file) return;
+
+          setIsExtractingLicence(true);
+          setLicenceExtractionError(null);
+          setLicenceExtracted(false);
+
+          try {
+            // Convert file to base64
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const base64 = reader.result.split(",")[1]; // Remove data URL prefix
+              const mimeType = file.type || "image/jpeg";
+
+              // Store the image in form data
+              handleInputChange(field.fieldName, [file]);
+
+              // Call extraction API
+              const res = await fetch("/api/forms/test-drive/extract-licence", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: base64, mimeType }),
+              });
+
+              const data = await res.json();
+
+              if (data.ok && data.data) {
+                // Auto-fill form fields from extracted data
+                const extracted = data.data;
+                const updates = {};
+
+                // Map extracted fields to form field names using autoFillFromLicence config
+                fields.forEach((f) => {
+                  if (f.autoFillFromLicence && extracted[f.autoFillFromLicence]) {
+                    updates[f.fieldName] = extracted[f.autoFillFromLicence];
+                  }
+                });
+
+                // Apply all updates at once
+                if (Object.keys(updates).length > 0) {
+                  setFormData((prev) => ({ ...prev, ...updates }));
+                  setLicenceExtracted(true);
+                  toast.success("Details captured from licence - please verify");
+                } else {
+                  setLicenceExtractionError("Could not extract details. Please enter manually.");
+                }
+              } else {
+                setLicenceExtractionError(data.error || "Could not extract details. Please enter manually.");
+              }
+
+              setIsExtractingLicence(false);
+            };
+
+            reader.onerror = () => {
+              setLicenceExtractionError("Failed to read file. Please try again.");
+              setIsExtractingLicence(false);
+            };
+
+            reader.readAsDataURL(file);
+          } catch (error) {
+            console.error("Licence extraction error:", error);
+            setLicenceExtractionError("Failed to process licence. Please enter details manually.");
+            setIsExtractingLicence(false);
+          }
+        };
+
+        const clearLicenceData = () => {
+          // Clear the licence photo and reset extraction state
+          handleInputChange(field.fieldName, null);
+          setLicenceExtracted(false);
+          setLicenceExtractionError(null);
+
+          // Clear auto-filled fields
+          const fieldsToClear = {};
+          fields.forEach((f) => {
+            if (f.autoFillFromLicence) {
+              fieldsToClear[f.fieldName] = "";
+            }
+          });
+          setFormData((prev) => ({ ...prev, ...fieldsToClear }));
+        };
+
+        return (
+          <div className="space-y-3">
+            {/* Success banner */}
+            {licenceExtracted && (
+              <div className="alert alert-success shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="font-bold text-sm">Details captured from licence</h3>
+                  <p className="text-xs">Please verify the information below is correct</p>
+                </div>
+                <button type="button" className="btn btn-ghost btn-xs" onClick={clearLicenceData}>
+                  Clear
+                </button>
+              </div>
+            )}
+
+            {/* Error banner */}
+            {licenceExtractionError && (
+              <div className="alert alert-warning shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">{licenceExtractionError}</span>
+              </div>
+            )}
+
+            {/* File input with camera option */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <label className="flex-1 cursor-pointer">
+                <div className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors ${
+                  isExtractingLicence ? "border-primary bg-primary/5" :
+                  value && value.length > 0 ? "border-success bg-success/5" :
+                  "border-base-300 hover:border-primary hover:bg-primary/5"
+                }`}>
+                  {isExtractingLicence ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="loading loading-spinner loading-md text-primary"></span>
+                      <span className="text-sm text-primary">Extracting details...</span>
+                    </div>
+                  ) : value && value.length > 0 ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm text-success font-medium">Photo captured</span>
+                      <span className="text-xs text-base-content/60">{value[0]?.name || "licence_photo.jpg"}</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="text-sm font-medium">Take photo or upload</span>
+                      <span className="text-xs text-base-content/60">Tap to capture your driving licence</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleLicenceCapture(file);
+                    }
+                  }}
+                  disabled={isExtractingLicence}
+                />
+              </label>
+            </div>
+
+            {helpText && <p className="text-sm text-base-content/60">{helpText}</p>}
           </div>
         );
 

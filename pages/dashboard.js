@@ -83,6 +83,30 @@ const NEEDS_ATTENTION_ITEMS = [
       </svg>
     ),
     description: "within 14 days"
+  },
+  {
+    key: "contactDue",
+    label: "Contact due",
+    href: "/warranty",
+    color: "warning",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+      </svg>
+    ),
+    description: "warranty cases need follow-up"
+  },
+  {
+    key: "newWarrantyCases",
+    label: "New warranty cases",
+    href: "/warranty",
+    color: "info",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    description: "created in last 48 hours"
   }
 ];
 
@@ -167,7 +191,7 @@ export default function Dashboard() {
     reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
     forms: { total: 0, submissions: 0 },
     recent: { appraisals: [], vehicles: [], formSubmissions: [] },
-    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
     today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
     topForms: [],
     oldestAppraisalDays: null,
