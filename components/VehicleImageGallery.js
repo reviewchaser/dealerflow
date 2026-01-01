@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Image from "next/image";
 import { toast } from "react-hot-toast";
 
@@ -10,6 +10,7 @@ import { toast } from "react-hot-toast";
  * - Lightbox for larger preview
  * - Delete functionality
  * - Set as primary functionality
+ * - Automatic signed URL fallback for private buckets
  *
  * Props:
  * - vehicleId: The vehicle ID
@@ -28,6 +29,46 @@ export default function VehicleImageGallery({
   const [lightboxImage, setLightboxImage] = useState(null);
   const [isDeleting, setIsDeleting] = useState(null);
   const [isSettingPrimary, setIsSettingPrimary] = useState(null);
+  // Map of image keys to signed URLs (for private bucket fallback)
+  const [signedUrls, setSignedUrls] = useState({});
+  const [loadErrors, setLoadErrors] = useState({});
+
+  // Fetch signed URL when public URL fails
+  const fetchSignedUrl = useCallback(async (imageKey) => {
+    // Don't refetch if we already have it or already tried
+    if (signedUrls[imageKey] || loadErrors[imageKey] === "signed-failed") return null;
+
+    try {
+      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(imageKey)}`);
+      if (!res.ok) {
+        console.error("[Gallery] Failed to get signed URL:", await res.text());
+        setLoadErrors((prev) => ({ ...prev, [imageKey]: "signed-failed" }));
+        return null;
+      }
+      const { signedUrl } = await res.json();
+      setSignedUrls((prev) => ({ ...prev, [imageKey]: signedUrl }));
+      return signedUrl;
+    } catch (err) {
+      console.error("[Gallery] Error fetching signed URL:", err);
+      setLoadErrors((prev) => ({ ...prev, [imageKey]: "signed-failed" }));
+      return null;
+    }
+  }, [signedUrls, loadErrors]);
+
+  // Handle image load error - try signed URL fallback
+  const handleImageError = useCallback((imageKey) => {
+    // Mark as errored and try to fetch signed URL
+    setLoadErrors((prev) => {
+      if (prev[imageKey]) return prev; // Already tried
+      return { ...prev, [imageKey]: "public-failed" };
+    });
+    fetchSignedUrl(imageKey);
+  }, [fetchSignedUrl]);
+
+  // Get the best URL for an image (signed if available, otherwise public)
+  const getImageUrl = useCallback((image) => {
+    return signedUrls[image.key] || image.url;
+  }, [signedUrls]);
 
   const handleDelete = async (image) => {
     if (!confirm("Are you sure you want to delete this image?")) return;
@@ -110,12 +151,13 @@ export default function VehicleImageGallery({
             >
               {/* Image */}
               <Image
-                src={image.url}
+                src={getImageUrl(image)}
                 alt={`Vehicle image ${idx + 1}`}
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 33vw, 25vw"
                 unoptimized
+                onError={() => handleImageError(image.key)}
               />
 
               {/* Primary Badge */}
@@ -188,12 +230,13 @@ export default function VehicleImageGallery({
 
           <div className="relative max-w-4xl max-h-[80vh] w-full h-full" onClick={(e) => e.stopPropagation()}>
             <Image
-              src={lightboxImage.url}
+              src={getImageUrl(lightboxImage)}
               alt="Vehicle image"
               fill
               className="object-contain"
               sizes="100vw"
               unoptimized
+              onError={() => handleImageError(lightboxImage.key)}
             />
           </div>
 
