@@ -32,27 +32,284 @@ const SOURCE_LABELS = {
   manual: "Manual",
 };
 
-// Timeline event icons
-const EVENT_ICONS = {
-  CASE_CREATED: "📋",
-  SUBMISSION_LINKED: "🔗",
-  COMMENT_ADDED: "💬",
-  STATUS_CHANGED: "🔄",
-  AI_REVIEW_GENERATED: "🤖",
-  ATTACHMENT_ADDED: "📎",
-  LOCATION_UPDATED: "📍",
-  BOOKING_UPDATED: "📅",
-  PARTS_UPDATED: "🔧",
-  COURTESY_REQUIRED_TOGGLED: "🚗",
-  COURTESY_ALLOCATED: "🚗",
-  COURTESY_RETURNED: "🚗",
-  COURTESY_OUT_RECORDED: "🚗",
-  COURTESY_IN_RECORDED: "🚗",
-  // Warranty booking auto-move events
-  WARRANTY_BOOKED_IN: "📅",
-  WARRANTY_BOOKING_UPDATED: "📅",
-  WARRANTY_BOOKING_CANCELLED: "❌",
-  WARRANTY_STAGE_MOVED: "🔀",
+// Timeline event styling - using SVG icons for consistency
+const TIMELINE_STYLES = {
+  // System events - very subtle (low visual weight)
+  CASE_CREATED: {
+    color: "text-slate-300",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Case Created",
+    subtle: true
+  },
+  STATUS_CHANGED: {
+    color: "text-slate-400",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Status Changed",
+    subtle: true
+  },
+  WARRANTY_STAGE_MOVED: {
+    color: "text-slate-400",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Stage Updated",
+    subtle: true
+  },
+  // Booking events - moderate emphasis
+  BOOKING_UPDATED: {
+    color: "text-amber-400",
+    bg: "bg-amber-50/50",
+    border: "border-amber-100",
+    label: "Booking Updated"
+  },
+  WARRANTY_BOOKED_IN: {
+    color: "text-amber-400",
+    bg: "bg-amber-50/50",
+    border: "border-amber-100",
+    label: "Booking Set"
+  },
+  WARRANTY_BOOKING_UPDATED: {
+    color: "text-amber-400",
+    bg: "bg-amber-50/50",
+    border: "border-amber-100",
+    label: "Booking Changed"
+  },
+  WARRANTY_BOOKING_CANCELLED: {
+    color: "text-red-400",
+    bg: "bg-red-50/50",
+    border: "border-red-100",
+    label: "Booking Cancelled"
+  },
+  // Dealer activity - HIGH PROMINENCE (most visible)
+  COMMENT_ADDED: {
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    label: "Dealer Update",
+    prominent: true
+  },
+  DEALER_UPDATE: {
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    label: "Dealer Update",
+    prominent: true
+  },
+  // AI events - moderate
+  AI_REVIEW_GENERATED: {
+    color: "text-purple-400",
+    bg: "bg-purple-50/50",
+    border: "border-purple-100",
+    label: "AI Review"
+  },
+  // Attachments - subtle (low visual weight)
+  ATTACHMENT_ADDED: {
+    color: "text-slate-300",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "File Attached",
+    subtle: true
+  },
+  SUBMISSION_LINKED: {
+    color: "text-slate-400",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Form Linked",
+    subtle: true
+  },
+  // Location & Parts - subtle (low visual weight)
+  LOCATION_UPDATED: {
+    color: "text-slate-300",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Location Updated",
+    subtle: true
+  },
+  PARTS_UPDATED: {
+    color: "text-slate-300",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Parts Updated",
+    subtle: true
+  },
+  // Courtesy car - subtle
+  COURTESY_REQUIRED_TOGGLED: {
+    color: "text-slate-400",
+    bg: "bg-transparent",
+    border: "border-slate-100",
+    label: "Courtesy Car",
+    subtle: true
+  },
+  COURTESY_ALLOCATED: {
+    color: "text-cyan-400",
+    bg: "bg-cyan-50/30",
+    border: "border-cyan-100",
+    label: "Courtesy Allocated"
+  },
+  COURTESY_RETURNED: {
+    color: "text-cyan-400",
+    bg: "bg-cyan-50/30",
+    border: "border-cyan-100",
+    label: "Courtesy Returned"
+  },
+  COURTESY_OUT_RECORDED: {
+    color: "text-cyan-400",
+    bg: "bg-cyan-50/30",
+    border: "border-cyan-100",
+    label: "Courtesy Out"
+  },
+  COURTESY_IN_RECORDED: {
+    color: "text-cyan-500",
+    bg: "bg-cyan-50",
+    border: "border-cyan-200",
+    label: "Courtesy In"
+  },
+};
+
+// Quick update templates for dealer updates
+const QUICK_UPDATE_TEMPLATES = [
+  { label: "Attempted call", text: "Attempted to call customer - no answer" },
+  { label: "Spoke to customer", text: "Spoke to customer" },
+  { label: "Awaiting parts", text: "Awaiting parts" },
+  { label: "Customer update", text: "Customer notified of progress" },
+];
+
+// Timeline Icon components
+const TimelineIcons = {
+  status: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  ),
+  calendar: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  ),
+  comment: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ),
+  ai: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  ),
+  attachment: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+    </svg>
+  ),
+  location: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  parts: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  ),
+  car: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </svg>
+  ),
+  link: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+    </svg>
+  ),
+  file: ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    </svg>
+  ),
+};
+
+// Get icon component for event type
+const getTimelineIcon = (type) => {
+  const iconMap = {
+    CASE_CREATED: TimelineIcons.file,
+    STATUS_CHANGED: TimelineIcons.status,
+    WARRANTY_STAGE_MOVED: TimelineIcons.status,
+    BOOKING_UPDATED: TimelineIcons.calendar,
+    WARRANTY_BOOKED_IN: TimelineIcons.calendar,
+    WARRANTY_BOOKING_UPDATED: TimelineIcons.calendar,
+    WARRANTY_BOOKING_CANCELLED: TimelineIcons.calendar,
+    COMMENT_ADDED: TimelineIcons.comment,
+    DEALER_UPDATE: TimelineIcons.comment,
+    AI_REVIEW_GENERATED: TimelineIcons.ai,
+    ATTACHMENT_ADDED: TimelineIcons.attachment,
+    SUBMISSION_LINKED: TimelineIcons.link,
+    LOCATION_UPDATED: TimelineIcons.location,
+    PARTS_UPDATED: TimelineIcons.parts,
+    COURTESY_REQUIRED_TOGGLED: TimelineIcons.car,
+    COURTESY_ALLOCATED: TimelineIcons.car,
+    COURTESY_RETURNED: TimelineIcons.car,
+    COURTESY_OUT_RECORDED: TimelineIcons.car,
+    COURTESY_IN_RECORDED: TimelineIcons.car,
+  };
+  return iconMap[type] || TimelineIcons.file;
+};
+
+// Format timestamp for timeline (readable format)
+const formatTimelineDate = (dateStr) => {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+
+  const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+  if (isToday) return `Today ${time}`;
+  if (isYesterday) return `Yesterday ${time}`;
+
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ` ${time}`;
+};
+
+// Merge events and comments into unified timeline
+const buildUnifiedTimeline = (events = [], comments = []) => {
+  const timeline = [];
+
+  // Add events
+  events.forEach(event => {
+    timeline.push({
+      ...event,
+      itemType: 'event',
+      sortDate: new Date(event.createdAt)
+    });
+  });
+
+  // Add comments as DEALER_UPDATE type (unless already represented in events)
+  comments.forEach(comment => {
+    // Check if this comment is already represented in events
+    const hasEvent = events.some(e =>
+      e.type === 'COMMENT_ADDED' &&
+      e.metadata?.commentId === (comment.id || comment._id)
+    );
+
+    if (!hasEvent) {
+      timeline.push({
+        type: 'DEALER_UPDATE',
+        itemType: 'comment',
+        comment: comment,
+        createdAt: comment.createdAt,
+        createdByName: comment.authorType === 'customer' ? 'Customer' : (comment.authorName || 'Staff'),
+        isCustomer: comment.authorType === 'customer',
+        sortDate: new Date(comment.createdAt)
+      });
+    }
+  });
+
+  // Sort by date (newest first)
+  return timeline.sort((a, b) => b.sortDate - a.sortDate);
 };
 
 // Timeline grouping constant
@@ -199,6 +456,10 @@ export default function Warranty() {
   const [jobSheetLink, setJobSheetLink] = useState(null);
   const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
 
+  // Mobile move bottom sheet
+  const [moveCase, setMoveCase] = useState(null);
+  const [moveCaseCurrentColumn, setMoveCaseCurrentColumn] = useState(null);
+
   useEffect(() => { fetchCases(); }, []);
 
   // Auto-open case from query param (e.g., /warranty?caseId=123)
@@ -207,6 +468,15 @@ export default function Warranty() {
       fetchCaseDetail(router.query.caseId);
     }
   }, [router.query.caseId]);
+
+  // Handle addCase query param (from Quick Add menu)
+  useEffect(() => {
+    if (router.query.addCase === "1") {
+      setShowAddModal(true);
+      // Remove the query param from URL without reload
+      router.replace("/warranty", undefined, { shallow: true });
+    }
+  }, [router.query.addCase]);
 
   const fetchCases = async () => {
     try {
@@ -1139,6 +1409,71 @@ export default function Warranty() {
         </div>
       ) : (
         <>
+          {/* Mobile Overview Strip */}
+          <div className="md:hidden mb-4">
+            {/* Stats Chips Row */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                Total Open
+                <span className="font-bold">{cases.filter(c => c.status !== "collected").length}</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 text-red-700 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                Not Booked
+                <span className="font-bold">{getCasesByStatus("not_booked_in").length}</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                Booked In
+                <span className="font-bold">{getCasesByStatus("on_site").length}</span>
+              </div>
+              <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 text-orange-700 text-xs font-medium">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Contact Due
+                <span className="font-bold">{cases.filter(c => c.nextContactAt && new Date(c.nextContactAt) <= new Date() && c.status !== "collected").length}</span>
+              </div>
+            </div>
+
+            {/* Contact Due Section - Show top 3 */}
+            {cases.filter(c => c.nextContactAt && new Date(c.nextContactAt) <= new Date() && c.status !== "collected").length > 0 && (
+              <div className="mt-3 p-3 bg-orange-50 rounded-xl border border-orange-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-semibold text-orange-800">Contact Due</span>
+                </div>
+                <div className="space-y-2">
+                  {cases
+                    .filter(c => c.nextContactAt && new Date(c.nextContactAt) <= new Date() && c.status !== "collected")
+                    .slice(0, 3)
+                    .map((caseItem) => (
+                      <button
+                        key={caseItem.id || caseItem._id}
+                        className="w-full flex items-center justify-between p-2 bg-white rounded-lg hover:bg-orange-100 transition-colors text-left"
+                        onClick={() => fetchCaseDetail(caseItem.id || caseItem._id)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs bg-[#fcd34d] px-1.5 py-0.5 rounded font-bold">
+                            {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "?"}
+                          </span>
+                          <span className="text-sm text-slate-700 truncate max-w-[120px]">
+                            {caseItem.contactId?.name || "Unknown"}
+                          </span>
+                        </div>
+                        <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Mobile Column Selector */}
           <MobileStageSelector
             stages={COLUMNS.map((col) => ({
@@ -1275,39 +1610,19 @@ export default function Warranty() {
 
                             {/* Mobile Move Button */}
                             <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
-                              <div className="dropdown dropdown-end">
-                                <label
-                                  tabIndex={0}
-                                  className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                  </svg>
-                                  Move
-                                </label>
-                                <ul
-                                  tabIndex={0}
-                                  className="dropdown-content z-[100] menu p-2 shadow-xl bg-white rounded-xl w-48 border border-slate-100"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  {COLUMNS.filter(c => c.key !== col.key).map((targetCol) => (
-                                    <li key={targetCol.key}>
-                                      <button
-                                        className="flex items-center gap-2 text-sm py-2.5"
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          await moveCaseToStatus(caseItem, targetCol.key);
-                                          document.activeElement?.blur();
-                                        }}
-                                      >
-                                        <span className={`w-2 h-2 rounded-full ${targetCol.accentBg}`}></span>
-                                        {targetCol.label}
-                                      </button>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
+                              <button
+                                className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMoveCase(caseItem);
+                                  setMoveCaseCurrentColumn(col.key);
+                                }}
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Move
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1568,9 +1883,12 @@ export default function Warranty() {
       {selectedCase && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="bg-black/40 absolute inset-0 backdrop-blur-sm" onClick={() => setSelectedCase(null)}></div>
-          <div className="relative bg-white w-full max-w-xl h-full overflow-y-auto shadow-2xl">
+          <div className="relative bg-white w-full max-w-xl h-[100dvh] overflow-y-auto shadow-2xl">
             {/* Modern Sticky Header */}
-            <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-4 z-10">
+            <div
+              className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-4 z-10"
+              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+            >
               <div className="flex justify-between items-start gap-3">
                 {/* Back button on mobile */}
                 <button className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors" onClick={() => setSelectedCase(null)}>
@@ -1585,7 +1903,7 @@ export default function Warranty() {
                       {selectedCase.regAtPurchase || selectedCase.details?.vehicleReg || "NO REG"}
                     </span>
                     {selectedCase.warrantyType && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
                         {selectedCase.warrantyType}
                       </span>
                     )}
@@ -1665,7 +1983,7 @@ export default function Warranty() {
               </div>
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
               {/* Customer & Vehicle Section */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
@@ -1940,7 +2258,15 @@ export default function Warranty() {
                     : "bg-amber-100/50 border-b border-amber-200"
                 }`}>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{selectedCase.bookedInAt ? "📅" : "⏳"}</span>
+                    {selectedCase.bookedInAt ? (
+                      <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
                     <h3 className="text-sm font-semibold text-slate-900">Booking</h3>
                   </div>
                   {selectedCase.bookedInAt ? (
@@ -2053,7 +2379,10 @@ export default function Warranty() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-base">🚗</span>
+                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM16 17a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 11.5V15a1 1 0 001 1h1.5M4 11.5L6 6.5A1 1 0 017 6h7m-10 5.5h4m10 0V15a1 1 0 01-1 1h-1.5m2.5-4.5L16.5 6.5a1 1 0 00-1-.5H14m4 5.5h-4M14 6v5.5m-4 0V6m0 5.5h4" />
+                    </svg>
                     <h3 className="text-sm font-semibold text-slate-900">Courtesy Car</h3>
                   </div>
                   {selectedCase.courtesyAllocation?.status === "OUT" && (
@@ -2115,14 +2444,14 @@ export default function Warranty() {
                       </button>
                     </div>
                   ) : selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "RETURNED" ? (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3">
+                      <div className="flex items-center gap-2 text-sm text-emerald-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                         Courtesy car returned
                         {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent && (
-                          <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">({selectedCase.courtesyAllocation.courtesyVehicle.regCurrent})</span>
+                          <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border border-emerald-200">({selectedCase.courtesyAllocation.courtesyVehicle.regCurrent})</span>
                         )}
                       </div>
                     </div>
@@ -2224,7 +2553,10 @@ export default function Warranty() {
                 <div className="bg-[#0066CC]/5/50 rounded-xl border border-[#0066CC]/20 overflow-hidden">
                   <div className="px-4 py-3 border-b border-[#0066CC]/10 flex justify-between items-center bg-[#0066CC]/8">
                     <h3 className="text-sm font-semibold text-[#0055BB] flex items-center gap-2">
-                      <span>🤖</span> AI Case Review
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                      AI Case Review
                     </h3>
                     <span className="text-xs text-[#0066CC]">
                       Generated {relativeTime(selectedCase.aiReview.generatedAt)}
@@ -2317,11 +2649,13 @@ export default function Warranty() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 text-center">
-                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-lg">
-                    🤖
+                <div className="bg-gradient-to-br from-[#0066CC]/5 to-purple-50 rounded-xl border border-[#0066CC]/10 p-6 text-center">
+                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-white shadow-sm flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
                   </div>
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-slate-600">
                     Click "Generate AI Review" to get AI-powered analysis of this case.
                   </p>
                 </div>
@@ -2448,190 +2782,53 @@ export default function Warranty() {
 
               {/* Timeline */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-slate-900">Timeline</h3>
                 </div>
                 <div className="p-4">
-                  {/* Event-driven timeline (newest first) with grouping */}
-                  <div className="space-y-3 mb-4">
-                    {groupTimelineEvents(selectedCase.events || []).map((item, idx) => {
-                      // Handle grouped STATUS_CHANGED events
-                      if (item.isGroup && item.type === "STATUS_CHANGED_GROUP") {
-                        const isExpanded = expandedTimelineGroups[idx];
-                        const lastEvent = item.events[0]; // Most recent in group
-
-                        // If only one event in group, render normally
-                        if (item.events.length === 1) {
-                          const event = item.events[0];
-                          return (
-                            <div key={idx} className="flex gap-3 items-start opacity-70">
-                              <div className="text-base text-slate-400" title={event.type}>
-                                {EVENT_ICONS.STATUS_CHANGED}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-slate-500">{event.summary || "Status changed"}</p>
-                                <p className="text-xs text-slate-400" title={new Date(event.createdAt).toLocaleString()}>
-                                  {relativeTime(event.createdAt)}
-                                  {event.createdByName && <span className="ml-1">by {event.createdByName}</span>}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div key={idx} className="border border-slate-200 rounded-lg p-2 bg-slate-50/50">
-                            <button
-                              className="flex gap-3 items-start w-full text-left"
-                              onClick={() => setExpandedTimelineGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            >
-                              <div className="text-base text-slate-400" title="Multiple status changes">
-                                {EVENT_ICONS.STATUS_CHANGED}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs text-slate-600 font-medium">
-                                  Status updated {item.events.length} times
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  Last change: {relativeTime(lastEvent.createdAt)}
-                                </p>
-                              </div>
-                              <svg
-                                className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </button>
-
-                            {isExpanded && (
-                              <div className="mt-2 ml-7 space-y-2 border-l-2 border-slate-200 pl-3">
-                                {item.events.map((event, subIdx) => (
-                                  <div key={subIdx} className="text-xs">
-                                    <p className="text-slate-600">{event.summary || "Status changed"}</p>
-                                    <p className="text-slate-400">
-                                      {relativeTime(event.createdAt)}
-                                      {event.createdByName && <span className="ml-1">by {event.createdByName}</span>}
-                                    </p>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      }
-
-                      // Handle individual events
-                      const event = item;
-                      const isProminent = event.type === "COMMENT_ADDED" || event.type === "AI_REVIEW_GENERATED";
-                      const isMinimal = event.type === "CASE_CREATED";
-                      const isStatusChange = event.type === "STATUS_CHANGED";
-
-                      return (
-                        <div
-                          key={idx}
-                          className={`flex gap-3 items-start ${isStatusChange ? "opacity-70" : ""} ${isMinimal ? "opacity-50" : ""}`}
+                  {/* Add Update - Quick Templates + Input */}
+                  <div className="mb-4 pb-4 border-b border-slate-100">
+                    {/* Quick Templates */}
+                    <div className="flex gap-2 flex-wrap mb-3">
+                      {QUICK_UPDATE_TEMPLATES.map((template, i) => (
+                        <button
+                          key={i}
+                          className="px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-full transition-colors"
+                          onClick={() => setNewComment(template.text)}
                         >
-                          <div
-                            className={`${isProminent ? "text-lg" : "text-base"} ${isStatusChange || isMinimal ? "text-slate-400" : ""}`}
-                            title={event.type}
-                          >
-                            {EVENT_ICONS[event.type] || "📌"}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            {/* Prominent events (comments, AI reviews) get larger text and preview */}
-                            {isProminent ? (
-                              <>
-                                <p className="text-sm font-medium text-slate-900">{event.summary || event.type.replace(/_/g, " ")}</p>
-                                {event.type === "COMMENT_ADDED" && event.metadata?.content && (
-                                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
-                                    "{event.metadata.content}"
-                                  </p>
-                                )}
-                              </>
-                            ) : (
-                              <p className={`${isStatusChange || isMinimal ? "text-xs text-slate-500" : "text-sm text-slate-700"}`}>
-                                {event.summary || event.type.replace(/_/g, " ")}
-                              </p>
-                            )}
-                            <p
-                              className={`text-xs ${isStatusChange || isMinimal ? "text-slate-400" : "text-slate-500"}`}
-                              title={new Date(event.createdAt).toLocaleString()}
-                            >
-                              {relativeTime(event.createdAt)}
-                              {event.createdByName && <span className="ml-1">by {event.createdByName}</span>}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-
-                    {(!selectedCase.events || selectedCase.events.length === 0) && (
-                      <p className="text-sm text-slate-500">No timeline events yet.</p>
-                    )}
-                  </div>
-
-                  {/* Comments (legacy display for existing comments) */}
-                  {selectedCase.comments?.length > 0 && (
-                    <div className="border-t border-slate-100 pt-3 mt-3">
-                      <h4 className="font-medium text-sm text-slate-900 mb-2">Comments</h4>
-                      <div className="space-y-3">
-                        {selectedCase.comments.map((comment) => (
-                          <div key={comment.id} className={`p-3 rounded-lg ${
-                            comment.authorType === "customer" ? "bg-[#0066CC]/5 border border-[#0066CC]/10" : "bg-slate-50 border border-slate-100"
-                          }`}>
-                            <div className="flex justify-between text-xs text-slate-500 mb-1">
-                              <span className="font-medium">{comment.authorType === "customer" ? "Customer" : "Staff"}</span>
-                              <span title={new Date(comment.createdAt).toLocaleString()}>
-                                {relativeTime(comment.createdAt)}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-700">{comment.content}</p>
-                            {comment.attachments?.length > 0 && (
-                              <div className="flex gap-2 mt-2 flex-wrap">
-                                {comment.attachments.map((att, i) => (
-                                  <a
-                                    key={i}
-                                    href={att.url || att}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-md hover:bg-slate-50"
-                                  >
-                                    📎 {att.filename || "File"}
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          {template.label}
+                        </button>
+                      ))}
                     </div>
-                  )}
 
-                  {/* Add Comment with Attachment */}
-                  <div className="mt-4 pt-3 border-t border-slate-100">
+                    {/* Attachments Preview */}
                     {commentAttachments.length > 0 && (
                       <div className="flex gap-2 flex-wrap mb-2">
                         {commentAttachments.map((att, i) => (
-                          <span key={i} className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-md">
-                            📎 {att.filename}
+                          <span key={i} className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 bg-slate-100 rounded-lg">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            {att.filename}
                             <button
-                              className="text-red-500 hover:text-red-600 ml-0.5"
+                              className="text-slate-400 hover:text-red-500 transition-colors"
                               onClick={() => setCommentAttachments(commentAttachments.filter((_, j) => j !== i))}
                             >
-                              ✕
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
                             </button>
                           </span>
                         ))}
                       </div>
                     )}
+
+                    {/* Input Row */}
                     <div className="flex gap-2">
                       <input
                         type="text"
-                        className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
-                        placeholder="Add a comment..."
+                        className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+                        placeholder="Add an update..."
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         onKeyPress={(e) => e.key === "Enter" && addComment()}
@@ -2644,21 +2841,146 @@ export default function Warranty() {
                         onChange={handleFileSelect}
                       />
                       <button
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                        className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
                         onClick={() => fileInputRef.current?.click()}
                         title="Attach files"
                       >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                         </svg>
                       </button>
                       <button
-                        className="px-4 py-2 text-sm font-medium text-white bg-[#0066CC] hover:bg-[#0055BB] rounded-lg transition-colors"
+                        className="px-4 py-2.5 text-sm font-medium text-white bg-[#0066CC] hover:bg-[#0055BB] rounded-lg transition-colors disabled:opacity-50"
                         onClick={addComment}
+                        disabled={!newComment.trim()}
                       >
                         Add
                       </button>
                     </div>
+                  </div>
+
+                  {/* Unified Timeline - Events + Comments merged */}
+                  <div className="space-y-3">
+                    {buildUnifiedTimeline(selectedCase.events || [], selectedCase.comments || []).map((item, idx) => {
+                      const style = TIMELINE_STYLES[item.type] || TIMELINE_STYLES.CASE_CREATED;
+                      const IconComponent = getTimelineIcon(item.type);
+                      const isComment = item.itemType === 'comment' || item.type === 'COMMENT_ADDED' || item.type === 'DEALER_UPDATE';
+                      const isAI = item.type === 'AI_REVIEW_GENERATED';
+                      const isSystemEvent = ['STATUS_CHANGED', 'WARRANTY_STAGE_MOVED', 'CASE_CREATED'].includes(item.type);
+
+                      // Render dealer comments as speech bubbles
+                      if (isComment) {
+                        const content = item.comment?.content || item.metadata?.content || item.summary || '';
+                        const isCustomer = item.isCustomer || item.comment?.authorType === 'customer';
+                        const attachments = item.comment?.attachments || [];
+
+                        return (
+                          <div key={idx} className={`relative pl-8 ${isCustomer ? '' : ''}`}>
+                            {/* Icon */}
+                            <div className={`absolute left-0 top-0 w-6 h-6 rounded-full flex items-center justify-center ${isCustomer ? 'bg-[#0066CC]/10' : 'bg-emerald-50'}`}>
+                              <IconComponent className={`w-3.5 h-3.5 ${isCustomer ? 'text-[#0066CC]' : 'text-emerald-600'}`} />
+                            </div>
+                            {/* Speech bubble */}
+                            <div className={`rounded-xl p-3 ${isCustomer ? 'bg-[#0066CC]/5 border border-[#0066CC]/10' : 'bg-emerald-50 border border-emerald-100'}`}>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-[10px] font-bold uppercase tracking-wide ${isCustomer ? 'text-[#0066CC]' : 'text-emerald-700'}`}>
+                                  {isCustomer ? 'Customer' : 'Dealer Update'}
+                                </span>
+                                <span className="text-xs text-slate-400">
+                                  {formatTimelineDate(item.createdAt)}
+                                </span>
+                                {item.createdByName && !isCustomer && (
+                                  <span className="text-xs text-slate-400">• {item.createdByName}</span>
+                                )}
+                              </div>
+                              <p className="text-sm text-slate-700">{content}</p>
+                              {attachments.length > 0 && (
+                                <div className="flex gap-2 mt-2 flex-wrap">
+                                  {attachments.map((att, i) => (
+                                    <a
+                                      key={i}
+                                      href={att.url || att}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                      </svg>
+                                      {att.filename || "File"}
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Render AI review prominently
+                      if (isAI) {
+                        return (
+                          <div key={idx} className="relative pl-8">
+                            <div className="absolute left-0 top-0 w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center">
+                              <IconComponent className="w-3.5 h-3.5 text-purple-600" />
+                            </div>
+                            <div className="rounded-xl p-3 bg-purple-50 border border-purple-100">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold uppercase tracking-wide text-purple-700">AI Review</span>
+                                <span className="text-xs text-slate-400">{formatTimelineDate(item.createdAt)}</span>
+                              </div>
+                              <p className="text-sm text-slate-700">{item.summary || 'AI review generated'}</p>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Render system events (status, booking, etc.) with subtle styling
+                      // Use smaller, more compact layout for subtle events
+                      if (style.subtle) {
+                        return (
+                          <div key={idx} className="relative pl-6 py-0.5">
+                            <div className="absolute left-0 top-1 w-4 h-4 rounded-full flex items-center justify-center bg-slate-50 border border-slate-100">
+                              <IconComponent className="w-2.5 h-2.5 text-slate-300" />
+                            </div>
+                            <div className="flex items-center gap-2 text-slate-400">
+                              <span className="text-[10px]">{style.label}</span>
+                              <span className="text-[10px]">{formatTimelineDate(item.createdAt)}</span>
+                              {item.summary && item.summary !== item.type.replace(/_/g, ' ') && (
+                                <span className="text-[10px]">• {item.summary}</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      // Regular non-subtle events
+                      return (
+                        <div key={idx} className="relative pl-8">
+                          <div className={`absolute left-0 top-0.5 w-6 h-6 rounded-full flex items-center justify-center ${style.bg} border ${style.border}`}>
+                            <IconComponent className={`w-3 h-3 ${style.color}`} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] font-bold uppercase tracking-wide ${style.color}`}>
+                                {style.label}
+                              </span>
+                              <span className="text-xs text-slate-400">
+                                {formatTimelineDate(item.createdAt)}
+                              </span>
+                              {item.createdByName && (
+                                <span className="text-xs text-slate-400">• {item.createdByName}</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-600 mt-0.5">{item.summary || item.type.replace(/_/g, ' ')}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {(!selectedCase.events?.length && !selectedCase.comments?.length) && (
+                      <p className="text-sm text-slate-500 text-center py-4">No activity yet.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2710,9 +3032,11 @@ export default function Warranty() {
                   setShowJobSheetModal(false);
                   setJobSheetLink(null);
                 }}
-                className="btn btn-ghost btn-sm btn-circle"
+                className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div className="p-4">
@@ -2794,6 +3118,36 @@ export default function Warranty() {
           </div>
         </div>
       )}
+
+      {/* Mobile Move Case Bottom Sheet */}
+      <BottomSheet
+        isOpen={!!moveCase}
+        onClose={() => {
+          setMoveCase(null);
+          setMoveCaseCurrentColumn(null);
+        }}
+        title={`Move ${moveCase?.regAtPurchase || moveCase?.details?.vehicleReg || "Case"}`}
+        hideAbove="md"
+      >
+        <div className="space-y-2">
+          {COLUMNS.filter(c => c.key !== moveCaseCurrentColumn).map((targetCol) => (
+            <button
+              key={targetCol.key}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+              onClick={async () => {
+                if (moveCase) {
+                  await moveCaseToStatus(moveCase, targetCol.key);
+                  setMoveCase(null);
+                  setMoveCaseCurrentColumn(null);
+                }
+              }}
+            >
+              <span className={`w-3 h-3 rounded-full ${targetCol.accentBg}`}></span>
+              <span className="font-medium text-slate-700">{targetCol.label}</span>
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
     </DashboardLayout>
   );
 }
@@ -2807,6 +3161,7 @@ function AddCaseModal({ onClose, onSuccess }) {
     vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
     warrantyType: "", mileage: "",
     addressStreet: "", addressCity: "", addressPostcode: "",
+    partsRequired: false, partsNotes: "",
   });
 
   const handleMediaUpload = async (e) => {
@@ -2841,6 +3196,8 @@ function AddCaseModal({ onClose, onSuccess }) {
         ...formData,
         source: "manual",
         attachments: mediaAttachments,
+        partsRequired: formData.partsRequired,
+        partsNotes: formData.partsNotes,
         details: {
           mileage: formData.mileage,
           customerAddress: {
@@ -2867,9 +3224,28 @@ function AddCaseModal({ onClose, onSuccess }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box">
-        <h3 className="font-bold text-lg mb-4">New Aftercare Case</h3>
-        <form onSubmit={handleSubmit}>
+      <div
+        className="modal-box flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] p-0 rounded-none md:rounded-xl"
+      >
+        {/* Sticky Header */}
+        <div
+          className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-white"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        >
+          <h3 className="font-bold text-lg">New Aftercare Case</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="form-control mb-3">
             <label className="label"><span className="label-text">Customer Name *</span></label>
             <input type="text" className="input input-bordered" value={formData.customerName}
@@ -2945,6 +3321,28 @@ function AddCaseModal({ onClose, onSuccess }) {
             <textarea className="textarea textarea-bordered" value={formData.summary}
               onChange={(e) => setFormData({ ...formData, summary: e.target.value })}></textarea>
           </div>
+
+          {/* Parts Required Section */}
+          <div className="form-control mt-4">
+            <label className="label cursor-pointer justify-start gap-3">
+              <input
+                type="checkbox"
+                className="toggle toggle-primary"
+                checked={formData.partsRequired}
+                onChange={(e) => setFormData({ ...formData, partsRequired: e.target.checked })}
+              />
+              <span className="label-text font-medium">Parts Required</span>
+            </label>
+            {formData.partsRequired && (
+              <textarea
+                className="textarea textarea-bordered mt-2"
+                placeholder="Describe parts needed, supplier, order reference..."
+                value={formData.partsNotes}
+                onChange={(e) => setFormData({ ...formData, partsNotes: e.target.value })}
+              ></textarea>
+            )}
+          </div>
+
           <div className="form-control mt-3">
             <label className="label"><span className="label-text">Photos/Documents</span></label>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -2986,7 +3384,13 @@ function AddCaseModal({ onClose, onSuccess }) {
               />
             </label>
           </div>
-          <div className="modal-action">
+          </div>{/* End scrollable content */}
+
+          {/* Sticky Footer */}
+          <div
+            className="shrink-0 flex items-center justify-end gap-3 px-4 py-4 border-t border-slate-200 bg-white"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={isLoading}>
               {isLoading ? <span className="loading loading-spinner"></span> : "Create Case"}

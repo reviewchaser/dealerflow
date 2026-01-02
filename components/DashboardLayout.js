@@ -19,6 +19,62 @@ const FORM_TYPE_LABELS = {
   OTHER: "Other",
 };
 
+// Customer-facing forms that should NOT appear in internal quick add menus
+const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
+
+// Purpose-led icons for each form type (rounded, modern, single-weight)
+const FormTypeIcon = ({ type, className = "w-5 h-5" }) => {
+  const icons = {
+    PDI: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    TEST_DRIVE: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+        <path strokeLinecap="round" strokeWidth={1.5} d="M12 3v6M12 15v6M3 12h6M15 12h6" />
+      </svg>
+    ),
+    COURTESY_OUT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M17 6l3 3m0 0l-3 3m3-3H13" />
+      </svg>
+    ),
+    COURTESY_IN: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M13 6l-3 3m0 0l3 3m-3-3h7" />
+      </svg>
+    ),
+    SERVICE_RECEIPT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    REVIEW_FEEDBACK: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+      </svg>
+    ),
+    DELIVERY: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+    DEFAULT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  };
+  return icons[type] || icons.DEFAULT;
+};
+
 // Icon components (using inline SVG as heroicons alternative)
 const ChartBarIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -776,14 +832,24 @@ export default function DashboardLayout({ children }) {
               </div>
               <span className="font-medium text-slate-900">Add Vehicle</span>
             </Link>
+            <Link
+              href={getPath("/warranty?addCase=1")}
+              onClick={() => setShowMobileQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                <WrenchIcon className="w-5 h-5 text-orange-600" />
+              </div>
+              <span className="font-medium text-slate-900">New Aftersales Case</span>
+            </Link>
           </div>
 
-          {/* Forms Section */}
-          {forms.length > 0 && (
+          {/* Forms Section - excluding customer-facing forms */}
+          {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).length > 0 && (
             <div className="px-2 pb-4 border-t border-slate-100 pt-2">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Forms</p>
               <div className="space-y-0.5">
-                {forms.map((form) => (
+                {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).map((form) => (
                   <button
                     key={form.id || form._id}
                     onClick={() => {
@@ -792,8 +858,8 @@ export default function DashboardLayout({ children }) {
                     }}
                     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                      <DocumentTextIcon className="w-5 h-5 text-slate-500" />
+                    <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 flex items-center justify-center text-[#0066CC]">
+                      <FormTypeIcon type={form.type} className="w-5 h-5" />
                     </div>
                     <span className="font-medium text-slate-900 truncate">{form.name}</span>
                   </button>
@@ -842,15 +908,25 @@ export default function DashboardLayout({ children }) {
                   </div>
                   <span className="text-sm font-medium text-slate-900">Add Vehicle</span>
                 </Link>
+                <Link
+                  href={getPath("/warranty?addCase=1")}
+                  onClick={() => setShowDesktopQuickAdd(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                    <WrenchIcon className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">New Aftersales Case</span>
+                </Link>
               </div>
             </div>
 
-            {/* Forms Section */}
-            {forms.length > 0 && (
+            {/* Forms Section - excluding customer-facing forms */}
+            {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).length > 0 && (
               <div className="p-3">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Forms</p>
                 <div className="space-y-1">
-                  {forms.map((form) => (
+                  {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).map((form) => (
                     <button
                       key={form.id || form._id}
                       onClick={() => {
@@ -859,8 +935,8 @@ export default function DashboardLayout({ children }) {
                       }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                        <DocumentTextIcon className="w-4 h-4 text-slate-500" />
+                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center text-[#0066CC]">
+                        <FormTypeIcon type={form.type} className="w-4 h-4" />
                       </div>
                       <span className="text-sm font-medium text-slate-900 truncate">{form.name}</span>
                     </button>

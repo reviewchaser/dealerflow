@@ -18,9 +18,72 @@ const FORM_TYPE_LABELS = {
   OTHER: "Other",
 };
 
+// Purpose-led icons for each form type (rounded, modern, single-weight)
+const FormTypeIcon = ({ type, className = "w-6 h-6" }) => {
+  const icons = {
+    // PDI - Checklist icon
+    PDI: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    // Test Drive - Steering wheel
+    TEST_DRIVE: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+        <path strokeLinecap="round" strokeWidth={1.5} d="M12 3v6M12 15v6M3 12h6M15 12h6" />
+      </svg>
+    ),
+    // Courtesy Out - Car with outward arrow
+    COURTESY_OUT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M17 6l3 3m0 0l-3 3m3-3H13" />
+      </svg>
+    ),
+    // Courtesy In - Car with inward arrow
+    COURTESY_IN: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M13 6l-3 3m0 0l3 3m-3-3h7" />
+      </svg>
+    ),
+    // Service Receipt - Wrench/spanner
+    SERVICE_RECEIPT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+    ),
+    // Feedback - Star rating
+    REVIEW_FEEDBACK: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+      </svg>
+    ),
+    // Delivery - Truck/handover
+    DELIVERY: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+      </svg>
+    ),
+    // Default - Generic form icon (for OTHER and unknown types)
+    DEFAULT: (
+      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  };
+  return icons[type] || icons.DEFAULT;
+};
+
 // Default priority forms - PDI is always first as it's the most common daily task
 const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
 const ALWAYS_FIRST_FORM_TYPE = "PDI";
+// Customer-facing forms that should NOT appear in internal dashboard/quick forms
+const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
 
 // Needs Attention item configurations
 const NEEDS_ATTENTION_ITEMS = [
@@ -240,22 +303,25 @@ export default function Dashboard() {
     }
   };
 
+  // Filter out customer-facing forms from internal dashboard
+  const internalForms = forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type));
+
   const getTopForms = () => {
-    const pdiForm = forms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
+    const pdiForm = internalForms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
     let otherTopForms = [];
     if (stats?.topForms?.length > 0) {
       otherTopForms = stats.topForms
-        .map(tf => forms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
+        .map(tf => internalForms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
         .filter(f => f && f.type !== ALWAYS_FIRST_FORM_TYPE)
         .slice(0, 2);
     } else {
-      otherTopForms = forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
+      otherTopForms = internalForms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
     }
     return pdiForm ? [pdiForm, ...otherTopForms] : otherTopForms;
   };
 
   const topForms = getTopForms();
-  const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
+  const otherForms = internalForms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
 
   const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
     stats?.needsAttention?.[item.key] > 0
@@ -364,26 +430,20 @@ export default function Dashboard() {
               variant="gradient"
             />
             <StatsCard
-              title="Vehicles Sold"
+              title="Sold in Progress"
               value={stats?.vehicles?.live ?? 0}
-              trend={stats?.vehicles?.delivered > 0 ? `${stats.vehicles.delivered} delivered` : null}
-              icon="🏆"
-              color="success"
+              trend="Awaiting delivery"
+              icon="📦"
+              color="warning"
               variant="outlined"
             />
             <StatsCard
-              title="Avg Rating"
-              value={stats?.reviews?.avgRating ?? "N/A"}
-              trend={
-                typeof stats?.reviews?.lastReviewDays === "number"
-                  ? `Last: ${stats.reviews.lastReviewDays}d ago`
-                  : stats?.reviews?.count === 0
-                  ? "No reviews yet"
-                  : null
-              }
-              icon="⭐"
-              color="warning"
-              variant="outlined"
+              title="Total Sold"
+              value={stats?.vehicles?.delivered ?? 0}
+              trend="Delivered to customers"
+              icon="🏆"
+              color="success"
+              variant="gradient"
             />
           </div>
 
@@ -417,9 +477,7 @@ export default function Dashboard() {
                     className="group bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 p-5 rounded-xl flex flex-col items-center gap-3 hover:border-[#0066CC] hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer"
                   >
                     <div className="w-12 h-12 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center group-hover:bg-[#0066CC] group-hover:text-white transition-colors">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <FormTypeIcon type={form.type} className="w-6 h-6" />
                     </div>
                     <span className="font-bold text-slate-700 text-sm text-center">
                       {FORM_TYPE_LABELS[form.type] || form.name}
@@ -450,10 +508,8 @@ export default function Dashboard() {
                             onClick={() => handleFormClick(form)}
                             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-[#0066CC]/5 hover:text-[#0066CC] transition-colors border-b border-slate-50 last:border-0"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-500">
+                              <FormTypeIcon type={form.type} className="w-4 h-4" />
                             </div>
                             <span className="truncate">{FORM_TYPE_LABELS[form.type] || form.name}</span>
                           </button>
@@ -579,15 +635,16 @@ export default function Dashboard() {
                   </div>
                 </Link>
 
-                <Link href="/settings/team" className="action-card border-2 border-dashed border-[#0066CC]/30 bg-[#0066CC]/5 hover:bg-[#0066CC]/10 hover:border-[#0066CC]/50">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#14B8A6] text-white flex items-center justify-center shadow">
+                <Link href="/warranty?addCase=1" className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <span className="font-bold text-[#0066CC] block">Invite Team</span>
-                    <span className="text-xs text-[#0066CC]/70">Add staff members</span>
+                    <span className="font-bold text-slate-800 block">Add Aftersales Case</span>
+                    <span className="text-xs text-slate-500">Log warranty issue</span>
                   </div>
                 </Link>
               </div>

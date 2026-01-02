@@ -94,6 +94,10 @@ export default function SalesPrep() {
   const [showManualShareModal, setShowManualShareModal] = useState(false);
   const [manualShareUrl, setManualShareUrl] = useState("");
 
+  // Mobile move bottom sheet
+  const [moveVehicle, setMoveVehicle] = useState(null);
+  const [moveCurrentColumn, setMoveCurrentColumn] = useState(null);
+
   // Issues state
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
   const [editingIssue, setEditingIssue] = useState(null); // For edit mode
@@ -853,6 +857,74 @@ export default function SalesPrep() {
     }
   };
 
+  // Robust drag cleanup - ensures drag state is always reset
+  const cleanupDrag = useCallback(() => {
+    setDraggedCard(null);
+    setDragPosition({ x: 0, y: 0 });
+  }, []);
+
+  // Global escape key, blur, and fallback handlers for drag cancellation
+  useEffect(() => {
+    if (!draggedCard) return;
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") {
+        cleanupDrag();
+      }
+    };
+
+    const handleWindowBlur = () => {
+      cleanupDrag();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        cleanupDrag();
+      }
+    };
+
+    // Fallback: if mouse is released anywhere, cleanup
+    // This catches edge cases where dragEnd doesn't fire
+    const handleMouseUp = () => {
+      // Small delay to let normal dragEnd fire first
+      setTimeout(() => {
+        if (draggedCard) {
+          cleanupDrag();
+        }
+      }, 100);
+    };
+
+    // Cleanup if drag event fires with no buttons (drag ended unexpectedly)
+    const handleDragEndFallback = (e) => {
+      if (e.buttons === 0) {
+        cleanupDrag();
+      }
+    };
+
+    // Safety timeout - if drag lasts more than 30 seconds, something is wrong
+    const safetyTimeout = setTimeout(() => {
+      if (draggedCard) {
+        console.warn("Drag safety timeout triggered - resetting state");
+        cleanupDrag();
+      }
+    }, 30000);
+
+    window.addEventListener("keydown", handleEscape);
+    window.addEventListener("blur", handleWindowBlur);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("drag", handleDragEndFallback);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      window.removeEventListener("blur", handleWindowBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.removeEventListener("drag", handleDragEndFallback);
+      clearTimeout(safetyTimeout);
+    };
+  }, [draggedCard, cleanupDrag]);
+
   const handleDragStart = (e, vehicle) => {
     setDraggedCard(vehicle);
     setDragPosition({ x: e.clientX, y: e.clientY });
@@ -864,7 +936,9 @@ export default function SalesPrep() {
   };
 
   const handleDrag = (e) => {
-    if (e.clientX !== 0 && e.clientY !== 0) {
+    // Only update position if we have valid coordinates
+    // (0,0) is sent at the end of drag, ignore it
+    if (e.clientX > 0 && e.clientY > 0) {
       setDragPosition({ x: e.clientX, y: e.clientY });
     }
   };
@@ -875,18 +949,25 @@ export default function SalesPrep() {
   };
 
   const handleDragEnd = () => {
-    setDraggedCard(null);
+    // Always clean up on drag end, regardless of drop success
+    cleanupDrag();
   };
 
   const handleDrop = async (e, newStatus) => {
     e.preventDefault();
-    if (!draggedCard || draggedCard.status === newStatus) {
-      setDraggedCard(null);
+
+    // Store reference before cleanup
+    const card = draggedCard;
+
+    // Always cleanup immediately to prevent stale state
+    cleanupDrag();
+
+    if (!card || card.status === newStatus) {
       return;
     }
-    const vehicleId = draggedCard.id || draggedCard._id;
+
+    const vehicleId = card.id || card._id;
     await updateVehicleStatus(vehicleId, newStatus);
-    setDraggedCard(null);
   };
 
   const uploadV5 = async (file) => {
@@ -1450,10 +1531,10 @@ export default function SalesPrep() {
       </div>
 
       {/* Consolidated Filters */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-4">
-        <div className="flex gap-2 items-center">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-3">
+        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
             {/* VRM Search */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <div className="relative">
                 <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1461,7 +1542,7 @@ export default function SalesPrep() {
                 <input
                   type="text"
                   placeholder="Search VRM..."
-                  className="input input-sm input-bordered pl-9 pr-8 w-44 font-mono uppercase"
+                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
                   value={vrmSearch}
                   onChange={(e) => {
                     setVrmSearch(e.target.value.toUpperCase());
@@ -1528,17 +1609,19 @@ export default function SalesPrep() {
               )}
             </div>
 
-            <div className="divider divider-horizontal mx-1"></div>
+            <div className="divider divider-horizontal mx-1 shrink-0 hidden sm:flex"></div>
 
             {/* All Vehicles Button */}
             <button
-              className={`btn btn-sm ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+              className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
               onClick={() => setActiveFilters([])}
             >
-              All Vehicles ({vehicles.length})
+              <span className="hidden sm:inline">All Vehicles</span>
+              <span className="sm:hidden">All</span>
+              <span className="text-xs opacity-70">({vehicles.length})</span>
             </button>
 
-            <div className="divider divider-horizontal mx-1"></div>
+            <div className="divider divider-horizontal mx-1 shrink-0 hidden sm:flex"></div>
 
             {/* Consolidated Filters - Strictly Separated Desktop/Mobile */}
             <div className="shrink-0">
@@ -2178,41 +2261,19 @@ export default function SalesPrep() {
 
                           {/* Mobile Move Button */}
                           <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
-                            <div className="dropdown dropdown-end">
-                              <label
-                                tabIndex={0}
-                                className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                                </svg>
-                                Move
-                              </label>
-                              <ul
-                                tabIndex={0}
-                                className="dropdown-content z-[100] menu p-2 shadow-xl bg-white rounded-xl w-48 border border-slate-100"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {COLUMNS.filter(c => c.key !== col.key).map((targetCol) => (
-                                  <li key={targetCol.key}>
-                                    <button
-                                      className="flex items-center gap-2 text-sm py-2.5"
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        await updateVehicleStatus(vehicle.id, targetCol.key);
-                                        toast.success(`Moved to ${targetCol.label}`);
-                                        // Close dropdown by blurring
-                                        document.activeElement?.blur();
-                                      }}
-                                    >
-                                      <span className={`w-2 h-2 rounded-full ${targetCol.accentBg}`}></span>
-                                      {targetCol.label}
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
+                            <button
+                              className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMoveVehicle(vehicle);
+                                setMoveCurrentColumn(col.key);
+                              }}
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                              </svg>
+                              Move
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -3751,16 +3812,17 @@ export default function SalesPrep() {
       )}
 
       {/* Drag Preview - floating card that follows cursor */}
-      {draggedCard && (
+      {draggedCard && dragPosition.x > 0 && dragPosition.y > 0 && (
         <div
-          className="fixed pointer-events-none z-50"
+          className="fixed pointer-events-none z-[9999]"
           style={{
             left: dragPosition.x - 120,
             top: dragPosition.y - 30,
             transform: "rotate(3deg)",
+            willChange: "left, top",
           }}
         >
-          <div className="bg-white rounded-xl shadow-2xl border-2 border-blue-400 w-60 p-3 opacity-90">
+          <div className="bg-white rounded-xl shadow-2xl border-2 border-blue-400 w-60 p-3 opacity-95">
             <div className="flex items-center gap-2">
               <p className="font-bold text-slate-900 text-sm truncate">
                 {draggedCard.year} {draggedCard.make} {draggedCard.model}
@@ -4295,6 +4357,37 @@ export default function SalesPrep() {
           </div>
         </div>
       )}
+
+      {/* Mobile Move Vehicle Bottom Sheet */}
+      <BottomSheet
+        isOpen={!!moveVehicle}
+        onClose={() => {
+          setMoveVehicle(null);
+          setMoveCurrentColumn(null);
+        }}
+        title={`Move ${moveVehicle?.regCurrent || "Vehicle"}`}
+        hideAbove="md"
+      >
+        <div className="space-y-2">
+          {COLUMNS.filter(c => c.key !== moveCurrentColumn).map((targetCol) => (
+            <button
+              key={targetCol.key}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+              onClick={async () => {
+                if (moveVehicle) {
+                  await updateVehicleStatus(moveVehicle.id, targetCol.key);
+                  toast.success(`Moved to ${targetCol.label}`);
+                  setMoveVehicle(null);
+                  setMoveCurrentColumn(null);
+                }
+              }}
+            >
+              <span className={`w-3 h-3 rounded-full ${targetCol.accentBg}`}></span>
+              <span className="font-medium text-slate-700">{targetCol.label}</span>
+            </button>
+          ))}
+        </div>
+      </BottomSheet>
     </DashboardLayout>
   );
 }
@@ -4659,8 +4752,14 @@ function AddVehicleModal({ onClose, onSuccess }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
-        <div className="flex items-center justify-between mb-6">
+      <div
+        className="modal-box max-w-4xl flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] bg-white p-0 rounded-none md:rounded-xl"
+      >
+        {/* Sticky Header */}
+        <div
+          className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        >
           <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
           <button
             type="button"
@@ -4672,7 +4771,9 @@ function AddVehicleModal({ onClose, onSuccess }) {
             </svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 py-4">
           {/* Vehicle Details Section */}
           <div className="mb-6 pb-6 border-b border-slate-100">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
@@ -5057,7 +5158,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
           </div>
 
           {/* Notes Section */}
-          <div className="mb-8">
+          <div className="mb-4">
             <div className="form-control">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
               <textarea
@@ -5068,8 +5169,13 @@ function AddVehicleModal({ onClose, onSuccess }) {
               ></textarea>
             </div>
           </div>
+          </div>{/* End scrollable content */}
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          {/* Sticky Footer */}
+          <div
+            className="shrink-0 flex items-center justify-end gap-3 px-4 md:px-6 py-4 border-t border-slate-200 bg-white"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
             <button
               type="button"
               className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
@@ -5197,8 +5303,14 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-2xl bg-white">
-        <div className="flex items-center justify-between mb-6">
+      <div
+        className="modal-box max-w-2xl flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] bg-white p-0 rounded-none md:rounded-xl"
+      >
+        {/* Sticky Header */}
+        <div
+          className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white"
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+        >
           <h3 className="text-xl font-bold text-slate-900">{isEditing ? "Edit Issue" : "Add Issue"}</h3>
           <button
             type="button"
@@ -5210,7 +5322,9 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
             </svg>
           </button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="form-control">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
@@ -5399,8 +5513,13 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
               )}
             </div>
           </div>
+          </div>{/* End scrollable content */}
 
-          <div className="flex items-center justify-end gap-3 pt-6 mt-6 border-t border-slate-100">
+          {/* Sticky Footer */}
+          <div
+            className="shrink-0 flex items-center justify-end gap-3 px-4 md:px-6 py-4 border-t border-slate-200 bg-white"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
             <button
               type="button"
               className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
