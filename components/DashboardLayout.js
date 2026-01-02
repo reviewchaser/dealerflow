@@ -118,6 +118,24 @@ const CalendarIcon = ({ className }) => (
   </svg>
 );
 
+const ClockIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const SunIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+  </svg>
+);
+
+const UsersIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+  </svg>
+);
+
 const CogIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -131,14 +149,25 @@ const ChevronDownIcon = ({ className }) => (
   </svg>
 );
 
+// Navigation structure:
+// - Main (0-2): Dashboard, Stock & Prep, Aftersales
+// - Management (3-6): Appraisals, Submissions, Reviews, Calendar
+// - HR (7-8): Holidays, Overtime
+// - System (9): Settings
 const navigation = [
+  // Main
   { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
   { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
   { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
+  // Management
   { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
   { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
   { name: "Reviews", href: "/reviews", Icon: StarIcon },
   { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+  // HR
+  { name: "Holidays", href: "/settings/holidays", Icon: SunIcon },
+  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
+  // System
   { name: "Settings", href: "/settings", Icon: CogIcon },
 ];
 
@@ -551,7 +580,61 @@ export default function DashboardLayout({ children }) {
             })}
           </ul>
 
-          {/* Settings Section */}
+          {/* HR Section */}
+          {!sidebarCollapsed && (
+            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              HR
+            </p>
+          )}
+          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+          <ul className="space-y-1">
+            {navigation.slice(7, 9).map((item) => {
+              const { Icon } = item;
+              const itemPath = getPath(item.href);
+              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+              return (
+                <li key={item.name} className="relative group">
+                  <Link
+                    href={itemPath}
+                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+                    } ${
+                      isActive
+                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+                        : "hover:bg-slate-50"
+                    }`}
+                    title={sidebarCollapsed ? item.name : undefined}
+                  >
+                    {isActive && !sidebarCollapsed && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+                    )}
+                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+                    } ${
+                      isActive
+                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+                    }`}>
+                      <Icon className="w-[18px] h-[18px]" />
+                    </div>
+                    {!sidebarCollapsed && (
+                      <span className={`text-sm transition-colors ${
+                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+                      }`}>{item.name}</span>
+                    )}
+                  </Link>
+                  {sidebarCollapsed && (
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+                      {item.name}
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* System Section */}
           {!sidebarCollapsed && (
             <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               System
@@ -559,7 +642,7 @@ export default function DashboardLayout({ children }) {
           )}
           {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
           <ul className="space-y-1">
-            {navigation.slice(7).map((item) => {
+            {navigation.slice(9).map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
               const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
@@ -709,11 +792,16 @@ export default function DashboardLayout({ children }) {
                     <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
                   </label>
                   <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
-                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
+                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Management</li>
                     <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
                     <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
                     <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
                     <div className="divider my-1 px-3"></div>
+                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
+                    <li><Link href={getPath("/settings/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
+                    <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
+                    <div className="divider my-1 px-3"></div>
+                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
                     <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
                   </ul>
                 </div>

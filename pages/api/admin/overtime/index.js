@@ -1,0 +1,130 @@
+import { withDealerContext, requireRole } from "../../../../libs/authContext";
+import connectMongo from "../../../../libs/mongoose";
+import OvertimeSubmission from "../../../../models/OvertimeSubmission";
+
+/**
+ * Admin Overtime API
+ * GET - List all overtime submissions for the dealership
+ * Only OWNER and ADMIN roles can access
+ */
+async function handler(req, res, ctx) {
+  // Require admin or owner role
+  requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+
+  if (req.method !== "GET") {
+    res.setHeader("Allow", ["GET"]);
+    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+  }
+
+  await connectMongo();
+  const { dealerId } = ctx;
+
+  try {
+    const {
+      status,
+      userId,
+      year,
+      month,
+      limit = 100,
+      offset = 0,
+      sortBy = "submittedAt",
+      sortOrder = "desc",
+    } = req.query;
+
+    const query = { dealerId };
+
+    // Filter by status
+    if (status) {
+      if (status === "PENDING") {
+        // Alias for SUBMITTED (awaiting review)
+        query.status = "SUBMITTED";
+      } else if (["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"].includes(status)) {
+        query.status = status;
+      }
+    }
+
+    // Filter by user
+    if (userId) {
+      query.userId = userId;
+    }
+
+    // Filter by date range
+    if (year) {
+      const yearNum = parseInt(year, 10);
+      if (month) {
+        const monthNum = parseInt(month, 10) - 1;
+        const startDate = new Date(Date.UTC(yearNum, monthNum, 1));
+        const endDate = new Date(Date.UTC(yearNum, monthNum + 1, 0, 23, 59, 59));
+        query.weekStartDate = { $gte: startDate, $lte: endDate };
+      } else {
+        const startDate = new Date(Date.UTC(yearNum, 0, 1));
+        const endDate = new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59));
+        query.weekStartDate = { $gte: startDate, $lte: endDate };
+      }
+    }
+
+    // Build sort object
+    const sortOptions = {};
+    const validSortFields = ["submittedAt", "weekStartDate", "totalOvertimeHours", "createdAt"];
+    const field = validSortFields.includes(sortBy) ? sortBy : "submittedAt";
+    sortOptions[field] = sortOrder === "asc" ? 1 : -1;
+
+    // Get total count for pagination
+    const totalCount = await OvertimeSubmission.countDocuments(query);
+
+    // Fetch submissions
+    const submissions = await OvertimeSubmission.find(query)
+      .sort(sortOptions)
+      .skip(parseInt(offset, 10))
+      .limit(Math.min(parseInt(limit, 10), 200))
+      .lean();
+
+    // Get summary stats
+    const stats = await OvertimeSubmission.aggregate([
+      { $match: { dealerId: ctx.membership.dealerId } },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+          totalHours: { $sum: "$totalOvertimeHours" },
+        },
+      },
+    ]);
+
+    const statusCounts = {
+      DRAFT: 0,
+      SUBMITTED: 0,
+      APPROVED: 0,
+      REJECTED: 0,
+    };
+    let totalApprovedHours = 0;
+
+    stats.forEach((stat) => {
+      if (statusCounts.hasOwnProperty(stat._id)) {
+        statusCounts[stat._id] = stat.count;
+      }
+      if (stat._id === "APPROVED") {
+        totalApprovedHours = stat.totalHours;
+      }
+    });
+
+    return res.status(200).json({
+      submissions,
+      pagination: {
+        total: totalCount,
+        offset: parseInt(offset, 10),
+        limit: parseInt(limit, 10),
+      },
+      stats: {
+        statusCounts,
+        pendingReview: statusCounts.SUBMITTED,
+        totalApprovedHours,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admin overtime:", error);
+    return res.status(500).json({ error: "Failed to fetch submissions" });
+  }
+}
+
+export default withDealerContext(handler);

@@ -105,5 +105,10 @@ const vehicleTaskSchema = new mongoose.Schema(
 
 vehicleTaskSchema.plugin(toJSON);
 
+// Indexes for task queries - vehicleId is queried frequently
+vehicleTaskSchema.index({ vehicleId: 1 });
+vehicleTaskSchema.index({ vehicleId: 1, status: 1 });
+vehicleTaskSchema.index({ assignedUserId: 1, status: 1 });
+
 export default mongoose.models?.VehicleTask || mongoose.model("VehicleTask", vehicleTaskSchema);
 export { TASK_PROGRESS, PARTS_STATUS, SUPPLIER_TYPE, SUPPLIER_TYPE_LABELS };

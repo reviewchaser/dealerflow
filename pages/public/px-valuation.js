@@ -46,6 +46,7 @@ export default function PXAppraisalForm() {
     mileage: "",
     colour: "",
     fuelType: "",
+    motExpiryDate: "", // MOT expiry - captured from DVLA lookup
     conditionNotes: "",
     outstandingFinanceAmount: "",
     interestedInVehicle: "",
@@ -97,6 +98,7 @@ export default function PXAppraisalForm() {
         vehicleYear: data.yearOfManufacture || prev.vehicleYear,
         colour: data.colour || prev.colour,
         fuelType: data.fuelType || prev.fuelType,
+        motExpiryDate: data.motExpiryDate || prev.motExpiryDate, // Capture MOT expiry
       }));
       toast.success("Vehicle details found!");
 

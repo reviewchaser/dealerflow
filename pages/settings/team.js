@@ -5,18 +5,31 @@ import toast from "react-hot-toast";
 
 const ROLES = ["OWNER", "ADMIN", "STAFF", "WORKSHOP"];
 
-const ROLE_DESCRIPTIONS = {
-  OWNER: "Full access, can manage team and billing",
-  ADMIN: "Full access, can manage team (except owners)",
-  STAFF: "Can manage vehicles, forms, and customers",
-  WORKSHOP: "Limited access to tasks and forms",
-};
-
-const ROLE_COLORS = {
-  OWNER: "badge-primary",
-  ADMIN: "badge-secondary",
-  STAFF: "badge-accent",
-  WORKSHOP: "badge-ghost",
+const ROLE_CONFIG = {
+  OWNER: {
+    label: "Owner",
+    description: "Full access, can manage team and billing",
+    color: "bg-purple-100 text-purple-700 border-purple-200",
+    iconBg: "bg-purple-500",
+  },
+  ADMIN: {
+    label: "Admin",
+    description: "Full access, can manage team (except owners)",
+    color: "bg-blue-100 text-blue-700 border-blue-200",
+    iconBg: "bg-blue-500",
+  },
+  STAFF: {
+    label: "Staff",
+    description: "Can manage vehicles, forms, and customers",
+    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    iconBg: "bg-emerald-500",
+  },
+  WORKSHOP: {
+    label: "Workshop",
+    description: "Workshop technician - can update tasks and view vehicles",
+    color: "bg-amber-100 text-amber-700 border-amber-200",
+    iconBg: "bg-amber-500",
+  },
 };
 
 export default function TeamSettings() {
@@ -244,272 +257,284 @@ export default function TeamSettings() {
         <title>Team Settings | DealerFlow</title>
       </Head>
 
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Team</h1>
-        <p className="text-base-content/60 mt-2">
-          Manage your team members and invitations
-        </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Team</h1>
+            <p className="text-slate-500 mt-1">
+              Manage your team members and permissions
+            </p>
+          </div>
+          {canManageTeam && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowCreateUserModal(true)}
+                className="btn btn-outline btn-sm gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Create User
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {loading ? (
         <div className="flex justify-center py-20">
-          <span className="loading loading-spinner loading-lg"></span>
+          <span className="loading loading-spinner loading-lg text-primary"></span>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Email Not Configured Banner */}
           {emailStatus && !emailStatus.configured && (
-            <div className="alert alert-warning">
-              <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-              <div>
-                <h3 className="font-bold">Email invites disabled</h3>
-                <p className="text-sm">
-                  Invite emails cannot be sent until email is configured.
-                  {emailStatus.missing?.length > 0 && (
-                    <span className="block mt-1">
-                      Missing: <code className="text-xs bg-base-300 px-1 rounded">{emailStatus.missing.join(", ")}</code>
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs mt-1 opacity-70">
-                  {process.env.NODE_ENV === "development"
-                    ? "In development mode, invite links will be logged to the console."
-                    : "Contact your administrator to configure email settings."}
-                </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+              <div className="flex gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-800">Email invites disabled</h3>
+                  <p className="text-sm text-amber-700 mt-1">
+                    Invite emails cannot be sent until email is configured.
+                    {emailStatus.missing?.length > 0 && (
+                      <span className="block mt-1">
+                        Missing: <code className="text-xs bg-amber-100 px-1.5 py-0.5 rounded font-mono">{emailStatus.missing.join(", ")}</code>
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs mt-2 text-amber-600">
+                    {process.env.NODE_ENV === "development"
+                      ? "In development mode, invite links will be logged to the console."
+                      : "Contact your administrator to configure email settings."}
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {/* Invite Form */}
           {canManageTeam && (
-            <div className="card bg-base-200">
-              <div className="card-body">
-                <h2 className="card-title">Invite Team Member</h2>
-                <form onSubmit={handleInvite} className="flex flex-wrap gap-4 mt-4">
-                  <div className="form-control flex-1 min-w-[200px]">
-                    <input
-                      type="email"
-                      className="input input-bordered"
-                      placeholder="colleague@dealership.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="form-control">
-                    <select
-                      className="select select-bordered"
-                      value={inviteRole}
-                      onChange={(e) => setInviteRole(e.target.value)}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Invite Team Member</h2>
+              <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <input
+                    type="email"
+                    className="input input-bordered w-full"
+                    placeholder="colleague@dealership.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <select
+                  className="select select-bordered w-full sm:w-auto"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                >
+                  {ROLES.map((role) => (
+                    <option
+                      key={role}
+                      value={role}
+                      disabled={role === "OWNER" && !isOwner}
                     >
-                      {ROLES.map((role) => (
-                        <option
-                          key={role}
-                          value={role}
-                          disabled={role === "OWNER" && !isOwner}
-                        >
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={inviting || !inviteEmail.trim()}
-                  >
-                    {inviting ? (
-                      <span className="loading loading-spinner loading-sm"></span>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Send Invite
-                      </>
-                    )}
-                  </button>
-                  <div className="divider divider-horizontal mx-1">or</div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowCreateUserModal(true)}
-                  >
-                    <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                    Create User
-                  </button>
-                </form>
-                <p className="text-xs text-base-content/50 mt-2">
-                  Invites expire after 7 days. Use "Create User" to add team members without sending an invite email.
-                </p>
-              </div>
+                      {ROLE_CONFIG[role].label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="btn btn-primary gap-2"
+                  disabled={inviting || !inviteEmail.trim()}
+                >
+                  {inviting ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      Send Invite
+                    </>
+                  )}
+                </button>
+              </form>
+              <p className="text-xs text-slate-400 mt-3">
+                Invites expire after 7 days. Use "Create User" to add team members without sending an invite email.
+              </p>
             </div>
           )}
 
-          {/* Members Table */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Team Members ({members.length})</h2>
-              <div className="overflow-x-auto mt-4">
-                <table className="table table-zebra">
-                  <thead>
-                    <tr>
-                      <th>Member</th>
-                      <th>Role</th>
-                      <th>Joined</th>
-                      {canManageTeam && <th className="w-32">Actions</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {members.map((member) => (
-                      <tr key={member.id}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            <div className="avatar placeholder">
-                              <div className="bg-neutral text-neutral-content rounded-full w-10">
-                                {member.image ? (
-                                  <img src={member.image} alt={member.name} />
-                                ) : (
-                                  <span className="text-sm">
-                                    {member.name?.charAt(0)?.toUpperCase() || "?"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="font-semibold">
-                                {member.name}
-                                {member.isCurrentUser && (
-                                  <span className="ml-2 text-xs text-base-content/50">(you)</span>
-                                )}
-                              </div>
-                              <div className="text-sm text-base-content/60">{member.email}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          {canManageTeam && !member.isCurrentUser ? (
-                            <select
-                              className={`select select-sm select-bordered ${ROLE_COLORS[member.role]}`}
-                              value={member.role}
-                              onChange={(e) => handleChangeRole(member.id, e.target.value)}
-                              disabled={member.role === "OWNER" && !isOwner}
-                            >
-                              {ROLES.map((role) => (
-                                <option
-                                  key={role}
-                                  value={role}
-                                  disabled={role === "OWNER" && !isOwner}
-                                >
-                                  {role}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className={`badge ${ROLE_COLORS[member.role]}`}>
-                              {member.role}
-                            </span>
-                          )}
-                        </td>
-                        <td className="text-sm text-base-content/60">
-                          {new Date(member.joinedAt).toLocaleDateString()}
-                        </td>
-                        {canManageTeam && (
-                          <td>
-                            {!member.isCurrentUser && (
-                              <button
-                                className="btn btn-ghost btn-sm text-error"
-                                onClick={() => handleRemoveMember(member.id, member.name)}
-                                disabled={member.role === "OWNER" && !isOwner}
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {/* Team Members */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-slate-900">Team Members</h2>
+                <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg">
+                  {members.length} {members.length === 1 ? "member" : "members"}
+                </span>
               </div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {members.map((member) => (
+                <div key={member.id} className="p-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      <div className={`w-12 h-12 rounded-xl ${ROLE_CONFIG[member.role].iconBg} flex items-center justify-center text-white font-semibold text-lg shadow-sm`}>
+                        {member.image ? (
+                          <img src={member.image} alt={member.name} className="w-12 h-12 rounded-xl object-cover" />
+                        ) : (
+                          member.name?.charAt(0)?.toUpperCase() || "?"
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-slate-900 truncate">{member.name}</h3>
+                        {member.isCurrentUser && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-medium rounded-full">
+                            You
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-500 truncate">{member.email}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${ROLE_CONFIG[member.role].color}`}>
+                          {ROLE_CONFIG[member.role].label}
+                        </span>
+                        <span className="text-xs text-slate-400">
+                          Joined {new Date(member.joinedAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {canManageTeam && !member.isCurrentUser && (
+                      <div className="flex items-center gap-2">
+                        <select
+                          className="select select-bordered select-sm"
+                          value={member.role}
+                          onChange={(e) => handleChangeRole(member.id, e.target.value)}
+                          disabled={member.role === "OWNER" && !isOwner}
+                        >
+                          {ROLES.map((role) => (
+                            <option
+                              key={role}
+                              value={role}
+                              disabled={role === "OWNER" && !isOwner}
+                            >
+                              {ROLE_CONFIG[role].label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn btn-ghost btn-sm btn-square text-slate-400 hover:text-red-500 hover:bg-red-50"
+                          onClick={() => handleRemoveMember(member.id, member.name)}
+                          disabled={member.role === "OWNER" && !isOwner}
+                          title="Remove member"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Pending Invites */}
           {canManageTeam && invites.length > 0 && (
-            <div className="card bg-base-200">
-              <div className="card-body">
-                <h2 className="card-title">Pending Invites ({invites.length})</h2>
-                <div className="overflow-x-auto mt-4">
-                  <table className="table table-zebra">
-                    <thead>
-                      <tr>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Invited By</th>
-                        <th>Status</th>
-                        <th className="w-40">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invites.map((invite) => (
-                        <tr key={invite.id}>
-                          <td className="font-medium">{invite.email}</td>
-                          <td>
-                            <span className={`badge ${ROLE_COLORS[invite.role]}`}>
-                              {invite.role}
-                            </span>
-                          </td>
-                          <td className="text-sm text-base-content/60">{invite.invitedBy}</td>
-                          <td>
-                            {invite.isExpired ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-200">Expired</span>
-                            ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">Pending</span>
-                            )}
-                            <div className="text-xs text-base-content/50 mt-1">
-                              Expires: {new Date(invite.expiresAt).toLocaleDateString()}
-                            </div>
-                          </td>
-                          <td className="space-x-1">
-                            <button
-                              className="btn btn-ghost btn-xs"
-                              onClick={() => handleResendInvite(invite.id)}
-                            >
-                              Resend
-                            </button>
-                            <button
-                              className="btn btn-ghost btn-xs text-error"
-                              onClick={() => handleRevokeInvite(invite.id)}
-                            >
-                              Revoke
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-5 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-900">Pending Invites</h2>
+                  <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-sm font-medium rounded-lg">
+                    {invites.length} pending
+                  </span>
                 </div>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {invites.map((invite) => (
+                  <div key={invite.id} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      {/* Icon */}
+                      <div className="flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 truncate">{invite.email}</h3>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${ROLE_CONFIG[invite.role].color}`}>
+                            {ROLE_CONFIG[invite.role].label}
+                          </span>
+                          {invite.isExpired ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                              Expired
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-200">
+                              Pending
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Invited by {invite.invitedBy} &middot; Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => handleResendInvite(invite.id)}
+                        >
+                          Resend
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm text-red-500 hover:bg-red-50"
+                          onClick={() => handleRevokeInvite(invite.id)}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {/* Role Permissions Guide */}
-          <div className="card bg-base-200">
-            <div className="card-body">
-              <h2 className="card-title">Role Permissions</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-                {ROLES.map((role) => (
-                  <div key={role} className="p-4 bg-base-100 rounded-lg">
-                    <span className={`badge ${ROLE_COLORS[role]} mb-2`}>{role}</span>
-                    <p className="text-sm text-base-content/70">{ROLE_DESCRIPTIONS[role]}</p>
-                  </div>
-                ))}
-              </div>
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Role Permissions</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {ROLES.map((role) => (
+                <div key={role} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${ROLE_CONFIG[role].color}`}>
+                    {ROLE_CONFIG[role].label}
+                  </span>
+                  <p className="text-sm text-slate-600 mt-2">{ROLE_CONFIG[role].description}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -518,9 +543,9 @@ export default function TeamSettings() {
       {/* Create User Modal */}
       {showCreateUserModal && (
         <div className="modal modal-open">
-          <div className="modal-box">
+          <div className="modal-box max-w-md">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Create User</h3>
+              <h3 className="text-xl font-bold text-slate-900">Create User</h3>
               <button
                 type="button"
                 onClick={() => {
@@ -529,14 +554,16 @@ export default function TeamSettings() {
                 }}
                 className="btn btn-ghost btn-sm btn-circle"
               >
-                ✕
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <form onSubmit={handleCreateUser}>
               <div className="space-y-4">
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text font-medium">Name *</span>
+                    <span className="label-text font-medium">Name</span>
                   </label>
                   <input
                     type="text"
@@ -549,7 +576,7 @@ export default function TeamSettings() {
                 </div>
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text font-medium">Email *</span>
+                    <span className="label-text font-medium">Email</span>
                   </label>
                   <input
                     type="email"
@@ -562,7 +589,7 @@ export default function TeamSettings() {
                 </div>
                 <div className="form-control">
                   <label className="label">
-                    <span className="label-text font-medium">Password *</span>
+                    <span className="label-text font-medium">Password</span>
                   </label>
                   <input
                     type="password"
@@ -574,7 +601,7 @@ export default function TeamSettings() {
                     required
                   />
                   <label className="label">
-                    <span className="label-text-alt text-base-content/50">The user can log in immediately with this password</span>
+                    <span className="label-text-alt text-slate-400">The user can log in immediately with this password</span>
                   </label>
                 </div>
                 <div className="form-control">
@@ -592,7 +619,7 @@ export default function TeamSettings() {
                         value={role}
                         disabled={role === "OWNER" && !isOwner}
                       >
-                        {role} - {ROLE_DESCRIPTIONS[role]}
+                        {ROLE_CONFIG[role].label} - {ROLE_CONFIG[role].description}
                       </option>
                     ))}
                   </select>
@@ -611,13 +638,18 @@ export default function TeamSettings() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn btn-primary gap-2"
                   disabled={creatingUser}
                 >
                   {creatingUser ? (
                     <span className="loading loading-spinner loading-sm"></span>
                   ) : (
-                    "Create User"
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                      Create User
+                    </>
                   )}
                 </button>
               </div>

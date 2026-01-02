@@ -25,24 +25,41 @@ export function BottomSheet({
 }) {
   const sheetRef = useRef(null);
 
-  // Lock body scroll when open
+  // Lock body scroll and prevent horizontal pan when open
   useEffect(() => {
     if (isOpen) {
-      // Store current scroll position and lock
       const scrollY = window.scrollY;
+      const html = document.documentElement;
+
+      // Lock both html and body to prevent any horizontal movement
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollY}px`;
       document.body.style.left = "0";
       document.body.style.right = "0";
+      document.body.style.width = "100%";
       document.body.style.overflow = "hidden";
+      document.body.style.overflowX = "hidden";
+      document.body.style.touchAction = "none";
+
+      html.style.overflow = "hidden";
+      html.style.overflowX = "hidden";
+
+      document.body.classList.add("modal-open");
 
       return () => {
-        // Restore scroll position
         document.body.style.position = "";
         document.body.style.top = "";
         document.body.style.left = "";
         document.body.style.right = "";
+        document.body.style.width = "";
         document.body.style.overflow = "";
+        document.body.style.overflowX = "";
+        document.body.style.touchAction = "";
+
+        html.style.overflow = "";
+        html.style.overflowX = "";
+
+        document.body.classList.remove("modal-open");
         window.scrollTo(0, scrollY);
       };
     }
@@ -66,12 +83,17 @@ export function BottomSheet({
 
   return (
     <Portal>
-      <div className={`fixed inset-0 z-[9999] ${hideClass}`}>
-        {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-[9999] ${hideClass}`}
+        style={{ touchAction: "none", overscrollBehavior: "contain" }}
+      >
+        {/* Backdrop - prevent touch events from reaching background */}
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm"
           onClick={onClose}
+          onTouchMove={(e) => e.preventDefault()}
           aria-hidden="true"
+          style={{ touchAction: "none" }}
         />
 
         {/* Sheet - Fixed to viewport bottom */}
@@ -102,8 +124,11 @@ export function BottomSheet({
             </button>
           </div>
 
-          {/* Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto overscroll-contain p-4 min-h-0">
+          {/* Content - Scrollable vertically only */}
+          <div
+            className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 min-h-0"
+            style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+          >
             {children}
           </div>
 

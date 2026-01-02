@@ -527,6 +527,23 @@ html, body {
   overscroll-behavior-x: none !important;
 }
 
+/* Modal/drawer open state - complete horizontal scroll prevention */
+body.modal-open,
+html:has(body.modal-open) {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: none !important;
+  touch-action: none !important;
+  position: fixed !important;
+  width: 100% !important;
+  max-width: 100vw !important;
+}
+
+body.modal-open #__next {
+  overflow: hidden !important;
+  overflow-x: hidden !important;
+}
+
 /* Issue card modern style */
 .issue-card {
   background: white;

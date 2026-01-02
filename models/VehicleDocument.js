@@ -17,4 +17,9 @@ const vehicleDocumentSchema = new mongoose.Schema(
 );
 
 vehicleDocumentSchema.plugin(toJSON);
+
+// Index for document queries by vehicle
+vehicleDocumentSchema.index({ vehicleId: 1 });
+vehicleDocumentSchema.index({ vehicleId: 1, type: 1 });
+
 export default mongoose.models?.VehicleDocument || mongoose.model("VehicleDocument", vehicleDocumentSchema);

@@ -42,6 +42,13 @@ export default function CustomerPXAppraisalDetail() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
 
+  // Email share modal state
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [includeValuation, setIncludeValuation] = useState(true);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
   // Issue modal state
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [issueForm, setIssueForm] = useState({
@@ -216,6 +223,42 @@ export default function CustomerPXAppraisalDetail() {
       fetchIssues();
     } catch (error) {
       toast.error("Failed to delete");
+    }
+  };
+
+  const handleSendEmail = async (e) => {
+    e.preventDefault();
+    if (!emailTo.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const res = await fetch(`/api/customer-px/${id}/share-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: emailTo.trim(),
+          message: emailMessage.trim() || undefined,
+          includeValuation,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send email");
+      }
+
+      toast.success(`Valuation sent to ${emailTo}`);
+      setShowEmailModal(false);
+      setEmailTo("");
+      setEmailMessage("");
+    } catch (error) {
+      toast.error(error.message || "Failed to send email");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -566,6 +609,24 @@ export default function CustomerPXAppraisalDetail() {
                 </div>
               )}
 
+              {/* Email Valuation */}
+              <div className="pt-4 border-t border-slate-200">
+                <button
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                  onClick={() => {
+                    // Pre-fill customer email if available
+                    const customerEmail = appraisal.customerEmail || appraisal.contactId?.email;
+                    if (customerEmail) setEmailTo(customerEmail);
+                    setShowEmailModal(true);
+                  }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  Email Valuation
+                </button>
+              </div>
+
               {/* Issues Summary */}
               {issues.length > 0 && (
                 <div className="pt-4 border-t border-slate-200">
@@ -726,6 +787,123 @@ export default function CustomerPXAppraisalDetail() {
             </div>
           </div>
           <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+        </div>
+      )}
+
+      {/* Email Valuation Modal */}
+      {showEmailModal && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-900">Email Valuation</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailModal(false);
+                  setEmailTo("");
+                  setEmailMessage("");
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSendEmail} className="space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Recipient Email</span>
+                </label>
+                <input
+                  type="email"
+                  className="input input-bordered w-full"
+                  placeholder="customer@example.com"
+                  value={emailTo}
+                  onChange={(e) => setEmailTo(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Personal Message (optional)</span>
+                </label>
+                <textarea
+                  className="textarea textarea-bordered w-full"
+                  placeholder="Add a message to include with the valuation..."
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="cursor-pointer label justify-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-primary"
+                    checked={includeValuation}
+                    onChange={(e) => setIncludeValuation(e.target.checked)}
+                  />
+                  <span className="label-text">
+                    Include valuation amount
+                    {appraisal.proposedPurchasePrice ? (
+                      <span className="text-emerald-600 font-semibold ml-1">
+                        (£{appraisal.proposedPurchasePrice.toLocaleString()})
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 ml-1">(not set)</span>
+                    )}
+                  </span>
+                </label>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
+                <p className="font-medium mb-1">Email will include:</p>
+                <ul className="list-disc list-inside text-xs space-y-0.5 text-slate-500">
+                  <li>Vehicle details ({appraisal.vehicleReg})</li>
+                  {includeValuation && appraisal.proposedPurchasePrice && <li>Valuation amount</li>}
+                  {emailMessage && <li>Your personal message</li>}
+                </ul>
+              </div>
+
+              <div className="modal-action">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowEmailModal(false);
+                    setEmailTo("");
+                    setEmailMessage("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary gap-2"
+                  disabled={isSendingEmail || !emailTo.trim()}
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <span className="loading loading-spinner loading-sm"></span>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Send Email
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowEmailModal(false)}></div>
         </div>
       )}
 

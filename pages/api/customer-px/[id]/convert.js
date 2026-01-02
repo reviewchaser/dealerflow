@@ -65,13 +65,25 @@ export default async function handler(req, res) {
       serviceHistoryUrl: appraisal.serviceHistoryUrl || null,
     });
 
+    // Transfer service history URL to VehicleDocument collection
+    if (appraisal.serviceHistoryUrl) {
+      await VehicleDocument.create({
+        vehicleId: vehicle._id,
+        name: "Service History",
+        type: "service_history",
+        url: appraisal.serviceHistoryUrl,
+      });
+    }
+
     // Transfer other documents to VehicleDocument collection
     if (appraisal.otherDocuments && appraisal.otherDocuments.length > 0) {
       for (const doc of appraisal.otherDocuments) {
+        // Preserve document type if specified, otherwise default to "other"
+        const docType = doc.type || "other";
         await VehicleDocument.create({
           vehicleId: vehicle._id,
           name: doc.name || "Other Document",
-          type: "other",
+          type: docType,
           url: doc.url,
         });
       }

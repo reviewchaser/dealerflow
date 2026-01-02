@@ -4,6 +4,10 @@ import toast from "react-hot-toast";
 
 export default function ShareFormModal({ form, publicUrl, onClose }) {
   const [showQR, setShowQR] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailTo, setEmailTo] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const qrRef = useRef(null);
 
   // Handle case where publicUrl might be null
@@ -27,6 +31,47 @@ export default function ShareFormModal({ form, publicUrl, onClose }) {
     const subject = encodeURIComponent(`${form.name} - DealerFlow Form`);
     const body = encodeURIComponent(`Please fill out this form:\n\n${publicUrl}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
+  };
+
+  const sendEmailDirect = async (e) => {
+    e.preventDefault();
+    if (!emailTo.trim()) {
+      toast.error("Please enter an email address");
+      return;
+    }
+    if (!hasValidUrl) {
+      toast.error("No URL available to share");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const res = await fetch("/api/forms/share-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: emailTo.trim(),
+          formName: form.name,
+          formUrl: publicUrl,
+          message: emailMessage.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send email");
+      }
+
+      toast.success(`Email sent to ${emailTo}`);
+      setEmailTo("");
+      setEmailMessage("");
+      setShowEmailForm(false);
+    } catch (error) {
+      toast.error(error.message || "Failed to send email");
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const shareViaWhatsApp = () => {
@@ -174,14 +219,14 @@ export default function ShareFormModal({ form, publicUrl, onClose }) {
           {/* Share Options */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <button
-              className={`btn btn-outline ${!hasValidUrl ? "btn-disabled" : ""}`}
-              onClick={shareViaEmail}
+              className={`btn btn-outline ${!hasValidUrl ? "btn-disabled" : ""} ${showEmailForm ? "btn-active" : ""}`}
+              onClick={() => setShowEmailForm(!showEmailForm)}
               disabled={!hasValidUrl}
             >
               <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              Email
+              Send Email
             </button>
             <button
               className={`btn btn-outline ${!hasValidUrl ? "btn-disabled" : ""}`}
@@ -217,6 +262,67 @@ export default function ShareFormModal({ form, publicUrl, onClose }) {
               Copy SMS
             </button>
           </div>
+
+          {/* Email Form */}
+          {showEmailForm && hasValidUrl && (
+            <div className="bg-base-200 rounded-lg p-4 mb-6">
+              <form onSubmit={sendEmailDirect} className="space-y-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">Recipient Email</span>
+                  </label>
+                  <input
+                    type="email"
+                    className="input input-bordered w-full"
+                    placeholder="customer@example.com"
+                    value={emailTo}
+                    onChange={(e) => setEmailTo(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-semibold">Personal Message (optional)</span>
+                  </label>
+                  <textarea
+                    className="textarea textarea-bordered w-full"
+                    placeholder="Add a personal message..."
+                    value={emailMessage}
+                    onChange={(e) => setEmailMessage(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setShowEmailForm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-sm"
+                    disabled={isSendingEmail || !emailTo.trim()}
+                  >
+                    {isSendingEmail ? (
+                      <>
+                        <span className="loading loading-spinner loading-sm"></span>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        Send Email
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* SMS Text */}
           <div className="form-control mb-6">

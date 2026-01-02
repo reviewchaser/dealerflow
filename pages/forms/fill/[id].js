@@ -323,8 +323,66 @@ export default function FillForm() {
     }
   };
 
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Validate all required fields and return list of errors
+  const validateForm = () => {
+    const errors = {};
+    let firstErrorField = null;
+
+    fields.forEach((field) => {
+      if (field.required) {
+        const value = formData[field.fieldName];
+        const isEmpty = value === undefined || value === null || value === "" ||
+          (Array.isArray(value) && value.length === 0);
+
+        if (isEmpty) {
+          errors[field.fieldName] = `${field.label} is required`;
+          if (!firstErrorField) {
+            firstErrorField = field.fieldName;
+          }
+        }
+      }
+    });
+
+    return { errors, firstErrorField, count: Object.keys(errors).length };
+  };
+
+  // Scroll to first error field and highlight it
+  const scrollToFirstError = (fieldName) => {
+    const element = document.getElementById(`field-${fieldName}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Add temporary highlight
+      element.classList.add("ring-2", "ring-red-500", "ring-offset-2");
+      setTimeout(() => {
+        element.classList.remove("ring-2", "ring-red-500", "ring-offset-2");
+      }, 3000);
+      // Try to focus the input
+      const input = element.querySelector("input, select, textarea");
+      if (input) {
+        setTimeout(() => input.focus(), 500);
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate form
+    const { errors, firstErrorField, count } = validateForm();
+    setValidationErrors(errors);
+
+    if (count > 0) {
+      toast.error(`${count} field${count > 1 ? "s" : ""} need${count === 1 ? "s" : ""} attention`, {
+        duration: 4000,
+        icon: "⚠️",
+      });
+      scrollToFirstError(firstErrorField);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -342,6 +400,7 @@ export default function FillForm() {
       if (!res.ok) throw new Error(data.error || "Submission failed");
 
       setSubmittedId(data.id || data._id);
+      setValidationErrors({});
       toast.success("Form submitted successfully!");
     } catch (error) {
       console.error("Submission error:", error);
@@ -1236,24 +1295,41 @@ export default function FillForm() {
 
                   return (
                     <div key={field.gridGroup} className="grid grid-cols-2 gap-4">
-                      {groupFields.map((gField) => (
-                        <div key={gField.id || gField._id || gField.fieldName} className="form-control">
-                          <label className="label">
-                            <span className={`label-text font-semibold ${gField.uppercase ? "uppercase" : ""}`}>
-                              {gField.label}
-                              {gField.required && <span className="text-error ml-1">*</span>}
-                            </span>
-                          </label>
-                          {renderField(gField)}
-                        </div>
-                      ))}
+                      {groupFields.map((gField) => {
+                        const hasError = validationErrors[gField.fieldName];
+                        return (
+                          <div
+                            key={gField.id || gField._id || gField.fieldName}
+                            id={`field-${gField.fieldName}`}
+                            className={`form-control transition-all rounded-lg ${hasError ? "bg-red-50 p-3 -m-3 ring-2 ring-red-200" : ""}`}
+                          >
+                            <label className="label">
+                              <span className={`label-text font-semibold ${gField.uppercase ? "uppercase" : ""}`}>
+                                {gField.label}
+                                {gField.required && <span className="text-error ml-1">*</span>}
+                              </span>
+                            </label>
+                            {renderField(gField)}
+                            {hasError && (
+                              <label className="label">
+                                <span className="label-text-alt text-error">{hasError}</span>
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 }
 
                 // Normal form fields
+                const hasError = validationErrors[field.fieldName];
                 return (
-                  <div key={field.id || field._id || index} className="form-control">
+                  <div
+                    key={field.id || field._id || index}
+                    id={`field-${field.fieldName}`}
+                    className={`form-control transition-all rounded-lg ${hasError ? "bg-red-50 p-3 -m-3 ring-2 ring-red-200" : ""}`}
+                  >
                     <label className="label">
                       <span className={`label-text font-semibold ${field.uppercase ? "uppercase" : ""}`}>
                         {field.label}
@@ -1261,6 +1337,11 @@ export default function FillForm() {
                       </span>
                     </label>
                     {renderField(field)}
+                    {hasError && (
+                      <label className="label">
+                        <span className="label-text-alt text-error">{hasError}</span>
+                      </label>
+                    )}
                   </div>
                 );
               });

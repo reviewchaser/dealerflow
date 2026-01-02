@@ -132,24 +132,40 @@ export default function VehicleDrawer({
   const [activeTab, setActiveTab] = useState("overview");
   const [expandedIssues, setExpandedIssues] = useState({});
 
-  // Lock body scroll when drawer is open
+  // Lock body scroll and prevent horizontal pan when drawer is open
   useEffect(() => {
     if (isOpen) {
       const scrollY = window.scrollY;
+      const html = document.documentElement;
+
       document.body.style.position = "fixed";
       document.body.style.top = `-${scrollY}px`;
       document.body.style.left = "0";
       document.body.style.right = "0";
-      document.body.style.overflow = "hidden";
       document.body.style.width = "100%";
+      document.body.style.overflow = "hidden";
+      document.body.style.overflowX = "hidden";
+      document.body.style.touchAction = "none";
+
+      html.style.overflow = "hidden";
+      html.style.overflowX = "hidden";
+
+      document.body.classList.add("modal-open");
 
       return () => {
         document.body.style.position = "";
         document.body.style.top = "";
         document.body.style.left = "";
         document.body.style.right = "";
-        document.body.style.overflow = "";
         document.body.style.width = "";
+        document.body.style.overflow = "";
+        document.body.style.overflowX = "";
+        document.body.style.touchAction = "";
+
+        html.style.overflow = "";
+        html.style.overflowX = "";
+
+        document.body.classList.remove("modal-open");
         window.scrollTo(0, scrollY);
       };
     }
@@ -191,6 +207,7 @@ export default function VehicleDrawer({
       <div
         className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
         onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
         style={{ touchAction: "none" }}
       />
 
@@ -265,9 +282,31 @@ export default function VehicleDrawer({
               </div>
             </div>
 
-            {/* Tabs - Modern pill style */}
+            {/* Tabs - Dropdown on mobile, pills on desktop */}
             <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+              {/* Mobile: Dropdown selector */}
+              <div className="md:hidden">
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="select select-bordered w-full font-medium"
+                >
+                  {[
+                    { id: "overview", label: "Overview" },
+                    { id: "checklist", label: `Checklist${vehicle.tasks?.length ? ` (${vehicle.tasks.length})` : ""}` },
+                    { id: "issues", label: `Issues${vehicle.issues?.length ? ` (${vehicle.issues.length})` : ""}` },
+                    { id: "documents", label: `Documents${vehicle.documents?.length ? ` (${vehicle.documents.length})` : ""}` },
+                    { id: "images", label: `Images${vehicle.images?.length ? ` (${vehicle.images.length})` : ""}` },
+                  ].map((tab) => (
+                    <option key={tab.id} value={tab.id}>
+                      {tab.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Desktop: Pill tabs */}
+              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
                 {[
                   { id: "overview", label: "Overview", icon: (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,9 +361,11 @@ export default function VehicleDrawer({
 
             {/* Content - Scrollable region with safe area padding */}
             <div
-              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto min-w-0"
+              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
               style={{
-                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+                paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
+                touchAction: "pan-y",
+                WebkitOverflowScrolling: "touch",
               }}
             >
               {/* Overview Tab */}

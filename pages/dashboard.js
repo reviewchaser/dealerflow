@@ -200,21 +200,27 @@ const ATTENTION_COLORS = {
 
 export default function Dashboard() {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [stats, setStats] = useState(null);
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectCheckComplete, setRedirectCheckComplete] = useState(false);
 
   // Check if we should redirect to tenant URL (legacy route access)
   useEffect(() => {
     async function checkForTenantRedirect() {
       // Skip if already on a tenant route
-      if (router.asPath.startsWith("/app/")) return;
+      if (router.asPath.startsWith("/app/")) {
+        setRedirectCheckComplete(true);
+        return;
+      }
 
       try {
         const res = await fetch("/api/dealers/memberships");
-        if (!res.ok) return;
+        if (!res.ok) {
+          setRedirectCheckComplete(true);
+          return;
+        }
 
         const dealers = await res.json();
 
@@ -225,27 +231,29 @@ export default function Dashboard() {
         }
 
         if (dealers.length === 1) {
-          // Single dealer - redirect to tenant route
-          setIsRedirecting(true);
+          // Single dealer - redirect to tenant route (skip fetching stats here)
           router.replace(`/app/${dealers[0].slug}/dashboard`);
           return;
         }
 
         if (dealers.length > 1) {
           // Multiple dealers - show picker
-          setIsRedirecting(true);
           router.push("/choose-dealer");
           return;
         }
       } catch (err) {
         console.error("Error checking dealer redirect:", err);
+        setRedirectCheckComplete(true);
       }
     }
 
     if (session) {
       checkForTenantRedirect();
+    } else if (status === "unauthenticated") {
+      // Not logged in, don't wait for redirect check
+      setRedirectCheckComplete(true);
     }
-  }, [session, router]);
+  }, [session, status, router]);
 
   const defaultStats = {
     appraisals: { total: 0, pending: 0 },
@@ -260,7 +268,11 @@ export default function Dashboard() {
     oldestAppraisalDays: null,
   };
 
+  // Only fetch stats after redirect check is complete (prevents double fetch)
   useEffect(() => {
+    // Skip if we're still checking for redirects or going to redirect
+    if (!redirectCheckComplete) return;
+
     const safeJsonParse = async (res) => {
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
@@ -293,7 +305,7 @@ export default function Dashboard() {
         setForms([]);
         setIsLoading(false);
       });
-  }, []);
+  }, [redirectCheckComplete]);
 
   const handleFormClick = (form) => {
     if (form.isPublic && form.publicSlug) {

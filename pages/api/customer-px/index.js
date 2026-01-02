@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   if (req.method === "POST") {
     const {
       vehicleReg, vehicleMake, vehicleModel, vehicleYear,
-      mileage, colour, fuelType, conditionNotes, proposedPurchasePrice,
+      mileage, colour, fuelType, motExpiryDate, conditionNotes, proposedPurchasePrice,
       outstandingFinanceAmount, aiHintText, v5Url, serviceHistoryUrl,
       otherDocuments, prepTemplateId, customerName, customerEmail, customerPhone,
       conditionRating, formSubmissionId, interestedInVehicle, dealerSlug, dealerId: bodyDealerId,
@@ -91,6 +91,7 @@ export default async function handler(req, res) {
     if (mileage) appraisalData.mileage = Number(mileage);
     if (colour) appraisalData.colour = colour;
     if (fuelType) appraisalData.fuelType = fuelType;
+    if (motExpiryDate) appraisalData.motExpiryDate = new Date(motExpiryDate);
     if (conditionNotes) appraisalData.conditionNotes = conditionNotes;
     if (proposedPurchasePrice) appraisalData.proposedPurchasePrice = Number(proposedPurchasePrice);
     if (outstandingFinanceAmount) appraisalData.outstandingFinanceAmount = Number(outstandingFinanceAmount);

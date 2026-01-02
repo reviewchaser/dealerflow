@@ -57,7 +57,7 @@ export const FORM_TEMPLATES = [
       // Section 3: Equipment
       { label: "Equipment Checks", fieldName: "_section_equipment", type: "SECTION_HEADER", order: 40 },
       { label: "Jack & Wrench", fieldName: "jack_wrench", type: "RADIO", required: true, order: 41, options: { choices: ["Present", "Missing", "N/A"] } },
-      { label: "Locking Wheel Nut Location", fieldName: "locking_nut_location", type: "TEXT", required: false, order: 42 },
+      { label: "Locking Wheel Nut Location (if present)", fieldName: "locking_nut_location", type: "TEXT", required: false, order: 42 },
       { label: "Parcel Shelf", fieldName: "parcel_shelf", type: "RADIO", required: true, order: 43, options: { choices: ["Present", "Missing", "N/A"] } },
 
       // Section 4: Exterior

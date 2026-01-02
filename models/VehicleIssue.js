@@ -53,4 +53,10 @@ const vehicleIssueSchema = new mongoose.Schema(
 );
 
 vehicleIssueSchema.plugin(toJSON);
+
+// Indexes for issue queries - vehicleId is queried frequently
+vehicleIssueSchema.index({ vehicleId: 1 });
+vehicleIssueSchema.index({ vehicleId: 1, status: 1 });
+vehicleIssueSchema.index({ sourceSubmissionId: 1 });
+
 export default mongoose.models?.VehicleIssue || mongoose.model("VehicleIssue", vehicleIssueSchema);
