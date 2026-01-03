@@ -277,13 +277,14 @@ export default function CustomerPXForm() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen bg-slate-50 py-8 px-4 overflow-x-hidden">
       <Head>
         <title>Part Exchange Valuation{dealerInfo?.name ? ` | ${dealerInfo.name}` : ""}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
       </Head>
       <Toaster position="top-center" />
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto overflow-x-hidden">
         {/* Header */}
         <div className="text-center mb-8">
           {dealerInfo?.logo && (
@@ -346,26 +347,34 @@ export default function CustomerPXForm() {
           {/* Vehicle Registration */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Registration</h2>
-            <div className="flex gap-3">
+            <div className="space-y-3">
               <input
                 type="text"
                 name="vehicleReg"
                 value={formData.vehicleReg}
                 onChange={handleChange}
-                className="flex-1 px-4 py-3 border border-slate-200 rounded-lg text-xl font-mono uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 border border-slate-200 rounded-lg text-xl font-mono uppercase text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="AB12 CDE"
                 required
               />
               <button
                 type="button"
                 onClick={handleDvlaLookup}
-                disabled={isLookingUp}
-                className="px-6 py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors"
+                disabled={isLookingUp || !formData.vehicleReg}
+                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {isLookingUp ? (
-                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"></span>
+                  <>
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Looking up...
+                  </>
                 ) : (
-                  "Lookup"
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Lookup Vehicle
+                  </>
                 )}
               </button>
             </div>

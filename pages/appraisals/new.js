@@ -278,26 +278,32 @@ export default function NewAppraisal() {
             <div className="card bg-base-200">
               <div className="card-body">
                 <h2 className="card-title">Vehicle Registration</h2>
-                <div className="flex gap-4">
+                {/* Mobile: stacked, Desktop: side-by-side */}
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
                     name="vehicleReg"
                     value={formData.vehicleReg}
                     onChange={handleChange}
-                    className="input input-bordered flex-1 uppercase text-xl font-mono"
+                    className="input input-bordered w-full sm:flex-1 uppercase text-xl font-mono text-center sm:text-left"
                     placeholder="AB12 CDE"
                     required
                   />
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-primary w-full sm:w-auto"
                     onClick={handleDvlaLookup}
                     disabled={isLookingUp}
                   >
                     {isLookingUp ? (
                       <span className="loading loading-spinner"></span>
                     ) : (
-                      "🔍 Lookup"
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Lookup
+                      </>
                     )}
                   </button>
                 </div>

@@ -2753,9 +2753,15 @@ export default function SalesPrep() {
 
       {/* Vehicle Detail Drawer - Full Screen on Mobile */}
       {selectedVehicle && (
-        <div className="fixed inset-0 z-50 flex justify-end" style={{ touchAction: "pan-y" }}>
+        <div
+          className="fixed inset-0 z-50 flex justify-end"
+          style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
+        >
           <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
-          <div className="relative bg-white w-full md:max-w-3xl h-full overflow-y-auto overflow-x-hidden flex flex-col">
+          <div
+            className="relative bg-white w-full md:max-w-3xl h-full flex flex-col"
+            style={{ overflowX: "hidden", overflowY: "auto" }}
+          >
             {/* Sticky Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
               <div className="flex items-center gap-3">
@@ -2823,10 +2829,13 @@ export default function SalesPrep() {
               </div>
             </div>
 
-            {/* Tabs - Dropdown on mobile, pills on desktop */}
-            <div className="bg-base-100 border-b border-base-300 px-4 py-2 overflow-x-hidden">
-              {/* Mobile: Dropdown selector */}
-              <div className="md:hidden">
+            {/* Tabs - Simple native select on mobile, pills on desktop */}
+            <div className="border-b border-slate-200 bg-white">
+              {/* Mobile: Native select - simple and reliable */}
+              <div className="block md:hidden px-4 py-3">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                  Section
+                </label>
                 <select
                   value={activeTab}
                   onChange={(e) => {
@@ -2835,7 +2844,8 @@ export default function SalesPrep() {
                       fetchActivity(selectedVehicle.id);
                     }
                   }}
-                  className="select select-bordered w-full font-medium"
+                  className="block w-full px-4 py-3 text-base font-semibold text-slate-900 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ fontSize: "16px" }}
                 >
                   <option value="overview">Overview</option>
                   <option value="checklist">
@@ -2852,48 +2862,38 @@ export default function SalesPrep() {
               </div>
 
               {/* Desktop: Tab pills */}
-              <div className="hidden md:block">
-                <div className="tabs tabs-bordered">
-                  <button
-                    className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
-                    onClick={() => setActiveTab("overview")}
-                  >
-                    Overview
-                  </button>
-                  <button
-                    className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
-                    onClick={() => setActiveTab("checklist")}
-                  >
-                    Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
-                  </button>
-                  <button
-                    className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
-                    onClick={() => setActiveTab("issues")}
-                  >
-                    Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
-                  </button>
-                  <button
-                    className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
-                    onClick={() => setActiveTab("documents")}
-                  >
-                    Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
-                  </button>
-                  <button
-                    className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
-                    onClick={() => {
-                      setActiveTab("activity");
-                      if (selectedVehicle?.id) {
-                        fetchActivity(selectedVehicle.id);
-                      }
-                    }}
-                  >
-                    Activity
-                  </button>
+              <div className="hidden md:block px-4 py-2">
+                <div className="flex gap-1">
+                  {[
+                    { key: "overview", label: "Overview" },
+                    { key: "checklist", label: "Checklist", count: selectedVehicle.tasks?.length },
+                    { key: "issues", label: "Issues", count: selectedVehicle.issues?.length },
+                    { key: "documents", label: "Documents", count: selectedVehicle.documents?.length },
+                    { key: "activity", label: "Activity" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setActiveTab(tab.key);
+                        if (tab.key === "activity" && selectedVehicle?.id) {
+                          fetchActivity(selectedVehicle.id);
+                        }
+                      }}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        activeTab === tab.key
+                          ? "bg-blue-600 text-white"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      {tab.label}
+                      {tab.count > 0 && ` (${tab.count})`}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6">
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-6">
