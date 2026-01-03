@@ -81,7 +81,8 @@ const FormTypeIcon = ({ type, className = "w-6 h-6" }) => {
 };
 
 // Default priority forms - PDI is always first as it's the most common daily task
-const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
+// COURTESY_IN (Courtesy Car Collection) is also prioritized as a frequently used form
+const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "COURTESY_IN"];
 const ALWAYS_FIRST_FORM_TYPE = "PDI";
 // Customer-facing forms that should NOT appear in internal dashboard/quick forms
 const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
