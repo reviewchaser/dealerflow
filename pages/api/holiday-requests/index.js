@@ -104,6 +104,37 @@ export default withDealerContext(async (req, res, ctx) => {
         return res.status(400).json({ error: "End date cannot be more than 2 years in the future" });
       }
 
+      // Determine target user ID for duplicate check
+      const checkUserId = (requestForUserId && (role === "OWNER" || role === "ADMIN"))
+        ? requestForUserId
+        : userId;
+
+      // Check for overlapping existing requests (PENDING or APPROVED)
+      // Two date ranges overlap if: start1 <= end2 AND end1 >= start2
+      const overlappingRequests = await HolidayRequest.find({
+        dealerId,
+        userId: checkUserId,
+        status: { $in: ["PENDING", "APPROVED"] },
+        $and: [
+          { startDate: { $lte: end } },
+          { endDate: { $gte: start } }
+        ]
+      }).lean();
+
+      if (overlappingRequests.length > 0) {
+        const existingDates = overlappingRequests.map(r => {
+          const s = new Date(r.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+          const e = new Date(r.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+          return s === e ? s : `${s} - ${e}`;
+        }).join(", ");
+
+        return res.status(409).json({
+          error: `You already have a ${overlappingRequests[0].status.toLowerCase()} request that overlaps with these dates (${existingDates})`,
+          existingRequestId: overlappingRequests[0]._id.toString(),
+          existingDates
+        });
+      }
+
       // Determine which user the request is for
       let targetUserId = userId;
       let targetUserName = ctx.user.name || ctx.user.email;

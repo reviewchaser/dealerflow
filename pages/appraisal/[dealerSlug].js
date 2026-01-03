@@ -246,15 +246,15 @@ export default function DealerBuyingForm() {
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
 
-            {/* VRM Lookup */}
+            {/* VRM Lookup - Mobile responsive: stacked on small screens */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-700 mb-1">Registration *</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   required
                   placeholder="AB12 CDE"
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
+                  className="w-full sm:flex-1 px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono text-lg"
                   value={formData.vehicleReg}
                   onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })}
                 />
@@ -262,9 +262,21 @@ export default function DealerBuyingForm() {
                   type="button"
                   onClick={handleVrmLookup}
                   disabled={isLookingUp || !formData.vehicleReg}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                 >
-                  {isLookingUp ? "Looking up..." : "Lookup"}
+                  {isLookingUp ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Looking up...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Lookup
+                    </>
+                  )}
                 </button>
               </div>
             </div>

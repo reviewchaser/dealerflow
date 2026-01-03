@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     }
 
     const vehicles = await Vehicle.find(query)
-      .sort({ createdAt: -1 }) // Sort newest first for duplicate VRMs
+      .sort({ updatedAt: -1, createdAt: -1 }) // Sort by most recent activity first
       .limit(parseInt(limit))
       .lean();
 
@@ -102,6 +102,8 @@ export default async function handler(req, res) {
       mileage: v.mileageCurrent,
       status: v.status,
       type: v.type,
+      updatedAt: v.updatedAt,
+      createdAt: v.createdAt,
       displayName: `${v.regCurrent} - ${v.make} ${v.model}${v.year ? ` (${v.year})` : ""}`,
     }));
 

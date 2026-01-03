@@ -49,6 +49,8 @@ const holidayRequestSchema = new mongoose.Schema(
 // Index for efficient queries
 holidayRequestSchema.index({ dealerId: 1, status: 1 });
 holidayRequestSchema.index({ dealerId: 1, userId: 1 });
+// Index for efficient overlap detection queries
+holidayRequestSchema.index({ dealerId: 1, userId: 1, status: 1, startDate: 1, endDate: 1 });
 
 /**
  * Compute total days based on start/end dates and AM/PM sessions

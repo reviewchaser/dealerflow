@@ -197,6 +197,9 @@ export default function SalesPrep() {
   // VRM Search state
   const [vrmSearch, setVrmSearch] = useState("");
   const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+  const [vrmSearchResults, setVrmSearchResults] = useState([]);
+  const [vrmSearchLoading, setVrmSearchLoading] = useState(false);
+  const vrmSearchTimeout = useRef(null);
 
   // Mobile state
   const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
@@ -1239,20 +1242,68 @@ export default function SalesPrep() {
     return allFiltered.length;
   };
 
-  // VRM Search functions
-  const getVrmSearchResults = () => {
-    if (vrmSearch.length < 2) return [];
-    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
-    return vehicles.filter(v => {
-      const reg = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
-      return reg.includes(searchTerm);
-    }).slice(0, 8); // Limit to 8 results
+  // VRM Search functions - debounced API search
+  const searchVehiclesApi = async (query) => {
+    if (query.length < 2) {
+      setVrmSearchResults([]);
+      return;
+    }
+
+    setVrmSearchLoading(true);
+    try {
+      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=10`);
+      if (res.ok) {
+        const results = await res.json();
+        // Sort by updatedAt (most recent activity first)
+        results.sort((a, b) => {
+          const aDate = new Date(a.updatedAt || a.createdAt || 0);
+          const bDate = new Date(b.updatedAt || b.createdAt || 0);
+          return bDate - aDate;
+        });
+        setVrmSearchResults(results);
+      }
+    } catch (err) {
+      console.error("VRM search error:", err);
+    } finally {
+      setVrmSearchLoading(false);
+    }
   };
+
+  const handleVrmSearchChange = (value) => {
+    const normalized = value.toUpperCase();
+    setVrmSearch(normalized);
+
+    // Clear previous timeout
+    if (vrmSearchTimeout.current) {
+      clearTimeout(vrmSearchTimeout.current);
+    }
+
+    if (normalized.length >= 2) {
+      setShowVrmDropdown(true);
+      // Debounce API call by 250ms
+      vrmSearchTimeout.current = setTimeout(() => {
+        searchVehiclesApi(normalized);
+      }, 250);
+    } else {
+      setVrmSearchResults([]);
+      setShowVrmDropdown(false);
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (vrmSearchTimeout.current) {
+        clearTimeout(vrmSearchTimeout.current);
+      }
+    };
+  }, []);
 
   const handleVrmSelect = (vehicle) => {
     // Close dropdown and clear search
     setVrmSearch("");
     setShowVrmDropdown(false);
+    setVrmSearchResults([]);
 
     // Find which column this vehicle is in and scroll to it
     const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
@@ -1642,11 +1693,15 @@ export default function SalesPrep() {
                   placeholder="Search VRM..."
                   className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
                   value={vrmSearch}
-                  onChange={(e) => {
-                    setVrmSearch(e.target.value.toUpperCase());
-                    setShowVrmDropdown(e.target.value.length >= 2);
+                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+                  onFocus={() => {
+                    if (vrmSearch.length >= 2) {
+                      setShowVrmDropdown(true);
+                      if (vrmSearchResults.length === 0) {
+                        searchVehiclesApi(vrmSearch);
+                      }
+                    }
                   }}
-                  onFocus={() => vrmSearch.length >= 2 && setShowVrmDropdown(true)}
                   onKeyDown={(e) => {
                     if (e.key === "Escape") {
                       setShowVrmDropdown(false);
@@ -1660,6 +1715,7 @@ export default function SalesPrep() {
                     onClick={() => {
                       setVrmSearch("");
                       setShowVrmDropdown(false);
+                      setVrmSearchResults([]);
                     }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1674,21 +1730,33 @@ export default function SalesPrep() {
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setShowVrmDropdown(false)}></div>
                   <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-20 overflow-hidden">
-                    {getVrmSearchResults().length > 0 ? (
+                    {vrmSearchLoading ? (
+                      <div className="px-4 py-6 text-center">
+                        <span className="loading loading-spinner loading-sm text-slate-400"></span>
+                        <p className="text-sm text-slate-500 mt-2">Searching...</p>
+                      </div>
+                    ) : vrmSearchResults.length > 0 ? (
                       <ul className="py-1 max-h-64 overflow-y-auto">
-                        {getVrmSearchResults().map((vehicle) => (
+                        {vrmSearchResults.map((vehicle, idx) => (
                           <li key={vehicle.id || vehicle._id}>
                             <button
                               className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
                               onClick={() => handleVrmSelect(vehicle)}
                             >
-                              <div className="flex items-center gap-3">
-                                <span className="font-mono font-bold text-slate-900">{vehicle.regCurrent}</span>
-                                <span className="text-sm text-slate-500">{vehicle.make} {vehicle.model}</span>
+                              <div className="flex items-center gap-3 min-w-0">
+                                <span className="font-mono font-bold text-slate-900">{vehicle.regCurrent || vehicle.vrm}</span>
+                                <span className="text-sm text-slate-500 truncate">{vehicle.make} {vehicle.model}</span>
                               </div>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                {getStatusLabel(vehicle.status)}
-                              </span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {idx === 0 && vrmSearchResults.filter(v => v.regCurrent === vehicle.regCurrent).length > 1 && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">
+                                    Latest
+                                  </span>
+                                )}
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                  {getStatusLabel(vehicle.status)}
+                                </span>
+                              </div>
                             </button>
                           </li>
                         ))}
@@ -2685,9 +2753,9 @@ export default function SalesPrep() {
 
       {/* Vehicle Detail Drawer - Full Screen on Mobile */}
       {selectedVehicle && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <div className="fixed inset-0 z-50 flex justify-end" style={{ touchAction: "pan-y" }}>
           <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
-          <div className="relative bg-white w-full md:max-w-3xl h-full overflow-y-auto flex flex-col">
+          <div className="relative bg-white w-full md:max-w-3xl h-full overflow-y-auto overflow-x-hidden flex flex-col">
             {/* Sticky Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
               <div className="flex items-center gap-3">
@@ -2755,44 +2823,73 @@ export default function SalesPrep() {
               </div>
             </div>
 
-            {/* Tabs - Using DaisyUI tabs */}
-            <div className="bg-base-100 border-b border-base-300 px-4">
-              <div className="tabs tabs-bordered">
-                <button
-                  className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("overview")}
-                >
-                  Overview
-                </button>
-                <button
-                  className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("checklist")}
-                >
-                  Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
-                </button>
-                <button
-                  className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("issues")}
-                >
-                  Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
-                </button>
-                <button
-                  className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
-                  onClick={() => setActiveTab("documents")}
-                >
-                  Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
-                </button>
-                <button
-                  className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
-                  onClick={() => {
-                    setActiveTab("activity");
-                    if (selectedVehicle?.id) {
+            {/* Tabs - Dropdown on mobile, pills on desktop */}
+            <div className="bg-base-100 border-b border-base-300 px-4 py-2 overflow-x-hidden">
+              {/* Mobile: Dropdown selector */}
+              <div className="md:hidden">
+                <select
+                  value={activeTab}
+                  onChange={(e) => {
+                    setActiveTab(e.target.value);
+                    if (e.target.value === "activity" && selectedVehicle?.id) {
                       fetchActivity(selectedVehicle.id);
                     }
                   }}
+                  className="select select-bordered w-full font-medium"
                 >
-                  Activity
-                </button>
+                  <option value="overview">Overview</option>
+                  <option value="checklist">
+                    Checklist {selectedVehicle.tasks?.length > 0 ? `(${selectedVehicle.tasks.length})` : ""}
+                  </option>
+                  <option value="issues">
+                    Issues {selectedVehicle.issues?.length > 0 ? `(${selectedVehicle.issues.length})` : ""}
+                  </option>
+                  <option value="documents">
+                    Documents {selectedVehicle.documents?.length > 0 ? `(${selectedVehicle.documents.length})` : ""}
+                  </option>
+                  <option value="activity">Activity</option>
+                </select>
+              </div>
+
+              {/* Desktop: Tab pills */}
+              <div className="hidden md:block">
+                <div className="tabs tabs-bordered">
+                  <button
+                    className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+                    onClick={() => setActiveTab("overview")}
+                  >
+                    Overview
+                  </button>
+                  <button
+                    className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
+                    onClick={() => setActiveTab("checklist")}
+                  >
+                    Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
+                  </button>
+                  <button
+                    className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
+                    onClick={() => setActiveTab("issues")}
+                  >
+                    Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
+                  </button>
+                  <button
+                    className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
+                    onClick={() => setActiveTab("documents")}
+                  >
+                    Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
+                  </button>
+                  <button
+                    className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
+                    onClick={() => {
+                      setActiveTab("activity");
+                      if (selectedVehicle?.id) {
+                        fetchActivity(selectedVehicle.id);
+                      }
+                    }}
+                  >
+                    Activity
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -45,7 +45,8 @@ export function MobileModal({
       document.body.style.width = "100%";
       document.body.style.overflow = "hidden";
       document.body.style.overflowX = "hidden";
-      document.body.style.touchAction = "none";
+      // Use manipulation instead of none to allow pinch zoom on iOS
+      document.body.style.touchAction = "manipulation";
 
       html.style.overflow = "hidden";
       html.style.overflowX = "hidden";
@@ -99,15 +100,23 @@ export function MobileModal({
     <Portal>
       <div
         className="fixed inset-0 z-[9999]"
-        style={{ touchAction: "none", overscrollBehavior: "contain" }}
+        style={{
+          touchAction: "pan-x pan-y pinch-zoom", // Allow pinch zoom
+          overscrollBehavior: "contain"
+        }}
       >
         {/* Backdrop - prevent touch events from reaching background */}
         <div
           className="fixed inset-0 bg-black/50"
           onClick={onClose}
-          onTouchMove={(e) => e.preventDefault()}
+          onTouchMove={(e) => {
+            // Only prevent default if not a pinch zoom (single touch)
+            if (e.touches && e.touches.length === 1) {
+              e.preventDefault();
+            }
+          }}
           aria-hidden="true"
-          style={{ touchAction: "none" }}
+          style={{ touchAction: "pan-x pan-y pinch-zoom" }}
         />
 
         {/* Modal Container - Centered on desktop, full screen on mobile */}
@@ -148,10 +157,10 @@ export function MobileModal({
               </button>
             </div>
 
-            {/* Content - Scrollable vertically only */}
+            {/* Content - Scrollable vertically with pinch zoom allowed */}
             <div
               className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6 min-h-0"
-              style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+              style={{ touchAction: "pan-y pinch-zoom", WebkitOverflowScrolling: "touch" }}
             >
               {contentChildren}
             </div>
