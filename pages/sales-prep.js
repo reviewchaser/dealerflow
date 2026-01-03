@@ -8,6 +8,8 @@ import { showDummyNotification } from "@/utils/notifications";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Portal } from "@/components/ui/Portal";
 import { MobileStageSelector } from "@/components/ui/PageShell";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
+import VehicleImage from "@/components/VehicleImage";
 
 const COLUMNS = [
   { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
@@ -53,6 +55,7 @@ const getVehicleDuration = (vehicle) => {
 
 export default function SalesPrep() {
   const router = useRouter();
+  const { isRedirecting } = useDealerRedirect();
   const [vehicles, setVehicles] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -414,6 +417,40 @@ export default function SalesPrep() {
   };
 
   const updateTaskStatus = async (taskId, newStatus) => {
+    // Optimistic update: immediately update local state
+    const previousVehicle = selectedVehicle;
+    const previousVehicles = vehicles;
+
+    // Update selectedVehicle optimistically
+    if (selectedVehicle) {
+      const updatedTasks = selectedVehicle.tasks?.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              status: newStatus,
+              completedAt: newStatus === "done" ? new Date().toISOString() : task.completedAt,
+              progress: newStatus !== "in_progress" ? "NONE" : task.progress,
+              progressNote: newStatus !== "in_progress" ? "" : task.progressNote,
+            }
+          : task
+      );
+      setSelectedVehicle({ ...selectedVehicle, tasks: updatedTasks });
+    }
+
+    // Update vehicles list optimistically
+    setVehicles(vehicles.map(v =>
+      v.id === selectedVehicle?.id
+        ? {
+            ...v,
+            tasks: v.tasks?.map(task =>
+              task.id === taskId
+                ? { ...task, status: newStatus }
+                : task
+            ),
+          }
+        : v
+    ));
+
     try {
       const payload = { status: newStatus };
       if (newStatus === "done") {
@@ -424,38 +461,61 @@ export default function SalesPrep() {
         payload.progress = "NONE";
         payload.progressNote = "";
       }
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
-      const data = await res.json();
-      setSelectedVehicle(data);
+
+      if (!res.ok) throw new Error("Failed to update");
+
+      // Background refresh to sync any server-side changes
       fetchVehicles();
     } catch (error) {
+      // Rollback on error
       toast.error("Failed to update task");
+      setSelectedVehicle(previousVehicle);
+      setVehicles(previousVehicles);
     }
   };
 
   // Update task progress sub-status (for parts ordering, booking, etc.)
   const updateTaskProgress = async (taskId, progress, progressNote = null) => {
+    // Optimistic update
+    const previousVehicle = selectedVehicle;
+
+    if (selectedVehicle) {
+      const updatedTasks = selectedVehicle.tasks?.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              progress,
+              progressNote: progressNote !== null ? progressNote : task.progressNote,
+            }
+          : task
+      );
+      setSelectedVehicle({ ...selectedVehicle, tasks: updatedTasks });
+    }
+
     try {
       const payload = { progress };
       if (progressNote !== null) {
         payload.progressNote = progressNote;
       }
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
-      const data = await res.json();
-      setSelectedVehicle(data);
+
+      if (!res.ok) throw new Error("Failed to update");
+
+      // Background refresh
       fetchVehicles();
     } catch (error) {
+      // Rollback on error
       toast.error("Failed to update task progress");
+      setSelectedVehicle(previousVehicle);
     }
   };
 
@@ -708,6 +768,30 @@ export default function SalesPrep() {
   };
 
   const updateIssue = async (issueId, updates) => {
+    // Optimistic update
+    const previousVehicle = selectedVehicle;
+    const previousVehicles = vehicles;
+
+    // Update selectedVehicle optimistically
+    if (selectedVehicle) {
+      const updatedIssues = selectedVehicle.issues?.map(issue =>
+        issue.id === issueId ? { ...issue, ...updates } : issue
+      );
+      setSelectedVehicle({ ...selectedVehicle, issues: updatedIssues });
+    }
+
+    // Update vehicles list optimistically
+    setVehicles(vehicles.map(v =>
+      v.id === selectedVehicle?.id
+        ? {
+            ...v,
+            issues: v.issues?.map(issue =>
+              issue.id === issueId ? { ...issue, ...updates } : issue
+            ),
+          }
+        : v
+    ));
+
     try {
       const res = await fetch(`/api/issues/${issueId}`, {
         method: "PUT",
@@ -715,12 +799,14 @@ export default function SalesPrep() {
         body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error("Failed to update issue");
-      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
-      setSelectedVehicle(updatedVehicle);
+
+      // Background refresh
       fetchVehicles();
-      toast.success("Issue updated");
     } catch (error) {
+      // Rollback on error
       toast.error("Failed to update issue");
+      setSelectedVehicle(previousVehicle);
+      setVehicles(previousVehicles);
     }
   };
 
@@ -1515,6 +1601,18 @@ export default function SalesPrep() {
     });
     return categoryCounts;
   };
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -2407,8 +2505,9 @@ export default function SalesPrep() {
                         {/* Vehicle Thumbnail */}
                         {(vehicle.primaryImageUrl || vehicle.images?.[0]?.url) && (
                           <div className="relative w-full h-24 bg-slate-100">
-                            <img
+                            <VehicleImage
                               src={vehicle.primaryImageUrl || vehicle.images[0].url}
+                              imageKey={vehicle.images?.[0]?.key}
                               alt={`${vehicle.make} ${vehicle.model}`}
                               className="w-full h-full object-cover"
                               loading="lazy"

@@ -165,7 +165,7 @@ const navigation = [
   { name: "Reviews", href: "/reviews", Icon: StarIcon },
   { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
   // HR
-  { name: "Holidays", href: "/settings/holidays", Icon: SunIcon },
+  { name: "Holidays", href: "/holidays", Icon: SunIcon },
   { name: "Overtime", href: "/overtime", Icon: ClockIcon },
   // System
   { name: "Settings", href: "/settings", Icon: CogIcon },
@@ -798,7 +798,7 @@ export default function DashboardLayout({ children }) {
                     <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
                     <div className="divider my-1 px-3"></div>
                     <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
-                    <li><Link href={getPath("/settings/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
+                    <li><Link href={getPath("/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
                     <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
                     <div className="divider my-1 px-3"></div>
                     <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>

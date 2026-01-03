@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatsCard from "@/components/StatsCard";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -201,59 +202,10 @@ const ATTENTION_COLORS = {
 export default function Dashboard() {
   const router = useRouter();
   const { data: session, status } = useSession();
+  const { isRedirecting } = useDealerRedirect();
   const [stats, setStats] = useState(null);
   const [forms, setForms] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [redirectCheckComplete, setRedirectCheckComplete] = useState(false);
-
-  // Check if we should redirect to tenant URL (legacy route access)
-  useEffect(() => {
-    async function checkForTenantRedirect() {
-      // Skip if already on a tenant route
-      if (router.asPath.startsWith("/app/")) {
-        setRedirectCheckComplete(true);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/dealers/memberships");
-        if (!res.ok) {
-          setRedirectCheckComplete(true);
-          return;
-        }
-
-        const dealers = await res.json();
-
-        if (dealers.length === 0) {
-          // No dealers - redirect to create dealer
-          router.push("/onboarding/create-dealer");
-          return;
-        }
-
-        if (dealers.length === 1) {
-          // Single dealer - redirect to tenant route (skip fetching stats here)
-          router.replace(`/app/${dealers[0].slug}/dashboard`);
-          return;
-        }
-
-        if (dealers.length > 1) {
-          // Multiple dealers - show picker
-          router.push("/choose-dealer");
-          return;
-        }
-      } catch (err) {
-        console.error("Error checking dealer redirect:", err);
-        setRedirectCheckComplete(true);
-      }
-    }
-
-    if (session) {
-      checkForTenantRedirect();
-    } else if (status === "unauthenticated") {
-      // Not logged in, don't wait for redirect check
-      setRedirectCheckComplete(true);
-    }
-  }, [session, status, router]);
 
   const defaultStats = {
     appraisals: { total: 0, pending: 0 },
@@ -271,7 +223,7 @@ export default function Dashboard() {
   // Only fetch stats after redirect check is complete (prevents double fetch)
   useEffect(() => {
     // Skip if we're still checking for redirects or going to redirect
-    if (!redirectCheckComplete) return;
+    if (isRedirecting) return;
 
     const safeJsonParse = async (res) => {
       const contentType = res.headers.get("content-type") || "";
@@ -305,7 +257,7 @@ export default function Dashboard() {
         setForms([]);
         setIsLoading(false);
       });
-  }, [redirectCheckComplete]);
+  }, [isRedirecting]);
 
   const handleFormClick = (form) => {
     if (form.isPublic && form.publicSlug) {
@@ -345,6 +297,18 @@ export default function Dashboard() {
     stats.today.testDrives > 0 ||
     stats.today.courtesyDueBack > 0
   );
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

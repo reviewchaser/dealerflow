@@ -7,6 +7,7 @@ import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 import { toast } from "react-hot-toast";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 // Column config matching Sales & Prep style
 // NOTE: Internal keys are legacy names - keep stable for database compatibility
@@ -407,6 +408,7 @@ const relativeTime = (date) => {
 
 export default function Warranty() {
   const router = useRouter();
+  const { isRedirecting } = useDealerRedirect();
   const [cases, setCases] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCase, setSelectedCase] = useState(null);
@@ -533,10 +535,27 @@ export default function Warranty() {
     }
   };
 
-  // Helper function to update case fields with proper error handling
+  // Helper function to update case fields with proper error handling and optimistic updates
   const updateCase = async (updates, successMessage) => {
     const caseId = selectedCase?.id || selectedCase?._id;
     if (!caseId) return false;
+
+    // Optimistic update: apply changes immediately
+    const previousCase = selectedCase;
+    const previousCases = cases;
+
+    // Filter out internal event metadata from optimistic update
+    const optimisticUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([key]) => !key.startsWith("_"))
+    );
+
+    if (Object.keys(optimisticUpdates).length > 0) {
+      setSelectedCase(prev => ({ ...prev, ...optimisticUpdates }));
+      setCases(prev => prev.map(c =>
+        (c.id || c._id) === caseId ? { ...c, ...optimisticUpdates } : c
+      ));
+    }
+
     try {
       const res = await fetch(`/api/aftercare/${caseId}`, {
         method: "PUT",
@@ -547,7 +566,7 @@ export default function Warranty() {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || "Failed to update case");
       }
-      // Update local state from response
+      // Update local state from response (sync with server data)
       if (data.case) {
         setSelectedCase({ ...data.case, id: data.case._id || data.case.id });
         setCases(prev => prev.map(c =>
@@ -573,7 +592,10 @@ export default function Warranty() {
       }
       return data;
     } catch (error) {
+      // Rollback on error
       toast.error(error.message || "Failed to update case");
+      setSelectedCase(previousCase);
+      setCases(previousCases);
       return false;
     }
   };
@@ -1076,6 +1098,18 @@ export default function Warranty() {
 
   // Get activity count (events count)
   const getActivityCount = (c) => c.events?.length || 0;
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

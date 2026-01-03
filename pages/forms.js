@@ -7,6 +7,7 @@ import ShareFormModal from "@/components/ShareFormModal";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 // Human-readable form type labels
 // Note: Appraisal forms are handled in the dedicated Appraisals section
@@ -80,6 +81,7 @@ const timeAgo = (date) => {
 
 export default function Forms() {
   const router = useRouter();
+  const { isRedirecting } = useDealerRedirect();
   const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState(router.query.tab || "submissions");
   const [forms, setForms] = useState([]);
@@ -707,6 +709,18 @@ export default function Forms() {
   const formTypes = ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTESY_OUT", "COURTESY_IN", "SERVICE_RECEIPT", "OTHER"];
 
   const newCount = submissions.filter(s => !s.viewed && s.status !== "viewed").length;
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

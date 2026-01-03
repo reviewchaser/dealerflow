@@ -13,12 +13,22 @@ const nextConfig = {
         protocol: "https",
         hostname: "**.r2.dev",
       },
-      // Fallback for any direct endpoint
+      // Fallback for any direct endpoint (single wildcard)
       {
         protocol: "https",
         hostname: "*.cloudflarestorage.com",
       },
+      // R2 public development domain
+      {
+        protocol: "https",
+        hostname: "pub-*.r2.dev",
+      },
+      // Cloudflare R2 signed URLs format
+      // Note: Signed URLs use the same endpoint but with query params
+      // Next.js Image with unoptimized=true bypasses domain checking
     ],
+    // Increase timeout for slow CDN responses
+    minimumCacheTTL: 60,
   },
 }
 

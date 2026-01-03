@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 // Channel icons and labels
 const CHANNELS = {
@@ -11,6 +12,7 @@ const CHANNELS = {
 };
 
 export default function Reviews() {
+  const { isRedirecting } = useDealerRedirect();
   const [reviews, setReviews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -81,6 +83,18 @@ export default function Reviews() {
   const rating4 = responses.filter(r => r.response?.rating === 4).length;
   const lowRatings = responses.filter(r => r.response?.rating && r.response.rating <= 3).length;
   const pending = reviews.filter(r => r.status === "sent" || r.status === "opened").length;
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -372,14 +372,9 @@ export default function HolidaySettings() {
 
   return (
     <DashboardLayout>
-      <Head><title>Holidays | Settings | DealerFlow</title></Head>
+      <Head><title>Holidays | DealerFlow</title></Head>
 
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-base-content/60 mb-2">
-          <Link href="/settings" className="hover:text-primary">Settings</Link>
-          <span>/</span>
-          <span>Holidays</span>
-        </div>
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold">Holiday Requests</h1>

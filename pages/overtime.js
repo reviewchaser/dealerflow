@@ -64,9 +64,11 @@ export default function OvertimePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSubmission, setEditingSubmission] = useState(null);
   const [selectedWeek, setSelectedWeek] = useState(getWeekStart());
-  const [viewMode, setViewMode] = useState("my"); // "my" or "all" (admin only)
+  const [viewMode, setViewMode] = useState("my"); // "my" or "approvals" (admin only)
   const [statusFilter, setStatusFilter] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
+  const [viewingSubmission, setViewingSubmission] = useState(null); // For detail view
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
 
@@ -282,7 +284,13 @@ export default function OvertimePage() {
     }
   };
 
-  const displaySubmissions = viewMode === "all" ? allSubmissions : submissions;
+  const displaySubmissions = viewMode === "approvals" ? allSubmissions : submissions;
+
+  // Open review modal for a submission
+  const handleViewForReview = (submission) => {
+    setViewingSubmission(submission);
+    setShowReviewModal(true);
+  };
 
   return (
     <DashboardLayout>
@@ -315,7 +323,10 @@ export default function OvertimePage() {
           <div className="flex items-center gap-4 mb-6">
             <div className="flex bg-slate-100 rounded-xl p-1">
               <button
-                onClick={() => setViewMode("my")}
+                onClick={() => {
+                  setViewMode("my");
+                  setStatusFilter("");
+                }}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                   viewMode === "my"
                     ? "bg-white text-slate-900 shadow-sm"
@@ -325,14 +336,17 @@ export default function OvertimePage() {
                 My Overtime
               </button>
               <button
-                onClick={() => setViewMode("all")}
+                onClick={() => {
+                  setViewMode("approvals");
+                  setStatusFilter("SUBMITTED"); // Default to pending review
+                }}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
-                  viewMode === "all"
+                  viewMode === "approvals"
                     ? "bg-white text-slate-900 shadow-sm"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                All Team
+                Team Approvals
                 {pendingCount > 0 && (
                   <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
                     {pendingCount}
@@ -341,17 +355,18 @@ export default function OvertimePage() {
               </button>
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="select select-bordered select-sm"
-            >
-              <option value="">All Status</option>
-              <option value="DRAFT">Draft</option>
-              <option value="SUBMITTED">Pending Review</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
+            {viewMode === "approvals" && (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="select select-bordered select-sm"
+              >
+                <option value="SUBMITTED">Pending Review</option>
+                <option value="">All Status</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            )}
           </div>
         )}
 
@@ -406,10 +421,14 @@ export default function OvertimePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">No overtime submissions</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              {viewMode === "approvals" ? "No pending approvals" : "No overtime submissions"}
+            </h3>
             <p className="text-slate-500 mb-6">
-              {viewMode === "all"
-                ? "No team overtime submissions yet."
+              {viewMode === "approvals"
+                ? statusFilter === "SUBMITTED"
+                  ? "All overtime submissions have been reviewed."
+                  : "No overtime submissions match the filter."
                 : "You haven't submitted any overtime yet."}
             </p>
             {viewMode === "my" && (
@@ -427,11 +446,12 @@ export default function OvertimePage() {
               <SubmissionCard
                 key={submission._id}
                 submission={submission}
-                isAdmin={isAdmin && viewMode === "all"}
+                isAdmin={isAdmin && viewMode === "approvals"}
                 onEdit={() => {
                   setEditingSubmission(submission);
                   setShowAddModal(true);
                 }}
+                onView={() => handleViewForReview(submission)}
                 onApprove={() => handleApprove(submission._id)}
                 onReject={(reason) => handleReject(submission._id, reason)}
               />
@@ -476,15 +496,275 @@ export default function OvertimePage() {
           </div>
         </MobileModal.Footer>
       </MobileModal>
+
+      {/* Admin Review Modal */}
+      {showReviewModal && viewingSubmission && (
+        <ReviewModal
+          submission={viewingSubmission}
+          onClose={() => {
+            setShowReviewModal(false);
+            setViewingSubmission(null);
+          }}
+          onApprove={async () => {
+            await handleApprove(viewingSubmission._id);
+            setShowReviewModal(false);
+            setViewingSubmission(null);
+          }}
+          onReject={async (reason) => {
+            await handleReject(viewingSubmission._id, reason);
+            setShowReviewModal(false);
+            setViewingSubmission(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }
 
-// Submission Card Component
-function SubmissionCard({ submission, isAdmin, onEdit, onApprove, onReject }) {
-  const [showRejectModal, setShowRejectModal] = useState(false);
+// Admin Review Modal Component
+function ReviewModal({ submission, onClose, onApprove, onReject }) {
   const [rejectReason, setRejectReason] = useState("");
+  const [showRejectForm, setShowRejectForm] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
+  const canReview = submission.status === "SUBMITTED";
+
+  const handleApprove = async () => {
+    setIsProcessing(true);
+    try {
+      await onApprove();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await onReject(rejectReason);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Get entries with dates
+  const getEntriesWithDates = () => {
+    const weekStart = new Date(submission.weekStartDate);
+    return DAYS.map((day, index) => {
+      const dayDate = new Date(weekStart);
+      dayDate.setDate(dayDate.getDate() + index);
+      const entry = submission.entries?.find((e) => e.day === day) || { day, overtimeHours: 0 };
+      return { ...entry, date: dayDate };
+    });
+  };
+
+  const entriesWithDates = getEntriesWithDates();
+  const totalHours = submission.totalOvertimeHours || 0;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Review Overtime</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                {submission.userDisplayNameSnapshot} &middot; Week of {formatWeekRange(submission.weekStartDate)}
+              </p>
+            </div>
+            <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Summary */}
+          <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-xl">
+            <span className="font-medium">Total Overtime</span>
+            <span className="text-2xl font-bold">{totalHours} hours</span>
+          </div>
+
+          {/* Status Badge */}
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${STATUS_COLORS[submission.status]}`}>
+              {STATUS_LABELS[submission.status]}
+            </span>
+            {submission.submittedAt && (
+              <span className="text-sm text-slate-500">
+                Submitted {new Date(submission.submittedAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+              </span>
+            )}
+          </div>
+
+          {/* Day-by-day breakdown */}
+          <div className="space-y-2">
+            <h3 className="font-medium text-slate-900">Daily Breakdown</h3>
+            <div className="bg-slate-50 rounded-xl overflow-hidden">
+              {entriesWithDates.map((entry) => (
+                <div
+                  key={entry.day}
+                  className={`flex items-center justify-between p-3 border-b border-slate-200 last:border-b-0 ${
+                    entry.overtimeHours > 0 ? "bg-white" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-20">
+                      <div className="font-medium text-slate-900">{DAY_LABELS[entry.day]}</div>
+                      <div className="text-xs text-slate-400">
+                        {entry.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                      </div>
+                    </div>
+                    {entry.startTime && entry.endTime && (
+                      <span className="text-sm text-slate-500">
+                        {entry.startTime} - {entry.endTime}
+                      </span>
+                    )}
+                    {entry.location && (
+                      <span className="text-sm text-slate-400">@ {entry.location}</span>
+                    )}
+                  </div>
+                  <div className={`font-semibold ${entry.overtimeHours > 0 ? "text-slate-900" : "text-slate-300"}`}>
+                    {entry.overtimeHours || 0}h
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Notes */}
+          {submission.notes && (
+            <div>
+              <h3 className="font-medium text-slate-900 mb-2">Notes</h3>
+              <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4">{submission.notes}</p>
+            </div>
+          )}
+
+          {/* Rejection reason (for already rejected) */}
+          {submission.status === "REJECTED" && submission.rejectedReason && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="font-medium text-red-700 mb-1">Rejection Reason</div>
+              <div className="text-sm text-red-600">{submission.rejectedReason}</div>
+              {submission.rejectedByName && (
+                <div className="text-xs text-red-500 mt-2">
+                  Rejected by {submission.rejectedByName} on {new Date(submission.rejectedAt).toLocaleDateString("en-GB")}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Approval info (for already approved) */}
+          {submission.status === "APPROVED" && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <div className="font-medium text-emerald-700 mb-1">Approved</div>
+              {submission.approvedByName && (
+                <div className="text-sm text-emerald-600">
+                  By {submission.approvedByName} on {new Date(submission.approvedAt).toLocaleDateString("en-GB")}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Reject reason form */}
+          {showRejectForm && canReview && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+              <label className="block text-sm font-medium text-red-700 mb-2">
+                Reason for rejection <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Please provide a reason..."
+                className="textarea textarea-bordered w-full bg-white"
+                rows={3}
+                autoFocus
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        {canReview && (
+          <div className="p-6 border-t border-slate-200 bg-slate-50">
+            {!showRejectForm ? (
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowRejectForm(true)}
+                  className="btn btn-error btn-outline"
+                  disabled={isProcessing}
+                >
+                  Reject
+                </button>
+                <button
+                  onClick={handleApprove}
+                  className="btn btn-success"
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <span className="loading loading-spinner loading-sm" />
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Approve
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowRejectForm(false);
+                    setRejectReason("");
+                  }}
+                  className="btn btn-ghost"
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReject}
+                  className="btn btn-error"
+                  disabled={isProcessing || !rejectReason.trim()}
+                >
+                  {isProcessing ? (
+                    <span className="loading loading-spinner loading-sm" />
+                  ) : (
+                    "Confirm Rejection"
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Close button for non-reviewable */}
+        {!canReview && (
+          <div className="p-6 border-t border-slate-200">
+            <div className="flex justify-end">
+              <button onClick={onClose} className="btn btn-ghost">
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Submission Card Component
+function SubmissionCard({ submission, isAdmin, onEdit, onView, onApprove, onReject }) {
   const canEdit = submission.status === "DRAFT";
   const canReview = isAdmin && submission.status === "SUBMITTED";
 
@@ -514,6 +794,11 @@ function SubmissionCard({ submission, isAdmin, onEdit, onApprove, onReject }) {
                 {submission.entries.length} day{submission.entries.length !== 1 ? "s" : ""} logged
               </span>
             )}
+            {submission.submittedAt && (
+              <span className="text-slate-400">
+                Submitted {new Date(submission.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+              </span>
+            )}
           </div>
           {submission.status === "REJECTED" && submission.rejectedReason && (
             <div className="mt-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
@@ -529,65 +814,17 @@ function SubmissionCard({ submission, isAdmin, onEdit, onApprove, onReject }) {
             </button>
           )}
           {canReview && (
-            <>
-              <button
-                onClick={onApprove}
-                className="btn btn-sm btn-success"
-              >
-                Approve
-              </button>
-              <button
-                onClick={() => setShowRejectModal(true)}
-                className="btn btn-sm btn-error btn-outline"
-              >
-                Reject
-              </button>
-            </>
+            <button onClick={onView} className="btn btn-sm btn-primary">
+              Review
+            </button>
           )}
           {!canEdit && !canReview && (
-            <button onClick={onEdit} className="btn btn-sm btn-ghost">
+            <button onClick={isAdmin ? onView : onEdit} className="btn btn-sm btn-ghost">
               View
             </button>
           )}
         </div>
       </div>
-
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Reject Overtime</h3>
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Reason for rejection (optional)"
-              className="textarea textarea-bordered w-full mb-4"
-              rows={3}
-            />
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowRejectModal(false);
-                  setRejectReason("");
-                }}
-                className="btn btn-ghost"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  onReject(rejectReason);
-                  setShowRejectModal(false);
-                  setRejectReason("");
-                }}
-                className="btn btn-error"
-              >
-                Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
