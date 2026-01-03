@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { MobileModal } from "@/components/ui/MobileModal";
 import { toast } from "react-hot-toast";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const DAY_LABELS = {
@@ -57,6 +58,7 @@ function formatWeekRange(weekStart) {
 
 export default function OvertimePage() {
   const { data: session } = useSession();
+  const { isRedirecting } = useDealerRedirect();
   const [submissions, setSubmissions] = useState([]);
   const [allSubmissions, setAllSubmissions] = useState([]); // For admin view
   const [isLoading, setIsLoading] = useState(true);
@@ -291,6 +293,18 @@ export default function OvertimePage() {
     setViewingSubmission(submission);
     setShowReviewModal(true);
   };
+
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DashboardLayout>

@@ -4,8 +4,10 @@ import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 export default function Settings() {
+  const { isRedirecting } = useDealerRedirect();
   const [labels, setLabels] = useState([]);
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -388,6 +390,18 @@ export default function Settings() {
     }
   };
 
+  // Show loading while checking for dealer redirect
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DashboardLayout>
       <Head><title>Settings | DealerFlow</title></Head>
@@ -463,19 +477,6 @@ export default function Settings() {
             <div className="mt-4">
               <Link href="/settings/team" className="btn btn-primary">
                 Manage Team
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Holiday Requests Card */}
-        <div className="card bg-base-200">
-          <div className="card-body">
-            <h2 className="card-title">Holiday Requests</h2>
-            <p className="text-sm text-base-content/60">Manage team holiday requests and time off approvals</p>
-            <div className="mt-4">
-              <Link href="/settings/holidays" className="btn btn-primary">
-                Manage Holidays
               </Link>
             </div>
           </div>
