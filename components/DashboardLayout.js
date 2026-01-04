@@ -351,7 +351,13 @@ export default function DashboardLayout({ children }) {
       )}
 
       {/* Sidebar - Modern design with brand colors */}
-      <aside className={`fixed top-0 left-0 z-50 h-full bg-white border-r border-slate-100 shadow-sm transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}>
+      <aside
+        className={`fixed top-0 left-0 z-50 bg-white border-r border-slate-100 shadow-sm transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}
+        style={{
+          height: "100dvh",
+          maxHeight: "100dvh",
+        }}
+      >
         {/* Mobile close button */}
         <div className="flex items-center justify-end h-12 px-4 lg:hidden">
           <button className="text-base-content/50 hover:text-base-content hover:bg-base-200 rounded-lg p-2 transition-colors" onClick={() => setSidebarOpen(false)}>
@@ -400,8 +406,14 @@ export default function DashboardLayout({ children }) {
           </Link>
         </div>
 
-        {/* Navigation */}
-        <nav className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto`}>
+        {/* Navigation - Scrollable with proper mobile safari support */}
+        <nav
+          className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto overflow-x-hidden overscroll-contain min-h-0`}
+          style={{
+            WebkitOverflowScrolling: "touch",
+            paddingBottom: "env(safe-area-inset-bottom, 16px)",
+          }}
+        >
           {/* Main Section */}
           {!sidebarCollapsed && (
             <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -693,7 +705,7 @@ export default function DashboardLayout({ children }) {
         </nav>
 
         {/* Footer - Collapse Toggle + SaaS Branding */}
-        <div className={`mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+        <div className={`shrink-0 mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
           {/* Collapse Toggle Button */}
           <button
             onClick={toggleSidebarCollapsed}

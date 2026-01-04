@@ -1306,12 +1306,30 @@ export async function getServerSideProps({ params }) {
       return { props: { form: null, fields: [], dealer: null } };
     }
 
+    // Get the dealer that owns this form
+    let dealer = null;
+    if (form.dealerId) {
+      dealer = await Dealer.findById(form.dealerId).lean();
+
+      // If dealer has a slug, redirect to the dealer-scoped URL
+      if (dealer?.slug) {
+        return {
+          redirect: {
+            destination: `/public/forms/d/${dealer.slug}/${params.slug}`,
+            permanent: false,
+          },
+        };
+      }
+    }
+
+    // Fallback: Get any dealer info for logo (legacy behavior)
+    if (!dealer) {
+      dealer = await Dealer.findOne().lean();
+    }
+
     const fields = await FormField.find({ formId: form._id })
       .sort({ order: 1 })
       .lean();
-
-    // Get dealer info for logo
-    const dealer = await Dealer.findOne().lean();
 
     return {
       props: {

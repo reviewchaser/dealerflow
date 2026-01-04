@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -197,9 +197,48 @@ export default function SalesPrep() {
   // VRM Search state
   const [vrmSearch, setVrmSearch] = useState("");
   const [showVrmDropdown, setShowVrmDropdown] = useState(false);
-  const [vrmSearchResults, setVrmSearchResults] = useState([]);
-  const [vrmSearchLoading, setVrmSearchLoading] = useState(false);
-  const vrmSearchTimeout = useRef(null);
+
+  // Compute VRM search results reactively based on vrmSearch and vehicles
+  const vrmSearchResults = useMemo(() => {
+    console.log("[VRM Search] useMemo triggered - vrmSearch:", vrmSearch, "vehicles.length:", vehicles.length);
+
+    if (vrmSearch.length < 2) {
+      console.log("[VRM Search] Query too short");
+      return [];
+    }
+
+    if (!vehicles.length) {
+      console.log("[VRM Search] No vehicles loaded");
+      return [];
+    }
+
+    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+    console.log("[VRM Search] Searching for:", query);
+
+    // Filter vehicles matching the query (VRM, make, or model)
+    const matches = vehicles.filter((v) => {
+      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+      const make = (v.make || "").toUpperCase();
+      const model = (v.model || "").toUpperCase();
+      return vrm.includes(query) || make.includes(query) || model.includes(query);
+    });
+
+    console.log("[VRM Search] Found", matches.length, "matches");
+
+    // Sort by createdAt (most recently added to stock first)
+    const sorted = [...matches].sort((a, b) => {
+      const aDate = new Date(a.createdAt || 0);
+      const bDate = new Date(b.createdAt || 0);
+      return bDate - aDate;
+    });
+
+    return sorted.slice(0, 10);
+  }, [vrmSearch, vehicles]);
+
+  // Debug: Log dropdown state changes
+  useEffect(() => {
+    console.log("[VRM Search] State update - showVrmDropdown:", showVrmDropdown, "vrmSearchResults.length:", vrmSearchResults.length);
+  }, [showVrmDropdown, vrmSearchResults]);
 
   // Mobile state
   const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
@@ -1242,68 +1281,33 @@ export default function SalesPrep() {
     return allFiltered.length;
   };
 
-  // VRM Search functions - debounced API search
-  const searchVehiclesApi = async (query) => {
-    if (query.length < 2) {
-      setVrmSearchResults([]);
-      return;
-    }
-
-    setVrmSearchLoading(true);
-    try {
-      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=10`);
-      if (res.ok) {
-        const results = await res.json();
-        // Sort by updatedAt (most recent activity first)
-        results.sort((a, b) => {
-          const aDate = new Date(a.updatedAt || a.createdAt || 0);
-          const bDate = new Date(b.updatedAt || b.createdAt || 0);
-          return bDate - aDate;
-        });
-        setVrmSearchResults(results);
-      }
-    } catch (err) {
-      console.error("VRM search error:", err);
-    } finally {
-      setVrmSearchLoading(false);
-    }
+  // Format date for VRM search results
+  const formatStockDate = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
   };
 
   const handleVrmSearchChange = (value) => {
+    console.log("[VRM Search] handleVrmSearchChange called with:", value);
     const normalized = value.toUpperCase();
     setVrmSearch(normalized);
 
-    // Clear previous timeout
-    if (vrmSearchTimeout.current) {
-      clearTimeout(vrmSearchTimeout.current);
-    }
-
+    // Show dropdown when 2+ characters
     if (normalized.length >= 2) {
+      console.log("[VRM Search] Setting showVrmDropdown to true");
       setShowVrmDropdown(true);
-      // Debounce API call by 250ms
-      vrmSearchTimeout.current = setTimeout(() => {
-        searchVehiclesApi(normalized);
-      }, 250);
     } else {
-      setVrmSearchResults([]);
+      console.log("[VRM Search] Setting showVrmDropdown to false");
       setShowVrmDropdown(false);
     }
   };
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (vrmSearchTimeout.current) {
-        clearTimeout(vrmSearchTimeout.current);
-      }
-    };
-  }, []);
 
   const handleVrmSelect = (vehicle) => {
     // Close dropdown and clear search
     setVrmSearch("");
     setShowVrmDropdown(false);
-    setVrmSearchResults([]);
 
     // Find which column this vehicle is in and scroll to it
     const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
@@ -1684,6 +1688,12 @@ export default function SalesPrep() {
         <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
             {/* VRM Search */}
             <div className="relative shrink-0">
+              {/* DEBUG INFO - Remove after fixing */}
+              {process.env.NODE_ENV === "development" && (
+                <div className="absolute -top-8 left-0 text-[10px] text-red-500 whitespace-nowrap z-[200]">
+                  vehicles:{vehicles.length} | search:"{vrmSearch}" | dropdown:{showVrmDropdown?"Y":"N"} | results:{vrmSearchResults.length}
+                </div>
+              )}
               <div className="relative">
                 <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1697,9 +1707,6 @@ export default function SalesPrep() {
                   onFocus={() => {
                     if (vrmSearch.length >= 2) {
                       setShowVrmDropdown(true);
-                      if (vrmSearchResults.length === 0) {
-                        searchVehiclesApi(vrmSearch);
-                      }
                     }
                   }}
                   onKeyDown={(e) => {
@@ -1715,7 +1722,6 @@ export default function SalesPrep() {
                     onClick={() => {
                       setVrmSearch("");
                       setShowVrmDropdown(false);
-                      setVrmSearchResults([]);
                     }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1728,46 +1734,57 @@ export default function SalesPrep() {
               {/* VRM Search Dropdown */}
               {showVrmDropdown && (
                 <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowVrmDropdown(false)}></div>
-                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-20 overflow-hidden">
-                    {vrmSearchLoading ? (
-                      <div className="px-4 py-6 text-center">
-                        <span className="loading loading-spinner loading-sm text-slate-400"></span>
-                        <p className="text-sm text-slate-500 mt-2">Searching...</p>
-                      </div>
-                    ) : vrmSearchResults.length > 0 ? (
-                      <ul className="py-1 max-h-64 overflow-y-auto">
-                        {vrmSearchResults.map((vehicle, idx) => (
-                          <li key={vehicle.id || vehicle._id}>
-                            <button
-                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
-                              onClick={() => handleVrmSelect(vehicle)}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <span className="font-mono font-bold text-slate-900">{vehicle.regCurrent || vehicle.vrm}</span>
-                                <span className="text-sm text-slate-500 truncate">{vehicle.make} {vehicle.model}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                {idx === 0 && vrmSearchResults.filter(v => v.regCurrent === vehicle.regCurrent).length > 1 && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">
-                                    Latest
+                  <div className="fixed inset-0 z-[100]" onClick={() => setShowVrmDropdown(false)}></div>
+                  <div className="absolute top-full left-0 mt-1 w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-[101] overflow-hidden">
+                    {vrmSearchResults.length > 0 ? (
+                      <ul className="py-1 max-h-72 overflow-y-auto">
+                        {vrmSearchResults.map((vehicle, idx) => {
+                          // Check if this VRM has duplicates (for "Latest" badge)
+                          const vrm = (vehicle.regCurrent || "").toUpperCase();
+                          const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
+                          const isFirstOfDuplicate = idx === vrmSearchResults.findIndex(v => (v.regCurrent || "").toUpperCase() === vrm);
+
+                          return (
+                            <li key={vehicle.id || vehicle._id}>
+                              <button
+                                className="w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                                onClick={() => handleVrmSelect(vehicle)}
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-mono font-bold text-slate-900 text-sm">{vehicle.regCurrent || vehicle.vrm}</span>
+                                    {duplicateCount > 1 && isFirstOfDuplicate && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">
+                                        Latest
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+                                    {getStatusLabel(vehicle.status)}
                                   </span>
-                                )}
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                                  {getStatusLabel(vehicle.status)}
-                                </span>
-                              </div>
-                            </button>
-                          </li>
-                        ))}
+                                </div>
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-slate-600">{vehicle.make} {vehicle.model} {vehicle.year || ""}</span>
+                                  <span className="text-slate-400">
+                                    Added: {formatStockDate(vehicle.createdAt)}
+                                  </span>
+                                </div>
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
-                    ) : (
+                    ) : vrmSearch.length >= 2 ? (
                       <div className="px-4 py-6 text-center">
                         <svg className="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <p className="text-sm text-slate-500">No vehicles found</p>
                         <p className="text-xs text-slate-400 mt-1">Try a different registration</p>
+                      </div>
+                    ) : (
+                      <div className="px-4 py-4 text-center">
+                        <p className="text-sm text-slate-500">Type 2+ characters to search</p>
                       </div>
                     )}
                   </div>
@@ -2759,8 +2776,12 @@ export default function SalesPrep() {
         >
           <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
           <div
-            className="relative bg-white w-full md:max-w-3xl h-full flex flex-col"
-            style={{ overflowX: "hidden", overflowY: "auto" }}
+            className="relative bg-white w-full md:max-w-3xl flex flex-col"
+            style={{
+              height: "100dvh",
+              maxHeight: "100dvh",
+              overflowX: "hidden",
+            }}
           >
             {/* Sticky Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
@@ -2893,7 +2914,14 @@ export default function SalesPrep() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6">
+            <div
+              className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6 overscroll-contain"
+              style={{
+                // Generous bottom padding for mobile bottom nav and safe area
+                paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-6">

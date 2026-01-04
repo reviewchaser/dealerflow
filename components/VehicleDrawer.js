@@ -359,11 +359,13 @@ export default function VehicleDrawer({
               </div>
             </div>
 
-            {/* Content - Scrollable region with safe area padding */}
+            {/* Content - Scrollable region with generous bottom padding for mobile */}
             <div
               className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
               style={{
-                paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
+                // Generous padding to ensure last content is fully visible and tappable
+                // 96px base + safe-area-inset for iPhone home bar = ~130px on iPhone X+
+                paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
                 touchAction: "pan-y",
                 WebkitOverflowScrolling: "touch",
               }}
