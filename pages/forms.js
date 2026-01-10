@@ -353,12 +353,24 @@ export default function Forms() {
     return answers.vrm || answers.reg || answers.registration || answers.courtesy_vrm || null;
   };
 
-  // Denylist for PDF export - system/duplicate fields to exclude
+  // Denylist for PDF export - system/duplicate/internal fields to exclude
   const EXPORT_DENYLIST = [
     'year', 'vehicle_year', 'vehicleyear',
     'vehicle_make', 'vehiclemake',
     'vehicle_model', 'vehiclemodel',
-    '_id', '__v', 'createdAt', 'updatedAt'
+    '_id', '__v', 'createdAt', 'updatedAt',
+    // Internal ID fields - should never be shown to customers
+    'vehicle_id', 'vehicleId', 'vehicleid',
+    'linkedVehicleId', 'linkedvehicleid',
+    'linkedAftercareCaseId', 'linkedaftercarecaseid',
+    'linkedVehicleSaleId', 'linkedvehiclesaleid',
+    'linkedLeadId', 'linkedleadid',
+    'linkedAppraisalId', 'linkedappraisalid',
+    'linkedCustomerPXAppraisalId', 'linkedcustomerpxappraisalid',
+    'dealerId', 'dealerid',
+    'formId', 'formid',
+    'userId', 'userid',
+    'submissionId', 'submissionid'
   ];
 
   const isExportDenied = (key) => {
@@ -1758,7 +1770,7 @@ export default function Forms() {
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                           {Object.entries(submissionDetail.submission?.rawAnswers || {})
-                            .filter(([key]) => !key.startsWith('_')) // Filter out internal fields like _selectedVehicle
+                            .filter(([key]) => !key.startsWith('_') && !isExportDenied(key)) // Filter out internal and system fields
                             .map(([key, value]) => {
                             const field = submissionDetail.fields?.find(f => f.fieldName === key);
                             const label = field?.label || key;

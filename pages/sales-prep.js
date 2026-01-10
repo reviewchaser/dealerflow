@@ -203,9 +203,12 @@ export default function SalesPrep() {
   const vrmSearchInputRef = useRef(null);
   const vrmDropdownRef = useRef(null);
 
+  // VRM dropdown position state - calculated once and updated on changes
+  const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0, width: 320 });
+
   // Calculate dropdown position relative to input (with mobile Safari fixes)
-  const getVrmDropdownPosition = useCallback(() => {
-    if (!vrmSearchInputRef.current) return { top: 0, left: 0, width: 320 };
+  const updateVrmDropdownPosition = useCallback(() => {
+    if (!vrmSearchInputRef.current) return;
     const rect = vrmSearchInputRef.current.getBoundingClientRect();
 
     // Use visualViewport for more accurate positioning on mobile (especially iOS Safari with keyboard)
@@ -221,16 +224,17 @@ export default function SalesPrep() {
     const shouldPositionAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
 
     const top = shouldPositionAbove
-      ? rect.top - dropdownHeight - 8
-      : rect.bottom + 8;
+      ? rect.top + viewportOffsetTop - dropdownHeight - 4
+      : rect.bottom + viewportOffsetTop + 4;
 
-    // Ensure dropdown doesn't overflow viewport horizontally
-    const desiredWidth = Math.max(rect.width, 320);
+    // On mobile, use full width minus padding for better usability
+    const isMobile = viewportWidth < 640;
+    const desiredWidth = isMobile ? viewportWidth - 32 : Math.max(rect.width, 320);
     const maxWidth = viewportWidth - 32; // 16px padding on each side
     const width = Math.min(desiredWidth, maxWidth);
 
     // Adjust left position to keep dropdown in viewport
-    let left = rect.left;
+    let left = isMobile ? 16 : rect.left;
     if (left + width > viewportWidth - 16) {
       left = viewportWidth - width - 16;
     }
@@ -238,7 +242,7 @@ export default function SalesPrep() {
       left = 16;
     }
 
-    return { top, left, width };
+    setVrmDropdownPos({ top, left, width });
   }, []);
 
   // Compute VRM search results reactively based on vrmSearch and vehicles
@@ -273,26 +277,42 @@ export default function SalesPrep() {
     }
   }, [showVrmDropdown]);
 
-  // Force re-render on visualViewport changes (for iOS Safari keyboard handling)
-  const [, setViewportUpdate] = useState(0);
+  // Update dropdown position when it opens and on viewport changes
   useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
+    if (!showVrmDropdown) return;
 
+    // Initial position calculation
+    updateVrmDropdownPosition();
+
+    // Handle viewport changes (iOS Safari keyboard handling)
     const handleViewportChange = () => {
-      // Only trigger update if dropdown is open
-      if (showVrmDropdown) {
-        setViewportUpdate((n) => n + 1);
-      }
+      updateVrmDropdownPosition();
     };
 
-    window.visualViewport.addEventListener("resize", handleViewportChange);
-    window.visualViewport.addEventListener("scroll", handleViewportChange);
+    // Handle scroll in parent containers
+    const handleScroll = () => {
+      updateVrmDropdownPosition();
+    };
+
+    // Listen to visualViewport for mobile keyboard handling
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+      window.visualViewport.addEventListener("scroll", handleViewportChange);
+    }
+
+    // Also listen to window scroll and resize
+    window.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("resize", handleViewportChange);
 
     return () => {
-      window.visualViewport.removeEventListener("resize", handleViewportChange);
-      window.visualViewport.removeEventListener("scroll", handleViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleViewportChange);
+        window.visualViewport.removeEventListener("scroll", handleViewportChange);
+      }
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleViewportChange);
     };
-  }, [showVrmDropdown]);
+  }, [showVrmDropdown, updateVrmDropdownPosition]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -4684,10 +4704,11 @@ export default function SalesPrep() {
             ref={vrmDropdownRef}
             className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
             style={{
-              top: getVrmDropdownPosition().top,
-              left: getVrmDropdownPosition().left,
-              width: getVrmDropdownPosition().width,
+              top: vrmDropdownPos.top,
+              left: vrmDropdownPos.left,
+              width: vrmDropdownPos.width,
               maxWidth: 'calc(100vw - 2rem)',
+              maxHeight: 'min(320px, 50vh)',
               zIndex: 99999,
             }}
           >

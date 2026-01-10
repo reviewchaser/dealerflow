@@ -2,6 +2,8 @@ import connectMongo from "@/libs/mongoose";
 import mongoose from "mongoose";
 import Appraisal from "@/models/Appraisal";
 import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import VehicleIssue from "@/models/VehicleIssue";
 import AftercareCase from "@/models/AftercareCase";
 import ReviewResponse from "@/models/ReviewResponse";
 import Form from "@/models/Form";
@@ -19,10 +21,16 @@ const DEFAULT_STATS = {
   reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
   forms: { total: 0, submissions: 0 },
   recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+  prepPriorities: [], // Enhanced prep priorities for dashboard widget
   needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
   today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
   topForms: [],
   oldestAppraisalDays: null,
+  aftersalesCosts: {
+    thisMonth: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 },
+    lastMonth: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 },
+    ytd: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 }
+  },
 };
 
 export default async function handler(req, res) {
@@ -58,6 +66,21 @@ async function handleStats(req, res, ctx) {
   // 48 hours ago for new warranty cases
   const fortyEightHoursAgo = new Date();
   fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+
+  // Date ranges for aftersales cost calculations
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  const startOfLastMonth = new Date(startOfMonth);
+  startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
+
+  const endOfLastMonth = new Date(startOfMonth);
+  endOfLastMonth.setTime(endOfLastMonth.getTime() - 1);
+
+  const startOfYear = new Date();
+  startOfYear.setMonth(0, 1);
+  startOfYear.setHours(0, 0, 0, 0);
 
   const [
     totalAppraisals, pendingAppraisals,
@@ -149,7 +172,12 @@ async function handleStats(req, res, ctx) {
     recentAppraisalsRaw,
     recentVehiclesRaw,
     recentSubmissionsRaw,
-    allForms
+    allForms,
+    prepPriorityVehiclesRaw,
+    // Aftersales cost aggregations
+    aftersalesCostThisMonth,
+    aftersalesCostLastMonth,
+    aftersalesCostYTD
   ] = await Promise.all([
     // Top 3 forms by submission count
     FormSubmission.aggregate([
@@ -191,7 +219,107 @@ async function handleStats(req, res, ctx) {
     // All forms for quick forms section (eliminates separate /api/forms call)
     Form.find({ dealerId })
       .sort({ type: 1, createdAt: -1 })
-      .lean()
+      .lean(),
+    // Prep priority vehicles - in_stock, in_prep, or live (sold in progress)
+    Vehicle.find({
+      dealerId,
+      status: { $in: ["in_stock", "in_prep", "live"] }
+    })
+      .sort({ status: -1, createdAt: 1 }) // live first (urgent), then oldest
+      .limit(10)
+      .lean(),
+    // Aftersales cost this month - using costingAddedAt for correct month attribution
+    // Uses new VAT structure: partsNet, labourNet with per-component VAT treatment
+    AftercareCase.aggregate([
+      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfMonth } } },
+      { $addFields: {
+        // Calculate VAT for each component based on treatment
+        partsVat: {
+          $cond: [
+            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+          ]
+        },
+        labourVat: {
+          $cond: [
+            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+          ]
+        },
+        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+      }},
+      { $group: {
+        _id: null,
+        totalPartsNet: { $sum: "$partsNetVal" },
+        totalLabourNet: { $sum: "$labourNetVal" },
+        totalPartsVat: { $sum: "$partsVat" },
+        totalLabourVat: { $sum: "$labourVat" },
+        caseCount: { $sum: 1 }
+      }}
+    ]),
+    // Aftersales cost last month
+    AftercareCase.aggregate([
+      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+      { $addFields: {
+        partsVat: {
+          $cond: [
+            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+          ]
+        },
+        labourVat: {
+          $cond: [
+            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+          ]
+        },
+        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+      }},
+      { $group: {
+        _id: null,
+        totalPartsNet: { $sum: "$partsNetVal" },
+        totalLabourNet: { $sum: "$labourNetVal" },
+        totalPartsVat: { $sum: "$partsVat" },
+        totalLabourVat: { $sum: "$labourVat" },
+        caseCount: { $sum: 1 }
+      }}
+    ]),
+    // Aftersales cost YTD
+    AftercareCase.aggregate([
+      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfYear } } },
+      { $addFields: {
+        partsVat: {
+          $cond: [
+            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+          ]
+        },
+        labourVat: {
+          $cond: [
+            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+            0,
+            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+          ]
+        },
+        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+      }},
+      { $group: {
+        _id: null,
+        totalPartsNet: { $sum: "$partsNetVal" },
+        totalLabourNet: { $sum: "$labourNetVal" },
+        totalPartsVat: { $sum: "$partsVat" },
+        totalLabourVat: { $sum: "$labourVat" },
+        caseCount: { $sum: 1 }
+      }}
+    ])
   ]);
 
   // Extract category counts
@@ -223,6 +351,133 @@ async function handleStats(req, res, ctx) {
     ? Math.floor((Date.now() - new Date(lastReview.createdAt)) / (1000 * 60 * 60 * 24))
     : null;
 
+  // Enrich prep priority vehicles with tasks and issues
+  let prepPriorities = [];
+  if (prepPriorityVehiclesRaw.length > 0) {
+    const vehicleIds = prepPriorityVehiclesRaw.map(v => v._id);
+
+    // Fetch tasks and issues for all prep priority vehicles in parallel
+    const [allTasks, allIssues] = await Promise.all([
+      VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+      VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean()
+    ]);
+
+    // Group tasks and issues by vehicleId
+    const tasksByVehicle = {};
+    const issuesByVehicle = {};
+
+    allTasks.forEach(task => {
+      const vid = task.vehicleId.toString();
+      if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+      tasksByVehicle[vid].push(task);
+    });
+
+    allIssues.forEach(issue => {
+      const vid = issue.vehicleId.toString();
+      if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+      issuesByVehicle[vid].push(issue);
+    });
+
+    // Build enriched prep priorities
+    prepPriorities = prepPriorityVehiclesRaw.map(v => {
+      const vid = v._id.toString();
+      const tasks = tasksByVehicle[vid] || [];
+      const issues = issuesByVehicle[vid] || [];
+
+      // Calculate task stats
+      const totalTasks = tasks.filter(t =>
+        !["not_required", "NOT_REQUIRED"].includes(t.status)
+      ).length;
+      const completedTasks = tasks.filter(t =>
+        ["done", "DONE"].includes(t.status)
+      ).length;
+      const tasksRemaining = totalTasks - completedTasks;
+      const awaitingParts = tasks.filter(t =>
+        t.partsStatus === "AWAITING_DELIVERY"
+      ).length;
+
+      // Calculate issue stats
+      const openIssues = issues.filter(i => i.status !== "Complete");
+      const mechanicalIssues = openIssues.filter(i => i.category === "Mechanical").length;
+      const highPriorityIssues = openIssues.filter(i => i.priority === "high").length;
+
+      // Calculate days in stock
+      const daysInStock = Math.floor(
+        (Date.now() - new Date(v.createdAt)) / (1000 * 60 * 60 * 24)
+      );
+
+      // Priority score for sorting (higher = more urgent)
+      // Sold in progress = 100 base, mechanical issues = +20 each, high priority = +10, days = +1 per day
+      let priorityScore = 0;
+      if (v.status === "live") priorityScore += 100; // Sold in progress is most urgent
+      priorityScore += mechanicalIssues * 20;
+      priorityScore += highPriorityIssues * 10;
+      priorityScore += Math.min(daysInStock, 30); // Cap days contribution at 30
+
+      return {
+        id: vid,
+        regCurrent: v.regCurrent,
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        status: v.status,
+        daysInStock,
+        totalTasks,
+        completedTasks,
+        tasksRemaining,
+        awaitingParts,
+        openIssues: openIssues.length,
+        mechanicalIssues,
+        highPriorityIssues,
+        priorityScore
+      };
+    });
+
+    // Sort by priority score (highest first), then take top 5
+    prepPriorities = prepPriorities
+      .sort((a, b) => b.priorityScore - a.priorityScore)
+      .slice(0, 5);
+  }
+
+  // Process aftersales cost aggregations with new VAT structure
+  const defaultCost = { totalPartsNet: 0, totalLabourNet: 0, totalPartsVat: 0, totalLabourVat: 0, caseCount: 0 };
+  const costThisMonth = aftersalesCostThisMonth[0] || defaultCost;
+  const costLastMonth = aftersalesCostLastMonth[0] || defaultCost;
+  const costYTD = aftersalesCostYTD[0] || defaultCost;
+
+  // Helper to calculate cost breakdown for a period
+  const buildCostBreakdown = (cost) => {
+    const totalNet = (cost.totalPartsNet || 0) + (cost.totalLabourNet || 0);
+    const totalVat = (cost.totalPartsVat || 0) + (cost.totalLabourVat || 0);
+    const totalGross = totalNet + totalVat;
+    return {
+      // Net amounts (default display)
+      totalNet,
+      partsNet: cost.totalPartsNet || 0,
+      labourNet: cost.totalLabourNet || 0,
+      // VAT amounts
+      totalVat,
+      partsVat: cost.totalPartsVat || 0,
+      labourVat: cost.totalLabourVat || 0,
+      // Gross amounts
+      totalGross,
+      // Legacy compatibility - "total" defaults to net
+      total: totalNet,
+      parts: cost.totalPartsNet || 0,
+      labour: cost.totalLabourNet || 0,
+      // Counts and averages
+      caseCount: cost.caseCount || 0,
+      avgPerCase: cost.caseCount > 0 ? totalNet / cost.caseCount : 0,
+      avgPerCaseGross: cost.caseCount > 0 ? totalGross / cost.caseCount : 0
+    };
+  };
+
+  const aftersalesCosts = {
+    thisMonth: buildCostBreakdown(costThisMonth),
+    lastMonth: buildCostBreakdown(costLastMonth),
+    ytd: buildCostBreakdown(costYTD)
+  };
+
   return res.status(200).json({
     appraisals: { total: totalAppraisals, pending: pendingAppraisals },
     vehicles: {
@@ -236,6 +491,8 @@ async function handleStats(req, res, ctx) {
     reviews: { count: reviews.length, avgRating, lastReviewDays },
     forms: { total: totalForms, submissions: totalSubmissions },
     recent: { appraisals: recentAppraisals, vehicles: recentVehicles, formSubmissions: recentSubmissions },
+    // Prep priority vehicles with enriched data
+    prepPriorities,
     // Needs Attention counts
     needsAttention: {
       soldInProgress,
@@ -259,6 +516,8 @@ async function handleStats(req, res, ctx) {
     formsList,
     // KPI micro-context
     oldestAppraisalDays,
+    // Aftersales cost KPIs
+    aftersalesCosts,
   });
 }
 

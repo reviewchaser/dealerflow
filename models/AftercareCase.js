@@ -76,7 +76,9 @@ const aftercareCaseSchema = new mongoose.Schema(
           "WARRANTY_STAGE_MOVED",
           // Customer contact tracking
           "CUSTOMER_CONTACTED",
-          "CONTACT_REMINDER_SET"
+          "CONTACT_REMINDER_SET",
+          // Costing
+          "COSTING_UPDATED"
         ],
         required: true
       },
@@ -140,6 +142,39 @@ const aftercareCaseSchema = new mongoose.Schema(
         draftInternalNote: { type: String }
       }
     },
+
+    // Costing fields - for tracking aftersales costs per case
+    // All amounts stored as NET (ex VAT), with per-component VAT treatment
+    costing: {
+      // Parts - net amount and VAT treatment
+      partsNet: { type: Number, default: 0, min: 0 },
+      partsVatTreatment: {
+        type: String,
+        enum: ["STANDARD", "NO_VAT"],
+        default: "STANDARD"
+      },
+      partsVatRate: { type: Number, default: 0.2 }, // 20% UK standard rate
+      // Labour - net amount and VAT treatment
+      labourNet: { type: Number, default: 0, min: 0 },
+      labourVatTreatment: {
+        type: String,
+        enum: ["STANDARD", "NO_VAT"],
+        default: "STANDARD"
+      },
+      labourVatRate: { type: Number, default: 0.2 },
+      // Notes
+      notes: { type: String },
+      // Audit
+      updatedAt: { type: Date },
+      updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      // LEGACY: kept for backwards compatibility migration
+      partsCost: { type: Number },
+      labourCost: { type: Number },
+      vatMode: { type: String }
+    },
+    // Date when costs were first added - used for KPI month attribution
+    // Once set, does not change on subsequent edits
+    costingAddedAt: { type: Date },
     // Audit fields
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -155,5 +190,7 @@ aftercareCaseSchema.index({ dealerId: 1, status: 1 });
 aftercareCaseSchema.index({ dealerId: 1, createdAt: -1 });
 // Index for contact reminders due
 aftercareCaseSchema.index({ dealerId: 1, nextContactAt: 1 });
+// Index for costing KPI aggregation by costingAddedAt
+aftercareCaseSchema.index({ dealerId: 1, costingAddedAt: 1 });
 
 export default mongoose.models?.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);

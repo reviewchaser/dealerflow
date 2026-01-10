@@ -34,7 +34,8 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: implement Cloudflare R2 vehicle image uploads\n\n- Add @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, nanoid dependencies\n- Create libs/r2Client.js for R2 S3 client initialization and helpers\n- Add POST /api/uploads/presign for presigned URL generation\n- Update Vehicle model with images[] and primaryImageUrl fields\n- Add POST/DELETE /api/vehicles/[id]/images for managing vehicle images\n- Add PUT /api/vehicles/[id]/primary-image for setting primary image\n- Create VehicleImageUploader component for uploading images\n- Create VehicleImageGallery component for displaying/managing images\n- Add Images tab to VehicleDrawer with gallery and upload controls\n- Add vehicle thumbnails to stock board cards in sales-prep\n- Update next.config.js with R2 image domain patterns\n\nAlso includes previous fix pack changes:\n- Dashboard warranty reminders \\(contactDue, newWarrantyCases\\)\n- Warranty board Contact Due filter\n- Share Forms modal on Submissions page\n- Holiday approval daily calendar events\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(git commit:*)",
-      "Bash(timeout 15 npm run dev:*)"
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

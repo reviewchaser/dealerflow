@@ -144,9 +144,9 @@ async function handler(req, res, ctx) {
       THIRD_PARTY: "Third-party"
     };
 
-    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED, CUSTOMER_CONTACTED, CONTACT_REMINDER_SET)
+    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED, CUSTOMER_CONTACTED, CONTACT_REMINDER_SET, COSTING_UPDATED)
     // Note: BOOKING_UPDATED is now handled separately with auto-move logic below
-    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED", "CUSTOMER_CONTACTED", "CONTACT_REMINDER_SET"].includes(_eventType)) {
+    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED", "CUSTOMER_CONTACTED", "CONTACT_REMINDER_SET", "COSTING_UPDATED"].includes(_eventType)) {
       let summary = "";
       switch (_eventType) {
         case "LOCATION_UPDATED":
@@ -174,6 +174,17 @@ async function handler(req, res, ctx) {
             summary = "Contact reminder cleared";
           }
           break;
+        case "COSTING_UPDATED":
+          // Calculate totals from new VAT structure
+          const partsNet = _eventMetadata?.partsNet || 0;
+          const labourNet = _eventMetadata?.labourNet || 0;
+          const partsVat = _eventMetadata?.partsVatTreatment === "NO_VAT" ? 0 : partsNet * (_eventMetadata?.partsVatRate || 0.2);
+          const labourVat = _eventMetadata?.labourVatTreatment === "NO_VAT" ? 0 : labourNet * (_eventMetadata?.labourVatRate || 0.2);
+          const totalNet = partsNet + labourNet;
+          const totalVat = partsVat + labourVat;
+          const totalGross = totalNet + totalVat;
+          summary = `Costing updated: £${totalNet.toFixed(2)} net (Parts: £${partsNet.toFixed(2)}, Labour: £${labourNet.toFixed(2)})${totalVat > 0 ? ` + £${totalVat.toFixed(2)} VAT = £${totalGross.toFixed(2)} gross` : ""}`;
+          break;
       }
 
       events.push({
@@ -194,6 +205,32 @@ async function handler(req, res, ctx) {
     }
     if (_eventType === "CONTACT_REMINDER_SET") {
       otherUpdates.nextContactAt = _eventMetadata?.nextContactAt ? new Date(_eventMetadata.nextContactAt) : null;
+    }
+    // Handle costing updates
+    if (_eventType === "COSTING_UPDATED") {
+      const costingPartsNet = _eventMetadata?.partsNet || 0;
+      const costingLabourNet = _eventMetadata?.labourNet || 0;
+
+      otherUpdates.costing = {
+        partsNet: costingPartsNet,
+        partsVatTreatment: _eventMetadata?.partsVatTreatment || "STANDARD",
+        partsVatRate: _eventMetadata?.partsVatRate ?? 0.2,
+        labourNet: costingLabourNet,
+        labourVatTreatment: _eventMetadata?.labourVatTreatment || "STANDARD",
+        labourVatRate: _eventMetadata?.labourVatRate ?? 0.2,
+        notes: _eventMetadata?.notes || "",
+        updatedAt: new Date(),
+        updatedByUserId: userId
+      };
+
+      // Set costingAddedAt on first time costs are added (and not already set)
+      // This date is used for KPI month attribution and never changes after first set
+      if ((costingPartsNet > 0 || costingLabourNet > 0)) {
+        const existingCase = await AftercareCase.findOne({ _id: id, dealerId }).select("costingAddedAt").lean();
+        if (!existingCase?.costingAddedAt) {
+          otherUpdates.costingAddedAt = new Date();
+        }
+      }
     }
 
     // Build update object

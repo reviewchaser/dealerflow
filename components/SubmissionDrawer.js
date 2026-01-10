@@ -32,6 +32,28 @@ const getViewableUrl = async (urlOrKey) => {
   return urlOrKey;
 };
 
+// Internal fields that should never be shown to users
+const INTERNAL_FIELDS_DENYLIST = [
+  'vehicle_id', 'vehicleId', 'vehicleid',
+  'linkedVehicleId', 'linkedvehicleid',
+  'linkedAftercareCaseId', 'linkedaftercarecaseid',
+  'linkedVehicleSaleId', 'linkedvehiclesaleid',
+  'linkedLeadId', 'linkedleadid',
+  'linkedAppraisalId', 'linkedappraisalid',
+  'linkedCustomerPXAppraisalId', 'linkedcustomerpxappraisalid',
+  'dealerId', 'dealerid',
+  'formId', 'formid',
+  'userId', 'userid',
+  'submissionId', 'submissionid',
+  '_id', '__v', 'createdAt', 'updatedAt'
+];
+
+const isInternalField = (key) => {
+  if (key.startsWith('_')) return true; // Filter _selectedVehicle etc
+  const lowerKey = key.toLowerCase().replace(/[_-]/g, '');
+  return INTERNAL_FIELDS_DENYLIST.some(denied => lowerKey === denied.toLowerCase().replace(/[_-]/g, ''));
+};
+
 // Helper to open/download file with signed URL fallback
 const handleFileDownload = async (urlOrKey, filename) => {
   try {
@@ -382,22 +404,24 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
                   <CardHeader title="Answers" />
                   <CardContent>
                     <div className="space-y-4">
-                      {Object.entries(data.submission.rawAnswers || {}).map(([key, value]) => {
-                        // Find the field definition if available
-                        const field = data.fields?.find(f => f.fieldName === key);
-                        const label = field?.label || key;
+                      {Object.entries(data.submission.rawAnswers || {})
+                        .filter(([key]) => !isInternalField(key)) // Filter out internal/system fields
+                        .map(([key, value]) => {
+                          // Find the field definition if available
+                          const field = data.fields?.find(f => f.fieldName === key);
+                          const label = field?.label || key;
 
-                        return (
-                          <div key={key}>
-                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                              {label}
-                            </label>
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                              {formatFieldValue(value, key)}
+                          return (
+                            <div key={key}>
+                              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                                {label}
+                              </label>
+                              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                {formatFieldValue(value, key)}
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
                     </div>
                   </CardContent>
                 </Card>

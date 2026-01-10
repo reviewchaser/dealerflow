@@ -463,7 +463,16 @@ export default function Warranty() {
   const [moveCase, setMoveCase] = useState(null);
   const [moveCaseCurrentColumn, setMoveCaseCurrentColumn] = useState(null);
 
-  useEffect(() => { fetchCases(); }, []);
+  // Aftersales cost KPIs
+  const [costKpis, setCostKpis] = useState({
+    thisMonth: { totalNet: 0, totalGross: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0 },
+    lastMonth: { totalNet: 0, totalGross: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0 },
+    ytd: { totalNet: 0, totalGross: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0 }
+  });
+  // KPI display mode: "net" (default) or "gross"
+  const [kpiDisplayMode, setKpiDisplayMode] = useState("net");
+
+  useEffect(() => { fetchCases(); fetchCostKpis(); }, []);
 
   // Auto-open case from query param (e.g., /warranty?caseId=123)
   useEffect(() => {
@@ -506,6 +515,19 @@ export default function Warranty() {
       setCases([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchCostKpis = async () => {
+    try {
+      const res = await fetch("/api/dashboard/stats");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.aftersalesCosts) {
+        setCostKpis(data.aftersalesCosts);
+      }
+    } catch (error) {
+      console.error("[Warranty] Failed to load cost KPIs:", error);
     }
   };
 
@@ -1140,6 +1162,76 @@ export default function Warranty() {
             </svg>
             New Case
           </button>
+        </div>
+      </div>
+
+      {/* Aftersales Cost KPI Strip */}
+      <div className="mb-6">
+        {/* Net/Gross Toggle */}
+        <div className="flex items-center justify-end mb-2">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-500">Show:</span>
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden">
+              <button
+                className={`px-2.5 py-1 font-medium transition-colors ${kpiDisplayMode === "net" ? "bg-[#0066CC] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                onClick={() => setKpiDisplayMode("net")}
+              >
+                Net
+              </button>
+              <button
+                className={`px-2.5 py-1 font-medium transition-colors border-l border-slate-200 ${kpiDisplayMode === "gross" ? "bg-[#0066CC] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                onClick={() => setKpiDisplayMode("gross")}
+              >
+                Gross
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Open Cases</p>
+              <p className="text-xl font-bold text-slate-900">{cases.filter(c => c.status !== "closed" && c.status !== "resolved").length}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">This Month{kpiDisplayMode === "gross" ? " (Gross)" : ""}</p>
+              <p className="text-xl font-bold text-slate-900">£{(kpiDisplayMode === "gross" ? costKpis.thisMonth.totalGross : costKpis.thisMonth.totalNet)?.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || "0"}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Last Month{kpiDisplayMode === "gross" ? " (Gross)" : ""}</p>
+              <p className="text-xl font-bold text-slate-900">£{(kpiDisplayMode === "gross" ? costKpis.lastMonth.totalGross : costKpis.lastMonth.totalNet)?.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || "0"}</p>
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs text-slate-500 font-medium">Year to Date{kpiDisplayMode === "gross" ? " (Gross)" : ""}</p>
+              <p className="text-xl font-bold text-slate-900">£{(kpiDisplayMode === "gross" ? costKpis.ytd.totalGross : costKpis.ytd.totalNet)?.toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) || "0"}</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2526,6 +2618,192 @@ export default function Warranty() {
                       </div>
                     </div>
                   ) : null}
+                </div>
+              </div>
+
+              {/* Costing Section - Per-component VAT */}
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h3 className="text-sm font-semibold text-slate-900">Costing</h3>
+                  </div>
+                  {(() => {
+                    const pNet = selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
+                    const lNet = selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
+                    const totalNet = pNet + lNet;
+                    return totalNet > 0 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        £{totalNet.toFixed(2)} net
+                      </span>
+                    );
+                  })()}
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Parts Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Parts (Net)</label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <span className="text-xs text-slate-500">VAT applies</span>
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={(selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD"}
+                            onChange={(e) => {
+                              const newTreatment = e.target.checked ? "STANDARD" : "NO_VAT";
+                              setSelectedCase({
+                                ...selectedCase,
+                                costing: { ...selectedCase.costing, partsVatTreatment: newTreatment }
+                              });
+                            }}
+                          />
+                          <div className="w-8 h-5 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
+                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-3"></div>
+                        </div>
+                      </label>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+                        value={selectedCase.costing?.partsNet ?? selectedCase.costing?.partsCost ?? ""}
+                        placeholder="0.00"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          costing: { ...selectedCase.costing, partsNet: parseFloat(e.target.value) || 0 }
+                        })}
+                      />
+                    </div>
+                    {(selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD" && (selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0) > 0 && (
+                      <p className="text-xs text-slate-400">
+                        + £{((selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0) * 0.2).toFixed(2)} VAT
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Labour Section */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Labour (Net)</label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <span className="text-xs text-slate-500">VAT applies</span>
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={(selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD"}
+                            onChange={(e) => {
+                              const newTreatment = e.target.checked ? "STANDARD" : "NO_VAT";
+                              setSelectedCase({
+                                ...selectedCase,
+                                costing: { ...selectedCase.costing, labourVatTreatment: newTreatment }
+                              });
+                            }}
+                          />
+                          <div className="w-8 h-5 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
+                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-3"></div>
+                        </div>
+                      </label>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+                        value={selectedCase.costing?.labourNet ?? selectedCase.costing?.labourCost ?? ""}
+                        placeholder="0.00"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          costing: { ...selectedCase.costing, labourNet: parseFloat(e.target.value) || 0 }
+                        })}
+                      />
+                    </div>
+                    {(selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD" && (selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0) > 0 && (
+                      <p className="text-xs text-slate-400">
+                        + £{((selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0) * 0.2).toFixed(2)} VAT
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Totals Summary */}
+                  {(() => {
+                    const pNet = selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
+                    const lNet = selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
+                    const pVat = (selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD" ? pNet * 0.2 : 0;
+                    const lVat = (selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD" ? lNet * 0.2 : 0;
+                    const totalNet = pNet + lNet;
+                    const totalVat = pVat + lVat;
+                    const totalGross = totalNet + totalVat;
+
+                    if (totalNet === 0) return null;
+
+                    return (
+                      <div className="pt-3 border-t border-slate-100 space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Net Total</span>
+                          <span className="font-medium text-slate-700">£{totalNet.toFixed(2)}</span>
+                        </div>
+                        {totalVat > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-500">VAT</span>
+                            <span className="text-slate-600">£{totalVat.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-semibold pt-1 border-t border-slate-50">
+                          <span className="text-slate-900">Gross Total</span>
+                          <span className="text-slate-900">£{totalGross.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Notes */}
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Notes</label>
+                    <textarea
+                      className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm resize-none"
+                      rows={2}
+                      value={selectedCase.costing?.notes || ""}
+                      placeholder="Cost breakdown, supplier info, invoice refs..."
+                      onChange={(e) => setSelectedCase({
+                        ...selectedCase,
+                        costing: { ...selectedCase.costing, notes: e.target.value }
+                      })}
+                    />
+                  </div>
+
+                  {/* Save Button */}
+                  <button
+                    className="w-full py-2 px-4 bg-[#0066CC] hover:bg-[#0055AA] text-white text-sm font-medium rounded-lg transition-colors"
+                    onClick={async () => {
+                      const costing = selectedCase.costing || {};
+                      await updateCase({
+                        _eventType: "COSTING_UPDATED",
+                        _eventMetadata: {
+                          partsNet: costing.partsNet || costing.partsCost || 0,
+                          partsVatTreatment: costing.partsVatTreatment || "STANDARD",
+                          partsVatRate: 0.2,
+                          labourNet: costing.labourNet || costing.labourCost || 0,
+                          labourVatTreatment: costing.labourVatTreatment || "STANDARD",
+                          labourVatRate: 0.2,
+                          notes: costing.notes || ""
+                        }
+                      });
+                      // Refresh KPIs after save
+                      fetchCostKpis();
+                    }}
+                  >
+                    Save Costing
+                  </button>
                 </div>
               </div>
 
