@@ -2,6 +2,7 @@ import crypto from "crypto";
 import connectMongo from "@/libs/mongoose";
 import Appraisal from "@/models/Appraisal";
 import Dealer from "@/models/Dealer";
+import { refreshDealerLogoUrl } from "@/libs/r2Client";
 
 // Hash token with SHA256
 function hashToken(token) {
@@ -39,8 +40,10 @@ export default async function handler(req, res) {
     // Get dealer info for branding
     let dealerInfo = null;
     if (appraisal.dealerId) {
-      const dealer = await Dealer.findById(appraisal.dealerId).lean();
+      let dealer = await Dealer.findById(appraisal.dealerId).lean();
       if (dealer) {
+        // Refresh logo URL if needed (signed URLs expire)
+        dealer = await refreshDealerLogoUrl(dealer);
         dealerInfo = {
           name: dealer.name,
           logo: dealer.logoUrl,

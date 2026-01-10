@@ -168,4 +168,27 @@ export function sanitizeFileName(fileName) {
   return sanitized;
 }
 
+/**
+ * Helper to refresh dealer logo URL if needed
+ * Use this in getServerSideProps to ensure fresh signed URLs
+ * @param {Object} dealer - Dealer object from database
+ * @returns {Object} - Dealer object with refreshed logoUrl
+ */
+export async function refreshDealerLogoUrl(dealer) {
+  if (!dealer || !dealer.logoKey) return dealer;
+
+  try {
+    // Check if R2 is configured
+    const requiredVars = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET", "S3_ENDPOINT"];
+    const isConfigured = requiredVars.every((key) => !!process.env[key]);
+    if (!isConfigured) return dealer;
+
+    const freshUrl = await getSignedGetUrl(dealer.logoKey, 3600);
+    return { ...dealer, logoUrl: freshUrl };
+  } catch (error) {
+    console.warn("[R2] Failed to refresh dealer logo URL:", error.message);
+    return dealer;
+  }
+}
+
 export default getR2Client;

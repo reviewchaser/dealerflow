@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { PhotoGallery } from "@/components/ui/PhotoGallery";
+import { AttachmentField, isAttachmentValue } from "@/components/ui/AttachmentField";
 import { toast } from "react-hot-toast";
 
 // Helper to get viewable URL (handles signed URL fallback for private buckets)
@@ -282,6 +283,11 @@ export default function SubmissionDrawer({ submissionId, onClose }) {
 
       // Use PhotoGallery component
       return <PhotoGallery photos={validPhotos} thumbnailSize="default" showCount={false} />;
+    }
+
+    // Handle attachment/upload values (file paths or URLs)
+    if (isAttachmentValue(value)) {
+      return <AttachmentField value={value} fieldName={fieldName} thumbnailSize="md" />;
     }
 
     if (typeof value === "object") return JSON.stringify(value);

@@ -6,6 +6,7 @@ import VehicleIssue from "@/models/VehicleIssue";
 import AftercareCase from "@/models/AftercareCase";
 import Contact from "@/models/Contact"; // Required for populate
 import Dealer from "@/models/Dealer";
+import { refreshDealerLogoUrl } from "@/libs/r2Client";
 
 // Hash token with SHA256
 function hashToken(token) {
@@ -46,7 +47,11 @@ export default async function handler(req, res) {
     }
 
     // Get dealer info for branding
-    const dealer = await Dealer.findById(link.dealerId).lean();
+    let dealer = await Dealer.findById(link.dealerId).lean();
+    // Refresh logo URL if needed (signed URLs expire)
+    if (dealer) {
+      dealer = await refreshDealerLogoUrl(dealer);
+    }
     const dealerInfo = dealer ? {
       name: dealer.name,
       logo: dealer.logoUrl,

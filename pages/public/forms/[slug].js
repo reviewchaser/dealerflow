@@ -1331,11 +1331,23 @@ export async function getServerSideProps({ params }) {
       .sort({ order: 1 })
       .lean();
 
+    // Refresh logo URL if dealer has one (signed URLs expire)
+    // Dynamic import to avoid client-side bundling of AWS SDK
+    let dealerWithFreshLogo = dealer;
+    if (dealer?.logoKey) {
+      try {
+        const { refreshDealerLogoUrl } = await import("@/libs/r2Client");
+        dealerWithFreshLogo = await refreshDealerLogoUrl(dealer);
+      } catch {
+        // Keep original dealer if R2 refresh fails
+      }
+    }
+
     return {
       props: {
         form: JSON.parse(JSON.stringify(form)),
         fields: JSON.parse(JSON.stringify(fields)),
-        dealer: dealer ? JSON.parse(JSON.stringify(dealer)) : null,
+        dealer: dealerWithFreshLogo ? JSON.parse(JSON.stringify(dealerWithFreshLogo)) : null,
       },
     };
   } catch (error) {

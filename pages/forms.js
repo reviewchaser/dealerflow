@@ -8,6 +8,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
+import { AttachmentField, isAttachmentValue, formatAttachmentHtml } from "@/components/ui/AttachmentField";
 
 // Human-readable form type labels
 // Note: Appraisal forms are handled in the dedicated Appraisals section
@@ -469,6 +470,16 @@ export default function Forms() {
       }
     }
 
+    // Handle UPLOAD field types and any attachment-like values
+    if (fieldType === "UPLOAD" || fieldType === "FILE" || fieldType === "IMAGE") {
+      return formatAttachmentHtml(value);
+    }
+
+    // Check if value looks like a file upload (path/URL)
+    if (isAttachmentValue(value)) {
+      return formatAttachmentHtml(value);
+    }
+
     if (typeof value === "object") return JSON.stringify(value);
     return value.toString();
   };
@@ -614,15 +625,37 @@ export default function Forms() {
             .section { margin-bottom: 25px; }
             .section-title { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e5e5; }
             .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-            .field { background: #f8f9fa; border-radius: 6px; padding: 12px; }
+            .field { background: #f8f9fa; border-radius: 6px; padding: 12px; page-break-inside: avoid; }
             .field-full { grid-column: 1 / -1; }
             .field-label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 4px; }
             .field-value { font-size: 14px; color: #1a1a1a; word-break: break-word; }
             .field-value.empty { color: #999; font-style: italic; }
             .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5; font-size: 11px; color: #999; text-align: center; }
+
+            /* Attachment thumbnail styles for print/PDF */
+            .field-value img {
+              max-width: 150px;
+              max-height: 100px;
+              object-fit: cover;
+              border-radius: 4px;
+              border: 1px solid #e5e5e5;
+              margin: 2px;
+            }
+            .field-value a {
+              color: #2563eb;
+              text-decoration: underline;
+            }
+
             @media print {
               body { padding: 20px; }
               .no-print { display: none; }
+              .field { page-break-inside: avoid; }
+              .field-value img {
+                max-width: 120px;
+                max-height: 80px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
             }
             .download-btn {
               position: fixed;
@@ -661,6 +694,30 @@ export default function Forms() {
               ${getOrderedFieldsHtml(submissionDetail)}
             </div>
           </div>
+
+          ${submissionDetail.files && submissionDetail.files.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Uploaded Files</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+              ${submissionDetail.files.map(file => {
+                const isImage = /\.(jpg|jpeg|png|gif|webp|heic|bmp|svg)$/i.test(file.url || file.filename || '');
+                if (isImage) {
+                  return `<div style="text-align: center;">
+                    <img src="${file.url}" alt="${file.filename || 'File'}" style="max-width: 150px; max-height: 100px; border-radius: 4px; border: 1px solid #e5e5e5; object-fit: cover;" />
+                    <div style="font-size: 10px; color: #666; margin-top: 4px; max-width: 150px; word-break: break-all;">${file.filename || file.fieldName || 'Image'}</div>
+                  </div>`;
+                } else {
+                  return `<div style="display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e5e5e5;">
+                    <span>${/\.pdf$/i.test(file.url || '') ? '📄' : '📎'}</span>
+                    <a href="${file.url}" target="_blank" style="color: #2563eb; text-decoration: underline; font-size: 13px;">
+                      ${file.filename || file.fieldName || 'File'}
+                    </a>
+                  </div>`;
+                }
+              }).join('')}
+            </div>
+          </div>
+          ` : ''}
 
           <div class="footer">
             Generated from DealerFlow on ${new Date().toLocaleString()}
@@ -1704,11 +1761,12 @@ export default function Forms() {
                             const fieldType = field?.type || "TEXT";
                             const isSignature = fieldType === "SIGNATURE" || (typeof value === "string" && value?.startsWith("data:image/"));
                             const isLongText = !isSignature && typeof value === "string" && value.length > 80;
+                            const isAttachment = fieldType === "UPLOAD" || fieldType === "FILE" || fieldType === "IMAGE" || isAttachmentValue(value);
 
                             return (
                               <div
                                 key={key}
-                                className={isSignature || isLongText ? "sm:col-span-2" : ""}
+                                className={isSignature || isLongText || isAttachment ? "sm:col-span-2" : ""}
                               >
                                 {/* Label - small, uppercase, subtle */}
                                 <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -1721,6 +1779,12 @@ export default function Forms() {
                                       src={value}
                                       alt="Signature"
                                       className="max-w-[300px] max-h-[150px] border border-slate-200 rounded bg-white mt-2"
+                                    />
+                                  ) : isAttachment ? (
+                                    <AttachmentField
+                                      value={value}
+                                      fieldName={label}
+                                      thumbnailSize="md"
                                     />
                                   ) : (
                                     formatFieldValueDisplay(value, fieldType) || <span className="text-slate-400">—</span>
@@ -1738,34 +1802,14 @@ export default function Forms() {
                   {submissionDetail.files && submissionDetail.files.length > 0 && (
                     <div className="mt-8 pt-6 border-t border-slate-100">
                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Uploaded Files</h4>
-                      <div className="space-y-2">
-                        {submissionDetail.files.map((file) => (
-                          <div key={file._id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 bg-slate-200 rounded-lg flex items-center justify-center text-slate-500">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <p className="font-medium text-slate-900">{file.filename || "File"}</p>
-                                <p className="text-xs text-slate-500">
-                                  {file.fieldName}
-                                  {file.size && ` • ${(file.size / 1024).toFixed(1)} KB`}
-                                </p>
-                              </div>
-                            </div>
-                            <a
-                              href={file.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors font-medium"
-                            >
-                              Download
-                            </a>
-                          </div>
-                        ))}
-                      </div>
+                      <AttachmentField
+                        value={submissionDetail.files.map(f => ({
+                          url: f.url,
+                          name: f.filename || f.fieldName || "File",
+                        }))}
+                        fieldName="Uploaded Files"
+                        thumbnailSize="lg"
+                      />
                     </div>
                   )}
                 </div>

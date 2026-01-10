@@ -307,9 +307,23 @@ export default function DashboardLayout({ children }) {
         if (!res.ok) return null;
         return res.json();
       })
-      .then(data => {
+      .then(async (data) => {
         setDealerLoading(false);
         if (!data) return;
+
+        // If dealer has a logo key, fetch a fresh signed URL (existing URL may be expired)
+        if (data.logoKey) {
+          try {
+            const logoRes = await fetch("/api/dealer/logo");
+            if (logoRes.ok) {
+              const logoData = await logoRes.json();
+              data.logoUrl = logoData.url; // Use fresh signed URL
+            }
+          } catch {
+            // Keep existing logoUrl if refresh fails
+          }
+        }
+
         setDealer(data);
 
         // Cache logo URL for instant display on next load

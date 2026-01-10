@@ -1,6 +1,14 @@
 import connectMongo from "@/libs/mongoose";
 import Dealer from "@/models/Dealer";
 import { withDealerContext } from "@/libs/authContext";
+import { getSignedGetUrl } from "@/libs/r2Client";
+
+// Check if R2 is configured
+function isR2Configured() {
+  return ["S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET", "S3_ENDPOINT"].every(
+    (key) => !!process.env[key]
+  );
+}
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -9,6 +17,17 @@ async function handler(req, res, ctx) {
   if (req.method === "GET") {
     // Return the current dealer from context, including user's role
     const dealerData = dealer.toJSON ? dealer.toJSON() : dealer;
+
+    // If dealer has a logo key, generate a fresh signed URL (1 hour expiry)
+    if (dealerData.logoKey && isR2Configured()) {
+      try {
+        dealerData.logoUrl = await getSignedGetUrl(dealerData.logoKey, 3600);
+      } catch (error) {
+        console.warn("[Dealer API] Failed to generate signed logo URL:", error.message);
+        // Keep existing logoUrl if signing fails
+      }
+    }
+
     return res.status(200).json({
       ...dealerData,
       // Include current user's context

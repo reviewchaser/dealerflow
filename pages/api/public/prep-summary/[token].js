@@ -5,6 +5,7 @@ import Vehicle from "@/models/Vehicle";
 import VehicleTask from "@/models/VehicleTask";
 import VehicleIssue from "@/models/VehicleIssue";
 import Dealer from "@/models/Dealer";
+import { refreshDealerLogoUrl } from "@/libs/r2Client";
 
 // Hash token with SHA256
 function hashToken(token) {
@@ -65,8 +66,11 @@ export default async function handler(req, res) {
       .sort({ createdAt: -1 })
       .lean();
 
-    // Fetch dealer info
-    const dealer = await Dealer.findById(shareLink.dealerId).lean();
+    // Fetch dealer info and refresh logo URL if needed
+    let dealer = await Dealer.findById(shareLink.dealerId).lean();
+    if (dealer) {
+      dealer = await refreshDealerLogoUrl(dealer);
+    }
 
     return res.status(200).json({
       prepSummary: {
@@ -104,7 +108,7 @@ export default async function handler(req, res) {
             phone: dealer.phone,
             email: dealer.email,
             address: dealer.address,
-            logo: dealer.logo,
+            logo: dealer.logoUrl,
           }
         : null,
     });

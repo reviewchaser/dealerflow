@@ -189,6 +189,20 @@ export default function Settings() {
     try {
       const res = await fetch("/api/dealer");
       const data = await res.json();
+
+      // If dealer has a logo key, fetch a fresh signed URL
+      if (data.logoKey) {
+        try {
+          const logoRes = await fetch("/api/dealer/logo");
+          if (logoRes.ok) {
+            const logoData = await logoRes.json();
+            data.logoUrl = logoData.url; // Use fresh signed URL
+          }
+        } catch (logoError) {
+          console.warn("Failed to refresh logo URL:", logoError);
+        }
+      }
+
       setDealer(data);
       setDealerForm({
         name: data.name || "",
