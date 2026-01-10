@@ -4,25 +4,30 @@ import { Toaster } from "react-hot-toast";
 import { SessionProvider } from "next-auth/react";
 
 export default function App({ Component, pageProps: { session, ...pageProps } }) {
-  // Apply saved theme on initial load
+  // Apply saved theme on initial load - default to "dealerflow" (light) for new users
+  // Note: "dealerflow" is our custom DaisyUI theme with blue primary color
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "system";
+    const savedTheme = localStorage.getItem("theme") || "dealerflow";
     const root = document.documentElement;
 
     if (savedTheme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+      root.setAttribute("data-theme", prefersDark ? "dark" : "dealerflow");
       root.classList.toggle("dark", prefersDark);
+    } else if (savedTheme === "light") {
+      // Map "light" to "dealerflow" for users who had the old default
+      root.setAttribute("data-theme", "dealerflow");
+      root.classList.remove("dark");
     } else {
       root.setAttribute("data-theme", savedTheme);
       root.classList.toggle("dark", savedTheme === "dark");
     }
 
-    // Listen for system theme changes
+    // Listen for system theme changes (only if user explicitly chose "system")
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e) => {
       if (localStorage.getItem("theme") === "system") {
-        root.setAttribute("data-theme", e.matches ? "dark" : "light");
+        root.setAttribute("data-theme", e.matches ? "dark" : "dealerflow");
         root.classList.toggle("dark", e.matches);
       }
     };

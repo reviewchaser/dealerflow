@@ -47,11 +47,11 @@ function generateInviteHtml({ dealerName, inviterName, role, inviteUrl }) {
 
   <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
-      <strong>${inviterName || 'A team member'}</strong> has invited you to join <strong>${dealerName}</strong> on DealerFlow as a <strong>${role}</strong>.
+      <strong>${inviterName || 'A team member'}</strong> has invited you to join <strong>${dealerName}</strong> on DealerHQ as a <strong>${role}</strong>.
     </p>
 
     <p style="font-size: 14px; color: #666; margin-bottom: 25px;">
-      DealerFlow helps dealerships manage their vehicles, forms, and customer interactions in one place.
+      DealerHQ helps dealerships manage their vehicles, forms, and customer interactions in one place.
     </p>
 
     <div style="text-align: center; margin: 30px 0;">
@@ -83,7 +83,7 @@ function generateInviteText({ dealerName, inviterName, role, inviteUrl }) {
   return `
 You're Invited to Join ${dealerName}!
 
-${inviterName || 'A team member'} has invited you to join ${dealerName} on DealerFlow as a ${role}.
+${inviterName || 'A team member'} has invited you to join ${dealerName} on DealerHQ as a ${role}.
 
 Click the link below to accept your invitation:
 ${inviteUrl}
@@ -93,7 +93,7 @@ This invitation expires in 7 days.
 If you didn't expect this email, you can safely ignore it.
 
 ---
-DealerFlow - Dealership Management Made Simple
+DealerHQ - Dealership Management Made Simple
 `.trim();
 }
 
@@ -116,7 +116,7 @@ export async function sendInviteEmail({
   rawToken,
 }) {
   const inviteUrl = getInviteUrl(rawToken);
-  const subject = `You're invited to join ${dealerName} on DealerFlow`;
+  const subject = `You're invited to join ${dealerName} on DealerHQ`;
 
   const html = generateInviteHtml({ dealerName, inviterName, role, inviteUrl });
   const text = generateInviteText({ dealerName, inviterName, role, inviteUrl });

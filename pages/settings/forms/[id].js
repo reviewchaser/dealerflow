@@ -259,7 +259,7 @@ export default function EditFormFields() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Edit Fields - {form?.name || "Form"} | DealerFlow</title>
+        <title>Edit Fields - {form?.name || "Form"} | DealerHQ</title>
       </Head>
 
       {/* Header */}

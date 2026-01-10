@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -281,11 +282,14 @@ export default function Calendar() {
 
   return (
     <DashboardLayout>
-      <Head><title>Calendar | DealerFlow</title></Head>
+      <Head><title>Calendar | DealerHQ</title></Head>
 
       {/* Header - Flex Row on all screens */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Calendar</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Calendar</h1>
+          <PageHint id="calendar">View team schedules, events, and approved holidays. Click any time slot to add an event.</PageHint>
+        </div>
         <div className="flex items-center gap-2">
           <button
             className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors"

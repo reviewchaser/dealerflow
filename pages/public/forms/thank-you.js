@@ -4,7 +4,7 @@ export default function ThankYou() {
   return (
     <>
       <Head>
-        <title>Thank You | DealerFlow</title>
+        <title>Thank You | DealerHQ</title>
       </Head>
 
       <div className="min-h-screen bg-base-200 flex items-center justify-center px-4">

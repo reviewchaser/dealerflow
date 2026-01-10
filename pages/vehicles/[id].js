@@ -120,7 +120,7 @@ export default function VehicleDetail() {
   return (
     <DashboardLayout>
       <Head>
-        <title>{vehicle.make} {vehicle.model} | DealerFlow</title>
+        <title>{vehicle.make} {vehicle.model} | DealerHQ</title>
       </Head>
 
       <div className="mb-8">

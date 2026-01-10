@@ -106,7 +106,7 @@ export default function Sales() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Sales | DealerFlow</title>
+        <title>Sales | DealerHQ</title>
       </Head>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">

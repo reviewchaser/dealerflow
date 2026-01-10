@@ -103,7 +103,7 @@ function Step1Profile({ data, onChange, onNext, onSkip }) {
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-base-content">Welcome to DealerFlow</h2>
+        <h2 className="text-2xl font-bold text-base-content">Welcome to DealerHQ</h2>
         <p className="text-base-content/60 mt-2">Let's get your dealership set up in just a few minutes</p>
       </div>
 
@@ -362,7 +362,7 @@ function Step3SetupPath({ onNext, onSkip, onBack }) {
     <div className="space-y-6">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-base-content">How would you like to add vehicles?</h2>
-        <p className="text-base-content/60 mt-2">Choose how to get your stock into DealerFlow</p>
+        <p className="text-base-content/60 mt-2">Choose how to get your stock into DealerHQ</p>
       </div>
 
       <div className="grid gap-4 max-w-2xl mx-auto">
@@ -733,7 +733,7 @@ function Step5Vehicle({ onComplete, onSkip, onBack }) {
     <div className="space-y-6">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-base-content">Add Your First Vehicle</h2>
-        <p className="text-base-content/60 mt-2">Experience the magic of DealerFlow</p>
+        <p className="text-base-content/60 mt-2">Experience the magic of DealerHQ</p>
       </div>
 
       <div className="max-w-md mx-auto space-y-4">
@@ -1067,7 +1067,7 @@ export default function Onboarding() {
   return (
     <>
       <Head>
-        <title>Setup | DealerFlow</title>
+        <title>Setup | DealerHQ</title>
       </Head>
 
       <div className="min-h-screen bg-base-200 py-8 px-4">
@@ -1078,7 +1078,7 @@ export default function Onboarding() {
               <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
               </svg>
-              <span className="text-xl font-bold">DealerFlow</span>
+              <span className="text-xl font-bold">DealerHQ</span>
             </div>
           </div>
 

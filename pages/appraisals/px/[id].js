@@ -284,7 +284,7 @@ export default function CustomerPXAppraisalDetail() {
 
   return (
     <DashboardLayout>
-      <Head><title>PX Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+      <Head><title>PX Appraisal {appraisal.vehicleReg} | DealerHQ</title></Head>
 
       <div className="mb-8">
         <Link href="/appraisals" className="btn btn-ghost btn-sm mb-4">← Back</Link>

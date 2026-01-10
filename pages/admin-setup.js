@@ -56,7 +56,7 @@ export default function AdminSetup() {
   return (
     <>
       <Head>
-        <title>Admin Setup | DealerFlow</title>
+        <title>Admin Setup | DealerHQ</title>
       </Head>
 
       <div className="min-h-screen bg-base-200 p-8">

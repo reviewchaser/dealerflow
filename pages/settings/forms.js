@@ -139,7 +139,7 @@ export default function SettingsForms() {
 
   return (
     <DashboardLayout>
-      <Head><title>Form Templates | Settings | DealerFlow</title></Head>
+      <Head><title>Form Templates | Settings | DealerHQ</title></Head>
 
       <div className="mb-6">
         <div className="flex items-center gap-2 text-sm text-base-content/60 mb-2">

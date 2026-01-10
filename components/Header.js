@@ -24,7 +24,7 @@ const Header = () => {
         <div className="flex lg:flex-1">
           <Link className="flex items-center gap-2 shrink-0" href="/">
             <span className="text-2xl">🚗</span>
-            <span className="font-extrabold text-lg">DealerFlow</span>
+            <span className="font-extrabold text-lg">DealerHQ</span>
           </Link>
         </div>
 
@@ -65,7 +65,7 @@ const Header = () => {
           <div className="flex items-center justify-between">
             <Link className="flex items-center gap-2" href="/">
               <span className="text-2xl">🚗</span>
-              <span className="font-extrabold text-lg">DealerFlow</span>
+              <span className="font-extrabold text-lg">DealerHQ</span>
             </Link>
             <button type="button" onClick={() => setIsOpen(false)}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">

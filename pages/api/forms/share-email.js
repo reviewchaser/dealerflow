@@ -72,7 +72,7 @@ If you have any questions, please contact ${dealerName}.
     </div>
     <div style="background: #f1f5f9; padding: 16px 32px; text-align: center;">
       <p style="color: #94a3b8; margin: 0; font-size: 12px;">
-        Sent by ${dealerName} via DealerFlow
+        Sent by ${dealerName} via DealerHQ
       </p>
     </div>
   </div>

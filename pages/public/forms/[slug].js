@@ -203,7 +203,7 @@ export default function PublicForm({ form, fields, dealer }) {
   if (showNoCourtesyVehicles && (form.type === "COURTESY_OUT" || form.type === "COURTESY_IN")) {
     return (
       <>
-        <Head><title>{form.name} | DealerFlow</title></Head>
+        <Head><title>{form.name} | DealerHQ</title></Head>
         <div className="min-h-screen bg-base-200 flex items-center justify-center p-4">
           <div className="card bg-base-100 shadow-xl max-w-md">
             <div className="card-body text-center">
@@ -322,26 +322,28 @@ export default function PublicForm({ form, fields, dealer }) {
 
       const data = await res.json();
 
-      // Store S3 key (permanent) if available, otherwise use URL (for local dev)
-      const storedUrl = data.key || data.url;
+      // Store S3 key (permanent) for database, signed URL for preview
+      const storageKey = data.key || data.url; // Key for database storage
+      const previewUrl = data.url; // Signed URL for immediate preview
 
-      // Store file metadata for submission
+      // Store file metadata for submission (use key for permanent storage)
       setUploadedFiles((prev) => [
         ...prev.filter((f) => f.fieldName !== fieldName), // Replace if same field
         {
           fieldName,
-          url: storedUrl,
+          url: storageKey, // Store key in database
           key: data.key, // S3 key for signed URL regeneration
+          previewUrl: previewUrl, // Signed URL for preview
           filename: data.filename || file.name,
           mimeType: data.type || file.type,
           size: data.size || file.size,
         },
       ]);
 
-      // Also store URL/key in formData for database storage
-      handleInputChange(fieldName, storedUrl);
+      // Store URL/key in formData for database storage (use key, not signed URL)
+      handleInputChange(fieldName, storageKey);
       toast.success("File uploaded");
-      return storedUrl;
+      return previewUrl; // Return preview URL for immediate display
     } catch (error) {
       console.error("Upload error:", error);
       toast.error(error.message || "Failed to upload file");
@@ -788,8 +790,15 @@ export default function PublicForm({ form, fields, dealer }) {
 
       case "FILE":
         const isUploading = uploadingField === field.fieldName;
-        const uploadedUrl = formData[field.fieldName];
-        const isImage = uploadedUrl && (uploadedUrl.includes("image") || /\.(jpg|jpeg|png|gif|webp)$/i.test(uploadedUrl));
+        // Get the uploaded file info - use previewUrl for display, not the storage key
+        const uploadedFileInfo = uploadedFiles.find(f => f.fieldName === field.fieldName);
+        const displayUrl = uploadedFileInfo?.previewUrl || uploadedFileInfo?.url;
+        const hasUpload = !!displayUrl;
+        const isImage = displayUrl && (
+          displayUrl.includes("image") ||
+          /\.(jpg|jpeg|png|gif|webp)$/i.test(displayUrl) ||
+          uploadedFileInfo?.mimeType?.startsWith("image/")
+        );
 
         return (
           <div className="space-y-2">
@@ -811,13 +820,13 @@ export default function PublicForm({ form, fields, dealer }) {
                 Uploading...
               </div>
             )}
-            {uploadedUrl && !isUploading && (
+            {hasUpload && !isUploading && (
               <div className="mt-2">
                 {isImage ? (
-                  <img src={uploadedUrl} alt="Uploaded" className="max-h-32 rounded-lg border" />
+                  <img src={displayUrl} alt="Uploaded" className="max-h-32 rounded-lg border" />
                 ) : (
                   <a
-                    href={uploadedUrl}
+                    href={displayUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="link link-primary text-sm"
@@ -1020,7 +1029,7 @@ export default function PublicForm({ form, fields, dealer }) {
   return (
     <>
       <Head>
-        <title>{form.name} | DealerFlow</title>
+        <title>{form.name} | DealerHQ</title>
       </Head>
 
       <div className="min-h-screen bg-base-200 py-12 px-4">

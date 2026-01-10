@@ -5,6 +5,7 @@ import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import ShareFormModal from "@/components/ShareFormModal";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { PageHint } from "@/components/ui";
 import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
@@ -720,7 +721,7 @@ export default function Forms() {
           ` : ''}
 
           <div class="footer">
-            Generated from DealerFlow on ${new Date().toLocaleString()}
+            Generated from DealerHQ on ${new Date().toLocaleString()}
           </div>
         </body>
       </html>
@@ -781,13 +782,16 @@ export default function Forms() {
 
   return (
     <DashboardLayout>
-      <Head><title>Submissions | DealerFlow</title></Head>
+      <Head><title>Submissions | DealerHQ</title></Head>
 
       {/* Compact Sticky Header */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-200 -mx-4 md:-mx-6 lg:-mx-8">
         {/* Row 1: Title + Actions */}
         <div className="flex items-center justify-between h-12 px-4">
-          <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
+            <PageHint id="submissions">View all completed forms. Use Share Forms to send customers a link to fill out forms.</PageHint>
+          </div>
 
           {/* Right: Add Button + Share + Overflow Menu */}
           <div className="flex items-center gap-2">

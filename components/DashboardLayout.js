@@ -413,7 +413,7 @@ export default function DashboardLayout({ children }) {
               return (
                 <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
                   <TruckIcon className={`text-primary transition-all duration-300 ${sidebarCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
-                  {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{displayName || "DealerFlow"}</span>}
+                  {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{displayName || "DealerHQ"}</span>}
                 </div>
               );
             })()}
@@ -735,7 +735,7 @@ export default function DashboardLayout({ children }) {
           </button>
           {!sidebarCollapsed && (
             <p className="text-[11px] text-slate-300 text-center mt-3">
-              Powered by <span className="font-semibold text-slate-400">DealerFlow</span>
+              Powered by <span className="font-semibold text-slate-400">DealerHQ</span>
             </p>
           )}
         </div>
@@ -801,7 +801,7 @@ export default function DashboardLayout({ children }) {
           {[
             { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
             { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
-            { name: "Warranty", href: "/warranty", Icon: WrenchIcon },
+            { name: "Aftersales", href: "/warranty", Icon: WrenchIcon },
             { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {

@@ -448,7 +448,7 @@ export default function DealerBuyingForm() {
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm text-slate-500">
-          <p>Powered by DealerFlow</p>
+          <p>Powered by DealerHQ</p>
         </div>
       </div>
     </div>

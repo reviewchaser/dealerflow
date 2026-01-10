@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { PageHint } from "@/components/ui";
 import { Portal } from "@/components/ui/Portal";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
@@ -202,15 +203,42 @@ export default function SalesPrep() {
   const vrmSearchInputRef = useRef(null);
   const vrmDropdownRef = useRef(null);
 
-  // Calculate dropdown position relative to input
+  // Calculate dropdown position relative to input (with mobile Safari fixes)
   const getVrmDropdownPosition = useCallback(() => {
     if (!vrmSearchInputRef.current) return { top: 0, left: 0, width: 320 };
     const rect = vrmSearchInputRef.current.getBoundingClientRect();
-    return {
-      top: rect.bottom + 8,
-      left: rect.left,
-      width: Math.max(rect.width, 320), // At least 320px or input width
-    };
+
+    // Use visualViewport for more accurate positioning on mobile (especially iOS Safari with keyboard)
+    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+    const viewportWidth = window.visualViewport?.width || window.innerWidth;
+    const viewportOffsetTop = window.visualViewport?.offsetTop || 0;
+
+    // Calculate available space below the input
+    const spaceBelow = viewportHeight - (rect.bottom - viewportOffsetTop);
+    const dropdownHeight = 280; // Approximate max height of dropdown
+
+    // If not enough space below, position above (mobile-friendly)
+    const shouldPositionAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+    const top = shouldPositionAbove
+      ? rect.top - dropdownHeight - 8
+      : rect.bottom + 8;
+
+    // Ensure dropdown doesn't overflow viewport horizontally
+    const desiredWidth = Math.max(rect.width, 320);
+    const maxWidth = viewportWidth - 32; // 16px padding on each side
+    const width = Math.min(desiredWidth, maxWidth);
+
+    // Adjust left position to keep dropdown in viewport
+    let left = rect.left;
+    if (left + width > viewportWidth - 16) {
+      left = viewportWidth - width - 16;
+    }
+    if (left < 16) {
+      left = 16;
+    }
+
+    return { top, left, width };
   }, []);
 
   // Compute VRM search results reactively based on vrmSearch and vehicles
@@ -243,6 +271,27 @@ export default function SalesPrep() {
     if (showVrmDropdown) {
       setVrmSelectedIndex(-1);
     }
+  }, [showVrmDropdown]);
+
+  // Force re-render on visualViewport changes (for iOS Safari keyboard handling)
+  const [, setViewportUpdate] = useState(0);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+
+    const handleViewportChange = () => {
+      // Only trigger update if dropdown is open
+      if (showVrmDropdown) {
+        setViewportUpdate((n) => n + 1);
+      }
+    };
+
+    window.visualViewport.addEventListener("resize", handleViewportChange);
+    window.visualViewport.addEventListener("scroll", handleViewportChange);
+
+    return () => {
+      window.visualViewport.removeEventListener("resize", handleViewportChange);
+      window.visualViewport.removeEventListener("scroll", handleViewportChange);
+    };
   }, [showVrmDropdown]);
 
   // Close dropdown when clicking outside
@@ -1578,7 +1627,7 @@ export default function SalesPrep() {
   ` : ''}
 
   <div class="footer">
-    Printed from DealerFlow on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+    Printed from DealerHQ on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
   </div>
 </body>
 </html>
@@ -1758,12 +1807,13 @@ export default function SalesPrep() {
 
   return (
     <DashboardLayout>
-      <Head><title>Stock & Prep | DealerFlow</title></Head>
+      <Head><title>Stock & Prep | DealerHQ</title></Head>
 
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
           <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; Drag cards to move between stages</p>
+          <div className="mt-2"><PageHint id="sales-prep">Drag vehicles between columns to track their progress. Click a card to view details and manage tasks.</PageHint></div>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
           + Add Vehicle
@@ -4636,14 +4686,14 @@ export default function SalesPrep() {
             style={{
               top: getVrmDropdownPosition().top,
               left: getVrmDropdownPosition().left,
-              width: Math.min(getVrmDropdownPosition().width, window.innerWidth - 32),
+              width: getVrmDropdownPosition().width,
               maxWidth: 'calc(100vw - 2rem)',
               zIndex: 99999,
             }}
           >
             {vrmSearchResults.length > 0 ? (
               <>
-                <ul className="py-1 max-h-64 overflow-y-auto">
+                <ul className="py-1 max-h-60 sm:max-h-64 overflow-y-auto overscroll-contain">
                   {vrmSearchResults.map((vehicle, idx) => {
                     const vrm = (vehicle.regCurrent || "").toUpperCase();
                     const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
@@ -4653,8 +4703,9 @@ export default function SalesPrep() {
                     return (
                       <li key={vehicle.id || vehicle._id}>
                         <button
-                          className={`w-full px-4 py-3 text-left transition-colors border-b border-slate-50 last:border-0 ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}
+                          className={`w-full px-4 py-3.5 text-left transition-colors border-b border-slate-50 last:border-0 active:bg-blue-100 ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}
                           onClick={() => handleVrmSelect(vehicle)}
+                          onTouchStart={() => setVrmSelectedIndex(idx)}
                           onMouseEnter={() => setVrmSelectedIndex(idx)}
                         >
                           <div className="flex items-center justify-between gap-2 mb-1">

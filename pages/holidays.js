@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
+import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -386,7 +387,7 @@ export default function HolidaySettings() {
 
   return (
     <DashboardLayout>
-      <Head><title>Holidays | DealerFlow</title></Head>
+      <Head><title>Holidays | DealerHQ</title></Head>
 
       <div className="mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
@@ -395,6 +396,7 @@ export default function HolidaySettings() {
             <p className="text-base-content/60 mt-1">
               {isAdmin ? "Manage team holiday requests" : "View and request time off"}
             </p>
+            <div className="mt-2"><PageHint id="holidays">Request time off and track your allowance. Admins can approve or reject requests here.</PageHint></div>
           </div>
           <button
             className="btn btn-primary w-full sm:w-auto"

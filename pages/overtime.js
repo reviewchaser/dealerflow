@@ -3,6 +3,7 @@ import Head from "next/head";
 import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { MobileModal } from "@/components/ui/MobileModal";
+import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -309,7 +310,7 @@ export default function OvertimePage() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Overtime | DealerFlow</title>
+        <title>Overtime | DealerHQ</title>
       </Head>
 
       <div className="max-w-6xl mx-auto">
@@ -320,6 +321,7 @@ export default function OvertimePage() {
             <p className="text-slate-500 text-sm mt-1">
               Track and submit your weekly overtime hours
             </p>
+            <div className="mt-2"><PageHint id="overtime">Log your extra hours worked each week. Submit for manager approval when ready.</PageHint></div>
           </div>
           <button
             onClick={() => handleCreate(selectedWeek)}

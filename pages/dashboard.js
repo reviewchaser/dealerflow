@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import StatsCard from "@/components/StatsCard";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
+import { PageHint } from "@/components/ui";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -81,8 +82,8 @@ const FormTypeIcon = ({ type, className = "w-6 h-6" }) => {
 };
 
 // Default priority forms - PDI is always first as it's the most common daily task
-// COURTESY_IN (Courtesy Car Collection) is also prioritized as a frequently used form
-const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "COURTESY_IN"];
+// COURTESY_OUT is prioritized as it's frequently used when handing out courtesy cars
+const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "COURTESY_OUT"];
 const ALWAYS_FIRST_FORM_TYPE = "PDI";
 // Customer-facing forms that should NOT appear in internal dashboard/quick forms
 const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
@@ -313,7 +314,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <Head><title>Dashboard | DealerFlow</title></Head>
+      <Head><title>Dashboard | DealerHQ</title></Head>
 
       {/* Hero Header with Rich Gradient */}
       <div className="relative -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 pt-8 pb-10 mb-8 hero-gradient border-b border-slate-200/50">
@@ -324,6 +325,7 @@ export default function Dashboard() {
                 Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
               </h1>
               <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+              <div className="mt-2"><PageHint id="dashboard">Your daily overview. See key stats, quick actions, and things needing attention at a glance.</PageHint></div>
             </div>
             <div className="hidden md:flex items-center gap-3">
               <div className="text-right">

@@ -193,7 +193,7 @@ export default function AdminDashboard() {
   return (
     <>
       <Head>
-        <title>Platform Admin | DealerFlow</title>
+        <title>Platform Admin | DealerHQ</title>
       </Head>
 
       <div className="min-h-screen bg-slate-900">
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h1 className="text-lg font-bold text-white">Platform Admin</h1>
-                <p className="text-xs text-slate-400">DealerFlow Master Control</p>
+                <p className="text-xs text-slate-400">DealerHQ Master Control</p>
               </div>
             </div>
             <button

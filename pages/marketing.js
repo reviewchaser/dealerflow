@@ -1,12 +1,85 @@
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import Head from "next/head";
 import Link from "next/link";
 
 // ============================================================================
+// PASSWORD GATE
+// ============================================================================
+const MARKETING_PASSWORD = "NeSyY6B079.!123";
+
+function PasswordGate({ onUnlock }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (password === MARKETING_PASSWORD) {
+      // Store in sessionStorage so it persists during session
+      sessionStorage.setItem("marketing_unlocked", "true");
+      onUnlock();
+    } else {
+      setError(true);
+      setTimeout(() => setError(false), 2000);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+      <Head>
+        <title>Marketing Preview | DealerHQ</title>
+      </Head>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Marketing Preview</h1>
+          <p className="text-slate-500 mt-2">Enter password to view the marketing page</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter password"
+            className={`w-full px-4 py-3 border-2 rounded-xl text-center text-lg font-mono transition-colors ${
+              error
+                ? "border-red-500 bg-red-50"
+                : "border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            }`}
+            autoFocus
+          />
+          <button
+            type="submit"
+            className="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            Unlock
+          </button>
+        </form>
+
+        {error && (
+          <p className="text-red-500 text-center mt-4 text-sm">
+            Incorrect password
+          </p>
+        )}
+
+        <div className="mt-8 text-center">
+          <Link href="/" className="text-sm text-slate-500 hover:text-slate-700">
+            ← Back to homepage
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // HEADER / NAVIGATION
 // ============================================================================
-function Header({ isLoggedIn }) {
+function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -33,20 +106,12 @@ function Header({ isLoggedIn }) {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            {isLoggedIn ? (
-              <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth/signin" className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
-                  Sign in
-                </Link>
-                <Link href="/auth/signup" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
-                  Start free trial
-                </Link>
-              </>
-            )}
+            <Link href="/auth/signin" className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+              Sign in
+            </Link>
+            <Link href="/auth/signup" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+              Start free trial
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -73,14 +138,8 @@ function Header({ isLoggedIn }) {
               <a href="#how-it-works" className="px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>How it works</a>
             </nav>
             <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col gap-2">
-              {isLoggedIn ? (
-                <Link href="/dashboard" className="px-4 py-2.5 text-sm font-medium text-center text-white bg-blue-600 rounded-lg">Dashboard</Link>
-              ) : (
-                <>
-                  <Link href="/auth/signin" className="px-4 py-2.5 text-sm font-medium text-center text-slate-700 border border-slate-300 rounded-lg">Sign in</Link>
-                  <Link href="/auth/signup" className="px-4 py-2.5 text-sm font-medium text-center text-white bg-blue-600 rounded-lg">Start free trial</Link>
-                </>
-              )}
+              <Link href="/auth/signin" className="px-4 py-2.5 text-sm font-medium text-center text-slate-700 border border-slate-300 rounded-lg">Sign in</Link>
+              <Link href="/auth/signup" className="px-4 py-2.5 text-sm font-medium text-center text-white bg-blue-600 rounded-lg">Start free trial</Link>
             </div>
           </div>
         )}
@@ -153,7 +212,7 @@ function Hero() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="bg-slate-700 rounded-md px-4 py-1 text-xs text-slate-400 font-mono">
-                  app.dealerflow.co.uk
+                  app.dealerhq.co.uk
                 </div>
               </div>
             </div>
@@ -770,7 +829,7 @@ function FinalCTASection() {
             </svg>
           </Link>
           <a
-            href="mailto:hello@dealerflow.co.uk"
+            href="mailto:hello@dealerhq.co.uk"
             className="w-full sm:w-auto px-8 py-3.5 text-base font-medium text-slate-300 hover:text-white transition-colors"
           >
             Questions? Get in touch
@@ -807,7 +866,7 @@ function Footer() {
           <div className="flex items-center gap-6 text-sm">
             <Link href="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">Privacy</Link>
             <Link href="/tos" className="text-slate-400 hover:text-white transition-colors">Terms</Link>
-            <a href="mailto:hello@dealerflow.co.uk" className="text-slate-400 hover:text-white transition-colors">Contact</a>
+            <a href="mailto:hello@dealerhq.co.uk" className="text-slate-400 hover:text-white transition-colors">Contact</a>
           </div>
 
           {/* Copyright */}
@@ -821,47 +880,40 @@ function Footer() {
 }
 
 // ============================================================================
-// MAIN PAGE COMPONENT (Temporary login-first experience)
+// MAIN PAGE COMPONENT
 // ============================================================================
-export default function Home() {
-  const { data: session, status } = useSession();
-  const isLoggedIn = status === "authenticated";
+export default function MarketingPage() {
+  const [unlocked, setUnlocked] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
 
-  // Loading state
-  if (status === "loading") {
+  // Check if already unlocked in session
+  useState(() => {
+    if (typeof window !== "undefined") {
+      const isUnlocked = sessionStorage.getItem("marketing_unlocked") === "true";
+      setUnlocked(isUnlocked);
+    }
+    setCheckingSession(false);
+  }, []);
+
+  // Show loading state briefly
+  if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-        <Head>
-          <title>DealerHQ — Dealer Operations Made Simple</title>
-        </Head>
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  // Redirect logged-in users to dashboard
-  if (isLoggedIn) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/dashboard";
-    }
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
-        <Head>
-          <title>DealerHQ — Redirecting...</title>
-        </Head>
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600">Redirecting to dashboard...</p>
-        </div>
-      </div>
-    );
+  // Show password gate if not unlocked
+  if (!unlocked) {
+    return <PasswordGate onUnlock={() => setUnlocked(true)} />;
   }
 
-  // Login-first landing page for non-authenticated users
+  // Show full marketing page
   return (
     <>
       <Head>
-        <title>DealerHQ — Run your dealership on one system</title>
+        <title>DealerHQ — Dealer Operations Made Simple</title>
         <meta
           name="description"
           content="Track stock, prep, forms, warranties, and staff — without spreadsheets, WhatsApp chaos, or scattered paperwork. Built for UK independent car dealers."
@@ -869,87 +921,19 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex flex-col">
-        {/* Clean minimal header */}
-        <header className="p-6">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                </svg>
-              </div>
-              <span className="text-2xl font-bold text-slate-900">DealerHQ</span>
-            </div>
-            <Link href="/auth/signin" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">
-              Sign in
-            </Link>
-          </div>
-        </header>
-
-        {/* Main content - centered login focus */}
-        <main className="flex-1 flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md">
-            {/* Hero text */}
-            <div className="text-center mb-10">
-              <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 leading-tight mb-4">
-                Run your dealership<br />
-                <span className="text-blue-600">on one system</span>
-              </h1>
-              <p className="text-lg text-slate-600">
-                Track stock, prep, forms, warranties, and staff — without spreadsheets or WhatsApp chaos.
-              </p>
-            </div>
-
-            {/* CTA buttons */}
-            <div className="space-y-4">
-              <Link
-                href="/auth/signup"
-                className="flex items-center justify-center gap-2 w-full px-6 py-4 text-lg font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 hover:shadow-blue-600/40"
-              >
-                Start free trial
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-
-              <Link
-                href="/auth/signin"
-                className="flex items-center justify-center gap-2 w-full px-6 py-4 text-lg font-semibold text-slate-700 bg-white border-2 border-slate-200 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-colors"
-              >
-                Sign in to your account
-              </Link>
-            </div>
-
-            {/* Trust indicators */}
-            <div className="mt-10 pt-8 border-t border-slate-200">
-              <p className="text-sm text-center text-slate-500 mb-4">Built for UK independent car dealers</p>
-              <div className="flex items-center justify-center gap-6 text-sm text-slate-400">
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  No setup fee
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                  Cancel anytime
-                </span>
-              </div>
-            </div>
-          </div>
-        </main>
-
-        {/* Minimal footer */}
-        <footer className="p-6 text-center">
-          <p className="text-sm text-slate-400">
-            © {new Date().getFullYear()} DealerHQ. Built for UK dealers.
-          </p>
-        </footer>
-      </div>
+      <Header />
+      <main>
+        <Hero />
+        <ProblemSection />
+        <SolutionSection />
+        <FeaturesSection />
+        <BenefitsSection />
+        <PricingSection />
+        <HowItWorksSection />
+        <FAQSection />
+        <FinalCTASection />
+      </main>
+      <Footer />
     </>
   );
 }

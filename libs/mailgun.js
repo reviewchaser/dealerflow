@@ -64,7 +64,7 @@ async function sendViaMailgun(to, subject, text, html, replyTo) {
   const domain = process.env.MAILGUN_DOMAIN ||
     ((config.mailgun?.subdomain ? `${config.mailgun.subdomain}.` : "") + config.domainName);
 
-  const fromEmail = process.env.MAILGUN_FROM || config.mailgun?.fromAdmin || `DealerFlow <noreply@${domain}>`;
+  const fromEmail = process.env.MAILGUN_FROM || config.mailgun?.fromAdmin || `DealerHQ <noreply@${domain}>`;
 
   const data = {
     from: fromEmail,
@@ -95,7 +95,7 @@ async function sendViaNodemailer(to, subject, text, html, replyTo) {
   });
 
   const fromEmail = process.env.SMTP_FROM || process.env.MAILGUN_FROM ||
-    config.mailgun?.fromAdmin || "DealerFlow <noreply@dealerflow.app>";
+    config.mailgun?.fromAdmin || "DealerHQ <noreply@dealerflow.app>";
 
   await transporter.sendMail({
     from: fromEmail,

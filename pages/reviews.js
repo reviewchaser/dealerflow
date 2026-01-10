@@ -98,7 +98,7 @@ export default function Reviews() {
 
   return (
     <DashboardLayout>
-      <Head><title>Reviews | DealerFlow</title></Head>
+      <Head><title>Reviews | DealerHQ</title></Head>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-8">

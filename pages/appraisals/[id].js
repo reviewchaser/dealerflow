@@ -360,7 +360,7 @@ export default function AppraisalDetail() {
 
   <div class="footer">
     <p>Appraisal created: ${new Date(appraisal.createdAt).toLocaleDateString()} ${new Date(appraisal.createdAt).toLocaleTimeString()}</p>
-    <p style="margin-top: 4px;">Printed from DealerFlow</p>
+    <p style="margin-top: 4px;">Printed from DealerHQ</p>
   </div>
 </body>
 </html>`;
@@ -393,7 +393,7 @@ export default function AppraisalDetail() {
 
   return (
     <DashboardLayout>
-      <Head><title>Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+      <Head><title>Appraisal {appraisal.vehicleReg} | DealerHQ</title></Head>
 
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-4">

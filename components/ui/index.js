@@ -11,3 +11,4 @@ export { SectionTitle } from "./SectionTitle";
 export { BottomSheet } from "./BottomSheet";
 export { MobileModal } from "./MobileModal";
 export { PageShell, PageSection, MobileStageSelector } from "./PageShell";
+export { PageHint } from "./PageHint";

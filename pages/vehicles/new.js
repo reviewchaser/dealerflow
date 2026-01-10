@@ -247,7 +247,7 @@ export default function NewVehicle() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Add Vehicle | DealerFlow</title>
+        <title>Add Vehicle | DealerHQ</title>
       </Head>
 
       <div className="mb-8">

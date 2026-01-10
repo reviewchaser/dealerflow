@@ -28,7 +28,7 @@ export default function ShareFormModal({ form, publicUrl, onClose }) {
       toast.error("No URL available to share");
       return;
     }
-    const subject = encodeURIComponent(`${form.name} - DealerFlow Form`);
+    const subject = encodeURIComponent(`${form.name} - DealerHQ Form`);
     const body = encodeURIComponent(`Please fill out this form:\n\n${publicUrl}`);
     window.open(`mailto:?subject=${subject}&body=${body}`);
   };

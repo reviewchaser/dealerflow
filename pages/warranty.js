@@ -6,6 +6,7 @@ import VehicleDrawer from "@/components/VehicleDrawer";
 import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { MobileStageSelector } from "@/components/ui/PageShell";
+import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -1113,7 +1114,7 @@ export default function Warranty() {
 
   return (
     <DashboardLayout>
-      <Head><title>Aftersales/Warranty | DealerFlow</title></Head>
+      <Head><title>Aftersales/Warranty | DealerHQ</title></Head>
 
       {/* Hero Header - Modern gradient design */}
       <div className="relative rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-[#0066CC]/[0.06] via-[#14B8A6]/[0.04] to-[#0EA5E9]/[0.03] border border-slate-100/50">
@@ -1128,6 +1129,7 @@ export default function Warranty() {
               <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Aftersales / Warranty</h1>
             </div>
             <p className="text-slate-500 text-sm md:text-base">Manage warranty cases and aftercare</p>
+            <div className="mt-2"><PageHint id="warranty">Track warranty claims and service cases. Drag cards between stages to update their status.</PageHint></div>
           </div>
           <button
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white font-medium rounded-xl shadow-md shadow-[#0066CC]/25 hover:shadow-lg transition-all"

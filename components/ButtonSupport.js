@@ -5,7 +5,7 @@ import config from "@/config";
 const ButtonSupport = () => {
   const handleClick = () => {
     const supportEmail = config.mailgun?.supportEmail || "support@example.com";
-    const appName = config.appName || "DealerFlow";
+    const appName = config.appName || "DealerHQ";
     // open default email client in new window with "need help with ${config.appName}" as subject
     window.open(
       `mailto:${supportEmail}?subject=Need help with ${appName}`,

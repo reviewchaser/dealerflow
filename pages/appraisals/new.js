@@ -257,7 +257,7 @@ export default function NewAppraisal() {
   return (
     <DashboardLayout>
       <Head>
-        <title>New Appraisal | DealerFlow</title>
+        <title>New Appraisal | DealerHQ</title>
       </Head>
 
       <div className="mb-8">

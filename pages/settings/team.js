@@ -254,7 +254,7 @@ export default function TeamSettings() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Team Settings | DealerFlow</title>
+        <title>Team Settings | DealerHQ</title>
       </Head>
 
       {/* Header */}

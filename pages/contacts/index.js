@@ -75,7 +75,7 @@ export default function Contacts() {
   return (
     <DashboardLayout>
       <Head>
-        <title>Contacts | DealerFlow</title>
+        <title>Contacts | DealerHQ</title>
       </Head>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">

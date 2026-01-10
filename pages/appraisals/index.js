@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import { MobileStageSelector } from "@/components/ui/PageShell";
+import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -254,13 +255,14 @@ export default function Appraisals() {
 
   return (
     <DashboardLayout>
-      <Head><title>Appraisals | DealerFlow</title></Head>
+      <Head><title>Appraisals | DealerHQ</title></Head>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Appraisals</h1>
           <p className="text-slate-500 mt-1">Manage vehicle appraisals and part-exchange valuations</p>
+          <div className="mt-2"><PageHint id="appraisals">Value trade-ins and part-exchanges. Share the appraisal link to let customers submit details directly.</PageHint></div>
         </div>
         <div className="flex items-center gap-3">
           {/* Share Links Button */}

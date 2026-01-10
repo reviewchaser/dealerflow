@@ -51,8 +51,12 @@ export default function Settings() {
     const root = document.documentElement;
     if (selectedTheme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+      root.setAttribute("data-theme", prefersDark ? "dark" : "dealerflow");
       root.classList.toggle("dark", prefersDark);
+    } else if (selectedTheme === "light" || selectedTheme === "dealerflow") {
+      // Use dealerflow theme for light mode (blue primary color)
+      root.setAttribute("data-theme", "dealerflow");
+      root.classList.remove("dark");
     } else {
       root.setAttribute("data-theme", selectedTheme);
       root.classList.toggle("dark", selectedTheme === "dark");
@@ -418,7 +422,7 @@ export default function Settings() {
 
   return (
     <DashboardLayout>
-      <Head><title>Settings | DealerFlow</title></Head>
+      <Head><title>Settings | DealerHQ</title></Head>
 
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Settings</h1>
@@ -430,7 +434,7 @@ export default function Settings() {
         <div className="card bg-base-200">
           <div className="card-body">
             <h2 className="card-title">Appearance</h2>
-            <p className="text-sm text-base-content/60">Customize how DealerFlow looks</p>
+            <p className="text-sm text-base-content/60">Customize how DealerHQ looks</p>
 
             <div className="form-control mt-4">
               <label className="label"><span className="label-text">Theme</span></label>
