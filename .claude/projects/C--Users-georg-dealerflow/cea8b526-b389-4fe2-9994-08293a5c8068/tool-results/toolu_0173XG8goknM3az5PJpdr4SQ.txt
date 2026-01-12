@@ -1,0 +1,81 @@
+     1→/**
+     2→ * KeyValue Component - Consistent display for labeled values
+     3→ * Usage:
+     4→ *   <KeyValue label="Mileage" value="45,000 mi" />
+     5→ *   <KeyValue label="Status" value={<Badge variant="success">Active</Badge>} />
+     6→ */
+     7→
+     8→export function KeyValue({
+     9→  label,
+    10→  value,
+    11→  className = "",
+    12→  size = "default",
+    13→  direction = "vertical",
+    14→  mono = false,
+    15→}) {
+    16→  const sizes = {
+    17→    sm: {
+    18→      label: "text-[10px]",
+    19→      value: "text-sm",
+    20→    },
+    21→    default: {
+    22→      label: "text-xs",
+    23→      value: "text-base",
+    24→    },
+    25→    lg: {
+    26→      label: "text-xs",
+    27→      value: "text-lg",
+    28→    },
+    29→  };
+    30→
+    31→  const sizeConfig = sizes[size] || sizes.default;
+    32→
+    33→  if (direction === "horizontal") {
+    34→    return (
+    35→      <div className={`flex items-center justify-between gap-2 ${className}`}>
+    36→        <span className={`${sizeConfig.label} font-medium text-slate-500 uppercase tracking-wide`}>
+    37→          {label}
+    38→        </span>
+    39→        <span className={`${sizeConfig.value} font-semibold text-slate-900 ${mono ? "font-mono" : ""}`}>
+    40→          {value ?? "—"}
+    41→        </span>
+    42→      </div>
+    43→    );
+    44→  }
+    45→
+    46→  return (
+    47→    <div className={className}>
+    48→      <span className={`${sizeConfig.label} font-medium text-slate-500 uppercase tracking-wide block mb-0.5`}>
+    49→        {label}
+    50→      </span>
+    51→      <span className={`${sizeConfig.value} font-semibold text-slate-900 ${mono ? "font-mono" : ""}`}>
+    52→        {value ?? "—"}
+    53→      </span>
+    54→    </div>
+    55→  );
+    56→}
+    57→
+    58→/**
+    59→ * KeyValueGrid - Grid layout for multiple KeyValue items
+    60→ */
+    61→export function KeyValueGrid({ children, cols = 2, className = "" }) {
+    62→  const colClasses = {
+    63→    1: "grid-cols-1",
+    64→    2: "grid-cols-2",
+    65→    3: "grid-cols-3",
+    66→    4: "grid-cols-4",
+    67→  };
+    68→
+    69→  return (
+    70→    <div className={`grid ${colClasses[cols] || "grid-cols-2"} gap-x-4 gap-y-3 ${className}`}>
+    71→      {children}
+    72→    </div>
+    73→  );
+    74→}
+    75→
+    76→export default KeyValue;
+    77→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

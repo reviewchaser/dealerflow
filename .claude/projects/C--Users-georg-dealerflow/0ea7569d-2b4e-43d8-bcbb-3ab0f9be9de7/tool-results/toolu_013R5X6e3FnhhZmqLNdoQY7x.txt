@@ -1,0 +1,33 @@
+The file C:\Users\georg\dealerflow\models\SalesDocument.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   117→        paidAt: { type: Date },
+   118→        reference: { type: String },
+   119→      }],
+   120→
+   121→      // Totals
+   122→      subtotal: { type: Number },
+   123→      totalVat: { type: Number },
+   124→      grandTotal: { type: Number },
+   125→      totalPaid: { type: Number },
+   126→      partExchangeNet: { type: Number },
+   127→      balanceDue: { type: Number },
+   128→
+   129→      // Agreed work / requests
+   130→      requests: [{
+   131→        title: { type: String },
+   132→        details: { type: String },
+   133→        type: { type: String },
+   134→        status: { type: String },
+   135→      }],
+   136→
+   137→      // User who took deposit / created document
+   138→      takenBy: {
+   139→        name: { type: String },
+   140→        email: { type: String },
+   141→      },
+   142→
+   143→      // Terms
+   144→      termsText: { type: String },
+   145→
+   146→      // Dealer details
+   147→      dealer: {
+   148→        name: { type: String },

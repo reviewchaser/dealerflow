@@ -1,0 +1,108 @@
+     1→/**
+     2→ * AI Appraisal Issue Suggestions API
+     3→ *
+     4→ * POST - Generate AI suggestions for vehicle appraisal issues
+     5→ * Returns structured JSON with diagnostic guidance
+     6→ */
+     7→
+     8→import { withDealerContext } from "@/libs/authContext";
+     9→import { callOpenAI, UK_DEALER_CONTEXT } from "@/libs/openai";
+    10→
+    11→const SYSTEM_PROMPT = `${UK_DEALER_CONTEXT}
+    12→
+    13→You are helping assess an issue found during a vehicle appraisal (trade-in or part-exchange). Based on the information provided, generate practical investigation suggestions to help the dealer understand the scope and cost of repairs.
+    14→
+    15→CRITICAL: You must respond with ONLY valid JSON. No markdown, no code fences, no prose outside the JSON.
+    16→The JSON must have exactly these 5 keys:
+    17→- suspected_issues: array of {title, why, urgency} where urgency is "low", "med", or "high"
+    18→- checks_to_run: array of {step, tools, time_estimate_mins}
+    19→- questions_for_customer: array of {question, why}
+    20→- parts_to_consider: array of {part, notes}
+    21→- safety_notes: array of {note}
+    22→
+    23→Rules:
+    24→- Focus on helping the dealer make an informed purchase decision
+    25→- If you don't have enough information, populate questions_for_customer instead of guessing
+    26→- Be practical and cost-conscious (used car dealer context)
+    27→- Time estimates should be realistic workshop times
+    28→- Consider resale implications when assessing urgency
+    29→- Maximum 5 items per array`;
+    30→
+    31→async function handler(req, res, ctx) {
+    32→  if (req.method !== "POST") {
+    33→    return res.status(405).json({ error: "Method not allowed" });
+    34→  }
+    35→
+    36→  const {
+    37→    vehicleMake,
+    38→    vehicleModel,
+    39→    vehicleYear,
+    40→    mileage,
+    41→    fuelType,
+    42→    issueCategory,
+    43→    issueSubcategory,
+    44→    issueDescription,
+    45→    faultCodes,
+    46→    additionalContext,
+    47→  } = req.body;
+    48→
+    49→  if (!issueDescription) {
+    50→    return res.status(400).json({ error: "Issue description is required" });
+    51→  }
+    52→
+    53→  // Build context for AI
+    54→  const contextParts = [];
+    55→
+    56→  if (vehicleMake || vehicleModel) {
+    57→    contextParts.push(`Vehicle: ${[vehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(" ")}`);
+    58→  }
+    59→  if (mileage) {
+    60→    contextParts.push(`Mileage: ${mileage}`);
+    61→  }
+    62→  if (fuelType) {
+    63→    contextParts.push(`Fuel type: ${fuelType}`);
+    64→  }
+    65→  if (issueCategory) {
+    66→    const categoryInfo = issueSubcategory
+    67→      ? `${issueCategory} > ${issueSubcategory}`
+    68→      : issueCategory;
+    69→    contextParts.push(`Issue category: ${categoryInfo}`);
+    70→  }
+    71→  if (faultCodes) {
+    72→    contextParts.push(`Fault codes: ${faultCodes}`);
+    73→  }
+    74→  if (additionalContext) {
+    75→    contextParts.push(`Additional info: ${additionalContext}`);
+    76→  }
+    77→
+    78→  const userPrompt = `Please analyse this appraisal issue and provide investigation suggestions to help with the purchase decision.
+    79→
+    80→${contextParts.length > 0 ? "VEHICLE & CONTEXT:\n" + contextParts.join("\n") + "\n\n" : ""}ISSUE FOUND:
+    81→${issueDescription}
+    82→
+    83→Generate your response as valid JSON with the exact schema specified.`;
+    84→
+    85→  const result = await callOpenAI(SYSTEM_PROMPT, userPrompt);
+    86→
+    87→  if (result.isDummy) {
+    88→    return res.status(200).json({
+    89→      success: true,
+    90→      isDummy: true,
+    91→      message: result.error || "AI not configured - showing placeholder",
+    92→      suggestions: result.data,
+    93→    });
+    94→  }
+    95→
+    96→  return res.status(200).json({
+    97→    success: true,
+    98→    isDummy: false,
+    99→    suggestions: result.data,
+   100→  });
+   101→}
+   102→
+   103→export default withDealerContext(handler);
+   104→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

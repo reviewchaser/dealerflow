@@ -1,0 +1,2 @@
+Exit code 2
+/usr/bin/bash: eval: line 1: unexpected EOF while looking for matching `"'

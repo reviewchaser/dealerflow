@@ -1,0 +1,274 @@
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { useSession, signIn } from "next-auth/react";
+import Head from "next/head";
+import Link from "next/link";
+import toast from "react-hot-toast";
+
+export default function CreateDealer() {
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const [formData, setFormData] = useState({
+    name: "",
+    logoUrl: "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [checkingMembership, setCheckingMembership] = useState(true);
+
+  // Redirect to sign-in if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      signIn(undefined, { callbackUrl: "/onboarding/create-dealer" });
+    }
+  }, [status]);
+
+  // Check if user already has a dealer
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    fetch("/api/dealer")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data._id) {
+          // User already has a dealer, redirect to onboarding or dashboard
+          if (data.completedOnboarding) {
+            router.replace("/dashboard");
+          } else {
+            router.replace("/onboarding");
+          }
+        } else {
+          setCheckingMembership(false);
+        }
+      })
+      .catch(() => {
+        setCheckingMembership(false);
+      });
+  }, [status, router]);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Client-side validation
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Please upload an image file (PNG, JPEG, WebP, or GIF)");
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`);
+      return;
+    }
+
+    setUploading(true);
+    const formDataUpload = new FormData();
+    formDataUpload.append("file", file);
+
+    try {
+      const res = await fetch("/api/vehicles/upload", { method: "POST", body: formDataUpload });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Non-JSON response:", res.status);
+        }
+        toast.error("Upload failed (LOGO_UPLOAD_SERVER_ERROR)");
+        return;
+      }
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setLogoPreview(data.url);
+        setFormData({ ...formData, logoUrl: data.url });
+        toast.success("Logo uploaded!");
+      } else {
+        const errorMsg = data.error || "Failed to upload logo";
+        const errorCode = data.code || "UNKNOWN";
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[Logo Upload] Error:", errorCode, errorMsg, data.details);
+        }
+        toast.error(`${errorMsg} (${errorCode})`);
+      }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[Logo Upload] Exception:", err);
+      }
+      toast.error("Upload failed (LOGO_UPLOAD_NETWORK_ERROR)");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      toast.error("Please enter a dealership name");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/onboarding/create-dealer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name.trim(),
+          logoUrl: formData.logoUrl,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Dealership created!");
+        // Redirect to main onboarding to complete setup
+        router.push("/onboarding");
+      } else {
+        toast.error(data.error || "Failed to create dealership");
+        setLoading(false);
+      }
+    } catch {
+      toast.error("An error occurred");
+      setLoading(false);
+    }
+  };
+
+  // Show loading while checking auth or membership
+  if (status === "loading" || checkingMembership) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <Head><title>Create Dealership | DealerHQ</title></Head>
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
+
+  // Don't render if not authenticated
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Create Your Dealership | DealerHQ</title>
+      </Head>
+
+      <div className="min-h-screen bg-base-200 flex items-center justify-center p-4">
+        <div className="card bg-base-100 shadow-xl w-full max-w-md">
+          <div className="card-body">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+                <span className="text-xl font-bold">DealerHQ</span>
+              </div>
+              <h1 className="text-2xl font-bold">Create Your Dealership</h1>
+              <p className="text-sm text-base-content/60 mt-1">
+                Welcome, {session?.user?.name || session?.user?.email}! Let's set up your dealership.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Logo Upload */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Dealership Logo</span>
+                  <span className="label-text-alt text-base-content/50">Optional</span>
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-xl bg-base-200 flex items-center justify-center overflow-hidden border-2 border-dashed border-base-300">
+                    {logoPreview ? (
+                      <img src={logoPreview} alt="Logo" className="w-full h-full object-contain" />
+                    ) : (
+                      <svg className="w-8 h-8 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    )}
+                  </div>
+                  <label className="btn btn-outline btn-sm">
+                    {uploading ? <span className="loading loading-spinner loading-xs"></span> : "Upload Logo"}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={uploading} />
+                  </label>
+                </div>
+              </div>
+
+              {/* Dealership Name */}
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Dealership Name *</span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  placeholder="e.g. Smith's Motor Company"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  autoFocus
+                />
+                <label className="label">
+                  <span className="label-text-alt text-base-content/50">This will appear on your forms and documents</span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="btn btn-primary btn-block"
+                disabled={loading || !formData.name.trim()}
+              >
+                {loading ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    Create Dealership
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Info */}
+            <div className="mt-6 p-4 bg-base-200 rounded-lg">
+              <p className="text-xs text-base-content/60">
+                <strong>What happens next?</strong><br />
+                After creating your dealership, you'll be able to:
+              </p>
+              <ul className="text-xs text-base-content/60 mt-2 space-y-1 list-disc list-inside">
+                <li>Choose which modules to enable</li>
+                <li>Configure your workflow settings</li>
+                <li>Add your first vehicle</li>
+                <li>Invite team members</li>
+              </ul>
+            </div>
+
+            {/* Back link */}
+            <div className="text-center mt-4">
+              <Link href="/" className="text-sm text-base-content/50 hover:text-base-content">
+                &larr; Back to home
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

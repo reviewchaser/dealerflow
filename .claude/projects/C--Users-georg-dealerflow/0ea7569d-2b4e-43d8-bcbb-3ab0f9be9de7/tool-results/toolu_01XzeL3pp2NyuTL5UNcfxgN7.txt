@@ -1,0 +1,84 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import ShareFormModal from "@/components/ShareFormModal";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { useSession } from "next-auth/react";
+     9→import { toast } from "react-hot-toast";
+    10→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    11→import { AttachmentField, isAttachmentValue, formatAttachmentHtml } from "@/components/ui/AttachmentField";
+    12→
+    13→// Human-readable form type labels
+    14→// Note: Appraisal forms are handled in the dedicated Appraisals section
+    15→const FORM_TYPE_LABELS = {
+    16→  PDI: "PDI",
+    17→  TEST_DRIVE: "Test Drive",
+    18→  WARRANTY_CLAIM: "Warranty Claim",
+    19→  COURTESY_OUT: "Courtesy Car Out",
+    20→  COURTESY_IN: "Courtesy Car In",
+    21→  SERVICE_RECEIPT: "Service Receipt",
+    22→  REVIEW_FEEDBACK: "Review & Feedback",
+    23→  OTHER: "Other",
+    24→};
+    25→
+    26→// Form type colors for icons and accents
+    27→const FORM_TYPE_STYLES = {
+    28→  PDI: { bg: "bg-blue-50", text: "text-blue-600", accent: "border-blue-500" },
+    29→  TEST_DRIVE: { bg: "bg-cyan-50", text: "text-cyan-600", accent: "border-cyan-500" },
+    30→  WARRANTY_CLAIM: { bg: "bg-red-50", text: "text-red-600", accent: "border-red-500" },
+    31→  COURTESY_OUT: { bg: "bg-emerald-50", text: "text-emerald-600", accent: "border-emerald-500" },
+    32→  COURTESY_IN: { bg: "bg-green-50", text: "text-green-600", accent: "border-green-500" },
+    33→  SERVICE_RECEIPT: { bg: "bg-teal-50", text: "text-teal-600", accent: "border-teal-500" },
+    34→  REVIEW_FEEDBACK: { bg: "bg-pink-50", text: "text-pink-600", accent: "border-pink-500" },
+    35→  OTHER: { bg: "bg-slate-50", text: "text-slate-600", accent: "border-slate-500" },
+    36→};
+    37→
+    38→// Small form type icons for list items
+    39→const FormTypeIcon = ({ type, size = "w-4 h-4" }) => {
+    40→  const iconProps = { className: size, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 1.5 };
+    41→  switch (type) {
+    42→    case "PDI":
+    43→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+    44→    case "TEST_DRIVE":
+    45→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>;
+    46→    case "WARRANTY_CLAIM":
+    47→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>;
+    48→    case "COURTESY_OUT":
+    49→    case "COURTESY_IN":
+    50→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" /></svg>;
+    51→    case "SERVICE_RECEIPT":
+    52→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
+    53→    case "REVIEW_FEEDBACK":
+    54→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>;
+    55→    default:
+    56→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
+    57→  }
+    58→};
+    59→
+    60→// Large feature icon for detail panel
+    61→const LargeFormIcon = ({ type }) => {
+    62→  const styles = FORM_TYPE_STYLES[type] || FORM_TYPE_STYLES.OTHER;
+    63→  return (
+    64→    <div className={`w-12 h-12 rounded-xl ${styles.bg} ${styles.text} flex items-center justify-center flex-shrink-0`}>
+    65→      <FormTypeIcon type={type} size="w-6 h-6" />
+    66→    </div>
+    67→  );
+    68→};
+    69→
+    70→// Time ago helper
+    71→const timeAgo = (date) => {
+    72→  const now = new Date();
+    73→  const then = new Date(date);
+    74→  const seconds = Math.floor((now - then) / 1000);
+    75→
+    76→  if (seconds < 60) return "Just now";
+    77→  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    78→  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    79→  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    80→  return then.toLocaleDateString();
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

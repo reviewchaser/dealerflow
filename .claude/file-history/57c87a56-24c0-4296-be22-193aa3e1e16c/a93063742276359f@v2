@@ -1,0 +1,87 @@
+import connectMongo from "@/libs/mongoose";
+import Appraisal from "@/models/Appraisal";
+import Vehicle from "@/models/Vehicle";
+import AftercareCase from "@/models/AftercareCase";
+import ReviewResponse from "@/models/ReviewResponse";
+import Form from "@/models/Form";
+import FormSubmission from "@/models/FormSubmission";
+import Contact from "@/models/Contact"; // Required for populate
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    const [
+      totalAppraisals, pendingAppraisals,
+      totalVehicles, inStockVehicles, inPrepVehicles, liveVehicles, deliveredVehicles,
+      totalCases, openCases,
+      reviews,
+      totalForms, totalSubmissions
+    ] = await Promise.all([
+      Appraisal.countDocuments(),
+      Appraisal.countDocuments({ decision: "pending" }),
+      Vehicle.countDocuments(),
+      Vehicle.countDocuments({ status: "in_stock" }),
+      Vehicle.countDocuments({ status: "in_prep" }),
+      Vehicle.countDocuments({ status: "live" }),
+      Vehicle.countDocuments({ status: "delivered" }),
+      AftercareCase.countDocuments(),
+      AftercareCase.countDocuments({ status: { $in: ["new", "in_progress"] } }),
+      ReviewResponse.find().lean(),
+      Form.countDocuments(),
+      FormSubmission.countDocuments()
+    ]);
+
+    // Calculate average rating
+    const avgRating = reviews.length > 0 
+      ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+      : "N/A";
+
+    // Helper to transform _id to id for lean() results
+    const transformDoc = (doc) => {
+      if (!doc) return null;
+      const { _id, __v, ...rest } = doc;
+      return { id: _id?.toString(), ...rest };
+    };
+
+    // Recent items
+    const recentAppraisalsRaw = await Appraisal.find()
+      .populate("contactId")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const recentVehiclesRaw = await Vehicle.find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+
+    const recentSubmissionsRaw = await FormSubmission.find()
+      .populate("formId")
+      .sort({ submittedAt: -1 })
+      .limit(5)
+      .lean();
+
+    // Transform all recent items
+    const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
+    const recentVehicles = recentVehiclesRaw.map(transformDoc);
+    const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
+
+    return res.status(200).json({
+      appraisals: { total: totalAppraisals, pending: pendingAppraisals },
+      vehicles: {
+        total: totalVehicles,
+        inStock: inStockVehicles,
+        inPrep: inPrepVehicles,
+        live: liveVehicles,
+        delivered: deliveredVehicles
+      },
+      aftercare: { total: totalCases, open: openCases },
+      reviews: { count: reviews.length, avgRating },
+      forms: { total: totalForms, submissions: totalSubmissions },
+      recent: { appraisals: recentAppraisals, vehicles: recentVehicles, formSubmissions: recentSubmissions },
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}

@@ -1,0 +1,156 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import DashboardLayout from "@/components/DashboardLayout";
+     4→import { toast } from "react-hot-toast";
+     5→import { showDummyNotification } from "@/utils/notifications";
+     6→
+     7→export default function Reviews() {
+     8→  const [reviews, setReviews] = useState([]);
+     9→  const [isLoading, setIsLoading] = useState(true);
+    10→
+    11→  useEffect(() => { fetchReviews(); }, []);
+    12→
+    13→  const fetchReviews = async () => {
+    14→    try {
+    15→      const res = await fetch("/api/reviews");
+    16→      const data = await res.json();
+    17→      setReviews(data);
+    18→    } catch (error) {
+    19→      toast.error("Failed to load reviews");
+    20→    } finally {
+    21→      setIsLoading(false);
+    22→    }
+    23→  };
+    24→
+    25→  // Calculate stats
+    26→  const responses = reviews.filter(r => r.response);
+    27→  const avgRating = responses.length > 0 
+    28→    ? (responses.reduce((sum, r) => sum + r.response.rating, 0) / responses.length).toFixed(1) 
+    29→    : "N/A";
+    30→  const rating5 = responses.filter(r => r.response?.rating === 5).length;
+    31→  const rating4 = responses.filter(r => r.response?.rating === 4).length;
+    32→  const lowRatings = responses.filter(r => r.response?.rating <= 3).length;
+    33→
+    34→  return (
+    35→    <DashboardLayout>
+    36→      <Head><title>Reviews | DealerFlow</title></Head>
+    37→
+    38→      <div className="mb-8">
+    39→        <h1 className="text-3xl font-bold">Reviews & Reputation</h1>
+    40→        <p className="text-base-content/60 mt-2">Track customer feedback and review requests</p>
+    41→      </div>
+    42→
+    43→      {isLoading ? (
+    44→        <div className="flex justify-center py-20">
+    45→          <span className="loading loading-spinner loading-lg"></span>
+    46→        </div>
+    47→      ) : (
+    48→        <>
+    49→          {/* Stats */}
+    50→          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    51→            <div className="card bg-base-200">
+    52→              <div className="card-body p-4 text-center">
+    53→                <p className="text-4xl font-bold text-primary">{avgRating}</p>
+    54→                <p className="text-sm text-base-content/60">Average Rating</p>
+    55→              </div>
+    56→            </div>
+    57→            <div className="card bg-base-200">
+    58→              <div className="card-body p-4 text-center">
+    59→                <p className="text-4xl font-bold text-success">{rating5}</p>
+    60→                <p className="text-sm text-base-content/60">5-Star Reviews</p>
+    61→              </div>
+    62→            </div>
+    63→            <div className="card bg-base-200">
+    64→              <div className="card-body p-4 text-center">
+    65→                <p className="text-4xl font-bold">{rating4}</p>
+    66→                <p className="text-sm text-base-content/60">4-Star Reviews</p>
+    67→              </div>
+    68→            </div>
+    69→            <div className="card bg-base-200">
+    70→              <div className="card-body p-4 text-center">
+    71→                <p className="text-4xl font-bold text-error">{lowRatings}</p>
+    72→                <p className="text-sm text-base-content/60">Low Ratings (≤3)</p>
+    73→              </div>
+    74→            </div>
+    75→          </div>
+    76→
+    77→          {/* Info about how reviews work */}
+    78→          <div className="alert alert-info mb-6">
+    79→            <span>
+    80→              ⚠️ <strong>Demo Mode:</strong> Review requests are triggered when a vehicle is marked as "Delivered" or when a Delivery form is submitted. 
+    81→              Email/SMS sending is not configured yet.
+    82→            </span>
+    83→          </div>
+    84→
+    85→          {/* Reviews Table */}
+    86→          {reviews.length === 0 ? (
+    87→            <div className="card bg-base-200">
+    88→              <div className="card-body text-center py-16">
+    89→                <p className="text-lg text-base-content/60">No review requests yet</p>
+    90→                <p className="text-sm text-base-content/40 mt-2">
+    91→                  Review requests are created when vehicles are delivered
+    92→                </p>
+    93→              </div>
+    94→            </div>
+    95→          ) : (
+    96→            <div className="overflow-x-auto">
+    97→              <table className="table">
+    98→                <thead>
+    99→                  <tr>
+   100→                    <th>Date</th>
+   101→                    <th>Customer</th>
+   102→                    <th>Vehicle</th>
+   103→                    <th>Channel</th>
+   104→                    <th>Status</th>
+   105→                    <th>Rating</th>
+   106→                    <th>Public Review</th>
+   107→                  </tr>
+   108→                </thead>
+   109→                <tbody>
+   110→                  {reviews.map((review) => (
+   111→                    <tr key={review.id} className="hover">
+   112→                      <td>{new Date(review.sentAt).toLocaleDateString()}</td>
+   113→                      <td>{review.contactId?.name || "—"}</td>
+   114→                      <td className="font-mono">{review.vehicleId?.regCurrent || "—"}</td>
+   115→                      <td>
+   116→                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">{review.channel}</span>
+   117→                      </td>
+   118→                      <td>
+   119→                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+   120→                          review.status === "responded" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+   121→                          review.status === "opened" ? "bg-blue-50 text-blue-700 border-blue-200" :
+   122→                          review.status === "expired" ? "bg-red-50 text-red-700 border-red-200" : "bg-amber-50 text-amber-700 border-amber-200"
+   123→                        }`}>
+   124→                          {review.status}
+   125→                        </span>
+   126→                      </td>
+   127→                      <td>
+   128→                        {review.response ? (
+   129→                          <div className="flex items-center gap-1">
+   130→                            <span className={review.response.rating >= 4 ? "text-emerald-600" : "text-red-500"}>
+   131→                              {"⭐".repeat(review.response.rating)}
+   132→                            </span>
+   133→                          </div>
+   134→                        ) : "—"}
+   135→                      </td>
+   136→                      <td>
+   137→                        {review.response?.publicReviewSubmitted ? (
+   138→                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Submitted</span>
+   139→                        ) : "—"}
+   140→                      </td>
+   141→                    </tr>
+   142→                  ))}
+   143→                </tbody>
+   144→              </table>
+   145→            </div>
+   146→          )}
+   147→        </>
+   148→      )}
+   149→    </DashboardLayout>
+   150→  );
+   151→}
+   152→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,17 @@
+total 17
+drwxr-xr-x 1 georg 197609   0 Jan 10 20:49 .
+drwxr-xr-x 1 georg 197609   0 Dec 30 13:12 ..
+-rw-r--r-- 1 georg 197609 419 Dec 30 13:12 appraisals.js
+-rw-r--r-- 1 georg 197609 405 Dec 30 13:12 calendar.js
+-rw-r--r-- 1 georg 197609 405 Dec 30 13:12 contacts.js
+-rw-r--r-- 1 georg 197609 412 Dec 30 13:12 dashboard.js
+-rw-r--r-- 1 georg 197609 384 Dec 30 13:12 forms.js
+-rw-r--r-- 1 georg 197609 405 Jan  3 16:55 holidays.js
+-rw-r--r-- 1 georg 197609 419 Dec 30 13:12 onboarding.js
+-rw-r--r-- 1 georg 197609 405 Jan  3 16:55 overtime.js
+-rw-r--r-- 1 georg 197609 398 Dec 30 13:12 reviews.js
+-rw-r--r-- 1 georg 197609 416 Dec 30 13:12 sales-prep.js
+-rw-r--r-- 1 georg 197609 384 Jan 10 20:49 sales.js
+-rw-r--r-- 1 georg 197609 405 Dec 30 13:12 settings.js
+drwxr-xr-x 1 georg 197609   0 Dec 30 13:12 vehicles
+-rw-r--r-- 1 georg 197609 405 Dec 30 13:12 warranty.js

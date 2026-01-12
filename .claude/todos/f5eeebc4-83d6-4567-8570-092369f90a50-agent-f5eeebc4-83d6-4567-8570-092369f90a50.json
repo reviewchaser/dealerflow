@@ -1,0 +1,57 @@
+[
+  {
+    "content": "Explore sales-prep board current implementation",
+    "status": "completed",
+    "activeForm": "Exploring sales-prep board current implementation"
+  },
+  {
+    "content": "Update vehicle cards to show MOT due date",
+    "status": "in_progress",
+    "activeForm": "Updating vehicle cards to show MOT due date"
+  },
+  {
+    "content": "Add drag-and-drop functionality for vehicle cards between columns",
+    "status": "pending",
+    "activeForm": "Adding drag-and-drop functionality"
+  },
+  {
+    "content": "Implement add/remove items in checklist",
+    "status": "pending",
+    "activeForm": "Implementing add/remove items in checklist"
+  },
+  {
+    "content": "Add V5 photo upload option when adding/editing vehicles",
+    "status": "pending",
+    "activeForm": "Adding V5 photo upload option"
+  },
+  {
+    "content": "Fix appraisal form save functionality",
+    "status": "pending",
+    "activeForm": "Fixing appraisal form save functionality"
+  },
+  {
+    "content": "Remove customer details from appraisal form",
+    "status": "pending",
+    "activeForm": "Removing customer details from appraisal form"
+  },
+  {
+    "content": "Add damage photos upload to appraisal form",
+    "status": "pending",
+    "activeForm": "Adding damage photos upload"
+  },
+  {
+    "content": "Add fault codes photos upload to appraisal form",
+    "status": "pending",
+    "activeForm": "Adding fault codes photos upload"
+  },
+  {
+    "content": "Fix forms initialization to populate templates by default",
+    "status": "pending",
+    "activeForm": "Fixing forms initialization"
+  },
+  {
+    "content": "Add ability to edit form fields and delete unwanted forms",
+    "status": "pending",
+    "activeForm": "Adding form editing and deletion"
+  }
+]

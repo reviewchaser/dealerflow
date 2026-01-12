@@ -1,0 +1,218 @@
+111-  const [fetchError, setFetchError] = useState(null);
+112-  const [activeTab, setActiveTab] = useState("overview");
+113-  const [actionLoading, setActionLoading] = useState(null);
+114-
+115-  // Deposit modal state
+116-  const [showDepositModal, setShowDepositModal] = useState(false);
+117-  const [depositAmount, setDepositAmount] = useState("");
+118-  const [depositMethod, setDepositMethod] = useState("CARD");
+119-  const [depositReference, setDepositReference] = useState("");
+120-
+121-  // Customer editing state
+122-  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+123-  const [isEditingInvoiceTo, setIsEditingInvoiceTo] = useState(false);
+124-  const [invoiceToOption, setInvoiceToOption] = useState("CUSTOMER"); // CUSTOMER or OTHER
+125-
+126-  // Document state
+127-  const [documents, setDocuments] = useState({ depositReceipt: null, invoice: null });
+128-
+129-  // Handover pack state
+130-  const [showHandoverModal, setShowHandoverModal] = useState(false);
+131:  const [handoverDocs, setHandoverDocs] = useState({
+132-    invoice: true,
+133-    pdi: false,
+134-    serviceReceipt: false,
+135-  });
+136-  const [linkedSubmissions, setLinkedSubmissions] = useState({ pdi: null, serviceReceipt: null });
+137-  const [isGeneratingPack, setIsGeneratingPack] = useState(false);
+138-
+139-  // Deal details editing state
+140-  const [isEditingPrice, setIsEditingPrice] = useState(false);
+141-  const [priceInput, setPriceInput] = useState("");
+142-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+143-
+144-  // Add-on state
+145-  const [showAddOnPicker, setShowAddOnPicker] = useState(false);
+146-  const [availableAddOns, setAvailableAddOns] = useState([]);
+147-  const [addOnsLoading, setAddOnsLoading] = useState(false);
+148-  const [addOnQty, setAddOnQty] = useState(1);
+149-  const [addOnPrice, setAddOnPrice] = useState("");
+150-
+151-  // Agreed Work Items state
+--
+468-
+469-  // Fetch linked submissions (PDI, Service Receipt) for the vehicle
+470-  const fetchLinkedSubmissions = async () => {
+471-    if (!deal?.vehicleId?._id && !deal?.vehicleId) return;
+472-
+473-    const vehicleId = deal.vehicleId._id || deal.vehicleId;
+474-    try {
+475-      const res = await fetch(`/api/vehicles/${vehicleId}/submissions`);
+476-      if (res.ok) {
+477-        const data = await res.json();
+478-        setLinkedSubmissions({
+479-          pdi: data.submissions?.find(s => s.formType === "PDI"),
+480-          serviceReceipt: data.submissions?.find(s => s.formType === "SERVICE_RECEIPT"),
+481-        });
+482-      }
+483-    } catch (error) {
+484-      console.error("Failed to fetch linked submissions:", error);
+485-    }
+486-  };
+487-
+488:  // Open handover modal
+489-  const handleOpenHandover = async () => {
+490-    await fetchLinkedSubmissions();
+491-    setHandoverDocs({
+492-      invoice: true,
+493-      pdi: !!linkedSubmissions.pdi,
+494-      serviceReceipt: !!linkedSubmissions.serviceReceipt,
+495-    });
+496-    setShowHandoverModal(true);
+497-  };
+498-
+499:  // Generate handover pack
+500-  const handleGenerateHandoverPack = async () => {
+501-    if (!documents.invoice) {
+502-      toast.error("Invoice is required");
+503-      return;
+504-    }
+505-
+506-    setIsGeneratingPack(true);
+507-    try {
+508:      // Open the handover pack page in a new tab
+509-      const params = new URLSearchParams({
+510-        invoiceToken: documents.invoice.shareToken,
+511:        ...(handoverDocs.pdi && linkedSubmissions.pdi && { pdiId: linkedSubmissions.pdi.id }),
+512:        ...(handoverDocs.serviceReceipt && linkedSubmissions.serviceReceipt && { serviceReceiptId: linkedSubmissions.serviceReceipt.id }),
+513-      });
+514-
+515:      window.open(`/public/handover-pack/${documents.invoice.shareToken}?${params.toString()}`, "_blank");
+516-      setShowHandoverModal(false);
+517-    } catch (error) {
+518:      toast.error("Failed to generate handover pack");
+519-    } finally {
+520-      setIsGeneratingPack(false);
+521-    }
+522-  };
+523-
+524-  // Calculate totals
+525-  const calculateTotals = () => {
+526-    if (!deal) return {};
+527-
+528-    const addOnsNetTotal = (deal.addOns || []).reduce(
+529-      (sum, a) => sum + (a.unitPriceNet * (a.qty || 1)),
+530-      0
+531-    );
+532-    const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+533-      if (a.vatTreatment === "STANDARD") {
+534-        return sum + a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2);
+535-      }
+536-      return sum;
+537-    }, 0);
+538-
+--
+2927-                className="btn bg-emerald-500 hover:bg-emerald-600 text-white border-none flex-1"
+2928-              >
+2929-                {pxLoading ? (
+2930-                  <span className="loading loading-spinner loading-sm"></span>
+2931-                ) : (
+2932-                  "Add Part Exchange"
+2933-                )}
+2934-              </button>
+2935-            </div>
+2936-          </div>
+2937-        </div>
+2938-      )}
+2939-
+2940-      {/* Handover Pack Modal */}
+2941-      {showHandoverModal && (
+2942-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+2943-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowHandoverModal(false)} />
+2944-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+2945-            <h3 className="text-lg font-bold text-slate-900 mb-2">Generate Handover Pack</h3>
+2946-            <p className="text-sm text-slate-500 mb-6">
+2947:              Select documents to include in the customer handover pack.
+2948-            </p>
+2949-
+2950-            <div className="space-y-3">
+2951-              {/* Invoice - required */}
+2952-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
+2953-                <input
+2954-                  type="checkbox"
+2955:                  checked={handoverDocs.invoice}
+2956-                  disabled
+2957-                  className="checkbox checkbox-sm checkbox-primary"
+2958-                />
+2959-                <div className="flex-1">
+2960-                  <p className="font-medium text-slate-900 flex items-center gap-2">
+2961-                    Invoice
+2962-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Required</span>
+2963-                  </p>
+2964-                  <p className="text-xs text-slate-500">{documents.invoice?.documentNumber}</p>
+2965-                </div>
+2966-                <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+2967-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+2968-                </svg>
+2969-              </div>
+2970-
+2971-              {/* PDI */}
+2972-              <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+2973-                linkedSubmissions.pdi
+2974-                  ? "bg-white border-slate-200 hover:border-slate-300"
+2975-                  : "bg-slate-50 border-slate-100"
+2976-              }`}>
+2977-                <input
+2978-                  type="checkbox"
+2979:                  checked={handoverDocs.pdi}
+2980:                  onChange={(e) => setHandoverDocs({ ...handoverDocs, pdi: e.target.checked })}
+2981-                  disabled={!linkedSubmissions.pdi}
+2982-                  className="checkbox checkbox-sm checkbox-primary"
+2983-                />
+2984-                <div className="flex-1">
+2985-                  <p className={`font-medium ${linkedSubmissions.pdi ? "text-slate-900" : "text-slate-400"}`}>
+2986-                    Pre-Delivery Inspection (PDI)
+2987-                  </p>
+2988-                  <p className="text-xs text-slate-500">
+2989-                    {linkedSubmissions.pdi
+2990-                      ? `Completed ${new Date(linkedSubmissions.pdi.createdAt).toLocaleDateString()}`
+2991-                      : "No PDI found for this vehicle"}
+2992-                  </p>
+2993-                </div>
+2994-                {linkedSubmissions.pdi && (
+2995-                  <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+2996-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+2997-                  </svg>
+2998-                )}
+2999-              </div>
+3000-
+3001-              {/* Service Receipt */}
+3002-              <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+3003-                linkedSubmissions.serviceReceipt
+3004-                  ? "bg-white border-slate-200 hover:border-slate-300"
+3005-                  : "bg-slate-50 border-slate-100"
+3006-              }`}>
+3007-                <input
+3008-                  type="checkbox"
+3009:                  checked={handoverDocs.serviceReceipt}
+3010:                  onChange={(e) => setHandoverDocs({ ...handoverDocs, serviceReceipt: e.target.checked })}
+3011-                  disabled={!linkedSubmissions.serviceReceipt}
+3012-                  className="checkbox checkbox-sm checkbox-primary"
+3013-                />
+3014-                <div className="flex-1">
+3015-                  <p className={`font-medium ${linkedSubmissions.serviceReceipt ? "text-slate-900" : "text-slate-400"}`}>
+3016-                    Service Receipt
+3017-                  </p>
+3018-                  <p className="text-xs text-slate-500">
+3019-                    {linkedSubmissions.serviceReceipt
+3020-                      ? `Completed ${new Date(linkedSubmissions.serviceReceipt.createdAt).toLocaleDateString()}`
+3021-                      : "No service receipt found"}
+3022-                  </p>
+3023-                </div>
+3024-                {linkedSubmissions.serviceReceipt && (
+3025-                  <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+3026-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+3027-                  </svg>
+3028-                )}
+3029-              </div>
+3030-            </div>

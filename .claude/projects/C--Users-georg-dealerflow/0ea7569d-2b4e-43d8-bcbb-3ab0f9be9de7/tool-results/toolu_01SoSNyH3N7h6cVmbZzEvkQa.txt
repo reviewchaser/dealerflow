@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    59→  // Wait for router.isReady to ensure query params are available
+    60→  const selectedDealId = router.isReady ? (router.query.id || null) : null;
+    61→  const isDrawerOpen = !!selectedDealId;
+    62→
+    63→  // Create sale modal state
+    64→  const [showCreateModal, setShowCreateModal] = useState(false);
+    65→  const [availableVehicles, setAvailableVehicles] = useState([]);
+    66→  const [vehiclesLoading, setVehiclesLoading] = useState(false);
+    67→  const [vehiclesError, setVehiclesError] = useState(null);

@@ -1,0 +1,557 @@
+import { useState, useEffect } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import toast from "react-hot-toast";
+
+// Human-readable form type labels
+const FORM_TYPE_LABELS = {
+  PDI: "PDI",
+  TEST_DRIVE: "Test Drive",
+  WARRANTY_CLAIM: "Warranty Claim",
+  COURTESY_OUT: "Courtesy Car Out",
+  COURTESY_IN: "Courtesy Car In",
+  SERVICE_RECEIPT: "Service Receipt",
+  REVIEW_FEEDBACK: "Review & Feedback",
+  OTHER: "Other",
+};
+
+export default function FillForm() {
+  const router = useRouter();
+  const { id } = router.query;
+
+  const [form, setForm] = useState(null);
+  const [fields, setFields] = useState([]);
+  const [formData, setFormData] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [submittedId, setSubmittedId] = useState(null);
+  const [courtesyVehicles, setCourtesyVehicles] = useState([]);
+  const [stockVehicles, setStockVehicles] = useState([]);
+  const [stockSearch, setStockSearch] = useState("");
+
+  useEffect(() => {
+    if (id) {
+      loadForm();
+    }
+  }, [id]);
+
+  useEffect(() => {
+    if (form?.type === "COURTESY_OUT" || form?.type === "COURTESY_IN") {
+      fetchCourtesyVehicles();
+    }
+    if (form?.type === "TEST_DRIVE") {
+      fetchStockVehicles();
+    }
+  }, [form?.type]);
+
+  const loadForm = async () => {
+    try {
+      const res = await fetch(`/api/forms/${id}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        toast.error("Form not found");
+        router.push("/forms");
+        return;
+      }
+
+      setForm(data.form);
+      setFields(data.fields || []);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Failed to load form:", error);
+      toast.error("Failed to load form");
+      router.push("/forms");
+    }
+  };
+
+  const fetchCourtesyVehicles = async () => {
+    try {
+      const res = await fetch("/api/vehicles/courtesy");
+      const data = await res.json();
+      setCourtesyVehicles(data);
+    } catch (error) {
+      console.error("Failed to fetch courtesy vehicles:", error);
+    }
+  };
+
+  const fetchStockVehicles = async (search = "") => {
+    try {
+      const res = await fetch(`/api/vehicles/stock?search=${encodeURIComponent(search)}`);
+      const data = await res.json();
+      setStockVehicles(data);
+    } catch (error) {
+      console.error("Failed to fetch stock vehicles:", error);
+    }
+  };
+
+  const handleInputChange = (fieldName, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  };
+
+  const handleVrmLookup = async (fieldName) => {
+    const vrm = formData[fieldName];
+    if (!vrm) {
+      toast.error("Enter a registration number first");
+      return;
+    }
+
+    setIsLookingUp(true);
+    try {
+      const res = await fetch("/api/dvla-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vehicleReg: vrm }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.make) {
+        const updates = {};
+        if (data.make) updates.make = data.make;
+        if (data.model) updates.model = data.model;
+        if (data.year) updates.year = data.year;
+        if (data.colour) updates.colour = data.colour;
+        if (data.fuelType) updates.fuel_type = data.fuelType;
+
+        setFormData(prev => ({ ...prev, ...updates }));
+        toast.success(`Found: ${data.year || ""} ${data.make} ${data.model} - ${data.colour || ""}`);
+      } else {
+        toast.error("Vehicle not found or lookup failed");
+      }
+    } catch (error) {
+      console.error("DVLA lookup error:", error);
+      toast.error("Failed to lookup vehicle");
+    } finally {
+      setIsLookingUp(false);
+    }
+  };
+
+  const handleCourtesyVehicleSelect = (vehicleId) => {
+    const vehicle = courtesyVehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setFormData(prev => ({
+        ...prev,
+        courtesy_vrm: vehicle.regCurrent,
+        courtesy_vehicle_id: vehicle.id,
+        courtesy_vehicle_display: `${vehicle.regCurrent} - ${vehicle.make} ${vehicle.model}`,
+      }));
+    }
+  };
+
+  const handleStockVehicleSelect = (vehicleId) => {
+    const vehicle = stockVehicles.find(v => v.id === vehicleId);
+    if (vehicle) {
+      setFormData(prev => ({
+        ...prev,
+        vrm: vehicle.regCurrent,
+        vehicle_interest: vehicle.displayName,
+        vehicle_id: vehicle.id,
+      }));
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      const res = await fetch("/api/forms/submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formId: form.id || form._id,
+          rawAnswers: formData,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+
+      setSubmittedId(data.id || data._id);
+      toast.success("Form submitted successfully!");
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit form. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitAnother = () => {
+    setFormData({});
+    setSubmittedId(null);
+  };
+
+  const isVrmField = (field) => {
+    const vrmFieldNames = ["vrm", "reg", "registration", "vehicle_reg", "regcurrent", "courtesy_vrm"];
+    return vrmFieldNames.includes(field.fieldName.toLowerCase()) ||
+           field.label.toLowerCase().includes("registration") ||
+           field.label.toLowerCase().includes("vrm");
+  };
+
+  const isCourtesyVehicleField = (field) => {
+    return (form?.type === "COURTESY_OUT" || form?.type === "COURTESY_IN") &&
+           (field.fieldName === "courtesy_vrm" || field.label.toLowerCase().includes("courtesy vehicle"));
+  };
+
+  const isStockVehicleField = (field) => {
+    return form?.type === "TEST_DRIVE" &&
+           (field.fieldName === "vrm" || field.fieldName === "vehicle_interest" ||
+            field.label.toLowerCase().includes("vehicle of interest"));
+  };
+
+  const renderField = (field) => {
+    const value = formData[field.fieldName] || "";
+
+    // Special handling for courtesy vehicle selection
+    if (isCourtesyVehicleField(field)) {
+      return (
+        <div className="space-y-2">
+          <select
+            className="select select-bordered w-full"
+            value={formData.courtesy_vehicle_id || ""}
+            onChange={(e) => handleCourtesyVehicleSelect(e.target.value)}
+            required={field.required}
+          >
+            <option value="">Select courtesy vehicle...</option>
+            {courtesyVehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.regCurrent} - {v.make} {v.model} {v.colour ? `(${v.colour})` : ""}
+              </option>
+            ))}
+          </select>
+          {formData.courtesy_vehicle_display && (
+            <div className="text-sm text-success">Selected: {formData.courtesy_vehicle_display}</div>
+          )}
+        </div>
+      );
+    }
+
+    // Special handling for stock vehicle selection (test drive)
+    if (isStockVehicleField(field)) {
+      return (
+        <div className="space-y-2">
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            placeholder="Search by VRM or Make/Model..."
+            value={stockSearch}
+            onChange={(e) => {
+              setStockSearch(e.target.value);
+              fetchStockVehicles(e.target.value);
+            }}
+          />
+          {stockVehicles.length > 0 && stockSearch && (
+            <div className="dropdown dropdown-open w-full">
+              <ul className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-full max-h-48 overflow-y-auto">
+                {stockVehicles.slice(0, 10).map((v) => (
+                  <li key={v.id}>
+                    <button type="button" onClick={() => {
+                      handleStockVehicleSelect(v.id);
+                      setStockSearch("");
+                    }}>
+                      {v.displayName}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {formData.vehicle_interest && (
+            <div className="text-sm text-success">Selected: {formData.vehicle_interest}</div>
+          )}
+        </div>
+      );
+    }
+
+    // VRM field with lookup button
+    if (isVrmField(field) && field.type === "TEXT") {
+      return (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            className="input input-bordered flex-1 uppercase font-mono"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value.toUpperCase())}
+            required={field.required}
+            placeholder="AB12 CDE"
+          />
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => handleVrmLookup(field.fieldName)}
+            disabled={isLookingUp}
+          >
+            {isLookingUp ? <span className="loading loading-spinner loading-sm"></span> : "Lookup"}
+          </button>
+        </div>
+      );
+    }
+
+    // Standard field rendering
+    switch (field.type) {
+      case "TEXT":
+        return (
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+
+      case "TEXTAREA":
+        return (
+          <textarea
+            className="textarea textarea-bordered w-full"
+            rows={4}
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+
+      case "NUMBER":
+        return (
+          <input
+            type="number"
+            className="input input-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+
+      case "DATE":
+        return (
+          <input
+            type="date"
+            className="input input-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+
+      case "DATETIME":
+        return (
+          <input
+            type="datetime-local"
+            className="input input-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+
+      case "DROPDOWN":
+        const options = field.options?.values || field.options?.choices || [];
+        return (
+          <select
+            className="select select-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          >
+            <option value="">Select...</option>
+            {options.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        );
+
+      case "BOOLEAN":
+        return (
+          <div className="form-control">
+            <label className="label cursor-pointer justify-start gap-4">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-primary"
+                checked={value === true}
+                onChange={(e) => handleInputChange(field.fieldName, e.target.checked)}
+              />
+              <span className="label-text">Yes</span>
+            </label>
+          </div>
+        );
+
+      case "RATING":
+        return (
+          <div className="rating rating-lg">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <input
+                key={star}
+                type="radio"
+                name={`rating-${field.fieldName}`}
+                className="mask mask-star-2 bg-orange-400"
+                checked={value === star}
+                onChange={() => handleInputChange(field.fieldName, star)}
+              />
+            ))}
+          </div>
+        );
+
+      case "SIGNATURE":
+        return (
+          <div>
+            <input
+              type="text"
+              className="input input-bordered w-full text-2xl"
+              style={{ fontFamily: "cursive" }}
+              placeholder="Type your signature"
+              value={value}
+              onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+              required={field.required}
+            />
+            <p className="text-sm text-base-content/60 mt-1">Type your name as a signature</p>
+          </div>
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            className="input input-bordered w-full"
+            value={value}
+            onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
+            required={field.required}
+          />
+        );
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Success state after submission
+  if (submittedId) {
+    return (
+      <DashboardLayout>
+        <Head>
+          <title>Form Submitted | DealerFlow</title>
+        </Head>
+
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="card bg-base-100 shadow-xl">
+            <div className="card-body text-center">
+              <div className="text-6xl mb-4">✓</div>
+              <h2 className="card-title justify-center text-2xl mb-2">Form Submitted Successfully!</h2>
+              <p className="text-base-content/70 mb-6">
+                Your {form?.name} has been recorded.
+              </p>
+
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSubmitAnother}
+                >
+                  Submit Another
+                </button>
+                <Link
+                  href={`/forms?tab=submissions`}
+                  className="btn btn-outline"
+                >
+                  View in Inbox
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="btn btn-ghost"
+                >
+                  Back to Dashboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <Head>
+        <title>{form?.name || "Fill Form"} | DealerFlow</title>
+      </Head>
+
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 text-sm text-base-content/60 mb-2">
+          <Link href="/forms" className="hover:text-primary">Forms</Link>
+          <span>/</span>
+          <span>Fill Out</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">{form?.name}</h1>
+            <div className="badge badge-outline mt-2">
+              {FORM_TYPE_LABELS[form?.type] || form?.type}
+            </div>
+          </div>
+          <Link href="/forms" className="btn btn-ghost">
+            Cancel
+          </Link>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="max-w-3xl">
+        <div className="card bg-base-100 shadow-xl">
+          <div className="card-body space-y-6">
+            {fields.map((field) => (
+              <div key={field.id || field._id} className="form-control">
+                <label className="label">
+                  <span className="label-text font-semibold">
+                    {field.label}
+                    {field.required && <span className="text-error ml-1">*</span>}
+                  </span>
+                </label>
+                {renderField(field)}
+              </div>
+            ))}
+
+            {fields.length === 0 && (
+              <div className="text-center py-8 text-base-content/60">
+                This form has no fields configured yet.
+              </div>
+            )}
+
+            <div className="card-actions justify-end mt-8 pt-4 border-t border-base-200">
+              <Link href="/forms" className="btn btn-ghost">
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                className="btn btn-primary btn-lg"
+                disabled={isSubmitting || fields.length === 0}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="loading loading-spinner"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit Form"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </DashboardLayout>
+  );
+}

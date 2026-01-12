@@ -1,0 +1,15 @@
+     1→/**
+     2→ * UI Primitives - Shared components for consistent design system
+     3→ */
+     4→
+     5→export { Card, CardHeader, CardContent, CardFooter } from "./Card";
+     6→export { KeyValue, KeyValueGrid } from "./KeyValue";
+     7→export { Badge, StatusBadge } from "./Badge";
+     8→export { PhotoGallery } from "./PhotoGallery";
+     9→export { SectionTitle } from "./SectionTitle";
+    10→export { BottomSheet } from "./BottomSheet";
+    11→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

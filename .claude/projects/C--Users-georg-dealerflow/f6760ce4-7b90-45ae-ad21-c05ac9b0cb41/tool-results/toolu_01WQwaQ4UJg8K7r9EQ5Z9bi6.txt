@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   797→                    <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   798→                    <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   799→                    <div className="divider my-1 px-3"></div>
+   800→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
+   801→                    <li><Link href={getPath("/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
+   802→                    <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
+   803→                    <div className="divider my-1 px-3"></div>
+   804→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
+   805→                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>

@@ -1,0 +1,20 @@
+The file C:\Users\georg\dealerflow\models\SalesDocument.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   128→
+   129→      // Terms
+   130→      termsText: { type: String },
+   131→
+   132→      // Dealer details
+   133→      dealer: {
+   134→        name: { type: String },
+   135→        companyName: { type: String },
+   136→        address: { type: String },
+   137→        phone: { type: String },
+   138→        email: { type: String },
+   139→        vatNumber: { type: String },
+   140→        companyNumber: { type: String },
+   141→        logoUrl: { type: String },
+   142→      },
+   143→
+   144→      // Bank details (for invoice)
+   145→      bankDetails: {
+   146→        accountName: { type: String },

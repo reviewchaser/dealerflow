@@ -1,0 +1,37 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON.js";
+
+const formFieldSchema = new mongoose.Schema(
+  {
+    formId: { type: mongoose.Schema.Types.ObjectId, ref: "Form", required: true },
+    label: { type: String, required: true },
+    fieldName: { type: String, required: true }, // internal key
+    type: {
+      type: String,
+      enum: ["TEXT", "TEXTAREA", "NUMBER", "DATE", "TIME", "DATETIME", "DROPDOWN", "CHECKBOX", "RADIO", "FILE", "SIGNATURE", "RATING", "BOOLEAN", "SECTION_HEADER", "PARAGRAPH", "PDI_ISSUES"],
+      required: true
+    },
+    required: { type: Boolean, default: false },
+    options: { type: Object }, // for dropdown/radio - { choices: ["Option 1", "Option 2"] }
+    order: { type: Number, default: 0 },
+    visible: { type: Boolean, default: true }, // can be hidden by dealer
+    isCustom: { type: Boolean, default: false }, // true for dealer-added fields
+    isDefault: { type: Boolean, default: false }, // true for system default fields (can't be deleted)
+    visibilityConditions: { type: Object }, // optional conditional logic
+    placeholder: { type: String }, // placeholder text for input fields
+    helpText: { type: String }, // help text shown below field
+    vrmLookup: { type: Boolean, default: false }, // enables VRM autocomplete on this field
+    gridGroup: { type: String }, // group fields in same row (e.g., "row1", "row2")
+    uppercase: { type: Boolean, default: false }, // render label in uppercase
+  },
+  { timestamps: true }
+);
+
+formFieldSchema.plugin(toJSON);
+
+// Delete cached model to force schema update (needed after enum changes)
+if (mongoose.models.FormField) {
+  delete mongoose.models.FormField;
+}
+
+export default mongoose.model("FormField", formFieldSchema);

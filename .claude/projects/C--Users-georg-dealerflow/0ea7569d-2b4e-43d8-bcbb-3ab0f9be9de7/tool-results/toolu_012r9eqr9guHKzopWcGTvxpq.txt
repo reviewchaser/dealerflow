@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   499→            </p>
+   500→          )}
+   501→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   502→          <ul className="space-y-1">
+   503→            {navigation.slice(4, 9).map((item) => {
+   504→              const { Icon } = item;
+   505→
+   506→              if (item.children) {
+   507→                const isExpanded = expandedMenus[item.name];

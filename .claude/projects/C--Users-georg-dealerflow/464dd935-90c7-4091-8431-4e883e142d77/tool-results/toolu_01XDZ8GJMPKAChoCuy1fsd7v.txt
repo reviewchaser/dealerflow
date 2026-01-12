@@ -1,0 +1,44 @@
+     1→/**
+     2→ * AI Health Check Endpoint
+     3→ *
+     4→ * GET /api/ai/health
+     5→ *
+     6→ * Returns the status of the OpenAI configuration.
+     7→ * Used for diagnostics and debugging.
+     8→ */
+     9→
+    10→export default function handler(req, res) {
+    11→  if (req.method !== "GET") {
+    12→    return res.status(405).json({ error: "Method not allowed" });
+    13→  }
+    14→
+    15→  const apiKey = process.env.OPENAI_API_KEY;
+    16→
+    17→  if (!apiKey) {
+    18→    return res.status(200).json({
+    19→      ok: false,
+    20→      error: "missing OPENAI_API_KEY",
+    21→      message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
+    22→    });
+    23→  }
+    24→
+    25→  // Check key format (should start with sk-)
+    26→  if (!apiKey.startsWith("sk-")) {
+    27→    return res.status(200).json({
+    28→      ok: false,
+    29→      error: "invalid OPENAI_API_KEY format",
+    30→      message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
+    31→    });
+    32→  }
+    33→
+    34→  return res.status(200).json({
+    35→    ok: true,
+    36→    message: "OpenAI is configured and ready",
+    37→    keyPrefix: apiKey.slice(0, 7) + "...",
+    38→  });
+    39→}
+    40→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

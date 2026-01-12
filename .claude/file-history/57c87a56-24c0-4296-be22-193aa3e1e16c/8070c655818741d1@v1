@@ -1,0 +1,30 @@
+// Debug endpoint - DELETE AFTER USE
+import connectMongo from "@/libs/mongoose";
+import User from "@/models/User";
+import Dealer from "@/models/Dealer";
+import DealerMembership from "@/models/DealerMembership";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  const users = await User.find().select("email name dealerId defaultDealerId createdAt").lean();
+  const dealers = await Dealer.find().select("name createdAt").lean();
+  const memberships = await DealerMembership.find().lean();
+
+  return res.status(200).json({
+    users: users.map(u => ({
+      id: u._id,
+      email: u.email,
+      name: u.name,
+      dealerId: u.dealerId,
+      defaultDealerId: u.defaultDealerId,
+      createdAt: u.createdAt,
+    })),
+    dealers: dealers.map(d => ({
+      id: d._id,
+      name: d.name,
+      createdAt: d.createdAt,
+    })),
+    memberships,
+  });
+}

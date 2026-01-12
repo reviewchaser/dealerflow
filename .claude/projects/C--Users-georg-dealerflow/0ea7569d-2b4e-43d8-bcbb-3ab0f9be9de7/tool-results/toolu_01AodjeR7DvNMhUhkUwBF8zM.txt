@@ -1,0 +1,25 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    33→
+    34→  // Modal state
+    35→  const [showModal, setShowModal] = useState(false);
+    36→  const [editingContact, setEditingContact] = useState(null);
+    37→  const [formData, setFormData] = useState({
+    38→    contactType: "individual",
+    39→    firstName: "",
+    40→    lastName: "",
+    41→    companyName: "",
+    42→    email: "",
+    43→    phone: "",
+    44→    addressLine1: "",
+    45→    addressLine2: "",
+    46→    town: "",
+    47→    postcode: "",
+    48→    country: "United Kingdom",
+    49→    vatNumber: "",
+    50→    notes: "",
+    51→    typeTags: ["CUSTOMER"],
+    52→  });
+    53→  const [isSaving, setIsSaving] = useState(false);
+    54→
+    55→  // Load contacts
+    56→  const fetchContacts = useCallback(async () => {

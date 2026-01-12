@@ -1,0 +1,22 @@
+The file C:\Users\georg\dealerflow\models\VehicleIssue.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    18→      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    19→      uploadedAt: { type: Date, default: Date.now },
+    20→      caption: { type: String },  // Optional caption/description
+    21→    }],
+    22→    actionNeeded: { type: String },
+    23→    priority: {
+    24→      type: String,
+    25→      enum: ["low", "medium", "high"],
+    26→      default: "medium"
+    27→    },
+    28→    location: { type: String }, // e.g. "Front Left", "Rear Bumper", "Interior Dashboard"
+    29→    status: {
+    30→      type: String,
+    31→      enum: ["Outstanding", "Ordered", "In Progress", "Complete"],
+    32→      default: "Outstanding"
+    33→    },
+    34→    notes: { type: String },
+    35→    updates: [{
+    36→      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    37→      userName: { type: String }, // Cache user name for display
+    38→      content: { type: String, required: true },

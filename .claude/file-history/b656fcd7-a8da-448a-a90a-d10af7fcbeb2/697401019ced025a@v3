@@ -1,0 +1,40 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON";
+
+const customerPXIssueSchema = new mongoose.Schema(
+  {
+    customerPXAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerPXAppraisal", required: true },
+    category: {
+      type: String,
+      enum: ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"],
+      required: true
+    },
+    subcategory: { type: String },
+    description: { type: String, required: true },
+    photos: [{ type: String }], // Legacy: simple URLs to photos
+    attachments: [{
+      key: { type: String },      // S3 key
+      url: { type: String },      // Full URL
+      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      uploadedAt: { type: Date, default: Date.now },
+      caption: { type: String },  // Optional caption/description
+    }],
+    actionNeeded: { type: String },
+    estimatedCost: { type: Number }, // For appraisals, useful to estimate repair costs
+    status: {
+      type: String,
+      enum: ["outstanding", "ordered", "in_progress", "resolved"],
+      default: "outstanding"
+    },
+    notes: { type: String },
+    // For fault codes specifically
+    faultCodes: { type: String }, // e.g. "P0301, P0420"
+    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  },
+  { timestamps: true }
+);
+
+customerPXIssueSchema.plugin(toJSON);
+
+// Use existing model or create new one (prevents OverwriteModelError in dev)
+export default mongoose.models?.CustomerPXIssue || mongoose.model("CustomerPXIssue", customerPXIssueSchema);

@@ -1,0 +1,73 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   635→      toast.error(error.message || "Failed to add issue");
+   636→    }
+   637→  };
+   638→
+   639→  const updateIssue = async (issueId, updates) => {
+   640→    try {
+   641→      const res = await fetch(`/api/issues/${issueId}`, {
+   642→        method: "PUT",
+   643→        headers: { "Content-Type": "application/json" },
+   644→        body: JSON.stringify(updates),
+   645→      });
+   646→      if (!res.ok) throw new Error("Failed to update issue");
+   647→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   648→      setSelectedVehicle(updatedVehicle);
+   649→      fetchVehicles();
+   650→      toast.success("Issue updated");
+   651→    } catch (error) {
+   652→      toast.error("Failed to update issue");
+   653→    }
+   654→  };
+   655→
+   656→  // Open edit issue modal with prefilled data
+   657→  const openEditIssue = (issue) => {
+   658→    setEditingIssue(issue);
+   659→    setIssueForm({
+   660→      category: issue.category?.toLowerCase() || "",
+   661→      subcategory: issue.subcategory || "",
+   662→      description: issue.description || "",
+   663→      actionNeeded: issue.actionNeeded || "",
+   664→      priority: issue.priority || "medium",
+   665→      location: issue.location || "",
+   666→      status: issue.status?.toLowerCase().replace(" ", "_") || "outstanding",
+   667→      notes: issue.notes || "",
+   668→      photos: issue.photos || [],
+   669→      partsRequired: issue.partsRequired || false,
+   670→      partsDetails: issue.partsDetails || "",
+   671→    });
+   672→    setShowAddIssueModal(true);
+   673→  };
+   674→
+   675→  // Save edited issue
+   676→  const saveEditedIssue = async (photoUrls = []) => {
+   677→    if (!editingIssue) return;
+   678→    try {
+   679→      const updates = {
+   680→        ...issueForm,
+   681→        photos: [...(issueForm.photos || []), ...photoUrls],
+   682→      };
+   683→      await updateIssue(editingIssue.id, updates);
+   684→      setShowAddIssueModal(false);
+   685→      setEditingIssue(null);
+   686→      setIssueForm({
+   687→        category: "",
+   688→        subcategory: "",
+   689→        description: "",
+   690→        actionNeeded: "",
+   691→        priority: "medium",
+   692→        location: "",
+   693→        status: "outstanding",
+   694→        notes: "",
+   695→        photos: [],
+   696→        partsRequired: false,
+   697→        partsDetails: "",
+   698→      });
+   699→    } catch (error) {
+   700→      toast.error("Failed to save issue");
+   701→    }
+   702→  };
+   703→
+   704→  const deleteIssue = async (issueId) => {
+   705→    try {
+   706→      await fetch(`/api/issues/${issueId}`, { method: "DELETE" });

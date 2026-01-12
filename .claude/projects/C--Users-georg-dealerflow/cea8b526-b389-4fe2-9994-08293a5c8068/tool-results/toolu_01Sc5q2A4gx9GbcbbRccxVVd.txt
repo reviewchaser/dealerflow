@@ -1,0 +1,64 @@
+     1→import { useEffect, useState, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { toast } from "react-hot-toast";
+     8→
+     9→// Column config matching Sales & Prep style
+    10→// NOTE: Internal keys are legacy names - keep stable for database compatibility
+    11→// Display labels have been updated for clarity
+    12→const COLUMNS = [
+    13→  { key: "not_booked_in", label: "Not Booked In", gradient: "from-red-100/60", accent: "border-l-red-400", accentBg: "bg-red-400" },
+    14→  { key: "on_site", label: "Booked In", gradient: "from-amber-100/60", accent: "border-l-amber-400", accentBg: "bg-amber-400" }, // Legacy key: "on_site" displays as "Booked In"
+    15→  { key: "work_complete", label: "Work Complete", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    16→  { key: "collected", label: "Closed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" }, // Legacy key: "collected" displays as "Closed"
+    17→];
+    18→
+    19→const PRIORITIES = {
+    20→  low: { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" },
+    21→  normal: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-100" },
+    22→  high: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100" },
+    23→  critical: { bg: "bg-red-50", text: "text-red-700", border: "border-red-100" },
+    24→};
+    25→
+    26→const SOURCE_LABELS = {
+    27→  warranty_claim_form: "Warranty Claim",
+    28→  low_review: "Low Review",
+    29→  complaint_form: "Complaint",
+    30→  manual: "Manual",
+    31→};
+    32→
+    33→// Timeline event icons
+    34→const EVENT_ICONS = {
+    35→  CASE_CREATED: "📋",
+    36→  SUBMISSION_LINKED: "🔗",
+    37→  COMMENT_ADDED: "💬",
+    38→  STATUS_CHANGED: "🔄",
+    39→  AI_REVIEW_GENERATED: "🤖",
+    40→  ATTACHMENT_ADDED: "📎",
+    41→  LOCATION_UPDATED: "📍",
+    42→  BOOKING_UPDATED: "📅",
+    43→  PARTS_UPDATED: "🔧",
+    44→  COURTESY_REQUIRED_TOGGLED: "🚗",
+    45→  COURTESY_ALLOCATED: "🚗",
+    46→  COURTESY_RETURNED: "🚗",
+    47→  COURTESY_OUT_RECORDED: "🚗",
+    48→  COURTESY_IN_RECORDED: "🚗",
+    49→  // Warranty booking auto-move events
+    50→  WARRANTY_BOOKED_IN: "📅",
+    51→  WARRANTY_BOOKING_UPDATED: "📅",
+    52→  WARRANTY_BOOKING_CANCELLED: "❌",
+    53→  WARRANTY_STAGE_MOVED: "🔀",
+    54→};
+    55→
+    56→// Timeline grouping constant
+    57→const STATUS_FLIP_GROUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+    58→
+    59→// Group consecutive STATUS_CHANGED events within the time window
+    60→const groupTimelineEvents = (events) => {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

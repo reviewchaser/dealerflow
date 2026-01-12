@@ -1,0 +1,326 @@
+     1→import { useEffect, useState, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     7→
+     8→// Format currency
+     9→const formatCurrency = (amount) => {
+    10→  if (amount === null || amount === undefined) return "—";
+    11→  return new Intl.NumberFormat("en-GB", {
+    12→    style: "currency",
+    13→    currency: "GBP",
+    14→  }).format(amount);
+    15→};
+    16→
+    17→// Age bucket labels
+    18→const AGE_BUCKETS = [
+    19→  { key: "0-30", label: "0-30 days", min: 0, max: 30 },
+    20→  { key: "31-60", label: "31-60 days", min: 31, max: 60 },
+    21→  { key: "61-90", label: "61-90 days", min: 61, max: 90 },
+    22→  { key: "90+", label: "90+ days", min: 91, max: Infinity },
+    23→];
+    24→
+    25→export default function InventoryReport() {
+    26→  const router = useRouter();
+    27→  const { isRedirecting } = useDealerRedirect();
+    28→  const [vehicles, setVehicles] = useState([]);
+    29→  const [isLoading, setIsLoading] = useState(true);
+    30→
+    31→  // Fetch all vehicles in stock
+    32→  const fetchVehicles = useCallback(async () => {
+    33→    setIsLoading(true);
+    34→    try {
+    35→      const res = await fetch("/api/vehicles?salesStatus=AVAILABLE&salesStatus=RESERVED");
+    36→      if (!res.ok) throw new Error("Failed to fetch vehicles");
+    37→      const data = await res.json();
+    38→      setVehicles(data.vehicles || data || []);
+    39→    } catch (error) {
+    40→      console.error(error);
+    41→      toast.error("Failed to load inventory");
+    42→    } finally {
+    43→      setIsLoading(false);
+    44→    }
+    45→  }, []);
+    46→
+    47→  useEffect(() => {
+    48→    if (!isRedirecting) {
+    49→      fetchVehicles();
+    50→    }
+    51→  }, [isRedirecting, fetchVehicles]);
+    52→
+    53→  // Calculate metrics
+    54→  const calculateMetrics = useCallback(() => {
+    55→    const now = new Date();
+    56→
+    57→    let totalValue = 0;
+    58→    let totalCost = 0;
+    59→    let count = 0;
+    60→    const byMake = {};
+    61→    const byAge = {
+    62→      "0-30": { count: 0, value: 0 },
+    63→      "31-60": { count: 0, value: 0 },
+    64→      "61-90": { count: 0, value: 0 },
+    65→      "90+": { count: 0, value: 0 },
+    66→    };
+    67→
+    68→    vehicles.forEach((vehicle) => {
+    69→      // Skip sold vehicles
+    70→      if (vehicle.salesStatus === "SOLD" || vehicle.salesStatus === "DELIVERED") return;
+    71→
+    72→      count++;
+    73→      const askingPrice = vehicle.askingPrice || vehicle.retailPrice || 0;
+    74→      const costPrice = vehicle.purchase?.purchasePriceNet || 0;
+    75→
+    76→      totalValue += askingPrice;
+    77→      totalCost += costPrice;
+    78→
+    79→      // By make
+    80→      const make = vehicle.make || "Unknown";
+    81→      if (!byMake[make]) {
+    82→        byMake[make] = { count: 0, value: 0, cost: 0 };
+    83→      }
+    84→      byMake[make].count++;
+    85→      byMake[make].value += askingPrice;
+    86→      byMake[make].cost += costPrice;
+    87→
+    88→      // By age
+    89→      const purchaseDate = vehicle.purchase?.purchaseDate
+    90→        ? new Date(vehicle.purchase.purchaseDate)
+    91→        : vehicle.createdAt
+    92→          ? new Date(vehicle.createdAt)
+    93→          : now;
+    94→      const ageInDays = Math.floor((now - purchaseDate) / (1000 * 60 * 60 * 24));
+    95→
+    96→      for (const bucket of AGE_BUCKETS) {
+    97→        if (ageInDays >= bucket.min && ageInDays <= bucket.max) {
+    98→          byAge[bucket.key].count++;
+    99→          byAge[bucket.key].value += askingPrice;
+   100→          break;
+   101→        }
+   102→      }
+   103→    });
+   104→
+   105→    // Convert byMake to sorted array
+   106→    const makeBreakdown = Object.entries(byMake)
+   107→      .map(([make, data]) => ({ make, ...data }))
+   108→      .sort((a, b) => b.count - a.count);
+   109→
+   110→    return {
+   111→      totalVehicles: count,
+   112→      totalValue,
+   113→      totalCost,
+   114→      potentialProfit: totalValue - totalCost,
+   115→      avgValue: count > 0 ? totalValue / count : 0,
+   116→      byAge,
+   117→      makeBreakdown,
+   118→    };
+   119→  }, [vehicles]);
+   120→
+   121→  const metrics = calculateMetrics();
+   122→
+   123→  // Export to CSV
+   124→  const handleExportCSV = () => {
+   125→    const headers = ["VRM", "Make", "Model", "Year", "Stock Days", "Cost Price", "Asking Price", "Potential Profit"];
+   126→    const now = new Date();
+   127→
+   128→    const rows = vehicles
+   129→      .filter(v => v.salesStatus !== "SOLD" && v.salesStatus !== "DELIVERED")
+   130→      .map((v) => {
+   131→        const purchaseDate = v.purchase?.purchaseDate
+   132→          ? new Date(v.purchase.purchaseDate)
+   133→          : v.createdAt
+   134→            ? new Date(v.createdAt)
+   135→            : now;
+   136→        const ageInDays = Math.floor((now - purchaseDate) / (1000 * 60 * 60 * 24));
+   137→        const cost = v.purchase?.purchasePriceNet || 0;
+   138→        const asking = v.askingPrice || v.retailPrice || 0;
+   139→
+   140→        return [
+   141→          v.regCurrent || "",
+   142→          v.make || "",
+   143→          v.model || "",
+   144→          v.year || "",
+   145→          ageInDays,
+   146→          cost.toFixed(2),
+   147→          asking.toFixed(2),
+   148→          (asking - cost).toFixed(2),
+   149→        ];
+   150→      });
+   151→
+   152→    const csvContent = [headers, ...rows]
+   153→      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+   154→      .join("\n");
+   155→
+   156→    const blob = new Blob([csvContent], { type: "text/csv" });
+   157→    const url = URL.createObjectURL(blob);
+   158→    const a = document.createElement("a");
+   159→    a.href = url;
+   160→    a.download = `inventory-report-${new Date().toISOString().split("T")[0]}.csv`;
+   161→    a.click();
+   162→    URL.revokeObjectURL(url);
+   163→    toast.success("Report downloaded");
+   164→  };
+   165→
+   166→  if (isRedirecting) {
+   167→    return (
+   168→      <DashboardLayout>
+   169→        <div className="flex items-center justify-center min-h-screen">
+   170→          <span className="loading loading-spinner loading-lg"></span>
+   171→        </div>
+   172→      </DashboardLayout>
+   173→    );
+   174→  }
+   175→
+   176→  return (
+   177→    <DashboardLayout>
+   178→      <Head>
+   179→        <title>Inventory Report | DealerHQ</title>
+   180→      </Head>
+   181→
+   182→      <div className="min-h-screen bg-slate-50 pb-20">
+   183→        {/* Header */}
+   184→        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+   185→          <div className="px-4 py-4 md:px-6 md:py-5">
+   186→            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+   187→              <div className="flex items-center gap-3">
+   188→                <button
+   189→                  onClick={() => router.back()}
+   190→                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+   191→                >
+   192→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   193→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   194→                  </svg>
+   195→                </button>
+   196→                <div>
+   197→                  <h1 className="text-xl md:text-2xl font-bold text-slate-900">Inventory Report</h1>
+   198→                  <p className="text-sm text-slate-500 mt-0.5">
+   199→                    Current stock value and age analysis
+   200→                  </p>
+   201→                </div>
+   202→              </div>
+   203→
+   204→              <button
+   205→                onClick={handleExportCSV}
+   206→                className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   207→              >
+   208→                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   209→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+   210→                </svg>
+   211→                Export CSV
+   212→              </button>
+   213→            </div>
+   214→          </div>
+   215→        </div>
+   216→
+   217→        {/* Content */}
+   218→        <div className="p-4 md:p-6 space-y-6">
+   219→          {isLoading ? (
+   220→            <div className="flex items-center justify-center py-20">
+   221→              <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   222→            </div>
+   223→          ) : (
+   224→            <>
+   225→              {/* KPI Cards */}
+   226→              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   227→                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+   228→                  <p className="text-sm text-slate-500 font-medium">Total Vehicles</p>
+   229→                  <p className="text-2xl font-bold text-slate-900 mt-1">{metrics.totalVehicles}</p>
+   230→                </div>
+   231→                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+   232→                  <p className="text-sm text-slate-500 font-medium">Stock Value</p>
+   233→                  <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(metrics.totalValue)}</p>
+   234→                  <p className="text-xs text-slate-400 mt-1">at asking prices</p>
+   235→                </div>
+   236→                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+   237→                  <p className="text-sm text-slate-500 font-medium">Total Cost</p>
+   238→                  <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(metrics.totalCost)}</p>
+   239→                  <p className="text-xs text-slate-400 mt-1">purchase prices</p>
+   240→                </div>
+   241→                <div className="bg-white rounded-2xl border border-emerald-200 p-5">
+   242→                  <p className="text-sm text-emerald-600 font-medium">Potential Profit</p>
+   243→                  <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(metrics.potentialProfit)}</p>
+   244→                  <p className="text-xs text-slate-400 mt-1">if all sold at asking</p>
+   245→                </div>
+   246→              </div>
+   247→
+   248→              {/* Age Analysis */}
+   249→              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+   250→                <div className="px-5 py-4 border-b border-slate-100">
+   251→                  <h2 className="text-lg font-bold text-slate-900">Stock Age Analysis</h2>
+   252→                </div>
+   253→                <div className="p-5">
+   254→                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   255→                    {AGE_BUCKETS.map((bucket) => {
+   256→                      const data = metrics.byAge[bucket.key];
+   257→                      const percentage = metrics.totalVehicles > 0
+   258→                        ? Math.round((data.count / metrics.totalVehicles) * 100)
+   259→                        : 0;
+   260→                      const isOld = bucket.key === "61-90" || bucket.key === "90+";
+   261→
+   262→                      return (
+   263→                        <div
+   264→                          key={bucket.key}
+   265→                          className={`rounded-xl p-4 ${isOld ? "bg-amber-50 border border-amber-200" : "bg-slate-50"}`}
+   266→                        >
+   267→                          <p className={`text-sm font-medium ${isOld ? "text-amber-700" : "text-slate-600"}`}>
+   268→                            {bucket.label}
+   269→                          </p>
+   270→                          <p className={`text-2xl font-bold mt-1 ${isOld ? "text-amber-700" : "text-slate-900"}`}>
+   271→                            {data.count}
+   272→                          </p>
+   273→                          <p className="text-xs text-slate-500 mt-1">
+   274→                            {percentage}% of stock • {formatCurrency(data.value)}
+   275→                          </p>
+   276→                        </div>
+   277→                      );
+   278→                    })}
+   279→                  </div>
+   280→                </div>
+   281→              </div>
+   282→
+   283→              {/* Make Breakdown */}
+   284→              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+   285→                <div className="px-5 py-4 border-b border-slate-100">
+   286→                  <h2 className="text-lg font-bold text-slate-900">By Make</h2>
+   287→                </div>
+   288→                <div className="overflow-x-auto">
+   289→                  <table className="w-full">
+   290→                    <thead className="bg-slate-50">
+   291→                      <tr>
+   292→                        <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Make</th>
+   293→                        <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Count</th>
+   294→                        <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Value</th>
+   295→                        <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Cost</th>
+   296→                        <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Potential Profit</th>
+   297→                      </tr>
+   298→                    </thead>
+   299→                    <tbody className="divide-y divide-slate-100">
+   300→                      {metrics.makeBreakdown.map((row) => (
+   301→                        <tr key={row.make} className="hover:bg-slate-50">
+   302→                          <td className="px-5 py-3 font-medium text-slate-900">{row.make}</td>
+   303→                          <td className="px-5 py-3 text-right text-slate-600">{row.count}</td>
+   304→                          <td className="px-5 py-3 text-right text-slate-600">{formatCurrency(row.value)}</td>
+   305→                          <td className="px-5 py-3 text-right text-slate-600">{formatCurrency(row.cost)}</td>
+   306→                          <td className="px-5 py-3 text-right font-medium text-emerald-600">
+   307→                            {formatCurrency(row.value - row.cost)}
+   308→                          </td>
+   309→                        </tr>
+   310→                      ))}
+   311→                    </tbody>
+   312→                  </table>
+   313→                </div>
+   314→              </div>
+   315→            </>
+   316→          )}
+   317→        </div>
+   318→      </div>
+   319→    </DashboardLayout>
+   320→  );
+   321→}
+   322→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,801 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import { useSession } from "next-auth/react";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import StatsCard from "@/components/StatsCard";
+     8→
+     9→// Human-readable form type labels
+    10→const FORM_TYPE_LABELS = {
+    11→  PDI: "PDI",
+    12→  TEST_DRIVE: "Test Drive",
+    13→  WARRANTY_CLAIM: "Warranty Claim",
+    14→  COURTESY_OUT: "Courtesy Out",
+    15→  COURTESY_IN: "Courtesy In",
+    16→  SERVICE_RECEIPT: "Service",
+    17→  REVIEW_FEEDBACK: "Feedback",
+    18→  OTHER: "Other",
+    19→};
+    20→
+    21→// Purpose-led icons for each form type (rounded, modern, single-weight)
+    22→const FormTypeIcon = ({ type, className = "w-6 h-6" }) => {
+    23→  const icons = {
+    24→    // PDI - Checklist icon
+    25→    PDI: (
+    26→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    27→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    28→      </svg>
+    29→    ),
+    30→    // Test Drive - Steering wheel
+    31→    TEST_DRIVE: (
+    32→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    33→        <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+    34→        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+    35→        <path strokeLinecap="round" strokeWidth={1.5} d="M12 3v6M12 15v6M3 12h6M15 12h6" />
+    36→      </svg>
+    37→    ),
+    38→    // Courtesy Out - Car with outward arrow
+    39→    COURTESY_OUT: (
+    40→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    41→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+    42→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M17 6l3 3m0 0l-3 3m3-3H13" />
+    43→      </svg>
+    44→    ),
+    45→    // Courtesy In - Car with inward arrow
+    46→    COURTESY_IN: (
+    47→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    48→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+    49→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M13 6l-3 3m0 0l3 3m-3-3h7" />
+    50→      </svg>
+    51→    ),
+    52→    // Service Receipt - Wrench/spanner
+    53→    SERVICE_RECEIPT: (
+    54→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    55→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    56→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    57→      </svg>
+    58→    ),
+    59→    // Feedback - Star rating
+    60→    REVIEW_FEEDBACK: (
+    61→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    62→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    63→      </svg>
+    64→    ),
+    65→    // Delivery - Truck/handover
+    66→    DELIVERY: (
+    67→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    68→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+    69→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    70→      </svg>
+    71→    ),
+    72→    // Default - Generic form icon (for OTHER and unknown types)
+    73→    DEFAULT: (
+    74→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    75→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    76→      </svg>
+    77→    ),
+    78→  };
+    79→  return icons[type] || icons.DEFAULT;
+    80→};
+    81→
+    82→// Default priority forms - PDI is always first as it's the most common daily task
+    83→const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
+    84→const ALWAYS_FIRST_FORM_TYPE = "PDI";
+    85→// Customer-facing forms that should NOT appear in internal dashboard/quick forms
+    86→const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
+    87→
+    88→// Needs Attention item configurations
+    89→const NEEDS_ATTENTION_ITEMS = [
+    90→  {
+    91→    key: "soldInProgress",
+    92→    label: "Sold in progress",
+    93→    href: "/sales-prep",
+    94→    color: "warning",
+    95→    icon: (
+    96→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    97→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    98→      </svg>
+    99→    ),
+   100→    description: "vehicles awaiting delivery"
+   101→  },
+   102→  {
+   103→    key: "warrantyNotBookedIn",
+   104→    label: "Warranty not booked in",
+   105→    href: "/warranty",
+   106→    color: "danger",
+   107→    icon: (
+   108→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   109→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   110→      </svg>
+   111→    ),
+   112→    description: "cases need scheduling"
+   113→  },
+   114→  {
+   115→    key: "eventsToday",
+   116→    label: "Events today",
+   117→    href: "/calendar",
+   118→    color: "info",
+   119→    icon: (
+   120→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   121→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   122→      </svg>
+   123→    ),
+   124→    description: "on your calendar"
+   125→  },
+   126→  {
+   127→    key: "courtesyDueBack",
+   128→    label: "Courtesy due back",
+   129→    href: "/warranty",
+   130→    color: "warning",
+   131→    icon: (
+   132→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   133→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+   134→      </svg>
+   135→    ),
+   136→    description: "vehicles due today or overdue"
+   137→  },
+   138→  {
+   139→    key: "motExpiringSoon",
+   140→    label: "MOT expiring soon",
+   141→    href: "/sales-prep",
+   142→    color: "danger",
+   143→    icon: (
+   144→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   145→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+   146→      </svg>
+   147→    ),
+   148→    description: "within 14 days"
+   149→  },
+   150→  {
+   151→    key: "contactDue",
+   152→    label: "Contact due",
+   153→    href: "/warranty",
+   154→    color: "warning",
+   155→    icon: (
+   156→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   157→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+   158→      </svg>
+   159→    ),
+   160→    description: "warranty cases need follow-up"
+   161→  },
+   162→  {
+   163→    key: "newWarrantyCases",
+   164→    label: "New warranty cases",
+   165→    href: "/warranty",
+   166→    color: "info",
+   167→    icon: (
+   168→      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   169→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+   170→      </svg>
+   171→    ),
+   172→    description: "created in last 48 hours"
+   173→  }
+   174→];
+   175→
+   176→// Color mappings for needs attention
+   177→const ATTENTION_COLORS = {
+   178→  warning: {
+   179→    bg: "bg-gradient-to-br from-amber-50 to-orange-50",
+   180→    border: "border-amber-200",
+   181→    icon: "bg-amber-100 text-amber-600",
+   182→    badge: "bg-amber-500 text-white",
+   183→    text: "text-amber-900"
+   184→  },
+   185→  danger: {
+   186→    bg: "bg-gradient-to-br from-red-50 to-rose-50",
+   187→    border: "border-red-200",
+   188→    icon: "bg-red-100 text-red-600",
+   189→    badge: "bg-red-500 text-white",
+   190→    text: "text-red-900"
+   191→  },
+   192→  info: {
+   193→    bg: "bg-gradient-to-br from-blue-50 to-cyan-50",
+   194→    border: "border-blue-200",
+   195→    icon: "bg-blue-100 text-blue-600",
+   196→    badge: "bg-blue-500 text-white",
+   197→    text: "text-blue-900"
+   198→  }
+   199→};
+   200→
+   201→export default function Dashboard() {
+   202→  const router = useRouter();
+   203→  const { data: session, status } = useSession();
+   204→  const [stats, setStats] = useState(null);
+   205→  const [forms, setForms] = useState([]);
+   206→  const [isLoading, setIsLoading] = useState(true);
+   207→  const [redirectCheckComplete, setRedirectCheckComplete] = useState(false);
+   208→
+   209→  // Check if we should redirect to tenant URL (legacy route access)
+   210→  useEffect(() => {
+   211→    async function checkForTenantRedirect() {
+   212→      // Skip if already on a tenant route
+   213→      if (router.asPath.startsWith("/app/")) {
+   214→        setRedirectCheckComplete(true);
+   215→        return;
+   216→      }
+   217→
+   218→      try {
+   219→        const res = await fetch("/api/dealers/memberships");
+   220→        if (!res.ok) {
+   221→          setRedirectCheckComplete(true);
+   222→          return;
+   223→        }
+   224→
+   225→        const dealers = await res.json();
+   226→
+   227→        if (dealers.length === 0) {
+   228→          // No dealers - redirect to create dealer
+   229→          router.push("/onboarding/create-dealer");
+   230→          return;
+   231→        }
+   232→
+   233→        if (dealers.length === 1) {
+   234→          // Single dealer - redirect to tenant route (skip fetching stats here)
+   235→          router.replace(`/app/${dealers[0].slug}/dashboard`);
+   236→          return;
+   237→        }
+   238→
+   239→        if (dealers.length > 1) {
+   240→          // Multiple dealers - show picker
+   241→          router.push("/choose-dealer");
+   242→          return;
+   243→        }
+   244→      } catch (err) {
+   245→        console.error("Error checking dealer redirect:", err);
+   246→        setRedirectCheckComplete(true);
+   247→      }
+   248→    }
+   249→
+   250→    if (session) {
+   251→      checkForTenantRedirect();
+   252→    } else if (status === "unauthenticated") {
+   253→      // Not logged in, don't wait for redirect check
+   254→      setRedirectCheckComplete(true);
+   255→    }
+   256→  }, [session, status, router]);
+   257→
+   258→  const defaultStats = {
+   259→    appraisals: { total: 0, pending: 0 },
+   260→    vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+   261→    aftercare: { total: 0, open: 0 },
+   262→    reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+   263→    forms: { total: 0, submissions: 0 },
+   264→    recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+   265→    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
+   266→    today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+   267→    topForms: [],
+   268→    oldestAppraisalDays: null,
+   269→  };
+   270→
+   271→  // Only fetch stats after redirect check is complete (prevents double fetch)
+   272→  useEffect(() => {
+   273→    // Skip if we're still checking for redirects or going to redirect
+   274→    if (!redirectCheckComplete) return;
+   275→
+   276→    const safeJsonParse = async (res) => {
+   277→      const contentType = res.headers.get("content-type") || "";
+   278→      if (!contentType.includes("application/json")) {
+   279→        console.error("[Dashboard] Non-JSON response:", res.status, contentType);
+   280→        return null;
+   281→      }
+   282→      return res.json();
+   283→    };
+   284→
+   285→    fetch("/api/dashboard/stats")
+   286→      .then(async (res) => {
+   287→        if (res.status === 403) return { error: "No dealer context" };
+   288→        if (!res.ok) return { error: "Failed to fetch stats" };
+   289→        return await safeJsonParse(res) || { error: "Invalid response" };
+   290→      })
+   291→      .then((statsData) => {
+   292→        if (statsData?.error) {
+   293→          console.error("Dashboard stats error:", statsData.error);
+   294→          setStats(defaultStats);
+   295→          setForms([]);
+   296→        } else {
+   297→          setStats(statsData || defaultStats);
+   298→          setForms(Array.isArray(statsData?.formsList) ? statsData.formsList : []);
+   299→        }
+   300→        setIsLoading(false);
+   301→      })
+   302→      .catch((err) => {
+   303→        console.error("Dashboard fetch error:", err);
+   304→        setStats(defaultStats);
+   305→        setForms([]);
+   306→        setIsLoading(false);
+   307→      });
+   308→  }, [redirectCheckComplete]);
+   309→
+   310→  const handleFormClick = (form) => {
+   311→    if (form.isPublic && form.publicSlug) {
+   312→      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+   313→    } else {
+   314→      router.push(`/forms/fill/${form.id || form._id}`);
+   315→    }
+   316→  };
+   317→
+   318→  // Filter out customer-facing forms from internal dashboard
+   319→  const internalForms = forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type));
+   320→
+   321→  const getTopForms = () => {
+   322→    const pdiForm = internalForms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
+   323→    let otherTopForms = [];
+   324→    if (stats?.topForms?.length > 0) {
+   325→      otherTopForms = stats.topForms
+   326→        .map(tf => internalForms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
+   327→        .filter(f => f && f.type !== ALWAYS_FIRST_FORM_TYPE)
+   328→        .slice(0, 2);
+   329→    } else {
+   330→      otherTopForms = internalForms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
+   331→    }
+   332→    return pdiForm ? [pdiForm, ...otherTopForms] : otherTopForms;
+   333→  };
+   334→
+   335→  const topForms = getTopForms();
+   336→  const otherForms = internalForms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
+   337→
+   338→  const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
+   339→    stats?.needsAttention?.[item.key] > 0
+   340→  );
+   341→
+   342→  const hasTodayData = stats?.today && (
+   343→    stats.today.events > 0 ||
+   344→    stats.today.deliveries > 0 ||
+   345→    stats.today.testDrives > 0 ||
+   346→    stats.today.courtesyDueBack > 0
+   347→  );
+   348→
+   349→  return (
+   350→    <DashboardLayout>
+   351→      <Head><title>Dashboard | DealerFlow</title></Head>
+   352→
+   353→      {/* Hero Header with Rich Gradient */}
+   354→      <div className="relative -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 pt-8 pb-10 mb-8 hero-gradient border-b border-slate-200/50">
+   355→        <div className="max-w-7xl mx-auto">
+   356→          <div className="flex items-start justify-between">
+   357→            <div>
+   358→              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+   359→                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+   360→              </h1>
+   361→              <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+   362→            </div>
+   363→            <div className="hidden md:flex items-center gap-3">
+   364→              <div className="text-right">
+   365→                <p className="text-sm font-bold text-slate-800">
+   366→                  {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
+   367→                </p>
+   368→                <p className="text-xs text-slate-500">
+   369→                  {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+   370→                </p>
+   371→              </div>
+   372→              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#14B8A6] flex items-center justify-center text-white shadow-lg">
+   373→                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   374→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   375→                </svg>
+   376→              </div>
+   377→            </div>
+   378→          </div>
+   379→
+   380→          {/* Today's Activity Pills */}
+   381→          {hasTodayData && (
+   382→            <div className="mt-6 flex items-center gap-3 flex-wrap">
+   383→              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today</span>
+   384→              <div className="h-4 w-px bg-slate-300" />
+   385→              <div className="flex items-center gap-2 flex-wrap">
+   386→                {(stats?.today?.events ?? 0) > 0 && (
+   387→                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#0066CC]/20 text-[#0066CC] rounded-xl text-sm font-semibold hover:bg-[#0066CC]/5 hover:border-[#0066CC]/40 transition-all shadow-sm">
+   388→                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066CC] animate-pulse" />
+   389→                    {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
+   390→                  </Link>
+   391→                )}
+   392→                {(stats?.today?.deliveries ?? 0) > 0 && (
+   393→                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm">
+   394→                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+   395→                    {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
+   396→                  </Link>
+   397→                )}
+   398→                {(stats?.today?.testDrives ?? 0) > 0 && (
+   399→                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-cyan-200 text-cyan-700 rounded-xl text-sm font-semibold hover:bg-cyan-50 transition-all shadow-sm">
+   400→                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
+   401→                    {stats.today.testDrives} test drive{stats.today.testDrives !== 1 ? "s" : ""}
+   402→                  </Link>
+   403→                )}
+   404→                {(stats?.today?.courtesyDueBack ?? 0) > 0 && (
+   405→                  <Link href="/warranty" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 transition-all shadow-sm">
+   406→                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+   407→                    {stats.today.courtesyDueBack} courtesy due
+   408→                  </Link>
+   409→                )}
+   410→              </div>
+   411→            </div>
+   412→          )}
+   413→        </div>
+   414→      </div>
+   415→
+   416→      {isLoading ? (
+   417→        <div className="flex justify-center py-20">
+   418→          <div className="flex flex-col items-center gap-4">
+   419→            <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+   420→            <p className="text-sm text-slate-500 font-medium">Loading dashboard...</p>
+   421→          </div>
+   422→        </div>
+   423→      ) : (
+   424→        <div className="space-y-8">
+   425→
+   426→          {/* KPI Cards Row - Mixed Variants */}
+   427→          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+   428→            <StatsCard
+   429→              title="Pending Appraisals"
+   430→              value={stats?.appraisals?.pending ?? 0}
+   431→              trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
+   432→              icon="📋"
+   433→              color="primary"
+   434→              variant="gradient"
+   435→            />
+   436→            <StatsCard
+   437→              title="Total Stock"
+   438→              value={(stats?.vehicles?.inStock ?? 0) + (stats?.vehicles?.inPrep ?? 0)}
+   439→              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+   440→              icon="🚗"
+   441→              color="secondary"
+   442→              variant="gradient"
+   443→            />
+   444→            <StatsCard
+   445→              title="Sold in Progress"
+   446→              value={stats?.vehicles?.live ?? 0}
+   447→              trend="Awaiting delivery"
+   448→              icon="📦"
+   449→              color="warning"
+   450→              variant="outlined"
+   451→            />
+   452→            <StatsCard
+   453→              title="Total Sold"
+   454→              value={stats?.vehicles?.delivered ?? 0}
+   455→              trend="Delivered to customers"
+   456→              icon="🏆"
+   457→              color="success"
+   458→              variant="gradient"
+   459→            />
+   460→          </div>
+   461→
+   462→          {/* Quick Forms Section */}
+   463→          {forms.length > 0 && (
+   464→            <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+   465→              <div className="flex items-center justify-between mb-5">
+   466→                <div className="flex items-center gap-3">
+   467→                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center text-white shadow-lg">
+   468→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   469→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   470→                    </svg>
+   471→                  </div>
+   472→                  <div>
+   473→                    <h2 className="text-lg font-bold text-slate-900">Quick Forms</h2>
+   474→                    <p className="text-xs text-slate-500">Launch frequently used forms</p>
+   475→                  </div>
+   476→                </div>
+   477→                <Link href="/forms" className="text-sm text-[#0066CC] hover:text-[#0055BB] font-semibold transition-colors flex items-center gap-1">
+   478→                  All Submissions
+   479→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   480→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   481→                  </svg>
+   482→                </Link>
+   483→              </div>
+   484→              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   485→                {topForms.map((form) => (
+   486→                  <button
+   487→                    key={form.id || form._id}
+   488→                    onClick={() => handleFormClick(form)}
+   489→                    className="group bg-gradient-to-br from-slate-50 to-white border-2 border-slate-200 p-5 rounded-xl flex flex-col items-center gap-3 hover:border-[#0066CC] hover:shadow-lg hover:scale-[1.02] transition-all cursor-pointer"
+   490→                  >
+   491→                    <div className="w-12 h-12 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center group-hover:bg-[#0066CC] group-hover:text-white transition-colors">
+   492→                      <FormTypeIcon type={form.type} className="w-6 h-6" />
+   493→                    </div>
+   494→                    <span className="font-bold text-slate-700 text-sm text-center">
+   495→                      {FORM_TYPE_LABELS[form.type] || form.name}
+   496→                    </span>
+   497→                  </button>
+   498→                ))}
+   499→                {otherForms.length > 0 && (
+   500→                  <div className="dropdown dropdown-end">
+   501→                    <label
+   502→                      tabIndex={0}
+   503→                      className="group bg-slate-100 border-2 border-dashed border-slate-300 p-5 rounded-xl flex flex-col items-center gap-3 hover:border-slate-400 hover:bg-slate-50 transition-all cursor-pointer w-full"
+   504→                    >
+   505→                      <div className="w-12 h-12 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center">
+   506→                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   507→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+   508→                        </svg>
+   509→                      </div>
+   510→                      <span className="font-bold text-slate-500 text-sm">+{otherForms.length} More</span>
+   511→                    </label>
+   512→                    <div tabIndex={0} className="dropdown-content z-20 shadow-2xl bg-white rounded-xl w-64 border border-slate-200 mt-2 overflow-hidden">
+   513→                      <div className="px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+   514→                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">All Forms</p>
+   515→                      </div>
+   516→                      <div className="max-h-64 overflow-y-auto">
+   517→                        {otherForms.map((form) => (
+   518→                          <button
+   519→                            key={form.id || form._id}
+   520→                            onClick={() => handleFormClick(form)}
+   521→                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-[#0066CC]/5 hover:text-[#0066CC] transition-colors border-b border-slate-50 last:border-0"
+   522→                          >
+   523→                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-500">
+   524→                              <FormTypeIcon type={form.type} className="w-4 h-4" />
+   525→                            </div>
+   526→                            <span className="truncate">{FORM_TYPE_LABELS[form.type] || form.name}</span>
+   527→                          </button>
+   528→                        ))}
+   529→                      </div>
+   530→                    </div>
+   531→                  </div>
+   532→                )}
+   533→              </div>
+   534→            </div>
+   535→          )}
+   536→
+   537→          {/* Middle Row - Needs Attention + Quick Actions */}
+   538→          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   539→            {/* Needs Attention - Modern Card Layout */}
+   540→            <div className="lg:col-span-2">
+   541→              <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+   542→                <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-red-50/50 to-amber-50/50">
+   543→                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white shadow-lg">
+   544→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   545→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   546→                    </svg>
+   547→                  </div>
+   548→                  <div>
+   549→                    <h2 className="text-lg font-bold text-slate-900">Needs Attention</h2>
+   550→                    <p className="text-xs text-slate-500">Items requiring your immediate action</p>
+   551→                  </div>
+   552→                </div>
+   553→                {activeNeedsAttention.length > 0 ? (
+   554→                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+   555→                    {activeNeedsAttention.map((item) => {
+   556→                      const colors = ATTENTION_COLORS[item.color];
+   557→                      return (
+   558→                        <Link
+   559→                          key={item.key}
+   560→                          href={item.href}
+   561→                          className={`${colors.bg} ${colors.border} border rounded-xl p-4 hover:shadow-md transition-all group`}
+   562→                        >
+   563→                          <div className="flex items-start gap-3">
+   564→                            <div className={`w-10 h-10 rounded-xl ${colors.icon} flex items-center justify-center flex-shrink-0`}>
+   565→                              {item.icon}
+   566→                            </div>
+   567→                            <div className="flex-1 min-w-0">
+   568→                              <div className="flex items-center gap-2 mb-1">
+   569→                                <span className={`${colors.badge} px-2 py-0.5 rounded-full text-xs font-bold`}>
+   570→                                  {stats?.needsAttention?.[item.key] ?? 0}
+   571→                                </span>
+   572→                                <span className={`text-sm font-bold ${colors.text}`}>{item.label}</span>
+   573→                              </div>
+   574→                              <p className="text-xs text-slate-600">{item.description}</p>
+   575→                            </div>
+   576→                            <svg className="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   577→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   578→                            </svg>
+   579→                          </div>
+   580→                        </Link>
+   581→                      );
+   582→                    })}
+   583→                  </div>
+   584→                ) : (
+   585→                  <div className="p-8 flex items-center justify-center">
+   586→                    <div className="text-center">
+   587→                      <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+   588→                        <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   589→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   590→                        </svg>
+   591→                      </div>
+   592→                      <p className="text-lg font-bold text-emerald-700">All clear!</p>
+   593→                      <p className="text-sm text-emerald-600/70 mt-1">Nothing needs attention right now</p>
+   594→                    </div>
+   595→                  </div>
+   596→                )}
+   597→              </div>
+   598→            </div>
+   599→
+   600→            {/* Quick Actions - Command Palette Style */}
+   601→            <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+   602→              <div className="flex items-center gap-3 mb-5">
+   603→                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#0EA5E9] flex items-center justify-center text-white shadow-lg">
+   604→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   605→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+   606→                  </svg>
+   607→                </div>
+   608→                <div>
+   609→                  <h2 className="text-lg font-bold text-slate-900">Quick Actions</h2>
+   610→                  <p className="text-xs text-slate-500">Shortcuts to common tasks</p>
+   611→                </div>
+   612→              </div>
+   613→              <div className="space-y-3">
+   614→                <Link href="/sales-prep" className="action-card">
+   615→                  <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
+   616→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   617→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   618→                    </svg>
+   619→                  </div>
+   620→                  <div className="flex-1">
+   621→                    <span className="font-bold text-slate-800 block">Add Vehicle</span>
+   622→                    <span className="text-xs text-slate-500">Add to stock</span>
+   623→                  </div>
+   624→                </Link>
+   625→
+   626→                <Link href="/appraisals/new" className="action-card">
+   627→                  <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center">
+   628→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   629→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   630→                    </svg>
+   631→                  </div>
+   632→                  <div className="flex-1">
+   633→                    <span className="font-bold text-slate-800 block">New Appraisal</span>
+   634→                    <span className="text-xs text-slate-500">Value a vehicle</span>
+   635→                  </div>
+   636→                </Link>
+   637→
+   638→                <Link href="/forms" className="action-card">
+   639→                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+   640→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   641→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+   642→                    </svg>
+   643→                  </div>
+   644→                  <div className="flex-1">
+   645→                    <span className="font-bold text-slate-800 block">View Submissions</span>
+   646→                    <span className="text-xs text-slate-500">Review form data</span>
+   647→                  </div>
+   648→                </Link>
+   649→
+   650→                <Link href="/warranty?addCase=1" className="action-card">
+   651→                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+   652→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   653→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+   654→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+   655→                    </svg>
+   656→                  </div>
+   657→                  <div className="flex-1">
+   658→                    <span className="font-bold text-slate-800 block">Add Aftersales Case</span>
+   659→                    <span className="text-xs text-slate-500">Log warranty issue</span>
+   660→                  </div>
+   661→                </Link>
+   662→              </div>
+   663→            </div>
+   664→          </div>
+   665→
+   666→          {/* Bottom Row - Recent Activity Cards */}
+   667→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   668→            {/* Recent Appraisals */}
+   669→            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+   670→              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+   671→                <div className="flex items-center gap-3">
+   672→                  <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
+   673→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   674→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   675→                    </svg>
+   676→                  </div>
+   677→                  <h3 className="text-lg font-bold text-slate-900">Recent Appraisals</h3>
+   678→                </div>
+   679→                <Link href="/appraisals" className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
+   680→                  View All
+   681→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   682→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   683→                  </svg>
+   684→                </Link>
+   685→              </div>
+   686→
+   687→              {stats?.recent?.appraisals?.length > 0 ? (
+   688→                <div className="divide-y divide-slate-100">
+   689→                  {stats.recent.appraisals.slice(0, 5).map((a) => (
+   690→                    <div
+   691→                      key={a.id}
+   692→                      onClick={() => router.push(`/appraisals/${a.id}`)}
+   693→                      className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+   694→                    >
+   695→                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center border border-slate-200">
+   696→                        <span className="font-mono text-xs font-bold text-slate-600">{a.vehicleReg?.slice(0, 4)}</span>
+   697→                      </div>
+   698→                      <div className="flex-1 min-w-0">
+   699→                        <p className="font-bold text-slate-800 text-sm">{a.vehicleReg}</p>
+   700→                        <p className="text-xs text-slate-500 truncate">{a.contactId?.name || "No contact"}</p>
+   701→                      </div>
+   702→                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+   703→                        a.decision === "purchased" || a.decision === "converted"
+   704→                          ? "bg-emerald-100 text-emerald-700"
+   705→                          : a.decision === "not_purchased" || a.decision === "declined"
+   706→                          ? "bg-red-100 text-red-700"
+   707→                          : "bg-amber-100 text-amber-700"
+   708→                      }`}>
+   709→                        {a.decision}
+   710→                      </span>
+   711→                    </div>
+   712→                  ))}
+   713→                </div>
+   714→              ) : (
+   715→                <div className="flex items-center justify-center py-12">
+   716→                  <div className="text-center">
+   717→                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+   718→                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   719→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   720→                      </svg>
+   721→                    </div>
+   722→                    <p className="text-slate-500 text-sm font-medium">No appraisals yet</p>
+   723→                  </div>
+   724→                </div>
+   725→              )}
+   726→            </div>
+   727→
+   728→            {/* Pending Prep */}
+   729→            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+   730→              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+   731→                <div className="flex items-center gap-3">
+   732→                  <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center">
+   733→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   734→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+   735→                    </svg>
+   736→                  </div>
+   737→                  <h3 className="text-lg font-bold text-slate-900">Pending Prep</h3>
+   738→                </div>
+   739→                <Link href="/sales-prep" className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
+   740→                  View All
+   741→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   742→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   743→                  </svg>
+   744→                </Link>
+   745→              </div>
+   746→
+   747→              {stats?.recent?.vehicles?.length > 0 ? (
+   748→                <div className="divide-y divide-slate-100">
+   749→                  {stats.recent.vehicles.slice(0, 5).map((v) => (
+   750→                    <div
+   751→                      key={v.id}
+   752→                      onClick={() => router.push("/sales-prep")}
+   753→                      className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer"
+   754→                    >
+   755→                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-100 to-yellow-50 flex items-center justify-center border border-amber-200">
+   756→                        <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   757→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 4h8m-8 4h4m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   758→                        </svg>
+   759→                      </div>
+   760→                      <div className="flex-1 min-w-0">
+   761→                        <p className="font-bold text-slate-800 text-sm">{v.make} {v.model}</p>
+   762→                        <p className="text-xs text-slate-500">{v.regCurrent}</p>
+   763→                      </div>
+   764→                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+   765→                        v.status === "delivered"
+   766→                          ? "bg-slate-100 text-slate-600"
+   767→                          : v.status === "live"
+   768→                          ? "bg-emerald-100 text-emerald-700"
+   769→                          : v.status === "in_prep"
+   770→                          ? "bg-amber-100 text-amber-700"
+   771→                          : "bg-blue-100 text-blue-700"
+   772→                      }`}>
+   773→                        {v.status.replace("_", " ")}
+   774→                      </span>
+   775→                    </div>
+   776→                  ))}
+   777→                </div>
+   778→              ) : (
+   779→                <div className="flex items-center justify-center py-12">
+   780→                  <div className="text-center">
+   781→                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+   782→                      <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   783→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 4h8m-8 4h4m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   784→                      </svg>
+   785→                    </div>
+   786→                    <p className="text-slate-500 text-sm font-medium">No vehicles yet</p>
+   787→                  </div>
+   788→                </div>
+   789→              )}
+   790→            </div>
+   791→          </div>
+   792→        </div>
+   793→      )}
+   794→    </DashboardLayout>
+   795→  );
+   796→}
+   797→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

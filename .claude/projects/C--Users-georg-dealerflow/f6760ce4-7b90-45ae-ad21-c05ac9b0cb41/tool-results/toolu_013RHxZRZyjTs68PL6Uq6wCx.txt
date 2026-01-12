@@ -1,0 +1,23 @@
+336-  };
+337-
+338:  const getPublicUrl = (form) => {
+339-    if (!form.isPublic || !form.publicSlug) return null;
+340-    return `${window.location.origin}/public/forms/${form.publicSlug}`;
+341-  };
+342-
+343-  const getSubmissionCount = (formId) => {
+344-    return submissions.filter((s) => s.formId?._id === formId).length;
+345-  };
+346-
+347-  const getVrm = (submission) => {
+348-    const answers = submission.rawAnswers || {};
+--
+1756-        <ShareFormModal
+1757-          form={shareForm}
+1758:          publicUrl={getPublicUrl(shareForm)}
+1759-          onClose={() => setShareForm(null)}
+1760-        />
+1761-      )}
+1762-    </DashboardLayout>
+1763-  );
+1764-}

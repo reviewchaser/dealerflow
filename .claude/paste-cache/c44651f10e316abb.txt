@@ -1,0 +1,344 @@
+Objective
+
+Fix the Sales module so that:
+
+Sales page loads vehicles in the “Create Sale” modal
+
+Typing search filters correctly
+
+Clicking/selecting a vehicle creates a sale (or opens existing sale if one exists)
+
+DealDrawer opens immediately on success
+
+No 404s, no silent failures, no tenant scoping bugs
+
+Add entry points from Stock board + Vehicle drawer
+
+Fully tested on localhost + Vercel
+
+1) Reproduce + capture exact failing behavior
+
+Go to /app/[dealerSlug]/sales
+
+Click Create Sale
+
+Search and select a vehicle
+
+When the issue occurs:
+
+Capture the console error
+
+Capture the network requests (status codes + payload + response)
+
+Identify exactly which step fails:
+
+A) vehicles not loaded
+
+B) vehicles load but selection click does nothing
+
+C) request fires but returns error
+
+D) request succeeds but UI doesn’t update / drawer doesn’t open
+
+Important: if there’s any toast/snackbar showing an error, log the exact text.
+
+2) Fix vehicle list loading (Vehicle Picker)
+2.1 Ensure vehicles are actually fetched
+
+When modal opens, the code must call a server endpoint like:
+
+GET /api/app/[dealerSlug]/vehicles?status=ACTIVE (or whatever you use)
+
+Confirm the endpoint returns an array.
+
+2.2 Ensure the UI uses correct keys
+
+Vehicles must have a stable identifier. Standardise to:
+
+vehicle._id from Mongo
+
+In UI, always map id = vehicle._id
+
+If the API returns id instead of _id, normalise it:
+
+const vehicles = data.map(v => ({ ...v, _id: v._id ?? v.id }))
+
+2.3 Empty / error states
+
+If fetch fails: show “Couldn’t load vehicles” + Retry
+
+If list is empty: “No eligible vehicles found”
+
+3) Fix “Select vehicle” → Create Sale logic (Core bug)
+3.1 Standardise the create-sale action
+
+When clicking a vehicle, call a single function:
+
+Expected behaviour
+
+If a sale already exists for vehicle and is not cancelled/completed:
+
+open that sale
+
+Else:
+
+create a new sale for that vehicle
+
+open the new sale drawer
+
+3.2 Add/verify backend endpoints
+
+You need two endpoints:
+
+A) Find existing sale by vehicle
+
+GET /api/app/[dealerSlug]/sales/by-vehicle?vehicleId=...
+
+Return:
+
+{ sale: null } if none
+
+or { sale }
+
+B) Create sale
+
+POST /api/app/[dealerSlug]/sales/create
+Body:
+
+{
+  "vehicleId": "..."
+}
+
+
+Return:
+
+{
+  "sale": { "_id": "...", "dealNumber": 123, "status": "DRAFT", ... }
+}
+
+
+Tenant scoping is mandatory
+
+The backend must resolve dealer by [dealerSlug]
+
+Must ensure the vehicle belongs to that dealer
+
+Must store dealerId on the sale
+
+3.3 Ensure create-sale never silently fails
+
+On frontend:
+
+wrap selection click in try/catch
+
+show toast with a meaningful message:
+
+“Could not create sale: <backend message>”
+
+always log error.response?.data
+
+3.4 Ensure the sale opens
+
+After success:
+
+set selected sale id state: setOpenSaleId(sale._id)
+
+close modal
+
+open DealDrawer
+
+If DealDrawer expects full sale object:
+
+either pass sale directly
+
+or call GET /api/app/[dealerSlug]/sales/:id to hydrate
+
+4) Fix DealDrawer opening and data loading
+4.1 DealDrawer must accept either:
+
+saleId and fetch internally, OR
+
+a full sale object
+
+Make it robust:
+
+If sale missing required fields, fetch by id.
+
+4.2 Prevent “NaN ago” / missing timeline bugs
+
+If any timestamps are undefined, guard them:
+
+show “—” instead of crashing / NaN
+
+5) Add Sales entry points where users expect them
+5.1 Stock Board “Card”
+
+On each vehicle card, add a small action:
+
+“Create Sale” (if no active sale)
+
+“Open Sale” (if active sale exists)
+
+5.2 Vehicle Drawer
+
+Inside the open vehicle drawer:
+
+Add a new tab: Sales
+OR
+
+Add a prominent button in header: Create/Open Sale
+
+This is important because users often start a deal from a vehicle, not from Sales page.
+
+6) Contacts module: ensure it’s usable for Sales
+
+In DealDrawer Customer tab:
+
+Sold To (required before invoice)
+
+Invoice To (optional “same as sold to” default)
+
+Finance Company (optional contact type FINANCE)
+
+Purchased From (optional; useful for stock book later)
+
+Ensure contact create modal always sends displayName.
+
+7) Sales Settings section (so invoices work later)
+
+Add to Settings → Sales:
+
+Dealer legal name
+
+Trading address
+
+Company number (optional)
+
+VAT number (optional)
+
+Invoice prefix (optional)
+
+Terms:
+
+consumer distance sale terms
+
+consumer in-person terms
+
+B2B terms
+
+Default VAT behaviour (for add-ons)
+
+Next invoice/deal number seed (starts at 1)
+
+Backend must store per dealer.
+
+8) Make the Sales KPI logic correct (don’t skip)
+
+KPI must be based on sale financial events, not sale created date.
+
+Rules
+
+Sales totals attributed to:
+
+invoice date / completed date (choose one and be consistent)
+
+Profit:
+
+include add-ons revenue
+
+subtract SIV (purchase price)
+
+VAT-qualifying vs margin scheme must be handled
+
+Provide:
+
+Total Sales Gross (all vehicles)
+
+Total Sales Net (VAT qualifying net + margin scheme net)
+
+Total Gross Profit
+
+Total Net Profit (VAT-aware)
+
+If SIV missing, show “Profit unknown” for that deal and exclude from aggregated profit totals (or separate “missing SIV” count).
+
+9) Testing checklist (must be done, and proven)
+
+Claude must run and confirm each:
+
+Localhost
+
+Open Sales page (no 404)
+
+Click Create Sale
+
+Vehicle list loads
+
+Search filters
+
+Click vehicle:
+
+creates sale (network 200)
+
+modal closes
+
+DealDrawer opens
+
+sale status is DRAFT
+
+Repeat selecting same vehicle:
+
+does NOT create duplicate
+
+opens existing sale
+
+Navigate away and back:
+
+sale persists and is listed
+
+Open sale from Stock card button
+
+Open sale from Vehicle drawer button/tab
+
+Vercel
+
+Repeat steps 1–7 minimum.
+Also confirm any environment variables / API routes work in production.
+
+If any step fails
+
+fix it before shipping
+
+10) UX improvements (small but important)
+
+In Create Sale modal, each vehicle row should show:
+
+VRM
+
+Make/Model
+
+Status (e.g. Not Advertised, Sold in Progress)
+
+“Has active sale” badge if applicable
+
+On selection:
+
+show loading spinner on the clicked row to prevent double submits
+
+On error:
+
+keep modal open and show error
+
+Most common root causes to check immediately
+
+Tell Claude to specifically check these because they cause 90% of “select vehicle breaks” issues:
+
+vehicle object uses id but code expects _id
+
+create-sale endpoint path missing dealerSlug in URL
+
+backend expects vehicleId but frontend sends id or full vehicle object
+
+dealer scoping rejects vehicle (vehicle belongs to different dealer)
+
+DealDrawer tries to open but expects saleId and gets undefined

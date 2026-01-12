@@ -1,0 +1,154 @@
+/**
+ * Tenant-aware Dashboard
+ *
+ * Uses server-side props to validate tenant access and fetch initial data.
+ * URL: /app/[dealerSlug]/dashboard
+ */
+
+import { useEffect, useState } from 'react';
+import Head from 'next/head';
+import { useRouter } from 'next/router';
+import DashboardLayout from '@/components/DashboardLayout';
+import StatsCard from '@/components/StatsCard';
+import { getTenantFromSlug } from '@/libs/tenant';
+import connectMongo from '@/libs/mongoose';
+
+export default function TenantDashboard({ dealer, dealerSlug, error }) {
+  const router = useRouter();
+  const [stats, setStats] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (error) return;
+
+    const fetchStats = async () => {
+      try {
+        // Fetch dashboard stats with tenant context header
+        const statsRes = await fetch('/api/dashboard/stats', {
+          headers: { 'x-dealer-slug': dealerSlug },
+        });
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
+      } catch (err) {
+        console.error('Error loading stats:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [dealerSlug, error]);
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Error</h1>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-4 py-2 bg-[#0066CC] text-white rounded-lg hover:bg-[#0055BB] transition-colors"
+          >
+            Go to Default Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardLayout dealerSlug={dealerSlug} dealer={dealer}>
+      <Head>
+        <title>Dashboard | {dealer?.name || 'DealerFlow'}</title>
+      </Head>
+
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        {dealer && (
+          <p className="text-base-content/60 mt-1">{dealer.name}</p>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatsCard
+              title="Stock Vehicles"
+              value={stats?.stockCount || 0}
+              icon="truck"
+              color="primary"
+            />
+            <StatsCard
+              title="Sold Awaiting Delivery"
+              value={stats?.soldInProgressCount || 0}
+              icon="clock"
+              color="warning"
+            />
+            <StatsCard
+              title="Active Warranty Cases"
+              value={stats?.activeWarrantyCount || 0}
+              icon="wrench"
+              color="error"
+            />
+            <StatsCard
+              title="Submissions This Week"
+              value={stats?.submissionsThisWeek || 0}
+              icon="document"
+              color="success"
+            />
+          </div>
+        </>
+      )}
+    </DashboardLayout>
+  );
+}
+
+export async function getServerSideProps(context) {
+  const { dealerSlug } = context.params;
+  const { req, res } = context;
+
+  try {
+    await connectMongo();
+
+    // Validate tenant access server-side
+    const tenantCtx = await getTenantFromSlug(req, res, dealerSlug);
+
+    return {
+      props: {
+        dealerSlug,
+        dealer: JSON.parse(JSON.stringify({
+          id: tenantCtx.dealer._id,
+          name: tenantCtx.dealer.name,
+          slug: tenantCtx.dealer.slug,
+          logoUrl: tenantCtx.dealer.logoUrl || null,
+        })),
+        error: null,
+      },
+    };
+  } catch (error) {
+    // Handle specific error codes
+    if (error.code === 'UNAUTHORIZED') {
+      return {
+        redirect: {
+          destination: `/auth/signin?callbackUrl=/app/${dealerSlug}/dashboard`,
+          permanent: false,
+        },
+      };
+    }
+
+    return {
+      props: {
+        dealerSlug,
+        dealer: null,
+        error: error.message || 'Access denied',
+      },
+    };
+  }
+}

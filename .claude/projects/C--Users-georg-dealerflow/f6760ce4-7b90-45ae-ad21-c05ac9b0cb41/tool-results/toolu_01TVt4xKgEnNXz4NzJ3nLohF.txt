@@ -1,0 +1,1 @@
+C:\Users\georg\dealerflow\node_modules\resolve\test\resolver\browser_field\a.js

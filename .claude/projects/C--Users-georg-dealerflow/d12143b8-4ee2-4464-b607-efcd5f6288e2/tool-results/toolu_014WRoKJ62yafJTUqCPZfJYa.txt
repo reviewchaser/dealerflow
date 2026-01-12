@@ -1,0 +1,17 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   405→            })()}
+   406→          </Link>
+   407→        </div>
+   408→
+   409→        {/* Navigation - Scrollable with proper mobile safari support */}
+   410→        <nav
+   411→          className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto overflow-x-hidden overscroll-contain min-h-0`}
+   412→          style={{
+   413→            WebkitOverflowScrolling: "touch",
+   414→            paddingBottom: "env(safe-area-inset-bottom, 16px)",
+   415→          }}
+   416→        >
+   417→          {/* Main Section */}
+   418→          {!sidebarCollapsed && (
+   419→            <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   420→              Main

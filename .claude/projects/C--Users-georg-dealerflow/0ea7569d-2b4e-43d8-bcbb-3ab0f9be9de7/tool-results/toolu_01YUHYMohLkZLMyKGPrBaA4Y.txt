@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     7→
+     8→// Contact type configuration
+     9→const TYPE_TABS = [
+    10→  { key: "all", label: "All" },
+    11→  { key: "CUSTOMER", label: "Customers" },
+    12→  { key: "SUPPLIER", label: "Suppliers" },
+    13→  { key: "FINANCE", label: "Finance" },
+    14→];
+    15→
+    16→// Format date helper
+    17→const formatDate = (date) => {
+    18→  if (!date) return "";

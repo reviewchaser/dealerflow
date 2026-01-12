@@ -1,0 +1,333 @@
+     1→/**
+     2→ * Dealer Logo Upload API Route (Tenant-Scoped)
+     3→ *
+     4→ * POST: Upload logo to S3 (private bucket), store key on dealer record
+     5→ * GET: Return signed URL for dealer's logo
+     6→ *
+     7→ * Multi-tenant safe: Uses withDealerContext to scope to current dealer
+     8→ */
+     9→
+    10→import formidable from "formidable";
+    11→import fs from "fs";
+    12→import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+    13→import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+    14→import { withDealerContext } from "@/libs/authContext";
+    15→import connectMongo from "@/libs/mongoose";
+    16→import Dealer from "@/models/Dealer";
+    17→
+    18→// Disable body parsing so formidable can handle multipart
+    19→export const config = {
+    20→  api: {
+    21→    bodyParser: false,
+    22→  },
+    23→};
+    24→
+    25→// Allowed image MIME types for logos
+    26→const ALLOWED_TYPES = [
+    27→  "image/png",
+    28→  "image/jpeg",
+    29→  "image/jpg",
+    30→  "image/webp",
+    31→  "image/gif",
+    32→  "image/svg+xml",
+    33→];
+    34→
+    35→// Max logo size: 2MB (logos should be small)
+    36→const MAX_FILE_SIZE = 2 * 1024 * 1024;
+    37→
+    38→/**
+    39→ * Check if S3 is configured
+    40→ */
+    41→function isS3Configured() {
+    42→  return !!(
+    43→    process.env.S3_ACCESS_KEY &&
+    44→    process.env.S3_SECRET_KEY &&
+    45→    process.env.S3_BUCKET
+    46→  );
+    47→}
+    48→
+    49→/**
+    50→ * Get S3 client
+    51→ */
+    52→function getS3Client() {
+    53→  return new S3Client({
+    54→    region: process.env.S3_REGION || "eu-west-2",
+    55→    credentials: {
+    56→      accessKeyId: process.env.S3_ACCESS_KEY,
+    57→      secretAccessKey: process.env.S3_SECRET_KEY,
+    58→    },
+    59→  });
+    60→}
+    61→
+    62→/**
+    63→ * Upload logo to S3 (private bucket)
+    64→ * Returns the S3 key
+    65→ */
+    66→async function uploadToS3(buffer, dealerId, contentType) {
+    67→  const s3 = getS3Client();
+    68→  const bucket = process.env.S3_BUCKET;
+    69→  const ext = getExtFromMimeType(contentType);
+    70→  const key = `dealers/${dealerId}/logo${ext}`;
+    71→
+    72→  await s3.send(
+    73→    new PutObjectCommand({
+    74→      Bucket: bucket,
+    75→      Key: key,
+    76→      Body: buffer,
+    77→      ContentType: contentType,
+    78→      // No ACL - bucket is private by default
+    79→    })
+    80→  );
+    81→
+    82→  return key;
+    83→}
+    84→
+    85→/**
+    86→ * Generate signed URL for private S3 object
+    87→ * @param {string} key - S3 object key
+    88→ * @param {number} expiresIn - URL expiration in seconds (default 1 hour)
+    89→ * @returns {Promise<string>} Signed URL
+    90→ */
+    91→async function getS3SignedUrl(key, expiresIn = 3600) {
+    92→  if (!isS3Configured()) {
+    93→    throw new Error("S3 not configured");
+    94→  }
+    95→
+    96→  const s3 = getS3Client();
+    97→  const command = new GetObjectCommand({
+    98→    Bucket: process.env.S3_BUCKET,
+    99→    Key: key,
+   100→  });
+   101→
+   102→  return getSignedUrl(s3, command, { expiresIn });
+   103→}
+   104→
+   105→/**
+   106→ * Get file extension from MIME type
+   107→ */
+   108→function getExtFromMimeType(mimeType) {
+   109→  const map = {
+   110→    "image/png": ".png",
+   111→    "image/jpeg": ".jpg",
+   112→    "image/jpg": ".jpg",
+   113→    "image/webp": ".webp",
+   114→    "image/gif": ".gif",
+   115→    "image/svg+xml": ".svg",
+   116→  };
+   117→  return map[mimeType] || ".jpg";
+   118→}
+   119→
+   120→/**
+   121→ * Handle POST - Upload logo
+   122→ */
+   123→async function handleUpload(req, res, ctx) {
+   124→  const { dealerId } = ctx;
+   125→
+   126→  // Check S3 configuration
+   127→  const useS3 = isS3Configured();
+   128→  if (!useS3) {
+   129→    // In production without S3, we can't store logos persistently
+   130→    if (process.env.NODE_ENV === "production") {
+   131→      return res.status(503).json({
+   132→        error: "File storage not configured. Please configure S3.",
+   133→        code: "STORAGE_NOT_CONFIGURED",
+   134→      });
+   135→    }
+   136→  }
+   137→
+   138→  try {
+   139→    // Configure formidable
+   140→    const form = formidable({
+   141→      maxFileSize: MAX_FILE_SIZE,
+   142→      keepExtensions: true,
+   143→      filter: ({ mimetype }) => ALLOWED_TYPES.includes(mimetype),
+   144→    });
+   145→
+   146→    // Parse the form data
+   147→    let files;
+   148→    try {
+   149→      [, files] = await form.parse(req);
+   150→    } catch (parseError) {
+   151→      console.error("[Dealer Logo] Parse error:", parseError.message);
+   152→
+   153→      if (parseError.code === 1009 || parseError.message?.includes("maxFileSize")) {
+   154→        return res.status(413).json({
+   155→          error: "Logo too large. Maximum size is 2MB.",
+   156→          code: "FILE_TOO_LARGE",
+   157→        });
+   158→      }
+   159→
+   160→      if (parseError.message?.includes("filter")) {
+   161→        return res.status(415).json({
+   162→          error: "Invalid file type. Only PNG, JPEG, WebP, GIF, and SVG are allowed.",
+   163→          code: "INVALID_FILE_TYPE",
+   164→        });
+   165→      }
+   166→
+   167→      return res.status(400).json({
+   168→        error: "Failed to parse upload",
+   169→        code: "PARSE_ERROR",
+   170→      });
+   171→    }
+   172→
+   173→    // Get the uploaded file (support both 'file' and 'logo' field names)
+   174→    const file = files.file?.[0] || files.logo?.[0];
+   175→
+   176→    if (!file) {
+   177→      return res.status(400).json({
+   178→        error: "No file uploaded",
+   179→        code: "NO_FILE",
+   180→      });
+   181→    }
+   182→
+   183→    // Validate file type again
+   184→    const mimeType = file.mimetype;
+   185→    if (!ALLOWED_TYPES.includes(mimeType)) {
+   186→      return res.status(415).json({
+   187→        error: `Invalid file type: ${mimeType}. Only images are allowed.`,
+   188→        code: "INVALID_FILE_TYPE",
+   189→      });
+   190→    }
+   191→
+   192→    // Read file into buffer
+   193→    const buffer = fs.readFileSync(file.filepath);
+   194→
+   195→    // Upload to S3 (scoped to this dealer)
+   196→    let logoKey;
+   197→    let logoUrl;
+   198→
+   199→    if (useS3) {
+   200→      console.log(`[Dealer Logo] Uploading to S3 for dealer ${dealerId}...`);
+   201→      logoKey = await uploadToS3(buffer, dealerId, mimeType);
+   202→      // Generate signed URL for immediate use (24 hour expiry)
+   203→      logoUrl = await getS3SignedUrl(logoKey, 86400);
+   204→      console.log(`[Dealer Logo] S3 upload success, key: ${logoKey}`);
+   205→    } else {
+   206→      // Local development fallback - save to public/uploads
+   207→      const path = await import("path");
+   208→      const uploadDir = path.join(process.cwd(), "public", "uploads", "dealers", dealerId.toString());
+   209→
+   210→      if (!fs.existsSync(uploadDir)) {
+   211→        fs.mkdirSync(uploadDir, { recursive: true });
+   212→      }
+   213→
+   214→      const ext = getExtFromMimeType(mimeType);
+   215→      const filename = `logo${ext}`;
+   216→      const filepath = path.join(uploadDir, filename);
+   217→      fs.writeFileSync(filepath, buffer);
+   218→
+   219→      logoUrl = `/uploads/dealers/${dealerId}/logo${ext}`;
+   220→      logoKey = null; // No S3 key for local uploads
+   221→      console.log(`[Dealer Logo] Local upload success: ${logoUrl}`);
+   222→    }
+   223→
+   224→    // Clean up temp file
+   225→    try {
+   226→      fs.unlinkSync(file.filepath);
+   227→    } catch (cleanupError) {
+   228→      console.warn("[Dealer Logo] Failed to clean up temp file:", cleanupError.message);
+   229→    }
+   230→
+   231→    // Update dealer record with logo key
+   232→    await connectMongo();
+   233→    await Dealer.updateOne(
+   234→      { _id: dealerId },
+   235→      {
+   236→        $set: {
+   237→          logoKey: logoKey,
+   238→          logoUrl: logoUrl, // For backwards compatibility
+   239→        },
+   240→      }
+   241→    );
+   242→
+   243→    console.log(`[Dealer Logo] Updated dealer ${dealerId} with logoKey: ${logoKey}`);
+   244→
+   245→    return res.status(200).json({
+   246→      success: true,
+   247→      url: logoUrl,
+   248→      key: logoKey,
+   249→      message: "Logo uploaded successfully",
+   250→      storage: useS3 ? "s3" : "local",
+   251→    });
+   252→  } catch (error) {
+   253→    console.error("[Dealer Logo] Upload error:", error.message, error.stack);
+   254→    return res.status(500).json({
+   255→      error: "Failed to upload logo",
+   256→      code: "UPLOAD_ERROR",
+   257→      details: process.env.NODE_ENV !== "production" ? error.message : undefined,
+   258→    });
+   259→  }
+   260→}
+   261→
+   262→/**
+   263→ * Handle GET - Return signed URL for dealer's logo
+   264→ */
+   265→async function handleGet(req, res, ctx) {
+   266→  const { dealerId, dealer } = ctx;
+   267→
+   268→  // Check if dealer has a logo
+   269→  if (!dealer.logoKey && !dealer.logoUrl) {
+   270→    return res.status(404).json({
+   271→      error: "No logo found",
+   272→      code: "NO_LOGO",
+   273→    });
+   274→  }
+   275→
+   276→  // If we have an S3 key, generate a fresh signed URL
+   277→  if (dealer.logoKey && isS3Configured()) {
+   278→    try {
+   279→      const signedUrl = await getS3SignedUrl(dealer.logoKey, 3600); // 1 hour expiry
+   280→      return res.status(200).json({
+   281→        url: signedUrl,
+   282→        key: dealer.logoKey,
+   283→        source: "s3",
+   284→      });
+   285→    } catch (error) {
+   286→      console.error("[Dealer Logo] Failed to generate signed URL:", error.message);
+   287→      // Fall back to stored logoUrl if available
+   288→      if (dealer.logoUrl) {
+   289→        return res.status(200).json({
+   290→          url: dealer.logoUrl,
+   291→          source: "fallback",
+   292→        });
+   293→      }
+   294→      return res.status(500).json({
+   295→        error: "Failed to retrieve logo",
+   296→        code: "S3_ERROR",
+   297→      });
+   298→    }
+   299→  }
+   300→
+   301→  // Return stored logoUrl (for local development or legacy data)
+   302→  return res.status(200).json({
+   303→    url: dealer.logoUrl,
+   304→    source: "local",
+   305→  });
+   306→}
+   307→
+   308→/**
+   309→ * Main handler
+   310→ */
+   311→async function handler(req, res, ctx) {
+   312→  res.setHeader("Content-Type", "application/json");
+   313→
+   314→  if (req.method === "POST") {
+   315→    return handleUpload(req, res, ctx);
+   316→  }
+   317→
+   318→  if (req.method === "GET") {
+   319→    return handleGet(req, res, ctx);
+   320→  }
+   321→
+   322→  return res.status(405).json({
+   323→    error: "Method not allowed",
+   324→    code: "METHOD_NOT_ALLOWED",
+   325→  });
+   326→}
+   327→
+   328→export default withDealerContext(handler);
+   329→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

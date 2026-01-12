@@ -1,0 +1,54 @@
+   710→              return (
+   711→                <div key={item.name} className="dropdown dropdown-top dropdown-end">
+   712→                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-2 py-1.5 cursor-pointer group">
+   713→                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC] transition-all">
+   714→                      <item.Icon className="w-5 h-5" />
+   715→                    </div>
+   716→                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
+   717→                  </label>
+   718→                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+   719→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
+   720→                    <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+   721→                    <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   722→                    <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   723→                    <div className="divider my-1 px-3"></div>
+   724→                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+   725→                  </ul>
+   726→                </div>
+   727→              );
+   728→            }
+   729→
+   730→            return (
+   731→              <Link
+   732→                key={item.name}
+   733→                href={itemPath}
+   734→                className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
+   735→              >
+   736→                <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+   737→                  isActive
+   738→                    ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/30"
+   739→                    : "bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   740→                }`}>
+   741→                  <item.Icon className="w-5 h-5" />
+   742→                </div>
+   743→                <span className={`text-[10px] mt-0.5 transition-colors ${
+   744→                  isActive ? "font-semibold text-[#0066CC]" : "text-slate-400 group-hover:text-[#0066CC]"
+   745→                }`}>{item.name}</span>
+   746→              </Link>
+   747→            );
+   748→          })}
+   749→        </div>
+   750→      </nav>
+   751→
+   752→      {/* Dev-only Tenant Debug Panel */}
+   753→      {process.env.NODE_ENV === "development" && debugContext && (
+   754→        <div className="fixed bottom-20 md:bottom-4 right-4 z-[60]">
+   755→          <button
+   756→            onClick={() => setDebugPanelOpen(!debugPanelOpen)}
+   757→            className="btn btn-xs btn-warning shadow-lg"
+   758→            title="Toggle debug panel"
+   759→          >
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

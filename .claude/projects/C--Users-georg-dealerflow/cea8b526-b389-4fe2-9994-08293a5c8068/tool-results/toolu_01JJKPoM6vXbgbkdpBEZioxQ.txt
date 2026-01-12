@@ -1,0 +1,24 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import AftercareCase from "@/models/AftercareCase";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import VehicleTask from "@/models/VehicleTask";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import FormSubmission from "@/models/FormSubmission";
+     7→import { withDealerContext } from "@/libs/authContext";
+     8→
+     9→async function handler(req, res, ctx) {
+    10→  if (req.method !== "POST") {
+    11→    return res.status(405).json({ error: "Method not allowed" });
+    12→  }
+    13→
+    14→  await connectMongo();
+    15→  const { dealerId, userId } = ctx;
+    16→  const { caseId } = req.body;
+    17→
+    18→  if (!caseId) {
+    19→    return res.status(400).json({ error: "caseId is required" });
+    20→  }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

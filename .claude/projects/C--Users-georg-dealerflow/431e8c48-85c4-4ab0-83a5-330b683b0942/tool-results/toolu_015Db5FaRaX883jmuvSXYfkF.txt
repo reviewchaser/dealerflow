@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\api\dealers\memberships.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    24→
+    25→  try {
+    26→    await connectMongo();
+    27→
+    28→    // Find all active memberships for this user
+    29→    // Note: DealerMembership uses removedAt: null for active, not status field
+    30→    const memberships = await DealerMembership.find({
+    31→      userId: session.user.id,
+    32→      removedAt: null,
+    33→    })
+    34→      .populate({
+    35→        path: "dealerId",
+    36→        select: "name slug logoUrl status",
+    37→      })

@@ -1,0 +1,4 @@
+178:      console.log("[Sales] Navigation complete for new deal, refreshing list");
+281:    console.log("[Sales] handleDealClick:", dealId);
+287:    console.log("[Sales] handleDrawerClose called");
+288:    console.trace("[Sales] Close drawer stack trace");

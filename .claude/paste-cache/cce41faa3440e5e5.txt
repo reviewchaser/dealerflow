@@ -1,0 +1,176 @@
+Context
+
+We have several UI elements (tooltips + share-form drawer/modal) that render correctly on desktop but break on mobile:
+
+Tooltips overflow / sit awkwardly (stock + submissions pages).
+
+Share Form “drawer/modal” doesn’t fit viewport (content clipped top/bottom, URL field weird).
+
+Stock/Aftersales tooltip says “Drag cards…” but mobile drag isn’t supported (or isn’t usable), so wording should be adaptive.
+
+1) Fix tooltips on mobile (Stock + Submissions)
+Goal
+
+On mobile:
+
+Tooltip should never go off-screen
+
+Should have max width, wrap text, and reposition to stay visible.
+
+Close button must always be reachable.
+
+Implementation requirements
+
+Identify the tooltip component used on:
+
+Stock & Prep Board page
+
+Submissions page
+
+Update the tooltip container styles:
+
+max-width: calc(100vw - 32px) (or Tailwind max-w-[calc(100vw-2rem)])
+
+white-space: normal; and ensure wrapping works (break-words)
+
+Add overflow-wrap: anywhere; if needed to avoid long strings breaking layout.
+
+Ensure tooltip is anchored correctly:
+
+If you’re using Popper/Floating UI, enable:
+
+shift() / flip() middleware
+
+padding (8–12px)
+
+If it’s a custom tooltip, implement manual positioning:
+
+Clamp left/right to viewport bounds
+
+Prefer “top” placement; fall back to “bottom” if near top
+
+Ensure tooltip content area has:
+
+max-height: 40vh (or similar) with overflow-y: auto for long tooltips.
+
+Add a mobile-specific layout tweak:
+
+On small screens (sm: and below), render as a compact banner / callout instead of a floating tooltip if necessary (this is often the cleanest UX):
+
+Full-width card under the page header, with close (X) on right.
+
+This avoids popper weirdness entirely.
+
+✅ Deliverable: tooltips on both pages look intentional and always fit fully on screen on iPhone Safari.
+
+2) Fix “Share Form” popup/drawer on mobile (content clipped)
+Problem (from screenshot)
+
+The Share Form UI (drawer/modal) is taller than the viewport; content gets cut off top and bottom.
+
+Goal
+
+On mobile:
+
+Drawer/modal should fit within viewport height
+
+Content should scroll inside the drawer, not behind it
+
+Header/footer should stay accessible
+
+Implementation requirements
+
+Locate Share Form UI component (likely a Dialog/Drawer).
+
+Apply a consistent “mobile safe” layout:
+
+Container height: max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)
+
+Use 100dvh not 100vh (Safari address bar issues).
+
+Ensure the drawer uses:
+
+display: flex; flex-direction: column;
+
+Header fixed at top
+
+Body: flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+
+Footer fixed or inside the scroll area depending on design
+
+Ensure the URL field doesn’t overflow:
+
+Use truncate / overflow-hidden text-ellipsis whitespace-nowrap
+
+Or allow wrap but ensure it doesn’t push layout wider than viewport.
+
+Add safe padding:
+
+Bottom padding includes env(safe-area-inset-bottom)
+
+Don’t let the “Print QR” button sit under the iPhone home bar.
+
+✅ Deliverable: Share Form drawer is fully usable on iPhone; no clipped content; scroll works inside the modal.
+
+3) Make the “Drag cards between columns” tooltip accurate for desktop vs mobile
+Current issue
+
+Tooltip says “Drag cards between columns…” but mobile either:
+
+doesn’t support drag/drop, or
+
+it’s not usable, or
+
+UI is not designed for it.
+
+Best approach
+
+Make tooltip copy responsive / capability-based:
+
+Logic
+
+If user is on a device where drag-and-drop is supported (fine pointer / desktop), show:
+
+“Drag cards between columns to update their status.”
+
+If user is on mobile / touch (coarse pointer), show:
+
+“Tap a card to open it and update status, tasks and issues.”
+
+Implementation
+
+Use media queries or runtime detection:
+
+CSS media query: (pointer: coarse) = mobile/touch
+
+Or JS: window.matchMedia("(pointer: coarse)").matches
+
+Apply this to tooltips on:
+
+Stock & Prep
+
+Aftersales/Warranty
+
+✅ Deliverable: desktop users see drag guidance; mobile users see tap guidance.
+
+4) Testing checklist (must do)
+
+iPhone Safari:
+
+Stock page tooltip: visible, not cut off, close works
+
+Submissions tooltip: visible, not cut off
+
+Share Form drawer: no clipping; internal scroll works; buttons reachable
+
+Desktop:
+
+Tooltip still positioned nicely
+
+Drag tooltip message remains drag-oriented on desktop
+
+Regression check:
+
+No horizontal scroll introduced
+
+No z-index issues (tooltip/modal behind header etc)

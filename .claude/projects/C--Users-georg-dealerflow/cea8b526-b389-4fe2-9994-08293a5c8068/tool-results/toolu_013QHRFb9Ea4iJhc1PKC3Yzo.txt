@@ -1,0 +1,24 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import CustomerPXAppraisal from "@/models/CustomerPXAppraisal";
+     3→import Vehicle from "@/models/Vehicle"; // Required for populate
+     4→import Contact from "@/models/Contact"; // Required for populate
+     5→
+     6→export default async function handler(req, res) {
+     7→  try {
+     8→    await connectMongo();
+     9→    const { id } = req.query;
+    10→
+    11→    if (req.method === "GET") {
+    12→      const appraisal = await CustomerPXAppraisal.findById(id)
+    13→        .populate("contactId")
+    14→        .populate("vehicleId")
+    15→        .lean();
+    16→      if (!appraisal) return res.status(404).json({ error: "Not found" });
+    17→      return res.status(200).json(appraisal);
+    18→    }
+    19→
+    20→    if (req.method === "PUT" || req.method === "PATCH") {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

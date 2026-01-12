@@ -1,0 +1,77 @@
+     1→import { withDealerContext, requireRole } from "../../../../../libs/authContext";
+     2→import connectMongo from "../../../../../libs/mongoose";
+     3→import OvertimeSubmission from "../../../../../models/OvertimeSubmission";
+     4→import User from "../../../../../models/User";
+     5→
+     6→/**
+     7→ * POST /api/admin/overtime/:id/approve
+     8→ * Approve an overtime submission
+     9→ * Only OWNER and ADMIN roles can access
+    10→ */
+    11→async function handler(req, res, ctx) {
+    12→  // Require admin or owner role
+    13→  const roleCheck = requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+    14→  if (!roleCheck.allowed) {
+    15→    return res.status(403).json({ error: roleCheck.message || "Access denied" });
+    16→  }
+    17→
+    18→  if (req.method !== "POST") {
+    19→    res.setHeader("Allow", ["POST"]);
+    20→    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    21→  }
+    22→
+    23→  await connectMongo();
+    24→  const { dealerId, userId } = ctx;
+    25→  const { id } = req.query;
+    26→
+    27→  if (!id) {
+    28→    return res.status(400).json({ error: "Submission ID is required" });
+    29→  }
+    30→
+    31→  try {
+    32→    // Fetch the submission
+    33→    const submission = await OvertimeSubmission.findOne({
+    34→      _id: id,
+    35→      dealerId,
+    36→    });
+    37→
+    38→    if (!submission) {
+    39→      return res.status(404).json({ error: "Submission not found" });
+    40→    }
+    41→
+    42→    // Can only approve SUBMITTED submissions
+    43→    if (submission.status !== "SUBMITTED") {
+    44→      return res.status(400).json({
+    45→        error: "Cannot approve",
+    46→        reason: `Submission is ${submission.status}, only SUBMITTED submissions can be approved`,
+    47→      });
+    48→    }
+    49→
+    50→    // Get approver's display name
+    51→    const approver = await User.findById(userId).lean();
+    52→    const approverName = approver?.fullName || approver?.name || ctx.user?.email?.split("@")[0] || "Admin";
+    53→
+    54→    // Update submission
+    55→    submission.status = "APPROVED";
+    56→    submission.approvedAt = new Date();
+    57→    submission.approvedByUserId = userId;
+    58→    submission.approvedByName = approverName;
+    59→
+    60→    await submission.save();
+    61→
+    62→    return res.status(200).json({
+    63→      submission: submission.toObject(),
+    64→      message: "Overtime approved successfully",
+    65→    });
+    66→  } catch (error) {
+    67→    console.error("Error approving overtime:", error);
+    68→    return res.status(500).json({ error: "Failed to approve overtime" });
+    69→  }
+    70→}
+    71→
+    72→export default withDealerContext(handler);
+    73→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

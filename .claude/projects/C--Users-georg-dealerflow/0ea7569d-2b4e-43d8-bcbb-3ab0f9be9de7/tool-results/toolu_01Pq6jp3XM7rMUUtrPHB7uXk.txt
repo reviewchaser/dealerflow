@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   210→                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+   211→                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+   212→              </div>
+   213→              <div className="flex-1 flex justify-center">
+   214→                <div className="bg-slate-700 rounded-md px-4 py-1 text-xs text-slate-400 font-mono">
+   215→                  app.dealerflow.co.uk
+   216→                </div>
+   217→              </div>
+   218→            </div>
+   219→
+   220→            {/* Screenshot Content - Stock Board Mockup */}

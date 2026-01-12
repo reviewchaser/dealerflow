@@ -1,0 +1,211 @@
+/**
+ * Update Test Drive Form - Match PDF Exactly
+ *
+ * This script updates the Test Drive form to match the PDF template exactly,
+ * including Terms & Conditions with {companyName}, {companyPhone}, {companyAddress} tokens.
+ */
+
+require("dotenv").config({ path: ".env.local" });
+const mongoose = require("mongoose");
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// FormField Schema (inline for script)
+const formFieldSchema = new mongoose.Schema({
+  dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true },
+  formId: { type: mongoose.Schema.Types.ObjectId, ref: "Form", required: true },
+  fieldName: { type: String, required: true },
+  label: { type: String, required: true },
+  type: {
+    type: String,
+    enum: ["TEXT", "TEXTAREA", "NUMBER", "DATE", "TIME", "DATETIME", "DROPDOWN", "CHECKBOX", "RADIO", "FILE", "SIGNATURE", "RATING", "BOOLEAN", "SECTION_HEADER", "PARAGRAPH"],
+    required: true
+  },
+  required: { type: Boolean, default: false },
+  options: { type: Object },
+  order: { type: Number, default: 0 },
+  isVisible: { type: Boolean, default: true },
+  placeholder: { type: String },
+  helpText: { type: String },
+  vrmLookup: { type: Boolean, default: false },
+}, { timestamps: true });
+
+const FormField = mongoose.models.FormField || mongoose.model("FormField", formFieldSchema);
+
+// Form Schema
+const formSchema = new mongoose.Schema({
+  dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true },
+  name: { type: String, required: true },
+  type: { type: String, required: true },
+  isPublic: { type: Boolean, default: false },
+  publicSlug: { type: String },
+}, { timestamps: true });
+
+const Form = mongoose.models.Form || mongoose.model("Form", formSchema);
+
+// Dealer Schema
+const dealerSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  companyName: { type: String },
+  companyAddress: { type: String },
+  companyPhone: { type: String },
+}, { timestamps: true });
+
+const Dealer = mongoose.models.Dealer || mongoose.model("Dealer", dealerSchema);
+
+// Terms & Conditions text with tokens
+const TERMS_AND_CONDITIONS = `- I accept that {companyName} have supplied the above vehicle for test drive purposes only.
+
+- I accept that I will be the sole driver of the vehicle for the period of the test drive and it will only be used for the purposes covered by the Motor Traders Insurance or my Insurance.
+
+- I accept I am responsible for returning the vehicle to {companyName} in the condition I received it.
+
+- I accept that I will not be under the influence of Alcohol or Drugs while driving the vehicle, and will not exceed the speed limit or drive the vehicle in a dangerous manner.
+
+- I accept the liability for any damage, or loss arising during the test drive and will indemnify {companyName} against any claims or actions, whether direct, consequential or otherwise. I am aware the excess for claims to damage caused is £1000.
+
+- I accept the liability for any offence, charge, fine, penalty or any other liability which may arise from my use of the vehicle and indemnify {companyName} against any claims or actions, whether direct, consequential or otherwise.
+
+- I accept the vehicle will be returned to {companyName} within the time limit of 15 minutes and will not exceed 10 miles while driving the vehicle.
+
+- I confirm I will contact {companyName} on {companyPhone} immediately in the event of an accident, breakdown or if any mechanical issues arise.
+
+- I confirm that I hold a full UK/EU valid licence, and have held the licence for a minimum of 2 years permitting me to drive the vehicle, valid for the duration of the test and authorise {companyName} to keep a copy of my licence for up to one year in accordance with their privacy policy.
+
+- I confirm that I am over 21 years of age.
+
+- I confirm that I am not over 70 years of age.
+
+- I confirm that I have not had more than 6 points on my driving licence in a 3 year period and have never had a driving ban.
+
+- I confirm that I am happy for {companyName} to retain my driving licence for the duration of the test drive.
+
+- I confirm that I am happy for {companyName} to deposit my own vehicle and keys to be kept for the duration of the test drive.`;
+
+// Test Drive fields - exact PDF match
+const TEST_DRIVE_FIELDS = [
+  // Date - required, default today
+  { fieldName: "date", label: "Date", type: "DATE", required: true, helpText: "dd-mm-yyyy" },
+
+  // Full Name - two fields side by side
+  { fieldName: "first_name", label: "First Name", type: "TEXT", required: true },
+  { fieldName: "last_name", label: "Last Name", type: "TEXT", required: true },
+
+  // Email
+  { fieldName: "email", label: "E-Mail", type: "TEXT", required: true, placeholder: "ex: myname@example.com" },
+
+  // Contact Number (Mobile)
+  { fieldName: "mobile", label: "Contact Number", type: "TEXT", required: true, helpText: "Mobile" },
+
+  // Driving Licence Photo
+  { fieldName: "licence_photo", label: "Upload Photo of Driving Licence", type: "FILE", required: true },
+
+  // Address Section Header
+  { fieldName: "_section_address", label: "Address (if different from licence)", type: "SECTION_HEADER", required: false },
+
+  // Address fields - NOT required
+  { fieldName: "street_address", label: "Street Address", type: "TEXT", required: false },
+  { fieldName: "street_address_2", label: "Street Address Line 2", type: "TEXT", required: false },
+  { fieldName: "city", label: "City", type: "TEXT", required: false },
+  { fieldName: "postcode", label: "Post Code", type: "TEXT", required: false },
+
+  // Vehicle Section Header
+  { fieldName: "_section_vehicle", label: "Vehicle Details", type: "SECTION_HEADER", required: false },
+
+  // Vehicle Make
+  { fieldName: "vehicle_make", label: "Vehicle Make", type: "TEXT", required: true, helpText: "For example: Audi" },
+
+  // Vehicle Model
+  { fieldName: "vehicle_model", label: "Vehicle Model", type: "TEXT", required: true, helpText: "For example: A3" },
+
+  // Vehicle Registration (VRM)
+  { fieldName: "vrm", label: "Vehicle Registration", type: "TEXT", required: true, vrmLookup: true },
+
+  // Where did you find the vehicle
+  {
+    fieldName: "source",
+    label: "Where did you find the vehicle advertised?",
+    type: "DROPDOWN",
+    required: true,
+    options: { values: ["AutoTrader", "eBay", "Facebook Marketplace", "Google", "Gumtree", "Referral", "Other"] }
+  },
+
+  // Terms & Conditions Section Header
+  { fieldName: "_section_terms", label: "Terms & Conditions", type: "SECTION_HEADER", required: false },
+
+  // Terms as PARAGRAPH (displayed as text with token replacement)
+  { fieldName: "_terms_text", label: TERMS_AND_CONDITIONS, type: "PARAGRAPH", required: false },
+
+  // Agreement checkbox
+  { fieldName: "agree_terms", label: "I have read and agree to the above Terms & Conditions", type: "BOOLEAN", required: true },
+
+  // Signature
+  { fieldName: "signature", label: "Signature", type: "SIGNATURE", required: true },
+
+  // Time
+  { fieldName: "time", label: "Time", type: "TIME", required: true },
+];
+
+async function updateTestDriveForm() {
+  console.log("Connecting to MongoDB...");
+  await mongoose.connect(MONGODB_URI);
+  console.log("Connected!\n");
+
+  // Get the dealer
+  const dealer = await Dealer.findOne();
+  if (!dealer) {
+    console.error("No dealer found!");
+    process.exit(1);
+  }
+  console.log(`Dealer: ${dealer.name}`);
+  console.log(`Company: ${dealer.companyName || "(not set)"}`);
+  console.log(`Phone: ${dealer.companyPhone || "(not set)"}`);
+  console.log(`Address: ${dealer.companyAddress || "(not set)"}\n`);
+
+  // Find the Test Drive form
+  const form = await Form.findOne({ dealerId: dealer._id, type: "TEST_DRIVE" });
+  if (!form) {
+    console.error("Test Drive form not found!");
+    process.exit(1);
+  }
+  console.log(`Found form: ${form.name} (${form._id})`);
+
+  // Delete existing fields
+  const deleted = await FormField.deleteMany({ formId: form._id });
+  console.log(`Deleted ${deleted.deletedCount} existing fields`);
+
+  // Create new fields
+  const fieldsToCreate = TEST_DRIVE_FIELDS.map((field, index) => ({
+    dealerId: dealer._id,
+    formId: form._id,
+    fieldName: field.fieldName,
+    label: field.label,
+    type: field.type,
+    required: field.required || false,
+    options: field.options || null,
+    order: index,
+    isVisible: true,
+    placeholder: field.placeholder || null,
+    helpText: field.helpText || null,
+    vrmLookup: field.vrmLookup || false,
+  }));
+
+  await FormField.insertMany(fieldsToCreate);
+  console.log(`Created ${fieldsToCreate.length} new fields\n`);
+
+  // Verify
+  const count = await FormField.countDocuments({ formId: form._id });
+  console.log(`\n═════════════════════════════════════════════`);
+  console.log(`TEST DRIVE FORM UPDATED`);
+  console.log(`═════════════════════════════════════════════`);
+  console.log(`Total fields: ${count}`);
+  console.log(`\nFields created:`);
+  TEST_DRIVE_FIELDS.forEach((f, i) => {
+    console.log(`  ${i + 1}. ${f.fieldName}: ${f.type}${f.required ? " (required)" : ""}`);
+  });
+
+  await mongoose.disconnect();
+  console.log("\nDone!");
+}
+
+updateTestDriveForm().catch(console.error);

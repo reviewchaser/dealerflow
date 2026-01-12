@@ -1,0 +1,64 @@
+   197→  // VRM Search state
+   198→  const [vrmSearch, setVrmSearch] = useState("");
+   199→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   200→  const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
+   201→  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+   202→  const vrmSearchInputRef = useRef(null);
+   203→  const vrmDropdownRef = useRef(null);
+   204→  const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0 });
+   205→
+   206→  // Compute VRM search results reactively based on vrmSearch and vehicles
+   207→  const vrmSearchResults = useMemo(() => {
+   208→    if (vrmSearch.length < 2) return [];
+   209→    if (!vehicles.length) return [];
+   210→
+   211→    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+   212→
+   213→    // Filter vehicles matching the query (VRM, make, or model)
+   214→    const matches = vehicles.filter((v) => {
+   215→      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+   216→      const make = (v.make || "").toUpperCase();
+   217→      const model = (v.model || "").toUpperCase();
+   218→      return vrm.includes(query) || make.includes(query) || model.includes(query);
+   219→    });
+   220→
+   221→    // Sort by createdAt (most recently added to stock first)
+   222→    const sorted = [...matches].sort((a, b) => {
+   223→      const aDate = new Date(a.createdAt || 0);
+   224→      const bDate = new Date(b.createdAt || 0);
+   225→      return bDate - aDate;
+   226→    });
+   227→
+   228→    return sorted.slice(0, 10);
+   229→  }, [vrmSearch, vehicles]);
+   230→
+   231→  // Calculate dropdown position when opening
+   232→  const updateVrmDropdownPosition = useCallback(() => {
+   233→    if (vrmSearchInputRef.current) {
+   234→      const rect = vrmSearchInputRef.current.getBoundingClientRect();
+   235→      setVrmDropdownPos({
+   236→        top: rect.bottom + 8,
+   237→        left: rect.left,
+   238→      });
+   239→    }
+   240→  }, []);
+   241→
+   242→  // Update position when dropdown opens
+   243→  useEffect(() => {
+   244→    if (showVrmDropdown) {
+   245→      updateVrmDropdownPosition();
+   246→      // Reset selection when dropdown opens
+   247→      setVrmSelectedIndex(-1);
+   248→    }
+   249→  }, [showVrmDropdown, updateVrmDropdownPosition]);
+   250→
+   251→  // Close dropdown when clicking outside
+   252→  useEffect(() => {
+   253→    const handleClickOutside = (e) => {
+   254→      if (
+   255→        showVrmDropdown &&
+   256→        vrmSearchInputRef.current &&
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,79 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Appraisal from "@/models/Appraisal";
+     3→import Contact from "@/models/Contact";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import { withDealerContext } from "@/libs/authContext";
+     6→
+     7→async function handler(req, res, ctx) {
+     8→  await connectMongo();
+     9→  const { dealerId } = ctx;
+    10→
+    11→  if (req.method === "GET") {
+    12→    const { decision } = req.query;
+    13→    let query = { dealerId };
+    14→    if (decision && decision !== "all") query.decision = decision;
+    15→
+    16→    const appraisals = await Appraisal.find(query)
+    17→      .populate("contactId")
+    18→      .populate("vehicleId")
+    19→      .sort({ createdAt: -1 })
+    20→      .lean();
+    21→
+    22→    return res.status(200).json(appraisals);
+    23→  }
+    24→
+    25→  if (req.method === "POST") {
+    26→    const {
+    27→      vehicleReg, vehicleMake, vehicleModel, vehicleYear,
+    28→      mileage, colour, fuelType, conditionNotes, proposedPurchasePrice, aiHintText,
+    29→      damagePhotos, faultCodePhotos, v5Url, serviceHistoryUrl, otherDocuments, prepTemplateId
+    30→    } = req.body;
+    31→
+    32→    if (!vehicleReg) {
+    33→      return res.status(400).json({ error: "Vehicle registration is required" });
+    34→    }
+    35→
+    36→    // Build appraisal data - only include fields that have values
+    37→    const appraisalData = {
+    38→      dealerId,
+    39→      vehicleReg: vehicleReg.toUpperCase().replace(/\s/g, ""),
+    40→      damagePhotos: damagePhotos || [],
+    41→      faultCodePhotos: faultCodePhotos || [],
+    42→    };
+    43→
+    44→    // Add optional fields only if they have values
+    45→    if (vehicleMake) appraisalData.vehicleMake = vehicleMake;
+    46→    if (vehicleModel) appraisalData.vehicleModel = vehicleModel;
+    47→    if (vehicleYear) appraisalData.vehicleYear = vehicleYear;
+    48→    if (mileage) appraisalData.mileage = Number(mileage);
+    49→    if (colour) appraisalData.colour = colour;
+    50→    if (fuelType) appraisalData.fuelType = fuelType;
+    51→    if (conditionNotes) appraisalData.conditionNotes = conditionNotes;
+    52→    if (proposedPurchasePrice) appraisalData.proposedPurchasePrice = Number(proposedPurchasePrice);
+    53→    if (aiHintText) appraisalData.aiHintText = aiHintText;
+    54→    if (v5Url) appraisalData.v5Url = v5Url;
+    55→    if (serviceHistoryUrl) appraisalData.serviceHistoryUrl = serviceHistoryUrl;
+    56→    if (otherDocuments) appraisalData.otherDocuments = otherDocuments;
+    57→    if (prepTemplateId && prepTemplateId !== "default") appraisalData.prepTemplateId = prepTemplateId;
+    58→
+    59→    const appraisal = await Appraisal.create(appraisalData);
+    60→
+    61→    const populated = await Appraisal.findById(appraisal._id).populate("contactId").lean();
+    62→    // Transform _id to id for frontend
+    63→    const result = {
+    64→      ...populated,
+    65→      id: populated._id.toString(),
+    66→      _id: undefined,
+    67→    };
+    68→    return res.status(201).json(result);
+    69→  }
+    70→
+    71→  return res.status(405).json({ error: "Method not allowed" });
+    72→}
+    73→
+    74→export default withDealerContext(handler);
+    75→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

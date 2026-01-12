@@ -1,0 +1,38 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   265→
+   266→    return sorted.slice(0, 10);
+   267→  }, [vrmSearch, vehicles]);
+   268→
+   269→  // Reset selection when dropdown opens
+   270→  useEffect(() => {
+   271→    if (showVrmDropdown) {
+   272→      setVrmSelectedIndex(-1);
+   273→    }
+   274→  }, [showVrmDropdown]);
+   275→
+   276→  // Force re-render on visualViewport changes (for iOS Safari keyboard handling)
+   277→  const [, setViewportUpdate] = useState(0);
+   278→  useEffect(() => {
+   279→    if (typeof window === "undefined" || !window.visualViewport) return;
+   280→
+   281→    const handleViewportChange = () => {
+   282→      // Only trigger update if dropdown is open
+   283→      if (showVrmDropdown) {
+   284→        setViewportUpdate((n) => n + 1);
+   285→      }
+   286→    };
+   287→
+   288→    window.visualViewport.addEventListener("resize", handleViewportChange);
+   289→    window.visualViewport.addEventListener("scroll", handleViewportChange);
+   290→
+   291→    return () => {
+   292→      window.visualViewport.removeEventListener("resize", handleViewportChange);
+   293→      window.visualViewport.removeEventListener("scroll", handleViewportChange);
+   294→    };
+   295→  }, [showVrmDropdown]);
+   296→
+   297→  // Close dropdown when clicking outside
+   298→  useEffect(() => {
+   299→    const handleClickOutside = (e) => {
+   300→      if (
+   301→        showVrmDropdown &&

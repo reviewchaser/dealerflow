@@ -1,0 +1,14 @@
+/**
+ * Legacy Settings Route - redirects to /app/[dealerSlug]/settings
+ */
+import { createLegacyRedirect } from "@/libs/legacyRedirect";
+
+export const getServerSideProps = createLegacyRedirect("settings");
+
+export default function LegacySettings() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+    </div>
+  );
+}

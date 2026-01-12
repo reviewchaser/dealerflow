@@ -1,0 +1,116 @@
+import connectMongo from "@/libs/mongoose";
+import HolidayRequest from "@/models/HolidayRequest";
+import User from "@/models/User";
+import { withDealerContext } from "@/libs/authContext";
+
+export default withDealerContext(async (req, res, ctx) => {
+  await connectMongo();
+  const { dealerId, userId, role } = ctx;
+
+  // GET - List holiday requests
+  if (req.method === "GET") {
+    try {
+      let query = { dealerId };
+
+      // Staff can only see their own requests; ADMIN/OWNER see all
+      if (role === "STAFF" || role === "WORKSHOP") {
+        query.userId = userId;
+      }
+
+      // Optional filters
+      if (req.query.status) {
+        query.status = req.query.status;
+      }
+      if (req.query.userId && (role === "OWNER" || role === "ADMIN")) {
+        query.userId = req.query.userId;
+      }
+
+      const requests = await HolidayRequest.find(query)
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return res.status(200).json(requests);
+    } catch (error) {
+      console.error("Error fetching holiday requests:", error);
+      return res.status(500).json({ error: "Failed to fetch holiday requests" });
+    }
+  }
+
+  // POST - Create holiday request
+  if (req.method === "POST") {
+    try {
+      const { startDate, endDate, type, notes, requestForUserId } = req.body;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: "Start date and end date are required" });
+      }
+
+      // Validate dates
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (end < start) {
+        return res.status(400).json({ error: "End date must be after start date" });
+      }
+
+      // Calculate total days
+      const diffTime = Math.abs(end - start);
+      const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+      // Prevent absurd date ranges (max 60 days per request)
+      if (totalDays > 60) {
+        return res.status(400).json({ error: "Holiday request cannot exceed 60 days. Please submit multiple requests for longer periods." });
+      }
+
+      // Prevent dates too far in the past (max 1 year ago)
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      if (start < oneYearAgo) {
+        return res.status(400).json({ error: "Start date cannot be more than 1 year in the past" });
+      }
+
+      // Prevent dates too far in the future (max 2 years ahead)
+      const twoYearsFromNow = new Date();
+      twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+      if (end > twoYearsFromNow) {
+        return res.status(400).json({ error: "End date cannot be more than 2 years in the future" });
+      }
+
+      // Determine which user the request is for
+      let targetUserId = userId;
+      let targetUserName = ctx.user.name || ctx.user.email;
+
+      // Admin/Owner can create requests for other staff
+      if (requestForUserId && (role === "OWNER" || role === "ADMIN")) {
+        const targetUser = await User.findById(requestForUserId).lean();
+        if (targetUser) {
+          targetUserId = requestForUserId;
+          targetUserName = targetUser.name || targetUser.email;
+        }
+      } else {
+        // Get current user's name
+        const currentUser = await User.findById(userId).lean();
+        if (currentUser) {
+          targetUserName = currentUser.name || currentUser.email;
+        }
+      }
+
+      const request = await HolidayRequest.create({
+        dealerId,
+        userId: targetUserId,
+        userName: targetUserName,
+        startDate: start,
+        endDate: end,
+        type: type || "Holiday",
+        notes,
+        status: "PENDING",
+      });
+
+      return res.status(201).json(request.toJSON());
+    } catch (error) {
+      console.error("Error creating holiday request:", error);
+      return res.status(500).json({ error: "Failed to create holiday request" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+});

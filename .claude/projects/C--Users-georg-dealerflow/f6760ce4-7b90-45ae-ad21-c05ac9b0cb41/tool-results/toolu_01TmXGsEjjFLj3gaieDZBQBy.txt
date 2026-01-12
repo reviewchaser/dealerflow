@@ -1,0 +1,84 @@
+  2755→      {selectedVehicle && (
+  2756→        <div className="fixed inset-0 z-50 flex justify-end" style={{ touchAction: "pan-y" }}>
+  2757→          <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
+  2758→          <div className="relative bg-white w-full md:max-w-3xl h-full overflow-y-auto overflow-x-hidden flex flex-col">
+  2759→            {/* Sticky Header */}
+  2760→            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
+  2761→              <div className="flex items-center gap-3">
+  2762→                {/* Back button on mobile */}
+  2763→                <button className="md:hidden btn btn-ghost btn-sm btn-circle" onClick={() => setSelectedVehicle(null)}>
+  2764→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2765→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  2766→                  </svg>
+  2767→                </button>
+  2768→                <div>
+  2769→                  <h2 className="text-lg md:text-xl font-bold text-slate-900">
+  2770→                    {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
+  2771→                  </h2>
+  2772→                  <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
+  2773→                </div>
+  2774→              </div>
+  2775→              <div className="flex items-center gap-1 md:gap-2">
+  2776→                <button
+  2777→                  className="hidden md:flex btn btn-outline btn-sm"
+  2778→                  onClick={handleGenerateJobSheet}
+  2779→                  disabled={isGeneratingJobSheet}
+  2780→                  title="Share job sheet with mechanic"
+  2781→                >
+  2782→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2783→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+  2784→                  </svg>
+  2785→                  {isGeneratingJobSheet ? "..." : "Share"}
+  2786→                </button>
+  2787→                <button
+  2788→                  className="hidden md:flex btn btn-outline btn-sm"
+  2789→                  onClick={handleGeneratePrepSummary}
+  2790→                  disabled={isGeneratingPrepSummary}
+  2791→                  title="Export prep summary PDF"
+  2792→                >
+  2793→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2794→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  2795→                  </svg>
+  2796→                  {isGeneratingPrepSummary ? "..." : "Prep PDF"}
+  2797→                </button>
+  2798→                <button className="hidden md:flex btn btn-outline btn-sm" onClick={handlePrintVehicle} title="Print vehicle details">
+  2799→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2800→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  2801→                  </svg>
+  2802→                  Print
+  2803→                </button>
+  2804→                <button
+  2805→                  className="btn btn-ghost btn-sm text-error"
+  2806→                  onClick={async () => {
+  2807→                    if (confirm("Delete this vehicle?")) {
+  2808→                      await fetch(`/api/vehicles/${selectedVehicle.id}`, { method: "DELETE" });
+  2809→                      setSelectedVehicle(null);
+  2810→                      fetchVehicles();
+  2811→                      toast.success("Vehicle deleted");
+  2812→                    }
+  2813→                  }}
+  2814→                  title="Delete vehicle"
+  2815→                >
+  2816→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2817→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  2818→                  </svg>
+  2819→                </button>
+  2820→                <button className="hidden md:flex btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>
+  2821→                  ✕
+  2822→                </button>
+  2823→              </div>
+  2824→            </div>
+  2825→
+  2826→            {/* Tabs - Dropdown on mobile, pills on desktop */}
+  2827→            <div className="bg-base-100 border-b border-base-300 px-4 py-2 overflow-x-hidden">
+  2828→              {/* Mobile: Dropdown selector */}
+  2829→              <div className="md:hidden">
+  2830→                <select
+  2831→                  value={activeTab}
+  2832→                  onChange={(e) => {
+  2833→                    setActiveTab(e.target.value);
+  2834→                    if (e.target.value === "activity" && selectedVehicle?.id) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

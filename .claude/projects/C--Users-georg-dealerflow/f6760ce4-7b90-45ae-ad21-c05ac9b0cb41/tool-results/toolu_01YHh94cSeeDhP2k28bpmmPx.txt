@@ -1,0 +1,13 @@
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\appraisals.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\calendar.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\contacts.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\dashboard.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\forms.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\onboarding.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\reviews.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\sales-prep.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\settings.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\vehicles\[id].js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\vehicles\index.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\vehicles\new.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\warranty.js

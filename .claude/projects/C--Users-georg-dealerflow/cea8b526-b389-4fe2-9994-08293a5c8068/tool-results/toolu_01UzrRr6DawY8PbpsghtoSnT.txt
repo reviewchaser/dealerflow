@@ -1,0 +1,18 @@
+The file C:\Users\georg\dealerflow\models\CustomerPXAppraisal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    57→  },
+    58→  { timestamps: true }
+    59→);
+    60→
+    61→customerPXAppraisalSchema.plugin(toJSON);
+    62→
+    63→// Indexes for dashboard and PX queries
+    64→customerPXAppraisalSchema.index({ dealerId: 1, decision: 1 });
+    65→customerPXAppraisalSchema.index({ dealerId: 1, createdAt: -1 });
+    66→
+    67→// Delete cached model to force schema update
+    68→if (mongoose.models.CustomerPXAppraisal) {
+    69→  delete mongoose.models.CustomerPXAppraisal;
+    70→}
+    71→
+    72→export default mongoose.model("CustomerPXAppraisal", customerPXAppraisalSchema);
+    73→

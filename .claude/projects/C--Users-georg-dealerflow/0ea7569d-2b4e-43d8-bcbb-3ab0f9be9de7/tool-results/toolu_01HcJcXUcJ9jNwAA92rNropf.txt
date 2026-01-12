@@ -1,0 +1,62 @@
+30-  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+31-  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+32-  other: ["General", "Misc"],
+33-};
+34-
+35:// Sold statuses - these show "Sold X days" instead of "In stock X days"
+36-const SOLD_STATUSES = ["live", "reserved", "delivered"];
+37-
+38-// Helper to compute duration label based on status
+39-const getVehicleDuration = (vehicle) => {
+40-  const isSold = SOLD_STATUSES.includes(vehicle.status);
+--
+46-    }
+47-    // Legacy sold vehicle without soldAt - just show "Sold"
+48-    return { days: 0, label: "Sold", isSold: true };
+49-  }
+50-
+51:  const daysInStock = vehicle.createdAt
+52-    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+53-    : 0;
+54:  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+55-};
+56-
+57-export default function SalesPrep() {
+58-  const router = useRouter();
+59-  const { isRedirecting } = useDealerRedirect();
+--
+1565-    const vehicle = selectedVehicle;
+1566-    const tasks = vehicle.tasks || [];
+1567-    const issues = vehicle.issues || [];
+1568-    const documents = vehicle.documents || [];
+1569-    const completedTasks = tasks.filter(t => t.status === "done").length;
+1570:    const daysInStock = vehicle.createdAt
+1571-      ? Math.floor((new Date() - new Date(vehicle.createdAt)) / (1000 * 60 * 60 * 24))
+1572-      : 0;
+1573-
+1574-    // Get status label from COLUMNS
+1575-    const statusColumn = COLUMNS.find(col => col.key === vehicle.status);
+--
+1593-    .field { margin-bottom: 12px; }
+1594-    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+1595-    .field-value { font-size: 14px; color: #1e293b; }
+1596-    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+1597-    .badge-status { background: #e0e7ff; color: #4338ca; }
+1598:    .badge-days { background: ${daysInStock > 30 ? '#fef2f2' : '#f1f5f9'}; color: ${daysInStock > 30 ? '#dc2626' : '#475569'}; }
+1599-    .task-list { list-style: none; }
+1600-    .task-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+1601-    .task-status { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+1602-    .task-done { background: #dcfce7; color: #16a34a; }
+1603-    .task-pending { background: #fef3c7; color: #d97706; }
+--
+1622-
+1623-  <div class="section">
+1624-    <div class="section-title">Overview</div>
+1625-    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+1626-      <span class="badge badge-status">${statusLabel}</span>
+1627:      <span class="badge badge-days">Days in Stock: ${daysInStock}</span>
+1628-      ${vehicle.locationId ? `<span class="badge" style="background:#eef2ff;color:#4f46e5;">📍 ${vehicle.locationId.name || 'Offsite'}</span>` : '<span class="badge" style="background:#f0fdf4;color:#16a34a;">📍 On Site</span>'}
+1629-    </div>
+1630-  </div>
+1631-
+1632-  <div class="section">

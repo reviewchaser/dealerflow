@@ -1,0 +1,46 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON.js";
+     3→
+     4→// Visibility modes:
+     5→// - INTERNAL: Requires login to access (staff only)
+     6→// - SHARE_LINK: Accessible without login via unguessable publicSlug URL, not listed publicly
+     7→// - PUBLIC: Accessible without login and can be shared/listed publicly
+     8→const VISIBILITY_MODES = ["INTERNAL", "SHARE_LINK", "PUBLIC"];
+     9→
+    10→const formSchema = new mongoose.Schema(
+    11→  {
+    12→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    13→    name: { type: String, required: true }, // PDI, Delivery, Warranty Claim, etc.
+    14→    type: {
+    15→      type: String,
+    16→      enum: ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTESY_OUT", "COURTESY_IN", "DELIVERY", "SERVICE_RECEIPT", "REVIEW_FEEDBACK", "OTHER"],
+    17→      required: true
+    18→    },
+    19→    // New visibility field - replaces isPublic
+    20→    visibility: {
+    21→      type: String,
+    22→      enum: VISIBILITY_MODES,
+    23→      default: "PUBLIC"
+    24→    },
+    25→    // Deprecated: kept for backward compatibility during migration
+    26→    isPublic: { type: Boolean, default: false },
+    27→    publicSlug: { type: String }, // Unique per dealer (compound index below)
+    28→    layoutConfig: { type: Object }, // optional for advanced layouts
+    29→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    30→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    31→  },
+    32→  { timestamps: true }
+    33→);
+    34→
+    35→// Compound index: publicSlug is unique per dealer (allows same slug for different dealers)
+    36→formSchema.index({ dealerId: 1, publicSlug: 1 }, { unique: true, sparse: true });
+    37→
+    38→formSchema.plugin(toJSON);
+    39→
+    40→// Use existing model or create new one (prevents OverwriteModelError in dev)
+    41→export default mongoose.models?.Form || mongoose.model("Form", formSchema);
+    42→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

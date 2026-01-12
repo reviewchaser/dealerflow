@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1183→                            ))}
+  1184→                          </div>
+  1185→                        </div>
+  1186→
+  1187→                      </div>
+  1188→                    </div>
+  1189→                  )}
+  1190→
+  1191→                  {/* Vehicle Section */}
+  1192→                  {deal.vehicle && (
+  1193→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

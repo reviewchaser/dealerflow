@@ -1,0 +1,17 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    68→  const [isLoading, setIsLoading] = useState(false);
+    69→  const [activeTab, setActiveTab] = useState("overview");
+    70→  const [actionLoading, setActionLoading] = useState(null);
+    71→
+    72→  // Deposit modal state
+    73→  const [showDepositModal, setShowDepositModal] = useState(false);
+    74→  const [depositAmount, setDepositAmount] = useState("");
+    75→  const [depositMethod, setDepositMethod] = useState("CARD");
+    76→  const [depositReference, setDepositReference] = useState("");
+    77→
+    78→  // Customer editing state
+    79→  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+    80→
+    81→  // Lock body scroll when drawer is open
+    82→  useEffect(() => {
+    83→    if (isOpen) {

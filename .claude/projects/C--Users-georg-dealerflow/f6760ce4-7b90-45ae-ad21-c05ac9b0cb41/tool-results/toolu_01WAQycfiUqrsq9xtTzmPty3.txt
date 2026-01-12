@@ -1,0 +1,400 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import VehicleTask, { TASK_PROGRESS, PARTS_STATUS, SUPPLIER_TYPE, SUPPLIER_TYPE_LABELS } from "@/models/VehicleTask";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import VehicleActivity from "@/models/VehicleActivity";
+     5→import User from "@/models/User";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→// Human-readable labels for statuses
+     9→const STATUS_LABELS = {
+    10→  pending: "Pending",
+    11→  in_progress: "In Progress",
+    12→  done: "Complete",
+    13→  complete: "Complete",
+    14→  not_required: "Not Required",
+    15→  PENDING: "Pending",
+    16→  IN_PROGRESS: "In Progress",
+    17→  DONE: "Complete",
+    18→  NOT_REQUIRED: "Not Required",
+    19→};
+    20→
+    21→// Human-readable labels for progress (legacy)
+    22→const PROGRESS_LABELS = {
+    23→  NONE: null,
+    24→  PARTS_ORDERED: "Parts Ordered",
+    25→  AWAITING_PARTS: "Awaiting Parts",
+    26→  BOOKED_IN: "Booked In",
+    27→  IN_WORKSHOP: "In Workshop",
+    28→};
+    29→
+    30→// Human-readable labels for parts status
+    31→const PARTS_STATUS_LABELS = {
+    32→  NONE: null,
+    33→  ORDERED: "Ordered",
+    34→  AWAITING_DELIVERY: "Awaiting Delivery",
+    35→  RECEIVED: "Received",
+    36→  NOT_REQUIRED: "Not Required",
+    37→};
+    38→
+    39→// Get supplier display name
+    40→function getSupplierDisplayName(supplierType, supplierName) {
+    41→  if (supplierType === "OTHER" && supplierName) {
+    42→    return supplierName;
+    43→  }
+    44→  return SUPPLIER_TYPE_LABELS[supplierType] || supplierType;
+    45→}
+    46→
+    47→async function handler(req, res, ctx) {
+    48→  try {
+    49→    await connectMongo();
+    50→    const { dealerId, userId, user } = ctx;
+    51→    const { taskId } = req.query;
+    52→
+    53→    const task = await VehicleTask.findById(taskId);
+    54→    if (!task) return res.status(404).json({ error: "Task not found" });
+    55→
+    56→    // Verify vehicle belongs to this dealer
+    57→    const vehicle = await Vehicle.findOne({ _id: task.vehicleId, dealerId }).lean();
+    58→    if (!vehicle) {
+    59→      return res.status(404).json({ error: "Vehicle not found" });
+    60→    }
+    61→
+    62→    if (req.method === "PUT") {
+    63→      const { status, notes, completedAt, name, progress, progressNote } = req.body;
+    64→      const previousStatus = task.status;
+    65→      const previousProgress = task.progress || "NONE";
+    66→      const previousProgressNote = task.progressNote;
+    67→
+    68→      // Get actor name for activity logging
+    69→      const actor = await User.findById(userId).lean();
+    70→      const actorName = actor?.name || user?.name || user?.email || "System";
+    71→
+    72→      // Track what changed for activity logging
+    73→      let statusChanged = false;
+    74→      let progressChanged = false;
+    75→      let nameChanged = false;
+    76→
+    77→      if (name !== undefined && name !== task.name) {
+    78→        task.name = name;
+    79→        nameChanged = true;
+    80→      }
+    81→
+    82→      if (status && status !== previousStatus) {
+    83→        task.status = status;
+    84→        statusChanged = true;
+    85→        // Auto-set completedAt when completed
+    86→        if ((status === "done" || status === "complete") && !task.completedAt) {
+    87→          task.completedAt = new Date();
+    88→        }
+    89→        // Clear completedAt if moving away from complete
+    90→        if (status !== "done" && status !== "complete" && task.completedAt) {
+    91→          task.completedAt = null;
+    92→        }
+    93→      }
+    94→
+    95→      if (completedAt !== undefined) {
+    96→        task.completedAt = completedAt;
+    97→      }
+    98→
+    99→      if (notes !== undefined) task.notes = notes;
+   100→
+   101→      // Handle progress sub-status
+   102→      if (progress !== undefined && progress !== previousProgress) {
+   103→        task.progress = progress;
+   104→        progressChanged = true;
+   105→      }
+   106→      if (progressNote !== undefined) {
+   107→        task.progressNote = progressNote;
+   108→      }
+   109→
+   110→      // Handle parts status changes
+   111→      const { partsStatus, addPartsOrder, updatePartsOrder, removePartsOrderId } = req.body;
+   112→      const previousPartsStatus = task.partsStatus || "NONE";
+   113→      let partsStatusChanged = false;
+   114→      let partsOrderAdded = null;
+   115→      let partsOrderUpdated = null;
+   116→      let partsOrderRemoved = null;
+   117→
+   118→      if (partsStatus !== undefined && partsStatus !== previousPartsStatus) {
+   119→        task.partsStatus = partsStatus;
+   120→        partsStatusChanged = true;
+   121→      }
+   122→
+   123→      // Add a new parts order
+   124→      if (addPartsOrder) {
+   125→        const newOrder = {
+   126→          supplierType: addPartsOrder.supplierType,
+   127→          supplierName: addPartsOrder.supplierName || null,
+   128→          orderRef: addPartsOrder.orderRef || null,
+   129→          orderedAt: addPartsOrder.orderedAt || new Date(),
+   130→          expectedAt: addPartsOrder.expectedAt || null,
+   131→          notes: addPartsOrder.notes || null,
+   132→          status: addPartsOrder.status || PARTS_STATUS.ORDERED,
+   133→          createdByUserId: userId,
+   134→        };
+   135→        task.partsOrders.push(newOrder);
+   136→        partsOrderAdded = newOrder;
+   137→
+   138→        // Auto-update partsStatus if it was NONE
+   139→        if (task.partsStatus === "NONE" || !task.partsStatus) {
+   140→          task.partsStatus = PARTS_STATUS.ORDERED;
+   141→          if (previousPartsStatus === "NONE" || !previousPartsStatus) {
+   142→            partsStatusChanged = true;
+   143→          }
+   144→        }
+   145→      }
+   146→
+   147→      // Update an existing parts order
+   148→      if (updatePartsOrder && updatePartsOrder.orderId) {
+   149→        const orderIndex = task.partsOrders.findIndex(
+   150→          (o) => o._id.toString() === updatePartsOrder.orderId
+   151→        );
+   152→        if (orderIndex !== -1) {
+   153→          const existingOrder = task.partsOrders[orderIndex];
+   154→          partsOrderUpdated = { before: { ...existingOrder.toObject() }, after: {} };
+   155→
+   156→          if (updatePartsOrder.supplierType !== undefined) {
+   157→            existingOrder.supplierType = updatePartsOrder.supplierType;
+   158→          }
+   159→          if (updatePartsOrder.supplierName !== undefined) {
+   160→            existingOrder.supplierName = updatePartsOrder.supplierName;
+   161→          }
+   162→          if (updatePartsOrder.orderRef !== undefined) {
+   163→            existingOrder.orderRef = updatePartsOrder.orderRef;
+   164→          }
+   165→          if (updatePartsOrder.expectedAt !== undefined) {
+   166→            existingOrder.expectedAt = updatePartsOrder.expectedAt;
+   167→          }
+   168→          if (updatePartsOrder.receivedAt !== undefined) {
+   169→            existingOrder.receivedAt = updatePartsOrder.receivedAt;
+   170→          }
+   171→          if (updatePartsOrder.notes !== undefined) {
+   172→            existingOrder.notes = updatePartsOrder.notes;
+   173→          }
+   174→          if (updatePartsOrder.status !== undefined) {
+   175→            existingOrder.status = updatePartsOrder.status;
+   176→          }
+   177→
+   178→          partsOrderUpdated.after = existingOrder.toObject();
+   179→        }
+   180→      }
+   181→
+   182→      // Remove a parts order
+   183→      if (removePartsOrderId) {
+   184→        const orderIndex = task.partsOrders.findIndex(
+   185→          (o) => o._id.toString() === removePartsOrderId
+   186→        );
+   187→        if (orderIndex !== -1) {
+   188→          partsOrderRemoved = task.partsOrders[orderIndex].toObject();
+   189→          task.partsOrders.splice(orderIndex, 1);
+   190→
+   191→          // Auto-update partsStatus if no orders left
+   192→          if (task.partsOrders.length === 0 && task.partsStatus !== "NOT_REQUIRED") {
+   193→            task.partsStatus = PARTS_STATUS.NONE;
+   194→          }
+   195→        }
+   196→      }
+   197→
+   198→      await task.save();
+   199→
+   200→      // Log activity for status changes
+   201→      if (statusChanged) {
+   202→        const oldLabel = STATUS_LABELS[previousStatus] || previousStatus;
+   203→        const newLabel = STATUS_LABELS[status] || status;
+   204→        const isCompleted = status === "done" || status === "complete";
+   205→
+   206→        await VehicleActivity.log({
+   207→          dealerId,
+   208→          vehicleId: task.vehicleId,
+   209→          actorId: userId,
+   210→          actorName,
+   211→          type: isCompleted ? "TASK_COMPLETED" : "TASK_STATUS_UPDATED",
+   212→          message: isCompleted
+   213→            ? `Completed task: ${task.name}`
+   214→            : `${task.name} status changed from ${oldLabel} to ${newLabel}`,
+   215→          meta: {
+   216→            taskId: task._id,
+   217→            taskName: task.name,
+   218→            from: previousStatus,
+   219→            to: status,
+   220→          },
+   221→        });
+   222→      }
+   223→
+   224→      // Log activity for progress changes
+   225→      if (progressChanged) {
+   226→        const oldLabel = PROGRESS_LABELS[previousProgress];
+   227→        const newLabel = PROGRESS_LABELS[progress];
+   228→        const noteText = task.progressNote ? ` (${task.progressNote})` : "";
+   229→
+   230→        let message;
+   231→        if (progress === "NONE") {
+   232→          message = `${task.name}: progress cleared`;
+   233→        } else if (!oldLabel || previousProgress === "NONE") {
+   234→          message = `${task.name}: ${newLabel}${noteText}`;
+   235→        } else {
+   236→          message = `${task.name}: ${oldLabel} → ${newLabel}${noteText}`;
+   237→        }
+   238→
+   239→        await VehicleActivity.log({
+   240→          dealerId,
+   241→          vehicleId: task.vehicleId,
+   242→          actorId: userId,
+   243→          actorName,
+   244→          type: "TASK_PROGRESS_UPDATED",
+   245→          message,
+   246→          meta: {
+   247→            taskId: task._id,
+   248→            taskName: task.name,
+   249→            from: previousProgress,
+   250→            to: progress,
+   251→            progressNote: task.progressNote,
+   252→          },
+   253→        });
+   254→      }
+   255→
+   256→      // Log activity for name changes
+   257→      if (nameChanged) {
+   258→        await VehicleActivity.log({
+   259→          dealerId,
+   260→          vehicleId: task.vehicleId,
+   261→          actorId: userId,
+   262→          actorName,
+   263→          type: "TASK_UPDATED",
+   264→          message: `Task renamed to: ${task.name}`,
+   265→          meta: { taskId: task._id, taskName: task.name },
+   266→        });
+   267→      }
+   268→
+   269→      // Log activity for parts status changes
+   270→      if (partsStatusChanged) {
+   271→        const oldLabel = PARTS_STATUS_LABELS[previousPartsStatus] || previousPartsStatus;
+   272→        const newLabel = PARTS_STATUS_LABELS[task.partsStatus] || task.partsStatus;
+   273→
+   274→        await VehicleActivity.log({
+   275→          dealerId,
+   276→          vehicleId: task.vehicleId,
+   277→          actorId: userId,
+   278→          actorName,
+   279→          type: "TASK_PARTS_STATUS_CHANGED",
+   280→          message: oldLabel
+   281→            ? `${task.name}: Parts status ${oldLabel} → ${newLabel}`
+   282→            : `${task.name}: Parts status set to ${newLabel}`,
+   283→          meta: {
+   284→            taskId: task._id,
+   285→            taskName: task.name,
+   286→            from: previousPartsStatus,
+   287→            to: task.partsStatus,
+   288→          },
+   289→        });
+   290→      }
+   291→
+   292→      // Log activity for parts order added
+   293→      if (partsOrderAdded) {
+   294→        const supplierDisplay = getSupplierDisplayName(
+   295→          partsOrderAdded.supplierType,
+   296→          partsOrderAdded.supplierName
+   297→        );
+   298→
+   299→        await VehicleActivity.log({
+   300→          dealerId,
+   301→          vehicleId: task.vehicleId,
+   302→          actorId: userId,
+   303→          actorName,
+   304→          type: "TASK_PARTS_ORDER_ADDED",
+   305→          message: `${task.name}: Parts ordered from ${supplierDisplay}${partsOrderAdded.orderRef ? ` (Ref: ${partsOrderAdded.orderRef})` : ""}`,
+   306→          meta: {
+   307→            taskId: task._id,
+   308→            taskName: task.name,
+   309→            order: partsOrderAdded,
+   310→          },
+   311→        });
+   312→      }
+   313→
+   314→      // Log activity for parts order updated
+   315→      if (partsOrderUpdated) {
+   316→        const supplierDisplay = getSupplierDisplayName(
+   317→          partsOrderUpdated.after.supplierType,
+   318→          partsOrderUpdated.after.supplierName
+   319→        );
+   320→
+   321→        let message = `${task.name}: Parts order from ${supplierDisplay} updated`;
+   322→        // Add specific change details if status changed
+   323→        if (partsOrderUpdated.before.status !== partsOrderUpdated.after.status) {
+   324→          const oldStatus = PARTS_STATUS_LABELS[partsOrderUpdated.before.status] || partsOrderUpdated.before.status;
+   325→          const newStatus = PARTS_STATUS_LABELS[partsOrderUpdated.after.status] || partsOrderUpdated.after.status;
+   326→          message = `${task.name}: Parts from ${supplierDisplay} - ${oldStatus} → ${newStatus}`;
+   327→        }
+   328→
+   329→        await VehicleActivity.log({
+   330→          dealerId,
+   331→          vehicleId: task.vehicleId,
+   332→          actorId: userId,
+   333→          actorName,
+   334→          type: "TASK_PARTS_ORDER_UPDATED",
+   335→          message,
+   336→          meta: {
+   337→            taskId: task._id,
+   338→            taskName: task.name,
+   339→            before: partsOrderUpdated.before,
+   340→            after: partsOrderUpdated.after,
+   341→          },
+   342→        });
+   343→      }
+   344→
+   345→      // Log activity for parts order removed
+   346→      if (partsOrderRemoved) {
+   347→        const supplierDisplay = getSupplierDisplayName(
+   348→          partsOrderRemoved.supplierType,
+   349→          partsOrderRemoved.supplierName
+   350→        );
+   351→
+   352→        await VehicleActivity.log({
+   353→          dealerId,
+   354→          vehicleId: task.vehicleId,
+   355→          actorId: userId,
+   356→          actorName,
+   357→          type: "TASK_PARTS_ORDER_REMOVED",
+   358→          message: `${task.name}: Parts order from ${supplierDisplay} removed`,
+   359→          meta: {
+   360→            taskId: task._id,
+   361→            taskName: task.name,
+   362→            order: partsOrderRemoved,
+   363→          },
+   364→        });
+   365→      }
+   366→
+   367→      return res.status(200).json(task.toJSON());
+   368→    }
+   369→
+   370→    if (req.method === "DELETE") {
+   371→      // Log activity for task deletion
+   372→      const actor = await User.findById(userId).lean();
+   373→      const actorName = actor?.name || user?.name || user?.email || "System";
+   374→
+   375→      await VehicleActivity.log({
+   376→        dealerId,
+   377→        vehicleId: task.vehicleId,
+   378→        actorId: userId,
+   379→        actorName,
+   380→        type: "TASK_DELETED",
+   381→        message: `Removed task: ${task.name}`,
+   382→        meta: { taskId: task._id, taskName: task.name },
+   383→      });
+   384→
+   385→      await VehicleTask.findByIdAndDelete(taskId);
+   386→      return res.status(200).json({ message: "Deleted" });
+   387→    }
+   388→
+   389→    return res.status(405).json({ error: "Method not allowed" });
+   390→  } catch (error) {
+   391→    return res.status(500).json({ error: error.message });
+   392→  }
+   393→}
+   394→
+   395→export default withDealerContext(handler);
+   396→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

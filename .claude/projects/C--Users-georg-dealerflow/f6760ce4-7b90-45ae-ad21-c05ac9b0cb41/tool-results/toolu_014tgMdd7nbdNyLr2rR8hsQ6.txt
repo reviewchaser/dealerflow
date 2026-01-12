@@ -1,0 +1,79 @@
+├ ƒ /api/vehicles/[id]/job-sheet               0 B            95.2 kB
+├ ƒ /api/vehicles/[id]/labels/[labelId]        0 B            95.2 kB
+├ ƒ /api/vehicles/[id]/prep-summary            0 B            95.2 kB
+├ ƒ /api/vehicles/[id]/primary-image           0 B            95.2 kB
+├ ƒ /api/vehicles/[id]/tasks                   0 B            95.2 kB
+├ ƒ /api/vehicles/courtesy                     0 B            95.2 kB
+├ ƒ /api/vehicles/search                       0 B            95.2 kB
+├ ƒ /api/vehicles/stock                        0 B            95.2 kB
+├ ƒ /api/vehicles/upload                       0 B            95.2 kB
+├ ƒ /api/vehicles/vrm-suggestions              0 B            95.2 kB
+├ ƒ /api/webhook/mailgun                       0 B            95.2 kB
+├ ƒ /api/webhook/stripe                        0 B            95.2 kB
+├ ○ /app/[dealerSlug]/appraisals               1.13 kB         117 kB
+├ ○ /app/[dealerSlug]/calendar                 1.13 kB         118 kB
+├ ○ /app/[dealerSlug]/contacts                 1.13 kB         113 kB
+├ ○ /app/[dealerSlug]/dashboard                1.12 kB         118 kB
+├ ○ /app/[dealerSlug]/forms (414 ms)           1.13 kB         132 kB
+├ ○ /app/[dealerSlug]/holidays                 1.13 kB         116 kB
+├ ○ /app/[dealerSlug]/onboarding (372 ms)      1.53 kB         107 kB
+├ ○ /app/[dealerSlug]/overtime (369 ms)        1.13 kB         117 kB
+├ ○ /app/[dealerSlug]/reviews (424 ms)         1.13 kB         114 kB
+├ ○ /app/[dealerSlug]/sales-prep               1.14 kB         143 kB
+├ ○ /app/[dealerSlug]/settings (414 ms)        1.13 kB         116 kB
+├ ○ /app/[dealerSlug]/vehicles (367 ms)        1.13 kB         113 kB
+├ ○ /app/[dealerSlug]/vehicles/[id] (370 ms)   1.14 kB         113 kB
+├ ○ /app/[dealerSlug]/vehicles/new (401 ms)    1.14 kB         114 kB
+├ ○ /app/[dealerSlug]/warranty                 1.14 kB         148 kB
+├ ○ /appraisal/[dealerSlug] (374 ms)           3.21 kB        98.4 kB
+├ ○ /appraisals                                197 B           117 kB
+├ ○ /appraisals/[id]                           8.08 kB         121 kB
+├ ○ /appraisals/new                            5.56 kB         115 kB
+├ ○ /appraisals/px/[id]                        6.43 kB         119 kB
+├ ○ /auth/signin                               2.3 kB         99.9 kB
+├ ○ /auth/signup                               2.65 kB         100 kB
+├ ○ /calendar                                  195 B           117 kB
+├ ○ /choose-dealer                             1.46 kB        96.6 kB
+├ ○ /contacts                                  195 B           112 kB
+├ ○ /dashboard                                 195 B           117 kB
+├ ○ /forms                                     193 B           131 kB
+├ ○ /forms/fill/[id]                           12.3 kB         125 kB
+├ ○ /holidays                                  195 B           115 kB
+├ ○ /invite/accept                             2.41 kB         100 kB
+├ ○ /onboarding                                188 B           103 kB
+├ ○ /onboarding/create-dealer                  2.75 kB         100 kB
+├ ○ /overtime                                  194 B           116 kB
+├ ○ /privacy-policy                            1.8 kB          104 kB
+├ ○ /public/appraisal/[token]                  1.98 kB        97.1 kB
+├ ƒ /public/forms/[slug]                       9.16 kB         104 kB
+├ ○ /public/forms/thank-you                    600 B          95.8 kB
+├ ○ /public/job/[token]                        2.71 kB        97.9 kB
+├ ○ /public/prep-summary/[token]               3.14 kB        98.3 kB
+├ ○ /public/px-valuation                       5.68 kB         101 kB
+├ ○ /public/review/[token]                     1.6 kB         96.8 kB
+├ ○ /public/warranty-claim                     1.99 kB        97.2 kB
+├ ○ /px/[dealerSlug]                           5.17 kB         100 kB
+├ ○ /px/a/[token]                              2.82 kB          98 kB
+├ ○ /reviews                                   195 B           113 kB
+├ ○ /sales                                     2.46 kB         112 kB
+├ ○ /sales-prep                                200 B           142 kB
+├ ○ /settings                                  198 B           115 kB
+├ ○ /settings/forms                            5.21 kB         118 kB
+├ ○ /settings/forms/[id]                       6 kB            112 kB
+├ ○ /settings/team                             6.6 kB          113 kB
+├ ○ /tos                                       1.65 kB         104 kB
+├ ○ /vehicles                                  196 B           112 kB
+├ ○ /vehicles/[id]                             200 B           112 kB
+├ ○ /vehicles/new                              199 B           113 kB
+└ ○ /warranty                                  198 B           147 kB
++ First Load JS shared by all                  127 kB
+  ├ chunks/framework-840cff9d6bb95703.js       44.8 kB
+  ├ chunks/main-a534b3c83607e72c.js            34.1 kB
+  ├ chunks/pages/_app-b6e0d9abae05f6d4.js      14.6 kB
+  ├ css/5f75bf8c81834359.css                   31.8 kB
+  └ other shared chunks (total)                1.57 kB
+
+ƒ Middleware                                   48 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

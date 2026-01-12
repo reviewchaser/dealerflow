@@ -1,0 +1,131 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import VehicleLabel from "@/models/VehicleLabel";
+import VehicleIssue from "@/models/VehicleIssue";
+import VehicleLocation from "@/models/VehicleLocation";
+import VehicleDocument from "@/models/VehicleDocument";
+
+const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { status } = req.query;
+      let query = {};
+      if (status && status !== "all") query.status = status;
+
+      // Fetch vehicles with populated fields
+      const vehicles = await Vehicle.find(query)
+        .populate("locationId")
+        .populate("labels")
+        .sort({ createdAt: -1 })
+        .lean();
+
+      if (vehicles.length === 0) {
+        return res.status(200).json([]);
+      }
+
+      // Get all vehicle IDs for bulk queries
+      const vehicleIds = vehicles.map(v => v._id);
+
+      // Fetch all tasks, issues, and documents in parallel (3 queries instead of 3*N)
+      const [allTasks, allIssues, allDocuments] = await Promise.all([
+        VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+        VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
+        VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
+      ]);
+
+      // Create lookup maps for O(1) access
+      const tasksByVehicle = {};
+      const issuesByVehicle = {};
+      const documentsByVehicle = {};
+
+      for (const task of allTasks) {
+        const vid = task.vehicleId.toString();
+        if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+        tasksByVehicle[vid].push({ ...task, id: task._id.toString(), _id: undefined });
+      }
+
+      for (const issue of allIssues) {
+        const vid = issue.vehicleId.toString();
+        if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+        issuesByVehicle[vid].push({ ...issue, id: issue._id.toString(), _id: undefined });
+      }
+
+      for (const doc of allDocuments) {
+        const vid = doc.vehicleId.toString();
+        if (!documentsByVehicle[vid]) documentsByVehicle[vid] = [];
+        documentsByVehicle[vid].push({ ...doc, id: doc._id.toString(), _id: undefined });
+      }
+
+      // Transform vehicles with their related data
+      const result = vehicles.map(vehicle => {
+        const vid = vehicle._id.toString();
+        return {
+          ...vehicle,
+          id: vid,
+          _id: undefined,
+          tasks: tasksByVehicle[vid] || [],
+          issues: issuesByVehicle[vid] || [],
+          documents: documentsByVehicle[vid] || [],
+          labels: (vehicle.labels || []).map(l => ({ ...l, id: l._id?.toString(), _id: undefined })),
+        };
+      });
+
+      return res.status(200).json(result);
+    }
+
+    if (req.method === "POST") {
+      const {
+        regCurrent, vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status = "in_stock", notes, locationId, skipDefaultTasks,
+        type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
+        saleType = "RETAIL" // RETAIL, TRADE - only for STOCK vehicles
+      } = req.body;
+
+      if (!regCurrent || !make || !model) {
+        return res.status(400).json({ error: "Reg, make and model required" });
+      }
+
+      const vehicleData = {
+        regCurrent: regCurrent.toUpperCase().replace(/\s/g, ""),
+        vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status, notes, type,
+        // Only set saleType for STOCK vehicles
+        ...(type === "STOCK" && { saleType }),
+      };
+
+      // Only add locationId if it's not empty
+      if (locationId) {
+        vehicleData.locationId = locationId;
+      }
+
+      const vehicle = await Vehicle.create(vehicleData);
+
+      // Create default tasks only if not skipped (for backwards compatibility)
+      if (!skipDefaultTasks) {
+        for (const taskName of DEFAULT_TASKS) {
+          await VehicleTask.create({
+            vehicleId: vehicle._id,
+            name: taskName,
+            status: "pending",
+            source: "system_default",
+          });
+        }
+      }
+
+      // Transform to include id field
+      const vehicleJson = vehicle.toJSON();
+      return res.status(201).json(vehicleJson);
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}

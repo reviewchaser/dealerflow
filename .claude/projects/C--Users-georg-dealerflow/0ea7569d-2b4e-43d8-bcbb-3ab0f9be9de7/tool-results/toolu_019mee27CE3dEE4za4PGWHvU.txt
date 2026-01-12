@@ -1,0 +1,44 @@
+   265→
+   266→    return sorted.slice(0, 10);
+   267→  }, [vrmSearch, vehicles]);
+   268→
+   269→  // Reset selection when dropdown opens
+   270→  useEffect(() => {
+   271→    if (showVrmDropdown) {
+   272→      setVrmSelectedIndex(-1);
+   273→    }
+   274→  }, [showVrmDropdown]);
+   275→
+   276→  // Close dropdown when clicking outside
+   277→  useEffect(() => {
+   278→    const handleClickOutside = (e) => {
+   279→      if (
+   280→        showVrmDropdown &&
+   281→        vrmSearchInputRef.current &&
+   282→        !vrmSearchInputRef.current.contains(e.target) &&
+   283→        vrmDropdownRef.current &&
+   284→        !vrmDropdownRef.current.contains(e.target)
+   285→      ) {
+   286→        setShowVrmDropdown(false);
+   287→      }
+   288→    };
+   289→    document.addEventListener("mousedown", handleClickOutside);
+   290→    return () => document.removeEventListener("mousedown", handleClickOutside);
+   291→  }, [showVrmDropdown]);
+   292→
+   293→  // Mobile state
+   294→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   295→
+   296→  useEffect(() => {
+   297→    fetchVehicles();
+   298→    fetchLocations();
+   299→    fetchLabels();
+   300→  }, []);
+   301→
+   302→  // Handle addVehicle query param (from Quick Add menu)
+   303→  useEffect(() => {
+   304→    if (router.query.addVehicle === "1") {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

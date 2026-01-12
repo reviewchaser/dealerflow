@@ -1,0 +1,46 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\upload.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    46→
+    47→// Max file size: 5MB
+    48→const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    49→
+    50→/**
+    51→ * Required R2/S3 environment variables
+    52→ */
+    53→const REQUIRED_ENV_VARS = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET", "S3_ENDPOINT"];
+    54→
+    55→/**
+    56→ * Check if S3/R2 is configured
+    57→ */
+    58→function isS3Configured() {
+    59→  return REQUIRED_ENV_VARS.every((key) => !!process.env[key]);
+    60→}
+    61→
+    62→/**
+    63→ * Validate R2 config and throw with clear error if missing
+    64→ */
+    65→function validateR2Config() {
+    66→  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+    67→  if (missing.length > 0) {
+    68→    throw new Error(`Missing required R2 environment variables: ${missing.join(", ")}`);
+    69→  }
+    70→}
+    71→
+    72→/**
+    73→ * Get S3 client configured for Cloudflare R2
+    74→ */
+    75→function getS3Client() {
+    76→  validateR2Config();
+    77→
+    78→  return new S3Client({
+    79→    region: process.env.S3_REGION || "auto",
+    80→    endpoint: process.env.S3_ENDPOINT,
+    81→    credentials: {
+    82→      accessKeyId: process.env.S3_ACCESS_KEY,
+    83→      secretAccessKey: process.env.S3_SECRET_KEY,
+    84→    },
+    85→  });
+    86→}
+    87→
+    88→/**
+    89→ * Upload file to S3 (private bucket)
+    90→ * Returns the S3 key (not a public URL)

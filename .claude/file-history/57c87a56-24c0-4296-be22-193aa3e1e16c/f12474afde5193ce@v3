@@ -1,0 +1,104 @@
+import GoogleProvider from "next-auth/providers/google";
+import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { MongoDBAdapter } from "@auth/mongodb-adapter";
+import connectMongo from "@/libs/mongo";
+import config from "@/config";
+
+export const authOptions = {
+  // Set any random key in .env.local
+  secret: process.env.NEXTAUTH_SECRET,
+
+  providers: [
+    // DEV ONLY: Simple credentials login for testing
+    // Use any email + password "test123"
+    CredentialsProvider({
+      name: "Dev Login",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "test@example.com" },
+        password: { label: "Password", type: "password", placeholder: "test123" },
+      },
+      async authorize(credentials) {
+        console.log("[CredentialsProvider] authorize called");
+        console.log("[CredentialsProvider] NODE_ENV:", process.env.NODE_ENV);
+        console.log("[CredentialsProvider] email:", credentials?.email);
+        console.log("[CredentialsProvider] password:", credentials?.password);
+
+        // Only allow in development (or if NODE_ENV is undefined)
+        if (process.env.NODE_ENV === "production") {
+          console.log("[CredentialsProvider] Blocked - production mode");
+          return null;
+        }
+
+        // Simple password check for dev
+        if (credentials?.password !== "test123") {
+          console.log("[CredentialsProvider] Invalid password");
+          return null;
+        }
+
+        if (!credentials?.email) {
+          console.log("[CredentialsProvider] No email provided");
+          return null;
+        }
+
+        console.log("[CredentialsProvider] Success - returning user");
+        // Return user object - will be created if doesn't exist
+        return {
+          id: credentials.email, // Use email as ID for simplicity
+          email: credentials.email,
+          name: credentials.email.split("@")[0],
+        };
+      },
+    }),
+    GoogleProvider({
+      // Follow the "Login with Google" tutorial to get your credentials
+      clientId: process.env.GOOGLE_ID || "not-configured",
+      clientSecret: process.env.GOOGLE_SECRET || "not-configured",
+      async profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.given_name ? profile.given_name : profile.name,
+          email: profile.email,
+          image: profile.picture,
+          createdAt: new Date(),
+        };
+      },
+    }),
+    // Follow the "Login with Email" tutorial to set up your email server
+    EmailProvider({
+      server: process.env.EMAIL_SERVER,
+      from: config.mailgun.fromNoReply,
+    }),
+  ],
+  // New users will be saved in Database (MongoDB Atlas). Each user (model) has some fields like name, email, image, etc.. Learn more about the model type: https://next-auth.js.org/v3/adapters/models
+  adapter: MongoDBAdapter(connectMongo),
+  callbacks: {
+    jwt: async ({ token, user }) => {
+      // On sign in, add user info to token
+      if (user) {
+        token.sub = user.id;
+        token.email = user.email;
+        token.name = user.name;
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
+      if (session?.user) {
+        session.user.id = token.sub;
+      }
+      return session;
+    },
+  },
+  session: {
+    strategy: "jwt",
+  },
+  theme: {
+    brandColor: config.colors.main,
+    // Add you own logo below. Recommended size is rectangle (i.e. 200x50px) and show your logo + name.
+    // It will be used in the login flow to display your logo. If you don't add it, it will look faded.
+    logo: `https://${config.domainName}/logoAndName.png`,
+  },
+  pages: {
+    signIn: "/auth/signin", // We'll create a custom sign-in page
+  },
+};

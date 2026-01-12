@@ -1,0 +1,27 @@
+The file C:\Users\georg\dealerflow\pages\public\invoice\[token].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   381→          )}
+   382→        </div>
+   383→      </div>
+   384→
+   385→      <style jsx global>{`
+   386→        @media print {
+   387→          @page {
+   388→            size: A4;
+   389→            margin: 15mm 10mm;
+   390→          }
+   391→          body {
+   392→            print-color-adjust: exact;
+   393→            -webkit-print-color-adjust: exact;
+   394→          }
+   395→          .print\\:break-inside-avoid {
+   396→            break-inside: avoid;
+   397→          }
+   398→          .print\\:break-before-page {
+   399→            break-before: page;
+   400→          }
+   401→        }
+   402→      `}</style>
+   403→    </>
+   404→  );
+   405→}
+   406→

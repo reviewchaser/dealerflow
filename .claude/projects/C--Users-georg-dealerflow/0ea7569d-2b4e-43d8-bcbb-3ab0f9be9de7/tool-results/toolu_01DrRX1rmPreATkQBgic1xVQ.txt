@@ -1,0 +1,170 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→/**
+     5→ * Vehicle Model
+     6→ *
+     7→ * SERVERLESS-SAFE PATTERN:
+     8→ * The export uses `mongoose.models?.Vehicle || mongoose.model(...)` to prevent
+     9→ * OverwriteModelError during Vercel/serverless hot reloads and cold starts.
+    10→ *
+    11→ * IMPORTANT FOR POPULATE:
+    12→ * Any file that uses .populate("vehicleId") must import this model, even if
+    13→ * it doesn't use Vehicle directly. Mongoose needs the model registered before
+    14→ * it can resolve the "Vehicle" ref during populate operations.
+    15→ */
+    16→const vehicleSchema = new mongoose.Schema(
+    17→  {
+    18→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    19→    type: {
+    20→      type: String,
+    21→      enum: ["STOCK", "COURTESY", "FLEET_OTHER"],
+    22→      default: "STOCK"
+    23→    },
+    24→    saleType: {
+    25→      type: String,
+    26→      enum: ["RETAIL", "TRADE"],
+    27→      default: "RETAIL"
+    28→    },
+    29→    regCurrent: { type: String, required: true, uppercase: true },
+    30→    vin: { type: String },
+    31→    make: { type: String, required: true },
+    32→    model: { type: String, required: true },
+    33→    derivative: { type: String },
+    34→    year: { type: Number },
+    35→    mileageCurrent: { type: Number },
+    36→    bodyType: { type: String },
+    37→    fuelType: { type: String },
+    38→    transmission: { type: String },
+    39→    colour: { type: String },
+    40→    status: {
+    41→      type: String,
+    42→      enum: ["appraised", "in_stock", "in_prep", "live", "reserved", "sold", "delivered", "archived"],
+    43→      default: "in_stock"
+    44→    },
+    45→    locationId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleLocation" },
+    46→    motExpiryDate: { type: Date },
+    47→    motStatus: {
+    48→      type: String,
+    49→      enum: ["unknown", "valid", "expired", "due_soon", "not_required"],
+    50→      default: "unknown"
+    51→    },
+    52→    taxExpiryDate: { type: Date },
+    53→    // DVLA Vehicle Enquiry Service details
+    54→    dvlaDetails: {
+    55→      co2Emissions: { type: Number },
+    56→      engineCapacity: { type: Number },
+    57→      fuelType: { type: String },
+    58→      markedForExport: { type: Boolean },
+    59→      monthOfFirstRegistration: { type: String },
+    60→      motStatus: { type: String },
+    61→      motExpiryDate: { type: String },
+    62→      revenueWeight: { type: Number },
+    63→      taxDueDate: { type: String },
+    64→      taxStatus: { type: String },
+    65→      yearOfManufacture: { type: Number },
+    66→      euroStatus: { type: String },
+    67→      dateOfLastV5CIssued: { type: String },
+    68→      wheelplan: { type: String },
+    69→      typeApproval: { type: String },
+    70→    },
+    71→    lastDvlaFetchAt: { type: Date },
+    72→    serviceDueDate: { type: Date },
+    73→    v5Url: { type: String },
+    74→    serviceHistoryUrl: { type: String },
+    75→    faultCodesUrl: { type: String },
+    76→    websiteUrl: { type: String },
+    77→    notes: { type: String },
+    78→    labels: [{ type: mongoose.Schema.Types.ObjectId, ref: "VehicleLabel" }],
+    79→    // Vehicle images (stored in R2)
+    80→    images: [{
+    81→      url: { type: String, required: true },
+    82→      key: { type: String, required: true },
+    83→      uploadedAt: { type: Date, default: Date.now },
+    84→    }],
+    85→    primaryImageUrl: { type: String },
+    86→
+    87→    // === SALES FIELDS ===
+    88→    stockNumber: { type: String }, // Dealer's stock reference number
+    89→    vatScheme: {
+    90→      type: String,
+    91→      enum: ["MARGIN", "VAT_QUALIFYING", "NO_VAT"],
+    92→      default: "MARGIN",
+    93→    },
+    94→
+    95→    // Purchase details
+    96→    purchase: {
+    97→      purchasedFromContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+    98→      purchaseDate: { type: Date },
+    99→      purchasePriceNet: { type: Number }, // For margin scheme, this is the gross paid
+   100→      purchaseVat: { type: Number }, // Only relevant for VAT qualifying purchases
+   101→      purchaseInvoiceRef: { type: String },
+   102→      purchaseNotes: { type: String },
+   103→    },
+   104→
+   105→    // Sales status (tracks vehicle through sales pipeline)
+   106→    salesStatus: {
+   107→      type: String,
+   108→      enum: ["AVAILABLE", "IN_DEAL", "SOLD_IN_PROGRESS", "DELIVERED", "COMPLETED"],
+   109→      default: "AVAILABLE",
+   110→    },
+   111→
+   112→    // First registration for MOT calculation
+   113→    firstRegistrationDate: { type: Date },
+   114→    firstMotDue: { type: Date }, // Calculated: firstRegistrationDate + 3 years
+   115→
+   116→    // Recall status
+   117→    recallStatus: {
+   118→      type: String,
+   119→      enum: ["UNKNOWN", "NO_OUTSTANDING", "OUTSTANDING", "CHECK_REQUIRED"],
+   120→      default: "UNKNOWN",
+   121→    },
+   122→    recallLastCheckedAt: { type: Date },
+   123→    recallNotes: { type: String },
+   124→
+   125→    // MOT history cache
+   126→    motHistory: [{
+   127→      completedDate: { type: String },
+   128→      expiryDate: { type: String },
+   129→      testResult: { type: String }, // PASSED, FAILED
+   130→      odometerValue: { type: Number },
+   131→      odometerUnit: { type: String },
+   132→      motTestNumber: { type: String },
+   133→      defects: [{
+   134→        text: { type: String },
+   135→        type: { type: String }, // ADVISORY, DANGEROUS, MAJOR, MINOR
+   136→        dangerous: { type: Boolean }
+   137→      }]
+   138→    }],
+   139→    motHistoryFetchedAt: { type: Date },
+   140→
+   141→    // Form integrations
+   142→    testDriveCount: { type: Number, default: 0 },
+   143→    pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   144→    pdiCompletedAt: { type: Date },
+   145→    deliverySubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   146→    // Sale tracking
+   147→    soldAt: { type: Date },
+   148→    // Audit fields
+   149→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   150→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   151→  },
+   152→  { timestamps: true }
+   153→);
+   154→
+   155→vehicleSchema.plugin(toJSON);
+   156→
+   157→// Indexes for dashboard and common queries
+   158→vehicleSchema.index({ dealerId: 1, status: 1 });
+   159→vehicleSchema.index({ dealerId: 1, createdAt: -1 });
+   160→vehicleSchema.index({ dealerId: 1, motExpiryDate: 1, status: 1 });
+   161→vehicleSchema.index({ dealerId: 1, type: 1 });
+   162→vehicleSchema.index({ dealerId: 1, salesStatus: 1 });
+   163→vehicleSchema.index({ dealerId: 1, stockNumber: 1 });
+   164→
+   165→export default mongoose.models?.Vehicle || mongoose.model("Vehicle", vehicleSchema);
+   166→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

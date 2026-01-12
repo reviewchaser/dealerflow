@@ -1,0 +1,404 @@
+     1→import { useState, useEffect, useCallback } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import ContactPicker from "@/components/ContactPicker";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";
+     8→  return new Intl.NumberFormat("en-GB", {
+     9→    style: "currency",
+    10→    currency: "GBP",
+    11→  }).format(amount);
+    12→};
+    13→
+    14→// Format date helper
+    15→const formatDate = (date) => {
+    16→  if (!date) return "";
+    17→  return new Date(date).toLocaleDateString("en-GB", {
+    18→    day: "numeric",
+    19→    month: "short",
+    20→    year: "numeric",
+    21→  });
+    22→};
+    23→
+    24→// Format datetime helper
+    25→const formatDateTime = (date) => {
+    26→  if (!date) return "";
+    27→  return new Date(date).toLocaleString("en-GB", {
+    28→    day: "numeric",
+    29→    month: "short",
+    30→    year: "numeric",
+    31→    hour: "2-digit",
+    32→    minute: "2-digit",
+    33→  });
+    34→};
+    35→
+    36→// Status labels and colors
+    37→const STATUS_CONFIG = {
+    38→  DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
+    39→  DEPOSIT_TAKEN: { label: "Deposit Taken", color: "bg-amber-100 text-amber-700" },
+    40→  INVOICED: { label: "Invoiced", color: "bg-blue-100 text-blue-700" },
+    41→  DELIVERED: { label: "Delivered", color: "bg-purple-100 text-purple-700" },
+    42→  COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+    43→  CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    44→};
+    45→
+    46→const VAT_SCHEME_LABELS = {
+    47→  MARGIN: "Margin Scheme",
+    48→  VAT_QUALIFYING: "VAT Qualifying",
+    49→  NO_VAT: "No VAT",
+    50→  ZERO: "Zero-rated",
+    51→  EXEMPT: "VAT Exempt",
+    52→};
+    53→
+    54→const SALE_TYPE_OPTIONS = [
+    55→  { value: "RETAIL", label: "Retail", description: "Sale to end customer" },
+    56→  { value: "TRADE", label: "Trade", description: "Sale to motor trader" },
+    57→  { value: "EXPORT", label: "Export", description: "Export sale" },
+    58→];
+    59→
+    60→const BUYER_USE_OPTIONS = [
+    61→  { value: "PERSONAL", label: "Personal use", description: "Consumer rights apply" },
+    62→  { value: "BUSINESS", label: "Business use", description: "B2B terms apply" },
+    63→];
+    64→
+    65→const SALE_CHANNEL_OPTIONS = [
+    66→  { value: "IN_PERSON", label: "In person", description: "Customer saw vehicle on-site" },
+    67→  { value: "DISTANCE", label: "Distance", description: "Online/phone sale - 14 day cooling off" },
+    68→];
+    69→
+    70→const PAYMENT_TYPE_OPTIONS = [
+    71→  { value: "CASH", label: "Cash" },
+    72→  { value: "CARD", label: "Card" },
+    73→  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+    74→  { value: "FINANCE", label: "Finance" },
+    75→  { value: "MIXED", label: "Mixed" },
+    76→];
+    77→
+    78→const FINANCE_TYPE_OPTIONS = [
+    79→  { value: "HP", label: "Hire Purchase (HP)" },
+    80→  { value: "PCP", label: "Personal Contract Purchase (PCP)" },
+    81→  { value: "LEASE", label: "Lease" },
+    82→  { value: "PERSONAL_LOAN", label: "Personal Loan" },
+    83→  { value: "OTHER", label: "Other" },
+    84→];
+    85→
+    86→const FINANCE_STATUS_OPTIONS = [
+    87→  { value: "QUOTED", label: "Quoted" },
+    88→  { value: "SUBMITTED", label: "Submitted" },
+    89→  { value: "APPROVED", label: "Approved" },
+    90→  { value: "DECLINED", label: "Declined" },
+    91→  { value: "PAID_OUT", label: "Paid Out" },
+    92→];
+    93→
+    94→/**
+    95→ * DealDrawer - Display and manage deal details
+    96→ *
+    97→ * Props:
+    98→ * - dealId: The ID of the deal to display
+    99→ * - isOpen: Whether the drawer is open
+   100→ * - onClose: Function to call when closing the drawer
+   101→ * - onUpdate: Function to call when deal is updated
+   102→ */
+   103→export default function DealDrawer({
+   104→  dealId,
+   105→  isOpen,
+   106→  onClose,
+   107→  onUpdate,
+   108→}) {
+   109→  const [deal, setDeal] = useState(null);
+   110→  const [isLoading, setIsLoading] = useState(false);
+   111→  const [fetchError, setFetchError] = useState(null);
+   112→  const [activeTab, setActiveTab] = useState("overview");
+   113→  const [actionLoading, setActionLoading] = useState(null);
+   114→
+   115→  // Deposit modal state
+   116→  const [showDepositModal, setShowDepositModal] = useState(false);
+   117→  const [depositAmount, setDepositAmount] = useState("");
+   118→  const [depositMethod, setDepositMethod] = useState("CARD");
+   119→  const [depositReference, setDepositReference] = useState("");
+   120→
+   121→  // Customer editing state
+   122→  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+   123→  const [isEditingInvoiceTo, setIsEditingInvoiceTo] = useState(false);
+   124→  const [invoiceToOption, setInvoiceToOption] = useState("CUSTOMER"); // CUSTOMER or OTHER
+   125→
+   126→  // Document state
+   127→  const [documents, setDocuments] = useState({ depositReceipt: null, invoice: null });
+   128→
+   129→  // Handover pack state
+   130→  const [showHandoverModal, setShowHandoverModal] = useState(false);
+   131→  const [handoverDocs, setHandoverDocs] = useState({
+   132→    invoice: true,
+   133→    pdi: false,
+   134→    serviceReceipt: false,
+   135→  });
+   136→  const [linkedSubmissions, setLinkedSubmissions] = useState({ pdi: null, serviceReceipt: null });
+   137→  const [isGeneratingPack, setIsGeneratingPack] = useState(false);
+   138→
+   139→  // Deal details editing state
+   140→  const [isEditingPrice, setIsEditingPrice] = useState(false);
+   141→  const [priceInput, setPriceInput] = useState("");
+   142→  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+   143→
+   144→  // Add-on state
+   145→  const [showAddOnPicker, setShowAddOnPicker] = useState(false);
+   146→  const [availableAddOns, setAvailableAddOns] = useState([]);
+   147→  const [addOnsLoading, setAddOnsLoading] = useState(false);
+   148→  const [addOnQty, setAddOnQty] = useState(1);
+   149→  const [addOnPrice, setAddOnPrice] = useState("");
+   150→
+   151→  // Fetch available add-on products
+   152→  const fetchAddOnProducts = async () => {
+   153→    setAddOnsLoading(true);
+   154→    try {
+   155→      const res = await fetch("/api/addons");
+   156→      if (res.ok) {
+   157→        const data = await res.json();
+   158→        setAvailableAddOns(data);
+   159→      }
+   160→    } catch (error) {
+   161→      console.error("Failed to fetch add-ons:", error);
+   162→    } finally {
+   163→      setAddOnsLoading(false);
+   164→    }
+   165→  };
+   166→
+   167→  // Add an add-on to the deal
+   168→  const handleAddAddOn = async (addOnProduct) => {
+   169→    if (!deal) return;
+   170→
+   171→    const price = addOnPrice ? parseFloat(addOnPrice) : addOnProduct.defaultPriceNet;
+   172→
+   173→    const newAddOn = {
+   174→      addOnProductId: addOnProduct.id,
+   175→      name: addOnProduct.name,
+   176→      category: addOnProduct.category,
+   177→      qty: addOnQty,
+   178→      unitPriceNet: price,
+   179→      vatTreatment: addOnProduct.vatTreatment || "STANDARD",
+   180→      vatRate: addOnProduct.vatRate || 0.2,
+   181→    };
+   182→
+   183→    setActionLoading("addon");
+   184→    try {
+   185→      const updatedAddOns = [...(deal.addOns || []), newAddOn];
+   186→      const res = await fetch(`/api/deals/${dealId}`, {
+   187→        method: "PUT",
+   188→        headers: { "Content-Type": "application/json" },
+   189→        body: JSON.stringify({ addOns: updatedAddOns }),
+   190→      });
+   191→
+   192→      if (!res.ok) {
+   193→        const err = await res.json();
+   194→        throw new Error(err.error || "Failed to add add-on");
+   195→      }
+   196→
+   197→      toast.success("Add-on added");
+   198→      setShowAddOnPicker(false);
+   199→      setAddOnQty(1);
+   200→      setAddOnPrice("");
+   201→      fetchDeal();
+   202→      onUpdate?.();
+   203→    } catch (error) {
+   204→      toast.error(error.message);
+   205→    } finally {
+   206→      setActionLoading(null);
+   207→    }
+   208→  };
+   209→
+   210→  // Remove an add-on from the deal
+   211→  const handleRemoveAddOn = async (index) => {
+   212→    if (!deal) return;
+   213→
+   214→    setActionLoading("addon");
+   215→    try {
+   216→      const updatedAddOns = deal.addOns.filter((_, i) => i !== index);
+   217→      const res = await fetch(`/api/deals/${dealId}`, {
+   218→        method: "PUT",
+   219→        headers: { "Content-Type": "application/json" },
+   220→        body: JSON.stringify({ addOns: updatedAddOns }),
+   221→      });
+   222→
+   223→      if (!res.ok) {
+   224→        const err = await res.json();
+   225→        throw new Error(err.error || "Failed to remove add-on");
+   226→      }
+   227→
+   228→      toast.success("Add-on removed");
+   229→      fetchDeal();
+   230→      onUpdate?.();
+   231→    } catch (error) {
+   232→      toast.error(error.message);
+   233→    } finally {
+   234→      setActionLoading(null);
+   235→    }
+   236→  };
+   237→
+   238→  // Lock body scroll when drawer is open
+   239→  useEffect(() => {
+   240→    if (isOpen) {
+   241→      const scrollY = window.scrollY;
+   242→      const html = document.documentElement;
+   243→
+   244→      document.body.style.position = "fixed";
+   245→      document.body.style.top = `-${scrollY}px`;
+   246→      document.body.style.left = "0";
+   247→      document.body.style.right = "0";
+   248→      document.body.style.width = "100%";
+   249→      document.body.style.overflow = "hidden";
+   250→      document.body.style.touchAction = "none";
+   251→
+   252→      html.style.overflow = "hidden";
+   253→
+   254→      return () => {
+   255→        document.body.style.position = "";
+   256→        document.body.style.top = "";
+   257→        document.body.style.left = "";
+   258→        document.body.style.right = "";
+   259→        document.body.style.width = "";
+   260→        document.body.style.overflow = "";
+   261→        document.body.style.touchAction = "";
+   262→
+   263→        html.style.overflow = "";
+   264→
+   265→        window.scrollTo(0, scrollY);
+   266→      };
+   267→    }
+   268→  }, [isOpen]);
+   269→
+   270→  useEffect(() => {
+   271→    if (isOpen && dealId) {
+   272→      fetchDeal();
+   273→    } else if (!dealId) {
+   274→      // Reset state when dealId is cleared
+   275→      setDeal(null);
+   276→      setFetchError(null);
+   277→    }
+   278→  }, [isOpen, dealId]);
+   279→
+   280→  const fetchDeal = async () => {
+   281→    setIsLoading(true);
+   282→    setFetchError(null);
+   283→    try {
+   284→      const res = await fetch(`/api/deals/${dealId}`);
+   285→      if (!res.ok) {
+   286→        const errData = await res.json().catch(() => ({}));
+   287→        throw new Error(errData.error || `Failed to load deal (${res.status})`);
+   288→      }
+   289→      const data = await res.json();
+   290→      setDeal(data);
+   291→      // Fetch documents after deal is loaded
+   292→      fetchDocuments();
+   293→    } catch (error) {
+   294→      console.error("[DealDrawer] Fetch error:", error);
+   295→      setFetchError(error.message || "Failed to load deal details");
+   296→      // Don't show toast here - we'll show error in UI instead
+   297→    } finally {
+   298→      setIsLoading(false);
+   299→    }
+   300→  };
+   301→
+   302→  const fetchDocuments = async () => {
+   303→    try {
+   304→      const res = await fetch(`/api/deals/${dealId}/documents`);
+   305→      if (res.ok) {
+   306→        const data = await res.json();
+   307→        setDocuments({
+   308→          depositReceipt: data.documents?.find(d => d.type === "DEPOSIT_RECEIPT" && d.status !== "VOID"),
+   309→          invoice: data.documents?.find(d => d.type === "INVOICE" && d.status !== "VOID"),
+   310→        });
+   311→      }
+   312→    } catch (error) {
+   313→      console.error("Failed to fetch documents:", error);
+   314→    }
+   315→  };
+   316→
+   317→  // Fetch linked submissions (PDI, Service Receipt) for the vehicle
+   318→  const fetchLinkedSubmissions = async () => {
+   319→    if (!deal?.vehicleId?._id && !deal?.vehicleId) return;
+   320→
+   321→    const vehicleId = deal.vehicleId._id || deal.vehicleId;
+   322→    try {
+   323→      const res = await fetch(`/api/vehicles/${vehicleId}/submissions`);
+   324→      if (res.ok) {
+   325→        const data = await res.json();
+   326→        setLinkedSubmissions({
+   327→          pdi: data.submissions?.find(s => s.formType === "PDI"),
+   328→          serviceReceipt: data.submissions?.find(s => s.formType === "SERVICE_RECEIPT"),
+   329→        });
+   330→      }
+   331→    } catch (error) {
+   332→      console.error("Failed to fetch linked submissions:", error);
+   333→    }
+   334→  };
+   335→
+   336→  // Open handover modal
+   337→  const handleOpenHandover = async () => {
+   338→    await fetchLinkedSubmissions();
+   339→    setHandoverDocs({
+   340→      invoice: true,
+   341→      pdi: !!linkedSubmissions.pdi,
+   342→      serviceReceipt: !!linkedSubmissions.serviceReceipt,
+   343→    });
+   344→    setShowHandoverModal(true);
+   345→  };
+   346→
+   347→  // Generate handover pack
+   348→  const handleGenerateHandoverPack = async () => {
+   349→    if (!documents.invoice) {
+   350→      toast.error("Invoice is required");
+   351→      return;
+   352→    }
+   353→
+   354→    setIsGeneratingPack(true);
+   355→    try {
+   356→      // Open the handover pack page in a new tab
+   357→      const params = new URLSearchParams({
+   358→        invoiceToken: documents.invoice.shareToken,
+   359→        ...(handoverDocs.pdi && linkedSubmissions.pdi && { pdiId: linkedSubmissions.pdi.id }),
+   360→        ...(handoverDocs.serviceReceipt && linkedSubmissions.serviceReceipt && { serviceReceiptId: linkedSubmissions.serviceReceipt.id }),
+   361→      });
+   362→
+   363→      window.open(`/public/handover-pack/${documents.invoice.shareToken}?${params.toString()}`, "_blank");
+   364→      setShowHandoverModal(false);
+   365→    } catch (error) {
+   366→      toast.error("Failed to generate handover pack");
+   367→    } finally {
+   368→      setIsGeneratingPack(false);
+   369→    }
+   370→  };
+   371→
+   372→  // Calculate totals
+   373→  const calculateTotals = () => {
+   374→    if (!deal) return {};
+   375→
+   376→    const addOnsNetTotal = (deal.addOns || []).reduce(
+   377→      (sum, a) => sum + (a.unitPriceNet * (a.qty || 1)),
+   378→      0
+   379→    );
+   380→    const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+   381→      if (a.vatTreatment === "STANDARD") {
+   382→        return sum + a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2);
+   383→      }
+   384→      return sum;
+   385→    }, 0);
+   386→
+   387→    let subtotal, totalVat, grandTotal;
+   388→
+   389→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   390→      subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
+   391→      totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
+   392→      grandTotal = subtotal + totalVat;
+   393→    } else {
+   394→      subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
+   395→      totalVat = 0;
+   396→      grandTotal = subtotal;
+   397→    }
+   398→
+   399→    const totalPaid = (deal.payments || [])
+   400→      .filter((p) => !p.isRefunded)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

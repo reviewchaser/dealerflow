@@ -1,0 +1,180 @@
+     1→import { NextResponse } from 'next/server';
+     2→import { getToken } from 'next-auth/jwt';
+     3→
+     4→/**
+     5→ * Multi-Tenant Middleware
+     6→ *
+     7→ * Handles authentication and tenant routing for the application.
+     8→ *
+     9→ * Route Structure:
+    10→ * - Marketing site: /
+    11→ * - Legacy app routes: /dashboard, /sales-prep, etc. (still supported)
+    12→ * - Tenant-aware routes: /app/[dealerSlug]/dashboard, etc. (new)
+    13→ *
+    14→ * The middleware:
+    15→ * 1. Requires auth for /app/* and legacy tenant routes
+    16→ * 2. Extracts dealerSlug from /app/[dealerSlug]/* and passes via header
+    17→ * 3. Redirects unauthenticated users to sign in
+    18→ */
+    19→
+    20→// Routes that require authentication and tenant context
+    21→const TENANT_ROUTES = [
+    22→  '/dashboard',
+    23→  '/sales-prep',
+    24→  '/warranty',
+    25→  '/appraisals',
+    26→  '/forms',
+    27→  '/reviews',
+    28→  '/calendar',
+    29→  '/settings',
+    30→  '/vehicles',
+    31→  '/onboarding',
+    32→  '/contacts',
+    33→  '/sales',
+    34→];
+    35→
+    36→// Routes that are public (no auth required)
+    37→const PUBLIC_ROUTES = [
+    38→  '/public',
+    39→  '/appraisal',
+    40→  '/auth',
+    41→  '/api/auth',
+    42→  '/api/public',
+    43→  '/',
+    44→  '/tos',
+    45→  '/privacy-policy',
+    46→  '/invite',
+    47→  '/px',
+    48→];
+    49→
+    50→// API routes that should receive x-dealer-slug header when in /app context
+    51→const TENANT_AWARE_API_ROUTES = [
+    52→  '/api/vehicles',
+    53→  '/api/dealer',
+    54→  '/api/forms',
+    55→  '/api/aftercare',
+    56→  '/api/appraisals',
+    57→  '/api/calendar',
+    58→  '/api/contacts',
+    59→  '/api/labels',
+    60→  '/api/locations',
+    61→  '/api/tasks',
+    62→  '/api/team',
+    63→  '/api/dashboard',
+    64→  '/api/dvla',
+    65→  '/api/sales',
+    66→  '/api/prep-tasks',
+    67→  '/api/reviews',
+    68→];
+    69→
+    70→export async function middleware(request) {
+    71→  const { pathname } = request.nextUrl;
+    72→
+    73→  // Skip middleware for static files
+    74→  if (
+    75→    pathname.startsWith('/_next') ||
+    76→    pathname.startsWith('/favicon') ||
+    77→    pathname.includes('.')
+    78→  ) {
+    79→    return NextResponse.next();
+    80→  }
+    81→
+    82→  // Check if this is a public route
+    83→  const isPublicRoute = PUBLIC_ROUTES.some(route =>
+    84→    pathname === route || pathname.startsWith(route + '/')
+    85→  );
+    86→
+    87→  if (isPublicRoute) {
+    88→    return NextResponse.next();
+    89→  }
+    90→
+    91→  // Check if this is a legacy tenant route
+    92→  const isLegacyTenantRoute = TENANT_ROUTES.some(route =>
+    93→    pathname === route || pathname.startsWith(route + '/')
+    94→  );
+    95→
+    96→  if (isLegacyTenantRoute) {
+    97→    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    98→
+    99→    if (!token) {
+   100→      const signInUrl = new URL('/auth/signin', request.url);
+   101→      signInUrl.searchParams.set('callbackUrl', pathname);
+   102→      return NextResponse.redirect(signInUrl);
+   103→    }
+   104→
+   105→    // Redirect legacy routes to canonical tenant routes if user has a default dealer
+   106→    // The token includes dealerId from the JWT callback in authOptions
+   107→    if (token.dealerId) {
+   108→      // We need to look up the dealer slug - this requires an API call or header
+   109→      // For now, set a header to tell the page to check for redirect client-side
+   110→      const response = NextResponse.next();
+   111→      response.headers.set('x-should-redirect-to-tenant', 'true');
+   112→      return response;
+   113→    }
+   114→
+   115→    // No dealer ID - let the page handle it (redirect to create-dealer)
+   116→    return NextResponse.next();
+   117→  }
+   118→
+   119→  // Handle /app routes - tenant-aware routing
+   120→  if (pathname.startsWith('/app')) {
+   121→    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+   122→
+   123→    if (!token) {
+   124→      const signInUrl = new URL('/auth/signin', request.url);
+   125→      signInUrl.searchParams.set('callbackUrl', pathname);
+   126→      return NextResponse.redirect(signInUrl);
+   127→    }
+   128→
+   129→    // Extract dealer slug from path: /app/[dealerSlug]/...
+   130→    const pathParts = pathname.split('/');
+   131→    const dealerSlug = pathParts[2];
+   132→
+   133→    if (!dealerSlug || dealerSlug === '') {
+   134→      // No dealer slug - redirect to dealer picker or legacy dashboard
+   135→      return NextResponse.redirect(new URL('/dashboard', request.url));
+   136→    }
+   137→
+   138→    // Valid dealer slug - pass it along in a header
+   139→    const response = NextResponse.next();
+   140→    response.headers.set('x-dealer-slug', dealerSlug);
+   141→    return response;
+   142→  }
+   143→
+   144→  // Handle API routes - check if request comes from /app context
+   145→  // The x-dealer-slug header is set by the client when making API calls from /app pages
+   146→  if (pathname.startsWith('/api/')) {
+   147→    const dealerSlug = request.headers.get('x-dealer-slug');
+   148→    const isTenantAwareApi = TENANT_AWARE_API_ROUTES.some(route =>
+   149→      pathname.startsWith(route)
+   150→    );
+   151→
+   152→    if (dealerSlug && isTenantAwareApi) {
+   153→      // Pass the dealer slug to the API route
+   154→      const response = NextResponse.next();
+   155→      response.headers.set('x-dealer-slug', dealerSlug);
+   156→      return response;
+   157→    }
+   158→
+   159→    return NextResponse.next();
+   160→  }
+   161→
+   162→  return NextResponse.next();
+   163→}
+   164→
+   165→export const config = {
+   166→  matcher: [
+   167→    /*
+   168→     * Match all request paths except:
+   169→     * - _next/static (static files)
+   170→     * - _next/image (image optimization files)
+   171→     * - favicon.ico (favicon file)
+   172→     */
+   173→    '/((?!_next/static|_next/image|favicon.ico).*)',
+   174→  ],
+   175→};
+   176→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

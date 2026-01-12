@@ -1,0 +1,32 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   174→            Track stock, prep, forms, warranties, and staff — without spreadsheets,
+   175→            WhatsApp chaos, or scattered paperwork.
+   176→          </p>
+   177→
+   178→          {/* CTAs */}
+   179→          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+   180→            <Link
+   181→              href="/auth/signup?plan=free"
+   182→              className="w-full sm:w-auto px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+   183→            >
+   184→              Get started free
+   185→              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   186→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+   187→              </svg>
+   188→            </Link>
+   189→            <a
+   190→              href="#pricing"
+   191→              className="w-full sm:w-auto px-6 py-3 text-base font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+   192→            >
+   193→              View pricing
+   194→            </a>
+   195→          </div>
+   196→
+   197→          {/* Small note */}
+   198→          <p className="text-sm text-slate-500">
+   199→            Free forever for small teams. No card required.
+   200→          </p>
+   201→        </div>
+   202→
+   203→        {/* Product Screenshot Mockup */}
+   204→        <div className="mt-16 max-w-5xl mx-auto">

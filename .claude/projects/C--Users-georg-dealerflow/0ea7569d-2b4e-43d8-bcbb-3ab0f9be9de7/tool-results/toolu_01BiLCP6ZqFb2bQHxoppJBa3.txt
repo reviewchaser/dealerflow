@@ -1,0 +1,585 @@
+     1→import { useEffect, useState, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import DealDrawer from "@/components/DealDrawer";
+     6→import { toast } from "react-hot-toast";
+     7→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     8→
+     9→// Status configuration
+    10→const STATUS_TABS = [
+    11→  { key: "all", label: "All" },
+    12→  { key: "DRAFT", label: "Draft" },
+    13→  { key: "DEPOSIT_TAKEN", label: "Deposit Taken" },
+    14→  { key: "INVOICED", label: "Invoiced" },
+    15→  { key: "DELIVERED", label: "Delivered" },
+    16→  { key: "COMPLETED", label: "Completed" },
+    17→  { key: "CANCELLED", label: "Cancelled" },
+    18→];
+    19→
+    20→const STATUS_CONFIG = {
+    21→  DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
+    22→  DEPOSIT_TAKEN: { label: "Deposit Taken", color: "bg-amber-100 text-amber-700" },
+    23→  INVOICED: { label: "Invoiced", color: "bg-blue-100 text-blue-700" },
+    24→  DELIVERED: { label: "Delivered", color: "bg-purple-100 text-purple-700" },
+    25→  COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+    26→  CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    27→};
+    28→
+    29→// Format currency
+    30→const formatCurrency = (amount) => {
+    31→  if (amount === null || amount === undefined) return "—";
+    32→  return new Intl.NumberFormat("en-GB", {
+    33→    style: "currency",
+    34→    currency: "GBP",
+    35→  }).format(amount);
+    36→};
+    37→
+    38→// Format date helper
+    39→const formatDate = (date) => {
+    40→  if (!date) return "";
+    41→  return new Date(date).toLocaleDateString("en-GB", {
+    42→    day: "numeric",
+    43→    month: "short",
+    44→    year: "numeric",
+    45→  });
+    46→};
+    47→
+    48→export default function Sales() {
+    49→  const router = useRouter();
+    50→  const { isRedirecting } = useDealerRedirect();
+    51→  const [deals, setDeals] = useState([]);
+    52→  const [isLoading, setIsLoading] = useState(true);
+    53→  const [selectedDealId, setSelectedDealId] = useState(null);
+    54→  const [activeStatus, setActiveStatus] = useState("all");
+    55→  const [searchQuery, setSearchQuery] = useState("");
+    56→
+    57→  // Create sale modal state
+    58→  const [showCreateModal, setShowCreateModal] = useState(false);
+    59→  const [availableVehicles, setAvailableVehicles] = useState([]);
+    60→  const [vehiclesLoading, setVehiclesLoading] = useState(false);
+    61→  const [vehicleSearch, setVehicleSearch] = useState("");
+    62→  const [creatingDeal, setCreatingDeal] = useState(false);
+    63→
+    64→  // Load deals
+    65→  const fetchDeals = useCallback(async () => {
+    66→    setIsLoading(true);
+    67→    try {
+    68→      const statusParam = activeStatus !== "all" ? `?status=${activeStatus}` : "";
+    69→      const response = await fetch(`/api/deals${statusParam}`);
+    70→      if (!response.ok) throw new Error("Failed to fetch deals");
+    71→      const data = await response.json();
+    72→      setDeals(data);
+    73→    } catch (error) {
+    74→      console.error(error);
+    75→      toast.error("Failed to load deals");
+    76→    } finally {
+    77→      setIsLoading(false);
+    78→    }
+    79→  }, [activeStatus]);
+    80→
+    81→  useEffect(() => {
+    82→    if (!isRedirecting) {
+    83→      fetchDeals();
+    84→    }
+    85→  }, [isRedirecting, fetchDeals]);
+    86→
+    87→  // Handle deal selection from URL
+    88→  useEffect(() => {
+    89→    if (router.query.id) {
+    90→      setSelectedDealId(router.query.id);
+    91→    }
+    92→  }, [router.query.id]);
+    93→
+    94→  // Load available vehicles when modal opens
+    95→  const fetchAvailableVehicles = useCallback(async () => {
+    96→    setVehiclesLoading(true);
+    97→    try {
+    98→      const res = await fetch("/api/vehicles?status=IN_STOCK&hasNoDeal=true");
+    99→      if (!res.ok) throw new Error("Failed to fetch vehicles");
+   100→      const data = await res.json();
+   101→      setAvailableVehicles(data.vehicles || data);
+   102→    } catch (error) {
+   103→      console.error(error);
+   104→      toast.error("Failed to load vehicles");
+   105→    } finally {
+   106→      setVehiclesLoading(false);
+   107→    }
+   108→  }, []);
+   109→
+   110→  useEffect(() => {
+   111→    if (showCreateModal) {
+   112→      fetchAvailableVehicles();
+   113→    }
+   114→  }, [showCreateModal, fetchAvailableVehicles]);
+   115→
+   116→  // Create a deal for a vehicle
+   117→  const handleCreateDeal = async (vehicleId) => {
+   118→    setCreatingDeal(true);
+   119→    try {
+   120→      const res = await fetch("/api/deals", {
+   121→        method: "POST",
+   122→        headers: { "Content-Type": "application/json" },
+   123→        body: JSON.stringify({ vehicleId }),
+   124→      });
+   125→
+   126→      if (!res.ok) {
+   127→        const err = await res.json();
+   128→        throw new Error(err.error || "Failed to create deal");
+   129→      }
+   130→
+   131→      const newDeal = await res.json();
+   132→      toast.success("Deal created");
+   133→      setShowCreateModal(false);
+   134→      setVehicleSearch("");
+   135→      fetchDeals();
+   136→      // Open the new deal
+   137→      setSelectedDealId(newDeal.id || newDeal._id);
+   138→      router.push(`/sales?id=${newDeal.id || newDeal._id}`, undefined, { shallow: true });
+   139→    } catch (error) {
+   140→      toast.error(error.message);
+   141→    } finally {
+   142→      setCreatingDeal(false);
+   143→    }
+   144→  };
+   145→
+   146→  // Filter vehicles by search
+   147→  const filteredVehicles = availableVehicles.filter((vehicle) => {
+   148→    if (!vehicleSearch) return true;
+   149→    const query = vehicleSearch.toLowerCase();
+   150→    return (
+   151→      vehicle.regCurrent?.toLowerCase().includes(query) ||
+   152→      vehicle.make?.toLowerCase().includes(query) ||
+   153→      vehicle.model?.toLowerCase().includes(query) ||
+   154→      vehicle.stockNumber?.toLowerCase().includes(query)
+   155→    );
+   156→  });
+   157→
+   158→  // Filter deals by search
+   159→  const filteredDeals = deals.filter((deal) => {
+   160→    if (!searchQuery) return true;
+   161→    const query = searchQuery.toLowerCase();
+   162→    return (
+   163→      deal.vehicle?.regCurrent?.toLowerCase().includes(query) ||
+   164→      deal.vehicle?.make?.toLowerCase().includes(query) ||
+   165→      deal.vehicle?.model?.toLowerCase().includes(query) ||
+   166→      deal.customer?.displayName?.toLowerCase().includes(query) ||
+   167→      deal.customer?.companyName?.toLowerCase().includes(query) ||
+   168→      deal.dealNumber?.toString().includes(query)
+   169→    );
+   170→  });
+   171→
+   172→  // Count by status
+   173→  const statusCounts = deals.reduce((acc, deal) => {
+   174→    acc[deal.status] = (acc[deal.status] || 0) + 1;
+   175→    return acc;
+   176→  }, {});
+   177→
+   178→  const handleDealClick = (dealId) => {
+   179→    setSelectedDealId(dealId);
+   180→    router.push(`/sales?id=${dealId}`, undefined, { shallow: true });
+   181→  };
+   182→
+   183→  const handleDrawerClose = () => {
+   184→    setSelectedDealId(null);
+   185→    router.push("/sales", undefined, { shallow: true });
+   186→  };
+   187→
+   188→  if (isRedirecting) {
+   189→    return (
+   190→      <DashboardLayout>
+   191→        <div className="flex items-center justify-center min-h-screen">
+   192→          <span className="loading loading-spinner loading-lg"></span>
+   193→        </div>
+   194→      </DashboardLayout>
+   195→    );
+   196→  }
+   197→
+   198→  return (
+   199→    <DashboardLayout>
+   200→      <Head>
+   201→        <title>Sales | DealerHQ</title>
+   202→      </Head>
+   203→
+   204→      <div className="min-h-screen bg-slate-50 pb-20">
+   205→        {/* Header */}
+   206→        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+   207→          <div className="px-4 py-4 md:px-6 md:py-5">
+   208→            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+   209→              <div>
+   210→                <h1 className="text-xl md:text-2xl font-bold text-slate-900">Sales</h1>
+   211→                <p className="text-sm text-slate-500 mt-0.5">
+   212→                  {deals.length} deal{deals.length !== 1 ? "s" : ""} total
+   213→                </p>
+   214→              </div>
+   215→
+   216→              <div className="flex items-center gap-3">
+   217→                {/* Search */}
+   218→                <div className="relative flex-1 md:w-72">
+   219→                <svg
+   220→                  className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+   221→                  fill="none"
+   222→                  stroke="currentColor"
+   223→                  viewBox="0 0 24 24"
+   224→                >
+   225→                  <path
+   226→                    strokeLinecap="round"
+   227→                    strokeLinejoin="round"
+   228→                    strokeWidth={2}
+   229→                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+   230→                  />
+   231→                </svg>
+   232→                <input
+   233→                  type="text"
+   234→                  placeholder="Search by VRM, customer..."
+   235→                  value={searchQuery}
+   236→                  onChange={(e) => setSearchQuery(e.target.value)}
+   237→                  className="input input-bordered w-full pl-10 h-10"
+   238→                />
+   239→                </div>
+   240→
+   241→                {/* Create Sale Button */}
+   242→                <button
+   243→                  onClick={() => setShowCreateModal(true)}
+   244→                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   245→                >
+   246→                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   247→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   248→                  </svg>
+   249→                  <span className="hidden sm:inline">Create Sale</span>
+   250→                </button>
+   251→              </div>
+   252→            </div>
+   253→
+   254→            {/* Status Tabs */}
+   255→            <div className="mt-4 -mb-px flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+   256→              {STATUS_TABS.map((tab) => {
+   257→                const count = tab.key === "all" ? deals.length : statusCounts[tab.key] || 0;
+   258→                return (
+   259→                  <button
+   260→                    key={tab.key}
+   261→                    onClick={() => setActiveStatus(tab.key)}
+   262→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   263→                      activeStatus === tab.key
+   264→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   265→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   266→                    }`}
+   267→                  >
+   268→                    {tab.label}
+   269→                    {count > 0 && (
+   270→                      <span
+   271→                        className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   272→                          activeStatus === tab.key
+   273→                            ? "bg-white/20 text-white"
+   274→                            : "bg-slate-200 text-slate-600"
+   275→                        }`}
+   276→                      >
+   277→                        {count}
+   278→                      </span>
+   279→                    )}
+   280→                  </button>
+   281→                );
+   282→              })}
+   283→            </div>
+   284→          </div>
+   285→        </div>
+   286→
+   287→        {/* Content */}
+   288→        <div className="p-4 md:p-6">
+   289→          {isLoading ? (
+   290→            <div className="flex items-center justify-center py-20">
+   291→              <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   292→            </div>
+   293→          ) : filteredDeals.length === 0 ? (
+   294→            <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-12 text-center">
+   295→              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+   296→                <svg
+   297→                  className="w-8 h-8 text-slate-400"
+   298→                  fill="none"
+   299→                  stroke="currentColor"
+   300→                  viewBox="0 0 24 24"
+   301→                >
+   302→                  <path
+   303→                    strokeLinecap="round"
+   304→                    strokeLinejoin="round"
+   305→                    strokeWidth={2}
+   306→                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+   307→                  />
+   308→                </svg>
+   309→              </div>
+   310→              <h3 className="text-lg font-semibold text-slate-900 mb-1">No deals found</h3>
+   311→              <p className="text-slate-500 mb-4">
+   312→                {searchQuery
+   313→                  ? "Try adjusting your search terms"
+   314→                  : activeStatus !== "all"
+   315→                  ? `No deals with status "${STATUS_CONFIG[activeStatus]?.label}"`
+   316→                  : "Create a sale to get started"}
+   317→              </p>
+   318→              {!searchQuery && activeStatus === "all" && (
+   319→                <button
+   320→                  onClick={() => setShowCreateModal(true)}
+   321→                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   322→                >
+   323→                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   324→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   325→                  </svg>
+   326→                  Create Sale
+   327→                </button>
+   328→              )}
+   329→            </div>
+   330→          ) : (
+   331→            <div className="space-y-3">
+   332→              {filteredDeals.map((deal) => {
+   333→                const statusConfig = STATUS_CONFIG[deal.status] || STATUS_CONFIG.DRAFT;
+   334→
+   335→                return (
+   336→                  <div
+   337→                    key={deal.id}
+   338→                    onClick={() => handleDealClick(deal.id)}
+   339→                    className="bg-white rounded-xl border border-slate-200 hover:border-[#0066CC]/30 hover:shadow-md transition-all cursor-pointer overflow-hidden"
+   340→                  >
+   341→                    <div className="p-4 md:p-5">
+   342→                      <div className="flex flex-col md:flex-row md:items-center gap-4">
+   343→                        {/* Vehicle Image & Basic Info */}
+   344→                        <div className="flex items-center gap-4 flex-1 min-w-0">
+   345→                          {deal.vehicle?.primaryImageUrl ? (
+   346→                            <img
+   347→                              src={deal.vehicle.primaryImageUrl}
+   348→                              alt={`${deal.vehicle.make} ${deal.vehicle.model}`}
+   349→                              className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-xl shrink-0"
+   350→                            />
+   351→                          ) : (
+   352→                            <div className="w-16 h-16 md:w-20 md:h-20 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
+   353→                              <svg
+   354→                                className="w-8 h-8 text-slate-300"
+   355→                                fill="none"
+   356→                                stroke="currentColor"
+   357→                                viewBox="0 0 24 24"
+   358→                              >
+   359→                                <path
+   360→                                  strokeLinecap="round"
+   361→                                  strokeLinejoin="round"
+   362→                                  strokeWidth={2}
+   363→                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+   364→                                />
+   365→                              </svg>
+   366→                            </div>
+   367→                          )}
+   368→
+   369→                          <div className="min-w-0 flex-1">
+   370→                            <div className="flex items-center gap-2 flex-wrap">
+   371→                              <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+   372→                                {deal.vehicle?.regCurrent || "—"}
+   373→                              </span>
+   374→                              <span
+   375→                                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusConfig.color}`}
+   376→                              >
+   377→                                {statusConfig.label}
+   378→                              </span>
+   379→                            </div>
+   380→                            <p className="font-semibold text-slate-800 mt-1 truncate">
+   381→                              {deal.vehicle?.year} {deal.vehicle?.make} {deal.vehicle?.model}
+   382→                            </p>
+   383→                            {deal.customer && (
+   384→                              <p className="text-sm text-slate-500 truncate mt-0.5">
+   385→                                {deal.customer.displayName}
+   386→                                {deal.customer.companyName && ` • ${deal.customer.companyName}`}
+   387→                              </p>
+   388→                            )}
+   389→                          </div>
+   390→                        </div>
+   391→
+   392→                        {/* Price & Date */}
+   393→                        <div className="flex items-center justify-between md:flex-col md:items-end gap-2 md:gap-1 border-t border-slate-100 pt-3 md:border-0 md:pt-0">
+   394→                          <div className="text-right">
+   395→                            <p className="text-lg font-bold text-slate-900">
+   396→                              {formatCurrency(deal.vehiclePriceGross)}
+   397→                            </p>
+   398→                            <p className="text-xs text-slate-400 uppercase tracking-wide">
+   399→                              {deal.vatScheme === "VAT_QUALIFYING" ? "inc VAT" : "Margin"}
+   400→                            </p>
+   401→                          </div>
+   402→                          <p className="text-xs text-slate-400">
+   403→                            {formatDate(deal.createdAt)}
+   404→                          </p>
+   405→                        </div>
+   406→                      </div>
+   407→                    </div>
+   408→
+   409→                    {/* Progress indicators */}
+   410→                    {deal.status !== "CANCELLED" && deal.status !== "COMPLETED" && (
+   411→                      <div className="px-4 pb-3 md:px-5 md:pb-4">
+   412→                        <div className="flex items-center gap-2">
+   413→                          <div className="flex-1 flex items-center gap-1">
+   414→                            {["DRAFT", "DEPOSIT_TAKEN", "INVOICED", "DELIVERED", "COMPLETED"].map(
+   415→                              (step, idx) => {
+   416→                                const statusOrder = [
+   417→                                  "DRAFT",
+   418→                                  "DEPOSIT_TAKEN",
+   419→                                  "INVOICED",
+   420→                                  "DELIVERED",
+   421→                                  "COMPLETED",
+   422→                                ];
+   423→                                const currentIdx = statusOrder.indexOf(deal.status);
+   424→                                const stepIdx = idx;
+   425→
+   426→                                return (
+   427→                                  <div
+   428→                                    key={step}
+   429→                                    className={`h-1.5 flex-1 rounded-full ${
+   430→                                      stepIdx <= currentIdx
+   431→                                        ? "bg-[#0066CC]"
+   432→                                        : "bg-slate-200"
+   433→                                    }`}
+   434→                                  />
+   435→                                );
+   436→                              }
+   437→                            )}
+   438→                          </div>
+   439→                        </div>
+   440→                      </div>
+   441→                    )}
+   442→                  </div>
+   443→                );
+   444→              })}
+   445→            </div>
+   446→          )}
+   447→        </div>
+   448→      </div>
+   449→
+   450→      {/* Deal Drawer */}
+   451→      <DealDrawer
+   452→        dealId={selectedDealId}
+   453→        isOpen={!!selectedDealId}
+   454→        onClose={handleDrawerClose}
+   455→        onUpdate={fetchDeals}
+   456→      />
+   457→
+   458→      {/* Create Sale Modal - Vehicle Picker */}
+   459→      {showCreateModal && (
+   460→        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+   461→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreateModal(false)} />
+   462→          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
+   463→            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+   464→              <div>
+   465→                <h3 className="text-lg font-bold text-slate-900">Create Sale</h3>
+   466→                <p className="text-sm text-slate-500">Select a vehicle from stock</p>
+   467→              </div>
+   468→              <button
+   469→                onClick={() => setShowCreateModal(false)}
+   470→                className="btn btn-sm btn-ghost btn-circle"
+   471→              >
+   472→                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   473→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   474→                </svg>
+   475→              </button>
+   476→            </div>
+   477→
+   478→            {/* Search */}
+   479→            <div className="px-6 py-3 border-b border-slate-100">
+   480→              <div className="relative">
+   481→                <svg
+   482→                  className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+   483→                  fill="none"
+   484→                  stroke="currentColor"
+   485→                  viewBox="0 0 24 24"
+   486→                >
+   487→                  <path
+   488→                    strokeLinecap="round"
+   489→                    strokeLinejoin="round"
+   490→                    strokeWidth={2}
+   491→                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+   492→                  />
+   493→                </svg>
+   494→                <input
+   495→                  type="text"
+   496→                  placeholder="Search by VRM, make, model..."
+   497→                  value={vehicleSearch}
+   498→                  onChange={(e) => setVehicleSearch(e.target.value)}
+   499→                  className="input input-bordered w-full pl-10"
+   500→                  autoFocus
+   501→                />
+   502→              </div>
+   503→            </div>
+   504→
+   505→            {/* Vehicle List */}
+   506→            <div className="flex-1 overflow-y-auto">
+   507→              {vehiclesLoading ? (
+   508→                <div className="flex items-center justify-center py-12">
+   509→                  <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   510→                </div>
+   511→              ) : filteredVehicles.length === 0 ? (
+   512→                <div className="p-8 text-center">
+   513→                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+   514→                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   515→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+   516→                    </svg>
+   517→                  </div>
+   518→                  <p className="text-sm font-medium text-slate-600">
+   519→                    {vehicleSearch ? "No matching vehicles found" : "No vehicles available for sale"}
+   520→                  </p>
+   521→                  <p className="text-xs text-slate-400 mt-1">
+   522→                    Vehicles must be in stock and not already on a deal
+   523→                  </p>
+   524→                </div>
+   525→              ) : (
+   526→                <div className="divide-y divide-slate-100">
+   527→                  {filteredVehicles.map((vehicle) => (
+   528→                    <button
+   529→                      key={vehicle.id || vehicle._id}
+   530→                      onClick={() => handleCreateDeal(vehicle.id || vehicle._id)}
+   531→                      disabled={creatingDeal}
+   532→                      className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors text-left disabled:opacity-50"
+   533→                    >
+   534→                      {vehicle.primaryImageUrl ? (
+   535→                        <img
+   536→                          src={vehicle.primaryImageUrl}
+   537→                          alt={`${vehicle.make} ${vehicle.model}`}
+   538→                          className="w-16 h-16 object-cover rounded-xl shrink-0"
+   539→                        />
+   540→                      ) : (
+   541→                        <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
+   542→                          <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   543→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   544→                          </svg>
+   545→                        </div>
+   546→                      )}
+   547→                      <div className="flex-1 min-w-0">
+   548→                        <div className="flex items-center gap-2">
+   549→                          <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+   550→                            {vehicle.regCurrent}
+   551→                          </span>
+   552→                          {vehicle.stockNumber && (
+   553→                            <span className="text-xs text-slate-400">
+   554→                              #{vehicle.stockNumber}
+   555→                            </span>
+   556→                          )}
+   557→                        </div>
+   558→                        <p className="font-semibold text-slate-800 mt-1 truncate">
+   559→                          {vehicle.year} {vehicle.make} {vehicle.model}
+   560→                        </p>
+   561→                        {vehicle.retailPrice && (
+   562→                          <p className="text-sm text-emerald-600 font-medium">
+   563→                            {formatCurrency(vehicle.retailPrice)}
+   564→                          </p>
+   565→                        )}
+   566→                      </div>
+   567→                      <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   568→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   569→                      </svg>
+   570→                    </button>
+   571→                  ))}
+   572→                </div>
+   573→              )}
+   574→            </div>
+   575→          </div>
+   576→        </div>
+   577→      )}
+   578→    </DashboardLayout>
+   579→  );
+   580→}
+   581→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

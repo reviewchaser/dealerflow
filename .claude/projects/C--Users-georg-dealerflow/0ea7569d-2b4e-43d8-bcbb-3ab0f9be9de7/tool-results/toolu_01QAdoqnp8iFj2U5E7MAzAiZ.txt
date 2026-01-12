@@ -1,0 +1,383 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";
+     8→  return new Intl.NumberFormat("en-GB", {
+     9→    style: "currency",
+    10→    currency: "GBP",
+    11→  }).format(amount);
+    12→};
+    13→
+    14→// Format date
+    15→const formatDate = (date) => {
+    16→  if (!date) return "";
+    17→  return new Date(date).toLocaleDateString("en-GB", {
+    18→    day: "numeric",
+    19→    month: "long",
+    20→    year: "numeric",
+    21→  });
+    22→};
+    23→
+    24→export default function HandoverPackPage() {
+    25→  const router = useRouter();
+    26→  const { token, pdiId, serviceReceiptId } = router.query;
+    27→  const [invoice, setInvoice] = useState(null);
+    28→  const [isLoading, setIsLoading] = useState(true);
+    29→  const [error, setError] = useState(null);
+    30→  const [activeTab, setActiveTab] = useState("invoice");
+    31→
+    32→  useEffect(() => {
+    33→    if (!token) return;
+    34→
+    35→    const fetchInvoice = async () => {
+    36→      setIsLoading(true);
+    37→      try {
+    38→        const res = await fetch(`/api/public/invoice/${token}`);
+    39→        if (!res.ok) {
+    40→          const err = await res.json();
+    41→          throw new Error(err.error || "Document not found");
+    42→        }
+    43→        const data = await res.json();
+    44→        setInvoice(data);
+    45→      } catch (error) {
+    46→        setError(error.message);
+    47→      } finally {
+    48→        setIsLoading(false);
+    49→      }
+    50→    };
+    51→
+    52→    fetchInvoice();
+    53→  }, [token]);
+    54→
+    55→  const handlePrint = () => {
+    56→    window.print();
+    57→  };
+    58→
+    59→  if (isLoading) {
+    60→    return (
+    61→      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+    62→        <div className="loading loading-spinner loading-lg text-emerald-600"></div>
+    63→      </div>
+    64→    );
+    65→  }
+    66→
+    67→  if (error) {
+    68→    return (
+    69→      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+    70→        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+    71→          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    72→            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    73→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    74→            </svg>
+    75→          </div>
+    76→          <h1 className="text-xl font-bold text-slate-900 mb-2">Handover Pack Not Found</h1>
+    77→          <p className="text-slate-500">{error}</p>
+    78→        </div>
+    79→      </div>
+    80→    );
+    81→  }
+    82→
+    83→  const snap = invoice?.snapshotData;
+    84→  const isMargin = snap?.vatScheme === "MARGIN";
+    85→  const invoiceTo = snap?.invoiceTo?.name ? snap.invoiceTo : snap?.customer;
+    86→
+    87→  const tabs = [
+    88→    { id: "invoice", label: "Invoice", available: true },
+    89→    { id: "pdi", label: "PDI", available: !!pdiId },
+    90→    { id: "serviceReceipt", label: "Service Receipt", available: !!serviceReceiptId },
+    91→  ].filter((t) => t.available);
+    92→
+    93→  return (
+    94→    <>
+    95→      <Head>
+    96→        <title>Handover Pack - {snap?.vehicle?.regCurrent} | DealerHQ</title>
+    97→      </Head>
+    98→
+    99→      {/* Header - hidden when printing */}
+   100→      <div className="print:hidden bg-gradient-to-r from-emerald-600 to-emerald-700 text-white">
+   101→        <div className="max-w-[900px] mx-auto px-4 py-6">
+   102→          <div className="flex items-center justify-between">
+   103→            <div>
+   104→              <h1 className="text-2xl font-bold">Vehicle Handover Pack</h1>
+   105→              <p className="text-emerald-100 mt-1">
+   106→                {snap?.vehicle?.year} {snap?.vehicle?.make} {snap?.vehicle?.model}
+   107→                <span className="mx-2">•</span>
+   108→                <span className="font-mono font-bold">{snap?.vehicle?.regCurrent}</span>
+   109→              </p>
+   110→            </div>
+   111→            <button
+   112→              onClick={handlePrint}
+   113→              className="btn bg-white/20 hover:bg-white/30 text-white border-none"
+   114→            >
+   115→              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   116→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+   117→              </svg>
+   118→              Print All
+   119→            </button>
+   120→          </div>
+   121→
+   122→          {/* Tabs */}
+   123→          {tabs.length > 1 && (
+   124→            <div className="flex gap-2 mt-6">
+   125→              {tabs.map((tab) => (
+   126→                <button
+   127→                  key={tab.id}
+   128→                  onClick={() => setActiveTab(tab.id)}
+   129→                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+   130→                    activeTab === tab.id
+   131→                      ? "bg-white text-emerald-700"
+   132→                      : "bg-white/20 text-white hover:bg-white/30"
+   133→                  }`}
+   134→                >
+   135→                  {tab.label}
+   136→                </button>
+   137→              ))}
+   138→            </div>
+   139→          )}
+   140→        </div>
+   141→      </div>
+   142→
+   143→      {/* Content */}
+   144→      <div className="min-h-screen bg-slate-100 print:bg-white">
+   145→        {/* Invoice Tab */}
+   146→        {activeTab === "invoice" && invoice && (
+   147→          <div className="max-w-[900px] mx-auto p-4 print:p-0">
+   148→            <div className="bg-white shadow-xl print:shadow-none rounded-2xl print:rounded-none overflow-hidden">
+   149→              {/* Invoice Header */}
+   150→              <div className="bg-gradient-to-r from-slate-800 to-slate-900 print:from-slate-800 print:to-slate-800 text-white p-8 print:p-6">
+   151→                <div className="flex items-start justify-between">
+   152→                  <div>
+   153→                    <h2 className="text-3xl font-bold">INVOICE</h2>
+   154→                    <p className="text-slate-300 mt-1 text-lg">{invoice.documentNumber}</p>
+   155→                  </div>
+   156→                  <div className="text-right">
+   157→                    <p className="font-bold text-xl">{snap?.dealer?.companyName || snap?.dealer?.name}</p>
+   158→                    {snap?.dealer?.address && (
+   159→                      <p className="text-slate-300 text-sm mt-2 whitespace-pre-line">{snap.dealer.address}</p>
+   160→                    )}
+   161→                    {snap?.dealer?.vatNumber && (
+   162→                      <p className="text-slate-400 text-sm mt-2">VAT: {snap.dealer.vatNumber}</p>
+   163→                    )}
+   164→                  </div>
+   165→                </div>
+   166→              </div>
+   167→
+   168→              {/* Invoice Body */}
+   169→              <div className="p-8 print:p-6 space-y-6">
+   170→                {/* Invoice Info */}
+   171→                <div className="grid grid-cols-3 gap-6">
+   172→                  <div>
+   173→                    <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Date</p>
+   174→                    <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(invoice.issuedAt)}</p>
+   175→                  </div>
+   176→                  <div>
+   177→                    <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Invoice No.</p>
+   178→                    <p className="text-lg font-semibold text-slate-900 mt-1">{invoice.documentNumber}</p>
+   179→                  </div>
+   180→                  <div>
+   181→                    <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">VAT</p>
+   182→                    <p className="text-lg font-semibold text-slate-900 mt-1">
+   183→                      {isMargin ? "Margin" : "Standard"}
+   184→                    </p>
+   185→                  </div>
+   186→                </div>
+   187→
+   188→                {/* Bill To */}
+   189→                <div className="bg-slate-50 rounded-xl p-5 print:bg-slate-50">
+   190→                  <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-2">Invoice To</p>
+   191→                  <p className="text-lg font-bold text-slate-900">{invoiceTo?.name}</p>
+   192→                  {invoiceTo?.companyName && <p className="text-slate-600">{invoiceTo.companyName}</p>}
+   193→                </div>
+   194→
+   195→                {/* Vehicle Details */}
+   196→                <div className="border border-slate-200 rounded-xl overflow-hidden">
+   197→                  <table className="w-full">
+   198→                    <thead className="bg-slate-50">
+   199→                      <tr>
+   200→                        <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">Description</th>
+   201→                        <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">Amount</th>
+   202→                      </tr>
+   203→                    </thead>
+   204→                    <tbody>
+   205→                      <tr className="border-t border-slate-100">
+   206→                        <td className="px-4 py-4">
+   207→                          <p className="font-semibold text-slate-900">
+   208→                            {snap?.vehicle?.year} {snap?.vehicle?.make} {snap?.vehicle?.model}
+   209→                          </p>
+   210→                          <p className="text-sm text-slate-500">
+   211→                            VRM: {snap?.vehicle?.regCurrent}
+   212→                            {snap?.vehicle?.vin && ` | VIN: ${snap.vehicle.vin}`}
+   213→                          </p>
+   214→                          {(snap?.vehicle?.colour || snap?.vehicle?.mileage) && (
+   215→                            <p className="text-sm text-slate-400">
+   216→                              {[snap?.vehicle?.colour, snap?.vehicle?.mileage ? `${snap.vehicle.mileage.toLocaleString()} miles` : null].filter(Boolean).join(" | ")}
+   217→                            </p>
+   218→                          )}
+   219→                        </td>
+   220→                        <td className="px-4 py-4 text-right font-semibold text-slate-900">
+   221→                          {formatCurrency(snap?.vehiclePriceGross)}
+   222→                        </td>
+   223→                      </tr>
+   224→                      {snap?.addOns?.map((addon, idx) => (
+   225→                        <tr key={idx} className="border-t border-slate-100">
+   226→                          <td className="px-4 py-3 text-slate-700">{addon.name}</td>
+   227→                          <td className="px-4 py-3 text-right text-slate-900">
+   228→                            {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+   229→                          </td>
+   230→                        </tr>
+   231→                      ))}
+   232→                    </tbody>
+   233→                    <tfoot className="bg-slate-800 text-white">
+   234→                      <tr>
+   235→                        <td className="px-4 py-3 font-semibold">Total</td>
+   236→                        <td className="px-4 py-3 text-right text-xl font-bold">
+   237→                          {formatCurrency(snap?.grandTotal)}
+   238→                        </td>
+   239→                      </tr>
+   240→                    </tfoot>
+   241→                  </table>
+   242→                </div>
+   243→
+   244→                {/* Margin Scheme Notice */}
+   245→                {isMargin && (
+   246→                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+   247→                    <p className="text-amber-800 font-medium">Sold under the VAT margin scheme. No VAT is recoverable.</p>
+   248→                  </div>
+   249→                )}
+   250→
+   251→                {/* Balance */}
+   252→                <div className="flex justify-end">
+   253→                  <div className="w-64 border border-slate-200 rounded-xl overflow-hidden">
+   254→                    {snap?.totalPaid > 0 && (
+   255→                      <div className="flex justify-between px-4 py-2 border-b border-slate-100">
+   256→                        <span className="text-emerald-600">Paid</span>
+   257→                        <span className="font-semibold text-emerald-600">-{formatCurrency(snap.totalPaid)}</span>
+   258→                      </div>
+   259→                    )}
+   260→                    <div className="flex justify-between px-4 py-3 bg-blue-50">
+   261→                      <span className="font-bold text-blue-900">Balance Due</span>
+   262→                      <span className="text-xl font-bold text-blue-900">{formatCurrency(snap?.balanceDue)}</span>
+   263→                    </div>
+   264→                  </div>
+   265→                </div>
+   266→
+   267→                {/* Agreed Work Items */}
+   268→                {snap?.requests?.length > 0 && (
+   269→                  <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 print:bg-orange-50">
+   270→                    <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-3">Agreed Work - Dealer Commitments</p>
+   271→                    <ul className="space-y-2">
+   272→                      {snap.requests.map((req, idx) => (
+   273→                        <li key={idx} className="flex items-start gap-3">
+   274→                          {req.status === "DONE" ? (
+   275→                            <svg className="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   276→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   277→                            </svg>
+   278→                          ) : (
+   279→                            <svg className="w-5 h-5 text-orange-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   280→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+   281→                            </svg>
+   282→                          )}
+   283→                          <div className="flex-1">
+   284→                            <div className="flex items-center gap-2">
+   285→                              <span className={`font-medium ${req.status === "DONE" ? "text-slate-500 line-through" : "text-slate-900"}`}>
+   286→                                {req.title}
+   287→                              </span>
+   288→                              {req.status === "DONE" && (
+   289→                                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">Complete</span>
+   290→                              )}
+   291→                            </div>
+   292→                            {req.details && <p className="text-sm text-slate-500">{req.details}</p>}
+   293→                          </div>
+   294→                        </li>
+   295→                      ))}
+   296→                    </ul>
+   297→                    <p className="text-xs text-orange-600 mt-3 italic">
+   298→                      The above items were agreed between the dealer and customer as part of this sale.
+   299→                    </p>
+   300→                  </div>
+   301→                )}
+   302→
+   303→                {/* Terms */}
+   304→                {snap?.termsText && (
+   305→                  <div className="border-t border-slate-200 pt-6">
+   306→                    <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Terms & Conditions</p>
+   307→                    <p className="text-xs text-slate-500 whitespace-pre-line">{snap.termsText}</p>
+   308→                  </div>
+   309→                )}
+   310→              </div>
+   311→            </div>
+   312→          </div>
+   313→        )}
+   314→
+   315→        {/* PDI Tab */}
+   316→        {activeTab === "pdi" && pdiId && (
+   317→          <div className="max-w-[900px] mx-auto p-4">
+   318→            <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
+   319→              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+   320→                <h2 className="text-lg font-bold text-slate-900">Pre-Delivery Inspection (PDI)</h2>
+   321→                <a
+   322→                  href={`/public/forms/${pdiId}`}
+   323→                  target="_blank"
+   324→                  rel="noopener noreferrer"
+   325→                  className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white border-none"
+   326→                >
+   327→                  Open Full PDI
+   328→                </a>
+   329→              </div>
+   330→              <iframe
+   331→                src={`/public/forms/${pdiId}`}
+   332→                className="w-full h-[800px] border-0"
+   333→                title="PDI Document"
+   334→              />
+   335→            </div>
+   336→          </div>
+   337→        )}
+   338→
+   339→        {/* Service Receipt Tab */}
+   340→        {activeTab === "serviceReceipt" && serviceReceiptId && (
+   341→          <div className="max-w-[900px] mx-auto p-4">
+   342→            <div className="bg-white shadow-xl rounded-2xl overflow-hidden">
+   343→              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+   344→                <h2 className="text-lg font-bold text-slate-900">Service Receipt</h2>
+   345→                <a
+   346→                  href={`/public/forms/${serviceReceiptId}`}
+   347→                  target="_blank"
+   348→                  rel="noopener noreferrer"
+   349→                  className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white border-none"
+   350→                >
+   351→                  Open Full Receipt
+   352→                </a>
+   353→              </div>
+   354→              <iframe
+   355→                src={`/public/forms/${serviceReceiptId}`}
+   356→                className="w-full h-[800px] border-0"
+   357→                title="Service Receipt Document"
+   358→              />
+   359→            </div>
+   360→          </div>
+   361→        )}
+   362→      </div>
+   363→
+   364→      <style jsx global>{`
+   365→        @media print {
+   366→          @page {
+   367→            size: A4;
+   368→            margin: 0;
+   369→          }
+   370→          body {
+   371→            print-color-adjust: exact;
+   372→            -webkit-print-color-adjust: exact;
+   373→          }
+   374→        }
+   375→      `}</style>
+   376→    </>
+   377→  );
+   378→}
+   379→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

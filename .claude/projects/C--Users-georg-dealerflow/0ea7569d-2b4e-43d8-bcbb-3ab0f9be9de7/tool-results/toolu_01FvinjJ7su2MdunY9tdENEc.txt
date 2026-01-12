@@ -1,0 +1,716 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import FormSubmission from "@/models/FormSubmission";
+     3→import Form from "@/models/Form";
+     4→import FormSubmissionFile from "@/models/FormSubmissionFile";
+     5→import Vehicle from "@/models/Vehicle";
+     6→import VehicleTask from "@/models/VehicleTask";
+     7→import VehicleIssue from "@/models/VehicleIssue";
+     8→import Contact from "@/models/Contact";
+     9→import AftercareCase from "@/models/AftercareCase";
+    10→import CourtesyAllocation from "@/models/CourtesyAllocation";
+    11→import { requireDealerContext } from "@/libs/authContext";
+    12→
+    13→export default async function handler(req, res) {
+    14→  await connectMongo();
+    15→
+    16→  // GET requires authentication
+    17→  if (req.method === "GET") {
+    18→    try {
+    19→      const ctx = await requireDealerContext(req, res);
+    20→      const { dealerId } = ctx;
+    21→      let { formId, formType, search, startDate, endDate } = req.query;
+    22→
+    23→      let query = { dealerId };
+    24→
+    25→      // Filter by form
+    26→      if (formId) {
+    27→        query.formId = formId;
+    28→      }
+    29→
+    30→      // Filter by form type
+    31→      if (formType) {
+    32→        const forms = await Form.find({ dealerId, type: formType });
+    33→        const formIds = forms.map((f) => f._id);
+    34→        query.formId = { $in: formIds };
+    35→      }
+    36→
+    37→      // Date range filter
+    38→      if (startDate || endDate) {
+    39→        query.submittedAt = {};
+    40→        if (startDate) query.submittedAt.$gte = new Date(startDate);
+    41→        if (endDate) query.submittedAt.$lte = new Date(endDate);
+    42→      }
+    43→
+    44→      // Search filter (search in rawAnswers)
+    45→      if (search) {
+    46→        query.$or = [
+    47→          { "rawAnswers.name": { $regex: search, $options: "i" } },
+    48→          { "rawAnswers.email": { $regex: search, $options: "i" } },
+    49→          { "rawAnswers.phone": { $regex: search, $options: "i" } },
+    50→          { "rawAnswers.reg": { $regex: search, $options: "i" } },
+    51→          { "rawAnswers.vrm": { $regex: search, $options: "i" } },
+    52→        ];
+    53→      }
+    54→
+    55→      const submissions = await FormSubmission.find(query)
+    56→        .populate("formId")
+    57→        .populate("submittedByContactId")
+    58→        .populate("linkedVehicleId")
+    59→        .populate("linkedAftercareCaseId")
+    60→        .sort({ submittedAt: -1 });
+    61→
+    62→      return res.status(200).json(submissions);
+    63→    } catch (error) {
+    64→      return res.status(error.status || 500).json({ error: error.message || "Failed to fetch submissions" });
+    65→    }
+    66→  }
+    67→
+    68→  // POST is public - form submissions from public forms
+    69→  if (req.method === "POST") {
+    70→    try {
+    71→      const { formId, rawAnswers, submittedByContactId, files } = req.body;
+    72→
+    73→      if (!formId || !rawAnswers) {
+    74→        return res.status(400).json({ error: "Missing required fields" });
+    75→      }
+    76→
+    77→      const form = await Form.findById(formId);
+    78→      if (!form) {
+    79→        return res.status(404).json({ error: "Form not found" });
+    80→      }
+    81→
+    82→      // Ensure dealerId is set - fallback to first dealer if form doesn't have one
+    83→      let dealerId = form.dealerId;
+    84→      if (!dealerId) {
+    85→        const Dealer = (await import("@/models/Dealer")).default;
+    86→        const firstDealer = await Dealer.findOne().lean();
+    87→        if (firstDealer) {
+    88→          dealerId = firstDealer._id;
+    89→          // Also update the form to have the dealerId for future submissions
+    90→          await Form.findByIdAndUpdate(formId, { dealerId });
+    91→        }
+    92→      }
+    93→
+    94→      const submission = await FormSubmission.create({
+    95→        formId,
+    96→        dealerId,
+    97→        rawAnswers,
+    98→        submittedByContactId,
+    99→        submittedAt: new Date(),
+   100→      });
+   101→
+   102→      // Handle file uploads if provided
+   103→      if (files && Array.isArray(files)) {
+   104→        const filePromises = files.map((file) =>
+   105→          FormSubmissionFile.create({
+   106→            formSubmissionId: submission._id,
+   107→            ...file,
+   108→          })
+   109→        );
+   110→        await Promise.all(filePromises);
+   111→      }
+   112→
+   113→      // Vehicle integration - update vehicle records based on form type
+   114→      const vrm = rawAnswers.vrm || rawAnswers.courtesy_vrm || rawAnswers.vehicle_reg;
+   115→      if (vrm) {
+   116→        const vehicle = await Vehicle.findOne({
+   117→          regCurrent: vrm.toUpperCase().replace(/\s/g, ""),
+   118→          dealerId: form.dealerId
+   119→        });
+   120→
+   121→        if (vehicle) {
+   122→          const updates = {};
+   123→
+   124→          switch (form.type) {
+   125→            case "PDI":
+   126→              updates.pdiSubmissionId = submission._id;
+   127→              updates.pdiCompletedAt = new Date();
+   128→              // Auto-complete PDI task on this vehicle (idempotent - only if not already done)
+   129→              try {
+   130→                const pdiTask = await VehicleTask.findOne({
+   131→                  vehicleId: vehicle._id,
+   132→                  name: { $regex: /^(PDI|Pre-Delivery Inspection|Pre Delivery Inspection)$/i }
+   133→                });
+   134→                if (pdiTask && pdiTask.status !== "done" && pdiTask.status !== "DONE") {
+   135→                  await VehicleTask.findByIdAndUpdate(pdiTask._id, {
+   136→                    status: "done",
+   137→                    completedAt: new Date(),
+   138→                    notes: pdiTask.notes ? `${pdiTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+   139→                  });
+   140→                }
+   141→              } catch (taskError) {
+   142→                console.error("Error completing PDI task:", taskError);
+   143→                // Don't fail the submission if task completion fails
+   144→              }
+   145→
+   146→              // ═══════════════════════════════════════════════════════════════════════════════
+   147→              // PDI Issues Automation - Create VehicleIssue records from:
+   148→              // A) Checklist fields with "Repair", "Repair/Replace", etc. values
+   149→              // B) Manual pdi_issues array (Issues Found section)
+   150→              // Idempotent: Uses sourceSubmissionId + sourceFieldKey to prevent duplicates
+   151→              // ═══════════════════════════════════════════════════════════════════════════════
+   152→              try {
+   153→                const createdIssueIds = [];
+   154→
+   155→                // ─────────────────────────────────────────────────────────────────────────────
+   156→                // PDI Section to Category mapping
+   157→                // ─────────────────────────────────────────────────────────────────────────────
+   158→                const SECTION_TO_CATEGORY = {
+   159→                  interior: "Cosmetic",
+   160→                  equipment: "Other",
+   161→                  exterior: "Cosmetic",
+   162→                  tyres: "Mechanical",
+   163→                  lights: "Electrical",
+   164→                  road_test: "Mechanical",
+   165→                  engine: "Mechanical",
+   166→                };
+   167→
+   168→                // Map field names to their sections based on PDI template structure
+   169→                const FIELD_TO_SECTION = {
+   170→                  // Interior (order 11-34)
+   171→                  seat_adjustment: "interior", seat_belts: "interior", sun_visor: "interior",
+   172→                  glove_box: "interior", windows: "interior", wipers: "interior", washer: "interior",
+   173→                  sat_nav: "interior", horn: "interior", fuel_gauge: "interior", temp_gauge: "interior",
+   174→                  dash_lights: "interior", audio_system: "interior", steering_controls: "interior",
+   175→                  rear_camera: "interior", parking_sensors_front: "interior", parking_sensors_rear: "interior",
+   176→                  clock: "interior", steering_tilt: "interior", outlet_12v: "interior", mirrors: "interior",
+   177→                  heated_seats: "interior", air_con: "interior", key_fobs: "interior",
+   178→                  // Equipment (order 41-43)
+   179→                  jack_wrench: "equipment", parcel_shelf: "equipment",
+   180→                  // Exterior (order 51-60)
+   181→                  wiper_blades: "exterior", bonnet: "exterior", boot: "exterior", door_locks: "exterior",
+   182→                  central_locking: "exterior", exhaust: "exterior", fuel_cap: "exterior", aerial: "exterior",
+   183→                  wing_mirrors: "exterior", windscreen: "exterior",
+   184→                  // Tyres (order 71-84)
+   185→                  wheels_condition: "tyres", tyre_pressure: "tyres", brake_discs: "tyres",
+   186→                  // Lights (order 91-98)
+   187→                  headlights: "lights", brake_lights: "lights", fog_lights: "lights", reverse_lights: "lights",
+   188→                  indicators: "lights", number_plate_lights: "lights", hazard_lights: "lights", interior_lights: "lights",
+   189→                  // Road Test (order 101-112)
+   190→                  parking_brake: "road_test", steering_effort: "road_test", tracking: "road_test",
+   191→                  cruise_control: "road_test", heaters: "road_test", steering_vibration: "road_test",
+   192→                  brake_wobble: "road_test", suspension: "road_test", cv_joints: "road_test",
+   193→                  clutch: "road_test", gear_change: "road_test",
+   194→                  // Engine (order 121-132)
+   195→                  oil_level: "engine", brake_fluid: "engine", screen_wash: "engine", coolant_level: "engine",
+   196→                  power_steering: "engine", battery: "engine", ignition: "engine", fuel_system: "engine",
+   197→                  radiator: "engine", cooling_fan: "engine", dpf_soot: "engine",
+   198→                };
+   199→
+   200→                // Field labels for readable descriptions
+   201→                const FIELD_LABELS = {
+   202→                  seat_adjustment: "Seat Adjustment", seat_belts: "Seat Belts", sun_visor: "Sun Visor/Sunroof",
+   203→                  glove_box: "Glove Box", windows: "Windows Front/Rear", wipers: "Wipers", washer: "Washer System",
+   204→                  sat_nav: "Sat Nav", horn: "Horn", fuel_gauge: "Fuel Gauge", temp_gauge: "Temp Gauge",
+   205→                  dash_lights: "Dash Lights", audio_system: "Audio System", steering_controls: "Steering Wheel Controls",
+   206→                  rear_camera: "Rear Camera", parking_sensors_front: "Parking Sensors Front",
+   207→                  parking_sensors_rear: "Parking Sensors Rear", clock: "Clock", steering_tilt: "Steering Tilt/Lock",
+   208→                  outlet_12v: "12V Outlet", mirrors: "Mirrors", heated_seats: "Heated Seats",
+   209→                  air_con: "Air Conditioning", key_fobs: "Key Fobs", jack_wrench: "Jack & Wrench",
+   210→                  parcel_shelf: "Parcel Shelf", wiper_blades: "Wiper Blades", bonnet: "Bonnet", boot: "Boot",
+   211→                  door_locks: "Door Locks", central_locking: "Central Locking", exhaust: "Exhaust",
+   212→                  fuel_cap: "Fuel Cap", aerial: "Aerial", wing_mirrors: "Wing Mirrors", windscreen: "Windscreen",
+   213→                  wheels_condition: "Wheels Condition", tyre_pressure: "Tyre Pressure/Valves",
+   214→                  brake_discs: "Brake Discs", headlights: "Headlights", brake_lights: "Brake Lights",
+   215→                  fog_lights: "Fog Lights", reverse_lights: "Reverse Lights", indicators: "Indicators",
+   216→                  number_plate_lights: "Number Plate Lights", hazard_lights: "Hazard Lights",
+   217→                  interior_lights: "Interior Lights", parking_brake: "Parking Brake", steering_effort: "Steering Effort",
+   218→                  tracking: "Tracking", cruise_control: "Cruise Control", heaters: "Heaters",
+   219→                  steering_vibration: "Steering Vibration", brake_wobble: "Brake Wobble", suspension: "Suspension",
+   220→                  cv_joints: "CV Joints", clutch: "Clutch", gear_change: "Gear Change", oil_level: "Oil Level",
+   221→                  brake_fluid: "Brake Fluid", screen_wash: "Screen Wash", coolant_level: "Coolant Level",
+   222→                  power_steering: "Power Steering Fluid", battery: "Battery Condition", ignition: "Ignition",
+   223→                  fuel_system: "Fuel System", radiator: "Radiator", cooling_fan: "Cooling Fan", dpf_soot: "DPF Soot Level",
+   224→                };
+   225→
+   226→                // Values that indicate "OK" - NOT repair needed
+   227→                const OK_VALUES = new Set([
+   228→                  "okay", "ok", "good", "normal", "none", "present", "yes", "no", "n/a",
+   229→                  "n/a (auto)", "n/a (electric)", "working", "adjusted", "topped up",
+   230→                  "1", "2", "3+", "full", "3/4", "1/2", "1/4", "empty"
+   231→                ]);
+   232→
+   233→                // ─────────────────────────────────────────────────────────────────────────────
+   234→                // A) Create issues from checklist fields with repair-needed values
+   235→                // ─────────────────────────────────────────────────────────────────────────────
+   236→                for (const [fieldName, value] of Object.entries(rawAnswers)) {
+   237→                  // Skip non-checklist fields
+   238→                  if (!FIELD_TO_SECTION[fieldName]) continue;
+   239→                  if (!value || typeof value !== "string") continue;
+   240→
+   241→                  const valueLower = value.toLowerCase().trim();
+   242→
+   243→                  // Skip OK values
+   244→                  if (OK_VALUES.has(valueLower)) continue;
+   245→
+   246→                  // This field needs repair - create issue
+   247→                  const section = FIELD_TO_SECTION[fieldName];
+   248→                  const category = SECTION_TO_CATEGORY[section] || "Other";
+   249→                  const label = FIELD_LABELS[fieldName] || fieldName;
+   250→                  const sourceFieldKey = `pdi:${section}:${fieldName}`;
+   251→
+   252→                  // Idempotency check - does this exact field issue already exist?
+   253→                  const existingFieldIssue = await VehicleIssue.findOne({
+   254→                    sourceSubmissionId: submission._id,
+   255→                    sourceFieldKey: sourceFieldKey,
+   256→                  });
+   257→
+   258→                  if (!existingFieldIssue) {
+   259→                    // Determine subcategory based on section
+   260→                    const subcategoryMap = {
+   261→                      interior: "Interior", equipment: "Equipment", exterior: "Bodywork",
+   262→                      tyres: "Wheels/Tyres", lights: "Lighting", road_test: "Drivetrain", engine: "Engine Bay",
+   263→                    };
+   264→                    const subcategory = subcategoryMap[section] || "Other";
+   265→
+   266→                    const newIssue = await VehicleIssue.create({
+   267→                      vehicleId: vehicle._id,
+   268→                      category,
+   269→                      subcategory,
+   270→                      description: `${label} marked as "${value}"`,
+   271→                      actionNeeded: value, // "Repair", "Repair/Replace", "Replace Bulb", etc.
+   272→                      status: "Outstanding",
+   273→                      notes: `Auto-created from PDI checklist`,
+   274→                      sourceSubmissionId: submission._id,
+   275→                      sourceFieldKey,
+   276→                    });
+   277→                    createdIssueIds.push(newIssue._id);
+   278→                  }
+   279→                }
+   280→
+   281→                // ─────────────────────────────────────────────────────────────────────────────
+   282→                // B) Create issues from manual pdi_issues array (Issues Found section)
+   283→                // Uses same lowercase categories as stock board - maps to model enum
+   284→                // ─────────────────────────────────────────────────────────────────────────────
+   285→                const pdiIssues = rawAnswers.pdi_issues;
+   286→                if (pdiIssues && Array.isArray(pdiIssues) && pdiIssues.length > 0) {
+   287→                  // Map lowercase categories to model enum (same as /api/vehicles/[id]/issues)
+   288→                  const categoryMap = {
+   289→                    'cosmetic': 'Cosmetic',
+   290→                    'bodywork': 'Cosmetic',
+   291→                    'mechanical': 'Mechanical',
+   292→                    'electrical': 'Electrical',
+   293→                    'interior': 'Cosmetic',
+   294→                    'tyres': 'Mechanical',
+   295→                    'mot': 'Mechanical',
+   296→                    'service': 'Mechanical',
+   297→                    'fault_codes': 'Mechanical',
+   298→                    'other': 'Other'
+   299→                  };
+   300→                  const statusMap = {
+   301→                    'outstanding': 'Outstanding',
+   302→                    'ordered': 'Ordered',
+   303→                    'in_progress': 'In Progress',
+   304→                    'resolved': 'Complete',
+   305→                    'complete': 'Complete'
+   306→                  };
+   307→
+   308→                  for (let i = 0; i < pdiIssues.length; i++) {
+   309→                    const issue = pdiIssues[i];
+   310→                    if (!issue.category || !issue.description) continue;
+   311→
+   312→                    const sourceFieldKey = `pdi:manual_issue:${i}`;
+   313→
+   314→                    // Idempotency check
+   315→                    const existingManualIssue = await VehicleIssue.findOne({
+   316→                      sourceSubmissionId: submission._id,
+   317→                      sourceFieldKey: sourceFieldKey,
+   318→                    });
+   319→
+   320→                    if (!existingManualIssue) {
+   321→                      const mappedCategory = categoryMap[issue.category.toLowerCase()] || 'Other';
+   322→                      const mappedStatus = statusMap[(issue.status || 'outstanding').toLowerCase()] || 'Outstanding';
+   323→
+   324→                      const newIssue = await VehicleIssue.create({
+   325→                        vehicleId: vehicle._id,
+   326→                        category: mappedCategory,
+   327→                        subcategory: issue.subcategory || "Other",
+   328→                        description: issue.description,
+   329→                        actionNeeded: issue.actionNeeded || null,
+   330→                        photos: issue.photos || [],
+   331→                        status: mappedStatus,
+   332→                        notes: issue.notes || "Added from PDI Issues Found section",
+   333→                        sourceSubmissionId: submission._id,
+   334→                        sourceFieldKey,
+   335→                      });
+   336→                      createdIssueIds.push(newIssue._id);
+   337→                    }
+   338→                  }
+   339→                }
+   340→
+   341→                // Update submission with created issue IDs
+   342→                if (createdIssueIds.length > 0) {
+   343→                  await FormSubmission.findByIdAndUpdate(submission._id, {
+   344→                    $addToSet: { createdIssueIds: { $each: createdIssueIds } },
+   345→                    pdiIssues: pdiIssues || [],
+   346→                  });
+   347→                }
+   348→              } catch (issueError) {
+   349→                console.error("Error creating PDI issues:", issueError);
+   350→                // Don't fail the submission if issue creation fails
+   351→              }
+   352→              break;
+   353→
+   354→            case "TEST_DRIVE":
+   355→              updates.testDriveCount = (vehicle.testDriveCount || 0) + 1;
+   356→              break;
+   357→
+   358→            case "DELIVERY":
+   359→              updates.deliverySubmissionId = submission._id;
+   360→              updates.status = "delivered";
+   361→              // Auto-complete Delivery task on this vehicle (idempotent)
+   362→              try {
+   363→                const deliveryTask = await VehicleTask.findOne({
+   364→                  vehicleId: vehicle._id,
+   365→                  name: { $regex: /^(Delivery|Vehicle Delivery|Handover)$/i }
+   366→                });
+   367→                if (deliveryTask && deliveryTask.status !== "done" && deliveryTask.status !== "DONE") {
+   368→                  await VehicleTask.findByIdAndUpdate(deliveryTask._id, {
+   369→                    status: "done",
+   370→                    completedAt: new Date(),
+   371→                    notes: deliveryTask.notes ? `${deliveryTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+   372→                  });
+   373→                }
+   374→              } catch (taskError) {
+   375→                console.error("Error completing Delivery task:", taskError);
+   376→              }
+   377→              break;
+   378→          }
+   379→
+   380→          if (Object.keys(updates).length > 0) {
+   381→            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+   382→          }
+   383→        }
+   384→      }
+   385→
+   386→      // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
+   387→      if (form.type === "WARRANTY_CLAIM") {
+   388→        try {
+   389→          const customerEmail = rawAnswers.email?.toLowerCase().trim();
+   390→          const customerName = rawAnswers.customer_name?.trim();
+   391→          const customerPhone = rawAnswers.phone?.trim();
+   392→          const vrmNormalized = vrm ? vrm.toUpperCase().replace(/\s/g, "") : null;
+   393→          const warrantyType = rawAnswers.warranty_type;
+   394→          const issueDescription = rawAnswers.issue_description;
+   395→
+   396→          if (customerEmail && customerName) {
+   397→            // Find or create contact
+   398→            let contact = await Contact.findOne({
+   399→              dealerId,
+   400→              email: { $regex: new RegExp(`^${customerEmail}$`, "i") }
+   401→            });
+   402→
+   403→            if (!contact) {
+   404→              contact = await Contact.create({
+   405→                dealerId,
+   406→                name: customerName,
+   407→                email: customerEmail,
+   408→                phone: customerPhone,
+   409→              });
+   410→            }
+   411→
+   412→            // Check for existing case with same VRM + contact (deduplication)
+   413→            let existingCase = null;
+   414→            if (vrmNormalized) {
+   415→              existingCase = await AftercareCase.findOne({
+   416→                dealerId,
+   417→                contactId: contact._id,
+   418→                regAtPurchase: vrmNormalized,
+   419→                status: { $nin: ["resolved", "closed"] } // Only match open cases
+   420→              });
+   421→            }
+   422→
+   423→            if (existingCase) {
+   424→              // Append submission to existing case
+   425→              const updateOps = {
+   426→                $addToSet: { linkedSubmissionIds: submission._id },
+   427→                // Update details with latest submission info
+   428→                $set: {
+   429→                  warrantyType: warrantyType || existingCase.warrantyType,
+   430→                }
+   431→              };
+   432→
+   433→              // Transfer any files from the form submission to case attachments
+   434→              const submissionFiles = await FormSubmissionFile.find({ formSubmissionId: submission._id });
+   435→              if (submissionFiles.length > 0) {
+   436→                const newAttachments = submissionFiles.map(f => ({
+   437→                  url: f.url,
+   438→                  filename: f.filename || `${f.fieldName}_file`,
+   439→                  uploadedAt: new Date(),
+   440→                }));
+   441→                updateOps.$push = {
+   442→                  attachments: { $each: newAttachments },
+   443→                  events: {
+   444→                    type: "ATTACHMENT_ADDED",
+   445→                    createdAt: new Date(),
+   446→                    summary: `${submissionFiles.length} file(s) added from warranty form submission`,
+   447→                    metadata: { sourceSubmissionId: submission._id }
+   448→                  }
+   449→                };
+   450→              }
+   451→
+   452→              await AftercareCase.findByIdAndUpdate(existingCase._id, updateOps);
+   453→
+   454→              // Link submission to case
+   455→              await FormSubmission.findByIdAndUpdate(submission._id, {
+   456→                linkedAftercareCaseId: existingCase._id
+   457→              });
+   458→            } else {
+   459→              // Create new AftercareCase
+   460→              // Try to find vehicle to link
+   461→              let linkedVehicleId = null;
+   462→              if (vrmNormalized) {
+   463→                const vehicle = await Vehicle.findOne({
+   464→                  dealerId,
+   465→                  $or: [
+   466→                    { regCurrent: vrmNormalized },
+   467→                    { regAtPurchase: vrmNormalized }
+   468→                  ]
+   469→                });
+   470→                if (vehicle) {
+   471→                  linkedVehicleId = vehicle._id;
+   472→                }
+   473→              }
+   474→
+   475→              // Get any files from the form submission to add as attachments
+   476→              const submissionFiles = await FormSubmissionFile.find({ formSubmissionId: submission._id });
+   477→              const initialAttachments = submissionFiles.map(f => ({
+   478→                url: f.url,
+   479→                filename: f.filename || `${f.fieldName}_file`,
+   480→                uploadedAt: new Date(),
+   481→              }));
+   482→
+   483→              const initialEvents = [{
+   484→                type: "CASE_CREATED",
+   485→                createdAt: new Date(),
+   486→                summary: "Warranty claim submitted via form",
+   487→                metadata: { sourceSubmissionId: submission._id }
+   488→              }];
+   489→
+   490→              if (submissionFiles.length > 0) {
+   491→                initialEvents.push({
+   492→                  type: "ATTACHMENT_ADDED",
+   493→                  createdAt: new Date(),
+   494→                  summary: `${submissionFiles.length} file(s) attached from form submission`,
+   495→                  metadata: { sourceSubmissionId: submission._id }
+   496→                });
+   497→              }
+   498→
+   499→              const newCase = await AftercareCase.create({
+   500→                dealerId,
+   501→                contactId: contact._id,
+   502→                vehicleId: linkedVehicleId,
+   503→                source: "warranty_claim_form",
+   504→                status: "new",
+   505→                boardStatus: "not_booked_in",
+   506→                priority: "normal",
+   507→                summary: issueDescription ? issueDescription.substring(0, 100) : "Warranty claim submitted",
+   508→                details: {
+   509→                  issueDescription,
+   510→                  mileage: rawAnswers.exact_mileage,
+   511→                  purchaseDate: rawAnswers.purchase_date,
+   512→                  vehicleMakeModel: rawAnswers.vehicle_make_model,
+   513→                  customerAddress: {
+   514→                    street: rawAnswers.address_street,
+   515→                    line2: rawAnswers.address_line2,
+   516→                    city: rawAnswers.address_city,
+   517→                    county: rawAnswers.address_county,
+   518→                    postcode: rawAnswers.address_postcode,
+   519→                  }
+   520→                },
+   521→                regAtPurchase: vrmNormalized,
+   522→                warrantyType,
+   523→                linkedSubmissionIds: [submission._id],
+   524→                attachments: initialAttachments,
+   525→                events: initialEvents,
+   526→              });
+   527→
+   528→              // Link submission to case
+   529→              await FormSubmission.findByIdAndUpdate(submission._id, {
+   530→                linkedAftercareCaseId: newCase._id
+   531→              });
+   532→            }
+   533→          }
+   534→        } catch (caseError) {
+   535→          console.error("Error creating/updating AftercareCase:", caseError);
+   536→          // Don't fail the submission if case creation fails
+   537→        }
+   538→      }
+   539→
+   540→      // ═══════════════════════════════════════════════════════════════════════════════
+   541→      // Courtesy Car integration - auto-link COURTESY_OUT/IN forms to open cases
+   542→      // ═══════════════════════════════════════════════════════════════════════════════
+   543→      if (form.type === "COURTESY_OUT") {
+   544→        try {
+   545→          const courtesyVrm = rawAnswers.courtesy_vrm?.toUpperCase().replace(/\s/g, "");
+   546→          const customerVehicleReg = rawAnswers.customer_vehicle_reg?.toUpperCase().replace(/\s/g, "");
+   547→          const dateOut = rawAnswers.datetime_out ? new Date(rawAnswers.datetime_out) : new Date();
+   548→          const dateDueBack = rawAnswers.date_due_back ? new Date(rawAnswers.date_due_back) : null;
+   549→          const mileageOut = rawAnswers.mileage_out ? parseInt(rawAnswers.mileage_out) : null;
+   550→          const fuelLevelOut = rawAnswers.fuel_out;
+   551→          const driverName = [rawAnswers.driver_first_name, rawAnswers.driver_last_name].filter(Boolean).join(" ");
+   552→
+   553→          // Find the courtesy vehicle
+   554→          const courtesyVehicle = courtesyVrm ? await Vehicle.findOne({
+   555→            dealerId,
+   556→            regCurrent: courtesyVrm,
+   557→            type: "COURTESY"
+   558→          }) : null;
+   559→
+   560→          if (courtesyVehicle) {
+   561→            // Try to find an open AftercareCase matching the customer vehicle reg (within last 30 days)
+   562→            let linkedCase = null;
+   563→            if (customerVehicleReg) {
+   564→              const thirtyDaysAgo = new Date();
+   565→              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+   566→
+   567→              linkedCase = await AftercareCase.findOne({
+   568→                dealerId,
+   569→                $or: [
+   570→                  { regAtPurchase: customerVehicleReg },
+   571→                  { currentReg: customerVehicleReg }
+   572→                ],
+   573→                status: { $nin: ["resolved", "closed"] },
+   574→                createdAt: { $gte: thirtyDaysAgo }
+   575→              });
+   576→            }
+   577→
+   578→            // Create CourtesyAllocation
+   579→            const allocation = await CourtesyAllocation.create({
+   580→              dealerId,
+   581→              courtesyVehicleId: courtesyVehicle._id,
+   582→              aftercareCaseId: linkedCase?._id || null,
+   583→              customerVehicleRegNormalized: customerVehicleReg || null,
+   584→              dateOut,
+   585→              dateDueBack,
+   586→              mileageOut,
+   587→              fuelLevelOut,
+   588→              driverName,
+   589→              source: "FORM",
+   590→              status: "OUT"
+   591→            });
+   592→
+   593→            // If linked to a case, update the case with courtesy summary
+   594→            if (linkedCase) {
+   595→              // Get courtesy vehicle name for display
+   596→              const courtesyVehicleName = courtesyVehicle.make && courtesyVehicle.model
+   597→                ? `${courtesyVehicle.make} ${courtesyVehicle.model}`
+   598→                : courtesyVrm;
+   599→
+   600→              await AftercareCase.updateOne(
+   601→                { _id: linkedCase._id, dealerId },
+   602→                {
+   603→                  $set: {
+   604→                    courtesyRequired: true,
+   605→                    courtesyAllocationId: allocation._id,
+   606→                    // Populate courtesy summary for card display
+   607→                    "courtesy.vehicleReg": courtesyVrm,
+   608→                    "courtesy.vehicleName": courtesyVehicleName,
+   609→                    "courtesy.outAt": dateOut,
+   610→                    "courtesy.dueBack": dateDueBack,
+   611→                  },
+   612→                  $push: {
+   613→                    events: {
+   614→                      type: "COURTESY_OUT_RECORDED",
+   615→                      createdAt: new Date(),
+   616→                      summary: `Courtesy vehicle ${courtesyVrm} issued via form`,
+   617→                      metadata: {
+   618→                        courtesyVrm,
+   619→                        allocationId: allocation._id,
+   620→                        dueBack: dateDueBack
+   621→                      }
+   622→                    }
+   623→                  }
+   624→                }
+   625→              );
+   626→            }
+   627→          }
+   628→        } catch (courtesyError) {
+   629→          console.error("Error processing COURTESY_OUT form:", courtesyError);
+   630→          // Don't fail the submission if courtesy allocation fails
+   631→        }
+   632→      }
+   633→
+   634→      if (form.type === "COURTESY_IN") {
+   635→        try {
+   636→          const courtesyVrm = rawAnswers.courtesy_vrm?.toUpperCase().replace(/\s/g, "");
+   637→          const dateReturned = rawAnswers.datetime_returned ? new Date(rawAnswers.datetime_returned) : new Date();
+   638→          const mileageIn = rawAnswers.mileage_in ? parseInt(rawAnswers.mileage_in) : null;
+   639→          const fuelLevelIn = rawAnswers.fuel_in;
+   640→
+   641→          // Find the courtesy vehicle
+   642→          const courtesyVehicle = courtesyVrm ? await Vehicle.findOne({
+   643→            dealerId,
+   644→            regCurrent: courtesyVrm,
+   645→            type: "COURTESY"
+   646→          }) : null;
+   647→
+   648→          if (courtesyVehicle) {
+   649→            // Find the most recent OUT allocation for this courtesy vehicle
+   650→            const allocation = await CourtesyAllocation.findOne({
+   651→              dealerId,
+   652→              courtesyVehicleId: courtesyVehicle._id,
+   653→              status: "OUT"
+   654→            }).sort({ dateOut: -1 });
+   655→
+   656→            if (allocation) {
+   657→              // Update the allocation
+   658→              await CourtesyAllocation.updateOne(
+   659→                { _id: allocation._id, dealerId },
+   660→                {
+   661→                  $set: {
+   662→                    dateReturned,
+   663→                    mileageIn,
+   664→                    fuelLevelIn,
+   665→                    status: "RETURNED"
+   666→                  }
+   667→                }
+   668→              );
+   669→
+   670→              // If linked to a case, update courtesy summary and add timeline event
+   671→              if (allocation.aftercareCaseId) {
+   672→                await AftercareCase.updateOne(
+   673→                  { _id: allocation.aftercareCaseId, dealerId },
+   674→                  {
+   675→                    $set: {
+   676→                      // Mark courtesy as returned
+   677→                      "courtesy.returnedAt": dateReturned,
+   678→                    },
+   679→                    $push: {
+   680→                      events: {
+   681→                        type: "COURTESY_IN_RECORDED",
+   682→                        createdAt: new Date(),
+   683→                        summary: `Courtesy vehicle ${courtesyVrm} returned via form`,
+   684→                        metadata: {
+   685→                          courtesyVrm,
+   686→                          allocationId: allocation._id,
+   687→                          mileageIn,
+   688→                          fuelLevelIn
+   689→                        }
+   690→                      }
+   691→                    }
+   692→                  }
+   693→                );
+   694→              }
+   695→            }
+   696→          }
+   697→        } catch (courtesyError) {
+   698→          console.error("Error processing COURTESY_IN form:", courtesyError);
+   699→          // Don't fail the submission if courtesy return fails
+   700→        }
+   701→      }
+   702→
+   703→      return res.status(201).json(submission);
+   704→    } catch (error) {
+   705→      console.error("Error creating submission:", error);
+   706→      return res.status(500).json({ error: "Failed to create submission" });
+   707→    }
+   708→  }
+   709→
+   710→  return res.status(405).json({ error: "Method not allowed" });
+   711→}
+   712→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

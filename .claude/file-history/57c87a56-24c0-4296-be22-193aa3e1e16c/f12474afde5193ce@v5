@@ -1,0 +1,135 @@
+import GoogleProvider from "next-auth/providers/google";
+import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
+import config from "@/config";
+import mongoose from "mongoose";
+
+export const authOptions = {
+  // Set any random key in .env.local
+  secret: process.env.NEXTAUTH_SECRET,
+
+  providers: [
+    // DEV ONLY: Simple credentials login for testing
+    // Use any email + password "test123"
+    CredentialsProvider({
+      name: "Dev Login",
+      credentials: {
+        email: { label: "Email", type: "email", placeholder: "test@example.com" },
+        password: { label: "Password", type: "password", placeholder: "test123" },
+      },
+      async authorize(credentials) {
+        console.log("[CredentialsProvider] authorize called");
+        console.log("[CredentialsProvider] NODE_ENV:", process.env.NODE_ENV);
+        console.log("[CredentialsProvider] email:", credentials?.email);
+
+        // Only allow in development (or if NODE_ENV is undefined)
+        if (process.env.NODE_ENV === "production") {
+          console.log("[CredentialsProvider] Blocked - production mode");
+          return null;
+        }
+
+        // Simple password check for dev
+        if (credentials?.password !== "test123") {
+          console.log("[CredentialsProvider] Invalid password");
+          return null;
+        }
+
+        if (!credentials?.email) {
+          console.log("[CredentialsProvider] No email provided");
+          return null;
+        }
+
+        try {
+          // Connect to MongoDB
+          if (mongoose.connection.readyState !== 1) {
+            await mongoose.connect(process.env.MONGODB_URI);
+          }
+
+          // Import User model dynamically to avoid circular deps
+          const User = (await import("@/models/User")).default;
+
+          // Find or create user
+          let user = await User.findOne({ email: credentials.email.toLowerCase() });
+
+          if (!user) {
+            console.log("[CredentialsProvider] Creating new user");
+            user = await User.create({
+              email: credentials.email.toLowerCase(),
+              name: credentials.email.split("@")[0],
+            });
+          }
+
+          console.log("[CredentialsProvider] Success - user id:", user._id.toString());
+          return {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+          };
+        } catch (error) {
+          console.error("[CredentialsProvider] Error:", error);
+          return null;
+        }
+      },
+    }),
+    GoogleProvider({
+      // Follow the "Login with Google" tutorial to get your credentials
+      clientId: process.env.GOOGLE_ID || "not-configured",
+      clientSecret: process.env.GOOGLE_SECRET || "not-configured",
+      async profile(profile) {
+        return {
+          id: profile.sub,
+          name: profile.given_name ? profile.given_name : profile.name,
+          email: profile.email,
+          image: profile.picture,
+          createdAt: new Date(),
+        };
+      },
+    }),
+    // Follow the "Login with Email" tutorial to set up your email server
+    EmailProvider({
+      server: process.env.EMAIL_SERVER,
+      from: config.mailgun.fromNoReply,
+    }),
+  ],
+  // Note: MongoDBAdapter is disabled when using CredentialsProvider with JWT
+  // The adapter doesn't work well with CredentialsProvider
+  // Users are stored in our own User model via Mongoose instead
+  // adapter: MongoDBAdapter(connectMongo),
+  callbacks: {
+    jwt: async ({ token, user, account }) => {
+      console.log("[JWT Callback] called, user:", user?.email, "account:", account?.provider);
+      // On sign in, add user info to token
+      if (user) {
+        token.sub = user.id;
+        token.email = user.email;
+        token.name = user.name;
+        console.log("[JWT Callback] Set token.sub to:", token.sub);
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
+      console.log("[Session Callback] called, token.sub:", token?.sub);
+      if (session?.user) {
+        session.user.id = token.sub;
+      }
+      return session;
+    },
+    signIn: async ({ user, account }) => {
+      console.log("[SignIn Callback] user:", user?.email, "account:", account?.provider);
+      // Allow all sign-ins for credentials provider
+      return true;
+    },
+  },
+  session: {
+    strategy: "jwt",
+  },
+  theme: {
+    brandColor: config.colors.main,
+    // Add you own logo below. Recommended size is rectangle (i.e. 200x50px) and show your logo + name.
+    // It will be used in the login flow to display your logo. If you don't add it, it will look faded.
+    logo: `https://${config.domainName}/logoAndName.png`,
+  },
+  pages: {
+    signIn: "/auth/signin", // We'll create a custom sign-in page
+  },
+};

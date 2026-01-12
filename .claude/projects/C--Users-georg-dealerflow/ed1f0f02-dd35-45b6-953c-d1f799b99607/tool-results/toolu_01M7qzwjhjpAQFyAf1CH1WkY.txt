@@ -1,0 +1,657 @@
+     1→import { useState, useEffect } from "react";
+     2→import Link from "next/link";
+     3→import { useRouter } from "next/router";
+     4→import { signOut } from "next-auth/react";
+     5→
+     6→// Human-readable form type labels
+     7→const FORM_TYPE_LABELS = {
+     8→  PDI: "PDI",
+     9→  TEST_DRIVE: "Test Drive",
+    10→  WARRANTY_CLAIM: "Warranty",
+    11→  COURTESY_OUT: "Courtesy Out",
+    12→  COURTESY_IN: "Courtesy In",
+    13→  SERVICE_RECEIPT: "Service",
+    14→  REVIEW_FEEDBACK: "Feedback",
+    15→  OTHER: "Other",
+    16→};
+    17→
+    18→// Icon components (using inline SVG as heroicons alternative)
+    19→const ChartBarIcon = ({ className }) => (
+    20→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    21→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    22→  </svg>
+    23→);
+    24→
+    25→const TruckIcon = ({ className }) => (
+    26→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    27→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+    28→  </svg>
+    29→);
+    30→
+    31→const WrenchIcon = ({ className }) => (
+    32→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    33→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+    34→  </svg>
+    35→);
+    36→
+    37→const ClipboardIcon = ({ className }) => (
+    38→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    39→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+    40→  </svg>
+    41→);
+    42→
+    43→const DocumentTextIcon = ({ className }) => (
+    44→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    45→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    46→  </svg>
+    47→);
+    48→
+    49→const StarIcon = ({ className }) => (
+    50→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    51→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+    52→  </svg>
+    53→);
+    54→
+    55→const CalendarIcon = ({ className }) => (
+    56→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    57→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+    58→  </svg>
+    59→);
+    60→
+    61→const CogIcon = ({ className }) => (
+    62→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    63→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+    64→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    65→  </svg>
+    66→);
+    67→
+    68→const ChevronDownIcon = ({ className }) => (
+    69→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    70→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+    71→  </svg>
+    72→);
+    73→
+    74→const navigation = [
+    75→  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
+    76→  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
+    77→  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
+    78→  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
+    79→  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+    80→  { name: "Reviews", href: "/reviews", Icon: StarIcon },
+    81→  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+    82→  { name: "Settings", href: "/settings", Icon: CogIcon },
+    83→];
+    84→
+    85→export default function DashboardLayout({ children }) {
+    86→  const router = useRouter();
+    87→  const [sidebarOpen, setSidebarOpen] = useState(false);
+    88→  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    89→  const [expandedMenus, setExpandedMenus] = useState({});
+    90→  const [forms, setForms] = useState([]);
+    91→  const [dealer, setDealer] = useState(null);
+    92→  const [debugContext, setDebugContext] = useState(null);
+    93→  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+    94→
+    95→  // Load sidebar collapsed state from localStorage
+    96→  useEffect(() => {
+    97→    const saved = localStorage.getItem("sidebarCollapsed");
+    98→    if (saved !== null) {
+    99→      setSidebarCollapsed(JSON.parse(saved));
+   100→    }
+   101→  }, []);
+   102→
+   103→  // Save sidebar collapsed state to localStorage
+   104→  const toggleSidebarCollapsed = () => {
+   105→    const newState = !sidebarCollapsed;
+   106→    setSidebarCollapsed(newState);
+   107→    localStorage.setItem("sidebarCollapsed", JSON.stringify(newState));
+   108→  };
+   109→
+   110→  // Keyboard shortcut: [ or Ctrl+B to toggle sidebar
+   111→  useEffect(() => {
+   112→    const handleKeyDown = (e) => {
+   113→      if (e.key === "[" || (e.ctrlKey && e.key === "b")) {
+   114→        e.preventDefault();
+   115→        toggleSidebarCollapsed();
+   116→      }
+   117→    };
+   118→    window.addEventListener("keydown", handleKeyDown);
+   119→    return () => window.removeEventListener("keydown", handleKeyDown);
+   120→  }, [sidebarCollapsed]);
+   121→
+   122→  // Dev-only: fetch debug context
+   123→  useEffect(() => {
+   124→    if (process.env.NODE_ENV === "development") {
+   125→      fetch("/api/debug/context")
+   126→        .then(res => {
+   127→          const contentType = res.headers.get("content-type") || "";
+   128→          if (!contentType.includes("application/json")) return null;
+   129→          return res.json();
+   130→        })
+   131→        .then(data => {
+   132→          if (data) setDebugContext(data);
+   133→        })
+   134→        .catch(() => {});
+   135→    }
+   136→  }, []);
+   137→
+   138→  useEffect(() => {
+   139→    // Load forms for the quick add dropdown
+   140→    fetch("/api/forms")
+   141→      .then(res => res.json())
+   142→      .then(data => {
+   143→        if (Array.isArray(data)) setForms(data);
+   144→      })
+   145→      .catch(() => {});
+   146→
+   147→    // Load dealer for logo and check onboarding status
+   148→    fetch("/api/dealer")
+   149→      .then(async (res) => {
+   150→        // 403 = no dealer membership - redirect to create dealer
+   151→        if (res.status === 403 && !router.pathname.startsWith("/onboarding")) {
+   152→          router.push("/onboarding/create-dealer");
+   153→          return null;
+   154→        }
+   155→        if (!res.ok) return null;
+   156→        return res.json();
+   157→      })
+   158→      .then(data => {
+   159→        if (!data) return;
+   160→        setDealer(data);
+   161→        // Redirect to onboarding wizard if not completed (skip if already on onboarding page)
+   162→        if (data && !data.completedOnboarding && !router.pathname.startsWith("/onboarding")) {
+   163→          router.push("/onboarding");
+   164→        }
+   165→      })
+   166→      .catch(() => {});
+   167→  }, [router]);
+   168→
+   169→  const handleFormClick = (form) => {
+   170→    if (form.isPublic && form.publicSlug) {
+   171→      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+   172→    } else {
+   173→      router.push(`/forms/fill/${form.id || form._id}`);
+   174→    }
+   175→  };
+   176→
+   177→  return (
+   178→    <div className="min-h-screen bg-[#f8fafc]">
+   179→      {sidebarOpen && (
+   180→        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+   181→      )}
+   182→
+   183→      {/* Sidebar - Modern design with brand colors */}
+   184→      <aside className={`fixed top-0 left-0 z-50 h-full bg-white border-r border-slate-100 shadow-sm transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}>
+   185→        {/* Mobile close button */}
+   186→        <div className="flex items-center justify-end h-12 px-4 lg:hidden">
+   187→          <button className="text-base-content/50 hover:text-base-content hover:bg-base-200 rounded-lg p-2 transition-colors" onClick={() => setSidebarOpen(false)}>
+   188→            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   189→              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+   190→            </svg>
+   191→          </button>
+   192→        </div>
+   193→
+   194→        {/* Logo Area - Dealer's Logo takes prominence */}
+   195→        <div className={`flex flex-col items-center transition-all duration-300 ${sidebarCollapsed ? "p-3" : "p-6"}`}>
+   196→          <Link href="/dashboard" className="block">
+   197→            {dealer?.logoUrl ? (
+   198→              <img
+   199→                src={dealer.logoUrl}
+   200→                alt={dealer?.name || "Logo"}
+   201→                className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"}`}
+   202→              />
+   203→            ) : (
+   204→              <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
+   205→                <TruckIcon className={`text-primary transition-all duration-300 ${sidebarCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
+   206→                {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{dealer?.name || "DealerFlow"}</span>}
+   207→              </div>
+   208→            )}
+   209→          </Link>
+   210→        </div>
+   211→
+   212→        {/* Navigation */}
+   213→        <nav className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto`}>
+   214→          {/* Main Section */}
+   215→          {!sidebarCollapsed && (
+   216→            <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   217→              Main
+   218→            </p>
+   219→          )}
+   220→          <ul className="space-y-1">
+   221→            {navigation.slice(0, 3).map((item) => {
+   222→              const { Icon } = item;
+   223→              const isActive = router.pathname.startsWith(item.href);
+   224→              return (
+   225→                <li key={item.name} className="relative group">
+   226→                  <Link
+   227→                    href={item.href}
+   228→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   229→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   230→                    } ${
+   231→                      isActive
+   232→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   233→                        : "hover:bg-slate-50"
+   234→                    }`}
+   235→                    title={sidebarCollapsed ? item.name : undefined}
+   236→                  >
+   237→                    {/* Active indicator bar */}
+   238→                    {isActive && !sidebarCollapsed && (
+   239→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   240→                    )}
+   241→                    {/* Icon with colored container */}
+   242→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   243→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   244→                    } ${
+   245→                      isActive
+   246→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   247→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   248→                    }`}>
+   249→                      <Icon className="w-[18px] h-[18px]" />
+   250→                    </div>
+   251→                    {!sidebarCollapsed && (
+   252→                      <span className={`text-sm transition-colors ${
+   253→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   254→                      }`}>{item.name}</span>
+   255→                    )}
+   256→                  </Link>
+   257→                  {/* Tooltip for collapsed state */}
+   258→                  {sidebarCollapsed && (
+   259→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   260→                      {item.name}
+   261→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   262→                    </div>
+   263→                  )}
+   264→                </li>
+   265→              );
+   266→            })}
+   267→          </ul>
+   268→
+   269→          {/* Management Section */}
+   270→          {!sidebarCollapsed && (
+   271→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   272→              Management
+   273→            </p>
+   274→          )}
+   275→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   276→          <ul className="space-y-1">
+   277→            {navigation.slice(3, 7).map((item) => {
+   278→              const { Icon } = item;
+   279→
+   280→              if (item.children) {
+   281→                const isExpanded = expandedMenus[item.name];
+   282→                const isActive = router.pathname.startsWith("/forms");
+   283→
+   284→                return (
+   285→                  <li key={item.name}>
+   286→                    <button
+   287→                      onClick={() => setExpandedMenus(prev => ({ ...prev, [item.name]: !prev[item.name] }))}
+   288→                      className={`flex items-center w-full rounded-xl transition-all duration-200 group ${
+   289→                        sidebarCollapsed ? "justify-center p-2" : "justify-between gap-3 px-3 py-2.5"
+   290→                      } ${
+   291→                        isActive
+   292→                          ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   293→                          : "hover:bg-slate-50"
+   294→                      }`}
+   295→                      title={sidebarCollapsed ? item.name : undefined}
+   296→                    >
+   297→                      <div className={`flex items-center ${sidebarCollapsed ? "" : "gap-3"}`}>
+   298→                        <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   299→                          sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   300→                        } ${
+   301→                          isActive
+   302→                            ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   303→                            : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   304→                        }`}>
+   305→                          <Icon className="w-[18px] h-[18px]" />
+   306→                        </div>
+   307→                        {!sidebarCollapsed && (
+   308→                          <span className={`text-sm transition-colors ${
+   309→                            isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   310→                          }`}>{item.name}</span>
+   311→                        )}
+   312→                      </div>
+   313→                      {!sidebarCollapsed && (
+   314→                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isActive ? "text-[#0066CC]" : "text-slate-400"}`} />
+   315→                      )}
+   316→                    </button>
+   317→                    {!sidebarCollapsed && isExpanded && (
+   318→                      <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
+   319→                        {item.children.map((child) => {
+   320→                          const isChildActive = router.pathname === child.href || router.asPath === child.href;
+   321→                          return (
+   322→                            <li key={child.name}>
+   323→                              <Link
+   324→                                href={child.href}
+   325→                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+   326→                                  isChildActive
+   327→                                    ? "bg-[#0066CC]/10 text-[#0066CC] font-semibold"
+   328→                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+   329→                                }`}
+   330→                              >
+   331→                                {isChildActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0066CC]" />}
+   332→                                <span>{child.name}</span>
+   333→                              </Link>
+   334→                            </li>
+   335→                          );
+   336→                        })}
+   337→                      </ul>
+   338→                    )}
+   339→                  </li>
+   340→                );
+   341→              }
+   342→
+   343→              const isActive = router.pathname.startsWith(item.href);
+   344→              return (
+   345→                <li key={item.name} className="relative group">
+   346→                  <Link
+   347→                    href={item.href}
+   348→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   349→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   350→                    } ${
+   351→                      isActive
+   352→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   353→                        : "hover:bg-slate-50"
+   354→                    }`}
+   355→                    title={sidebarCollapsed ? item.name : undefined}
+   356→                  >
+   357→                    {/* Active indicator bar */}
+   358→                    {isActive && !sidebarCollapsed && (
+   359→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   360→                    )}
+   361→                    {/* Icon with colored container */}
+   362→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   363→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   364→                    } ${
+   365→                      isActive
+   366→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   367→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   368→                    }`}>
+   369→                      <Icon className="w-[18px] h-[18px]" />
+   370→                    </div>
+   371→                    {!sidebarCollapsed && (
+   372→                      <span className={`text-sm transition-colors ${
+   373→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   374→                      }`}>{item.name}</span>
+   375→                    )}
+   376→                  </Link>
+   377→                  {/* Tooltip for collapsed state */}
+   378→                  {sidebarCollapsed && (
+   379→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   380→                      {item.name}
+   381→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   382→                    </div>
+   383→                  )}
+   384→                </li>
+   385→              );
+   386→            })}
+   387→          </ul>
+   388→
+   389→          {/* Settings Section */}
+   390→          {!sidebarCollapsed && (
+   391→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   392→              System
+   393→            </p>
+   394→          )}
+   395→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   396→          <ul className="space-y-1">
+   397→            {navigation.slice(7).map((item) => {
+   398→              const { Icon } = item;
+   399→              const isActive = router.pathname.startsWith(item.href);
+   400→              return (
+   401→                <li key={item.name} className="relative group">
+   402→                  <Link
+   403→                    href={item.href}
+   404→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   405→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   406→                    } ${
+   407→                      isActive
+   408→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   409→                        : "hover:bg-slate-50"
+   410→                    }`}
+   411→                    title={sidebarCollapsed ? item.name : undefined}
+   412→                  >
+   413→                    {/* Active indicator bar */}
+   414→                    {isActive && !sidebarCollapsed && (
+   415→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   416→                    )}
+   417→                    {/* Icon with colored container */}
+   418→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   419→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   420→                    } ${
+   421→                      isActive
+   422→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   423→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   424→                    }`}>
+   425→                      <Icon className="w-[18px] h-[18px]" />
+   426→                    </div>
+   427→                    {!sidebarCollapsed && (
+   428→                      <span className={`text-sm transition-colors ${
+   429→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   430→                      }`}>{item.name}</span>
+   431→                    )}
+   432→                  </Link>
+   433→                  {/* Tooltip for collapsed state */}
+   434→                  {sidebarCollapsed && (
+   435→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   436→                      {item.name}
+   437→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   438→                    </div>
+   439→                  )}
+   440→                </li>
+   441→              );
+   442→            })}
+   443→          </ul>
+   444→        </nav>
+   445→
+   446→        {/* Footer - Collapse Toggle + SaaS Branding */}
+   447→        <div className={`mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+   448→          {/* Collapse Toggle Button */}
+   449→          <button
+   450→            onClick={toggleSidebarCollapsed}
+   451→            className={`hidden lg:flex items-center w-full rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all duration-200 ${
+   452→              sidebarCollapsed ? "justify-center p-2" : "gap-2 px-3 py-2"
+   453→            }`}
+   454→            title={sidebarCollapsed ? "Expand sidebar ([ or Ctrl+B)" : "Collapse sidebar ([ or Ctrl+B)"}
+   455→          >
+   456→            <svg className={`w-5 h-5 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   457→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+   458→            </svg>
+   459→            {!sidebarCollapsed && <span className="text-sm">Collapse</span>}
+   460→          </button>
+   461→          {!sidebarCollapsed && (
+   462→            <p className="text-[11px] text-slate-300 text-center mt-3">
+   463→              Powered by <span className="font-semibold text-slate-400">DealerFlow</span>
+   464→            </p>
+   465→          )}
+   466→        </div>
+   467→      </aside>
+   468→
+   469→      {/* Main content */}
+   470→      <div className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"}`}>
+   471→        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-white/95 backdrop-blur-md border-b border-slate-100">
+   472→          <button className="lg:hidden btn btn-ghost btn-sm" onClick={() => setSidebarOpen(true)}>
+   473→            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   474→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+   475→            </svg>
+   476→          </button>
+   477→          <div className="flex-1 lg:flex-none" />
+   478→          <div className="flex items-center gap-3">
+   479→            {/* Quick Add Form Button */}
+   480→            <div className="dropdown dropdown-end">
+   481→              <label tabIndex={0} className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#0066CC] hover:bg-[#0055AA] text-white cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md">
+   482→                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   483→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   484→                </svg>
+   485→              </label>
+   486→              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-xl w-56 max-h-80 overflow-y-auto border border-slate-100">
+   487→                {forms.length === 0 ? (
+   488→                  <li><span className="text-base-content/60 text-sm">No forms available</span></li>
+   489→                ) : (
+   490→                  forms.map((form) => (
+   491→                    <li key={form.id || form._id}>
+   492→                      <button
+   493→                        onClick={() => handleFormClick(form)}
+   494→                        className="text-sm text-left"
+   495→                      >
+   496→                        <span className="truncate">{form.name}</span>
+   497→                      </button>
+   498→                    </li>
+   499→                  ))
+   500→                )}
+   501→              </ul>
+   502→            </div>
+   503→
+   504→            {/* User Menu */}
+   505→            <div className="dropdown dropdown-end">
+   506→              <label tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder cursor-pointer">
+   507→                <div className="bg-neutral text-neutral-content rounded-full w-8">
+   508→                  <span className="text-xs">U</span>
+   509→                </div>
+   510→              </label>
+   511→              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-52">
+   512→                <li>
+   513→                  <Link href="/settings" className="text-sm">
+   514→                    <CogIcon className="w-4 h-4" />
+   515→                    Settings
+   516→                  </Link>
+   517→                </li>
+   518→                <div className="divider my-1"></div>
+   519→                <li>
+   520→                  <button
+   521→                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+   522→                    className="text-sm text-error"
+   523→                  >
+   524→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   525→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+   526→                    </svg>
+   527→                    Sign out
+   528→                  </button>
+   529→                </li>
+   530→              </ul>
+   531→            </div>
+   532→          </div>
+   533→        </header>
+   534→        <main className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">{children}</main>
+   535→      </div>
+   536→
+   537→      {/* Mobile Bottom Navigation - Safe area aware with modern styling */}
+   538→      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-100 md:hidden shadow-lg shadow-slate-200/50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+   539→        <div className="flex items-center justify-around h-16">
+   540→          {[
+   541→            { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
+   542→            { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
+   543→            { name: "Warranty", href: "/warranty", Icon: WrenchIcon },
+   544→            { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
+   545→            { name: "More", href: null, Icon: CogIcon, isMore: true },
+   546→          ].map((item) => {
+   547→            const isActive = item.href && router.pathname.startsWith(item.href);
+   548→
+   549→            if (item.isMore) {
+   550→              return (
+   551→                <div key={item.name} className="dropdown dropdown-top dropdown-end">
+   552→                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-2 py-1.5 cursor-pointer group">
+   553→                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC] transition-all">
+   554→                      <item.Icon className="w-5 h-5" />
+   555→                    </div>
+   556→                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
+   557→                  </label>
+   558→                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+   559→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
+   560→                    <li><Link href="/appraisals" className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+   561→                    <li><Link href="/reviews" className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   562→                    <li><Link href="/calendar" className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   563→                    <div className="divider my-1 px-3"></div>
+   564→                    <li><Link href="/settings" className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+   565→                  </ul>
+   566→                </div>
+   567→              );
+   568→            }
+   569→
+   570→            return (
+   571→              <Link
+   572→                key={item.name}
+   573→                href={item.href}
+   574→                className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
+   575→              >
+   576→                <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+   577→                  isActive
+   578→                    ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/30"
+   579→                    : "bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   580→                }`}>
+   581→                  <item.Icon className="w-5 h-5" />
+   582→                </div>
+   583→                <span className={`text-[10px] mt-0.5 transition-colors ${
+   584→                  isActive ? "font-semibold text-[#0066CC]" : "text-slate-400 group-hover:text-[#0066CC]"
+   585→                }`}>{item.name}</span>
+   586→              </Link>
+   587→            );
+   588→          })}
+   589→        </div>
+   590→      </nav>
+   591→
+   592→      {/* Dev-only Tenant Debug Panel */}
+   593→      {process.env.NODE_ENV === "development" && debugContext && (
+   594→        <div className="fixed bottom-20 md:bottom-4 right-4 z-[60]">
+   595→          <button
+   596→            onClick={() => setDebugPanelOpen(!debugPanelOpen)}
+   597→            className="btn btn-xs btn-warning shadow-lg"
+   598→            title="Toggle debug panel"
+   599→          >
+   600→            {debugPanelOpen ? "Hide Debug" : "Debug"}
+   601→          </button>
+   602→          {debugPanelOpen && (
+   603→            <div className="absolute bottom-8 right-0 bg-warning/10 border border-warning rounded-lg p-3 shadow-xl min-w-64 text-xs font-mono">
+   604→              <div className="font-bold text-warning mb-2 text-sm">Tenant Context</div>
+   605→              <div className="space-y-1 text-base-content">
+   606→                <div className="flex justify-between gap-4">
+   607→                  <span className="text-base-content/60">Auth:</span>
+   608→                  <span className={debugContext.authenticated ? "text-success" : "text-error"}>
+   609→                    {debugContext.authenticated ? "Yes" : "No"}
+   610→                  </span>
+   611→                </div>
+   612→                <div className="flex justify-between gap-4">
+   613→                  <span className="text-base-content/60">User ID:</span>
+   614→                  <span className="truncate max-w-32" title={debugContext.userId}>
+   615→                    {debugContext.userId || "-"}
+   616→                  </span>
+   617→                </div>
+   618→                <div className="flex justify-between gap-4">
+   619→                  <span className="text-base-content/60">Email:</span>
+   620→                  <span className="truncate max-w-32" title={debugContext.userEmail}>
+   621→                    {debugContext.userEmail || "-"}
+   622→                  </span>
+   623→                </div>
+   624→                <div className="flex justify-between gap-4">
+   625→                  <span className="text-base-content/60">User Role:</span>
+   626→                  <span>{debugContext.userRole || "-"}</span>
+   627→                </div>
+   628→                <hr className="border-base-300 my-1" />
+   629→                <div className="flex justify-between gap-4">
+   630→                  <span className="text-base-content/60">Dealer ID:</span>
+   631→                  <span className="truncate max-w-32" title={debugContext.dealerId}>
+   632→                    {debugContext.dealerId || "-"}
+   633→                  </span>
+   634→                </div>
+   635→                <div className="flex justify-between gap-4">
+   636→                  <span className="text-base-content/60">Dealer:</span>
+   637→                  <span className="truncate max-w-32" title={debugContext.dealerName}>
+   638→                    {debugContext.dealerName || "-"}
+   639→                  </span>
+   640→                </div>
+   641→                <div className="flex justify-between gap-4">
+   642→                  <span className="text-base-content/60">Membership:</span>
+   643→                  <span>{debugContext.membershipRole || "-"}</span>
+   644→                </div>
+   645→              </div>
+   646→            </div>
+   647→          )}
+   648→        </div>
+   649→      )}
+   650→    </div>
+   651→  );
+   652→}
+   653→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

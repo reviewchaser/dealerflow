@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\settings\team.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    23→    description: "Can manage vehicles, forms, and customers",
+    24→    color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    25→    iconBg: "bg-emerald-500",
+    26→  },
+    27→  WORKSHOP: {
+    28→    label: "Workshop",
+    29→    description: "Workshop technician - can update tasks and view vehicles",
+    30→    color: "bg-amber-100 text-amber-700 border-amber-200",
+    31→    iconBg: "bg-amber-500",
+    32→  },
+    33→};
+    34→
+    35→export default function TeamSettings() {
+    36→  const [members, setMembers] = useState([]);

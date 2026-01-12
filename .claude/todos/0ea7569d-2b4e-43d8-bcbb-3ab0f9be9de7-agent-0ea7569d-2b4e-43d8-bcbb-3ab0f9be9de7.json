@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Fix DocumentCounter duplicate key error - add retry/sync mechanism",
+    "status": "in_progress",
+    "activeForm": "Fixing document counter"
+  },
+  {
+    "content": "Remove duplicate reports pages (inventory.js, vat.js)",
+    "status": "pending",
+    "activeForm": "Removing duplicate pages"
+  },
+  {
+    "content": "Reorder PX form - hasFinance first, then settlement fields",
+    "status": "pending",
+    "activeForm": "Reordering PX form"
+  },
+  {
+    "content": "Make settlement in writing required for deal completion only, not invoicing",
+    "status": "pending",
+    "activeForm": "Updating validation"
+  }
+]

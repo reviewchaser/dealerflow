@@ -1,0 +1,39 @@
+   310→    <DashboardLayout>
+   311→      <Head>
+   312→        <title>Overtime | DealerFlow</title>
+   313→      </Head>
+   314→
+   315→      <div className="max-w-6xl mx-auto">
+   316→        {/* Header */}
+   317→        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+   318→          <div>
+   319→            <h1 className="text-2xl font-bold text-slate-900">Overtime</h1>
+   320→            <p className="text-slate-500 text-sm mt-1">
+   321→              Track and submit your weekly overtime hours
+   322→            </p>
+   323→          </div>
+   324→          <button
+   325→            onClick={() => handleCreate(selectedWeek)}
+   326→            className="btn btn-primary gap-2"
+   327→          >
+   328→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   329→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   330→            </svg>
+   331→            Add Overtime
+   332→          </button>
+   333→        </div>
+   334→
+   335→        {/* Admin: View Toggle */}
+   336→        {isAdmin && (
+   337→          <div className="flex items-center gap-4 mb-6">
+   338→            <div className="flex bg-slate-100 rounded-xl p-1">
+   339→              <button
+   340→                onClick={() => {
+   341→                  setViewMode("my");
+   342→                  setStatusFilter("");
+   343→                }}
+   344→                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

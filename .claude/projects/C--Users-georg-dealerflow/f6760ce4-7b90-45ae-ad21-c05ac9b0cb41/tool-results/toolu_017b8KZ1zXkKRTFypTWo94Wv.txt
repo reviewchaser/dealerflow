@@ -1,0 +1,134 @@
+  2620→                                  color: label.colour,
+  2621→                                  borderColor: `${label.colour}30`,
+  2622→                                }}
+  2623→                              >
+  2624→                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.colour }}></span>
+  2625→                                {label.name}
+  2626→                              </span>
+  2627→                            ))}
+  2628→                          </div>
+  2629→
+  2630→                          {/* Slick Progress Bar */}
+  2631→                          {tasks.length > 0 && (
+  2632→                            <div className="mb-2">
+  2633→                              <span className="text-xs text-slate-400 mb-1 block">
+  2634→                                {completedTasks}/{tasks.length} tasks
+  2635→                              </span>
+  2636→                              <div className="w-full bg-slate-100 rounded-full h-2">
+  2637→                                <div
+  2638→                                  className="h-2 rounded-full transition-all bg-gradient-to-r from-blue-500 to-cyan-400"
+  2639→                                  style={{ width: `${(completedTasks / tasks.length) * 100}%` }}
+  2640→                                ></div>
+  2641→                              </div>
+  2642→                            </div>
+  2643→                          )}
+  2644→
+  2645→                          {/* Footer - Duration (Sold or In Stock) */}
+  2646→                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+  2647→                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
+  2648→                              duration.isSold ? "text-emerald-600" : duration.days > 30 ? "text-red-500" : "text-slate-400"
+  2649→                            }`}>
+  2650→                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2651→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2652→                              </svg>
+  2653→                              {duration.label}
+  2654→                            </span>
+  2655→                            {!duration.isSold && duration.days > 30 && (
+  2656→                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-500 border border-red-100">
+  2657→                                Aging
+  2658→                              </span>
+  2659→                            )}
+  2660→                          </div>
+  2661→                        </div>
+  2662→                      </div>
+  2663→                    );
+  2664→                  })}
+  2665→
+  2666→                  {/* Empty State */}
+  2667→                  {columnVehicles.length === 0 && (
+  2668→                    <div className="text-center py-8 px-4">
+  2669→                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-white/50 flex items-center justify-center">
+  2670→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2671→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  2672→                        </svg>
+  2673→                      </div>
+  2674→                      <p className="text-sm text-slate-500 font-medium">No vehicles</p>
+  2675→                      <p className="text-xs text-slate-400 mt-1">Drag cards here to move</p>
+  2676→                    </div>
+  2677→                  )}
+  2678→                </div>
+  2679→              </div>
+  2680→            );
+  2681→          })}
+  2682→          </div>
+  2683→        </>
+  2684→      )}
+  2685→
+  2686→      {/* Vehicle Detail Drawer - Full Screen on Mobile */}
+  2687→      {selectedVehicle && (
+  2688→        <div className="fixed inset-0 z-50 flex justify-end">
+  2689→          <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
+  2690→          <div className="relative bg-white w-full md:max-w-3xl h-full overflow-y-auto flex flex-col">
+  2691→            {/* Sticky Header */}
+  2692→            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
+  2693→              <div className="flex items-center gap-3">
+  2694→                {/* Back button on mobile */}
+  2695→                <button className="md:hidden btn btn-ghost btn-sm btn-circle" onClick={() => setSelectedVehicle(null)}>
+  2696→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2697→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  2698→                  </svg>
+  2699→                </button>
+  2700→                <div>
+  2701→                  <h2 className="text-lg md:text-xl font-bold text-slate-900">
+  2702→                    {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
+  2703→                  </h2>
+  2704→                  <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
+  2705→                </div>
+  2706→              </div>
+  2707→              <div className="flex items-center gap-1 md:gap-2">
+  2708→                <button
+  2709→                  className="hidden md:flex btn btn-outline btn-sm"
+  2710→                  onClick={handleGenerateJobSheet}
+  2711→                  disabled={isGeneratingJobSheet}
+  2712→                  title="Share job sheet with mechanic"
+  2713→                >
+  2714→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2715→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+  2716→                  </svg>
+  2717→                  {isGeneratingJobSheet ? "..." : "Share"}
+  2718→                </button>
+  2719→                <button
+  2720→                  className="hidden md:flex btn btn-outline btn-sm"
+  2721→                  onClick={handleGeneratePrepSummary}
+  2722→                  disabled={isGeneratingPrepSummary}
+  2723→                  title="Export prep summary PDF"
+  2724→                >
+  2725→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2726→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  2727→                  </svg>
+  2728→                  {isGeneratingPrepSummary ? "..." : "Prep PDF"}
+  2729→                </button>
+  2730→                <button className="hidden md:flex btn btn-outline btn-sm" onClick={handlePrintVehicle} title="Print vehicle details">
+  2731→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2732→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  2733→                  </svg>
+  2734→                  Print
+  2735→                </button>
+  2736→                <button
+  2737→                  className="btn btn-ghost btn-sm text-error"
+  2738→                  onClick={async () => {
+  2739→                    if (confirm("Delete this vehicle?")) {
+  2740→                      await fetch(`/api/vehicles/${selectedVehicle.id}`, { method: "DELETE" });
+  2741→                      setSelectedVehicle(null);
+  2742→                      fetchVehicles();
+  2743→                      toast.success("Vehicle deleted");
+  2744→                    }
+  2745→                  }}
+  2746→                  title="Delete vehicle"
+  2747→                >
+  2748→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2749→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

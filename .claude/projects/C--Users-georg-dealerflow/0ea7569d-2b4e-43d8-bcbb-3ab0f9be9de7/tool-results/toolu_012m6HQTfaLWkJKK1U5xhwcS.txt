@@ -1,0 +1,7 @@
+141-    // Form integrations
+142-    testDriveCount: { type: Number, default: 0 },
+143:    pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+144-    pdiCompletedAt: { type: Date },
+145:    deliverySubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+146-    // Sale tracking
+147-    soldAt: { type: Date },

@@ -1,0 +1,26 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3161→                            <p className="text-sm font-medium">{issue.description}</p>
+  3162→                            {issue.actionNeeded && (
+  3163→                              <p className="text-xs text-base-content/60 mt-1">Action: {issue.actionNeeded}</p>
+  3164→                            )}
+  3165→                            {issue.notes && (
+  3166→                              <p className="text-xs text-base-content/60 mt-1">Notes: {issue.notes}</p>
+  3167→                            )}
+  3168→
+  3169→                            {/* Parts Details */}
+  3170→                            {issue.partsRequired && (
+  3171→                              <div className="flex items-center gap-2 mt-1">
+  3172→                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC]">
+  3173→                                  Parts Required
+  3174→                                </span>
+  3175→                                {issue.partsDetails && (
+  3176→                                  <span className="text-xs text-base-content/60">{issue.partsDetails}</span>
+  3177→                                )}
+  3178→                              </div>
+  3179→                            )}
+  3180→
+  3181→                            {/* Photos */}
+  3182→                            {issue.photos && issue.photos.length > 0 && (
+  3183→                              <div className="flex flex-wrap gap-2 mt-2">
+  3184→                                {issue.photos.map((photo, idx) => (
+  3185→                                  <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">

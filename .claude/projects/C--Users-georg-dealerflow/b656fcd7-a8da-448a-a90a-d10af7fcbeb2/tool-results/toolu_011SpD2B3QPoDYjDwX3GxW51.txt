@@ -1,0 +1,41 @@
+The file C:\Users\georg\dealerflow\pages\vehicles\new.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   157→      // Store DVLA details for persisting when vehicle is saved
+   158→      setDvlaDetails(dvlaData.dvlaDetails);
+   159→      setLastDvlaFetchAt(dvlaData.lastDvlaFetchAt);
+   160→
+   161→      // Use DVLA data primarily, but fallback to MOT data for fields DVLA often misses
+   162→      // MOT API (DVSA) typically has better model/fuelType data than DVLA
+   163→
+   164→      // Normalize fuel type from DVLA (uppercase) to form format (capitalized)
+   165→      const normalizeFuelForForm = (fuelType) => {
+   166→        if (!fuelType) return "";
+   167→        const fuelMap = {
+   168→          PETROL: "Petrol",
+   169→          DIESEL: "Diesel",
+   170→          ELECTRIC: "Electric",
+   171→          HYBRID: "Hybrid",
+   172→          "HYBRID ELECTRIC": "Hybrid",
+   173→          "PLUG-IN HYBRID": "Hybrid",
+   174→          "PETROL/ELECTRIC HYBRID": "Hybrid",
+   175→          "DIESEL/ELECTRIC HYBRID": "Hybrid",
+   176→        };
+   177→        return fuelMap[fuelType.toUpperCase()] || fuelType;
+   178→      };
+   179→
+   180→      const rawFuel = dvlaData.dvlaDetails?.fuelType || motData?.fuelType || "";
+   181→      const normalizedFuel = normalizeFuelForForm(rawFuel);
+   182→
+   183→      setFormData((prev) => ({
+   184→        ...prev,
+   185→        make: dvlaData.make || motData?.make || prev.make,
+   186→        model: motData?.model || prev.model, // DVLA doesn't return model, use MOT data
+   187→        year: dvlaData.yearOfManufacture || motData?.manufactureYear || prev.year,
+   188→        colour: dvlaData.colour || motData?.primaryColour || prev.colour,
+   189→        fuelType: normalizedFuel || prev.fuelType,
+   190→        engineSize: dvlaData.dvlaDetails?.engineCapacity ? `${dvlaData.dvlaDetails.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
+   191→        motExpiryDate: dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
+   192→      }));
+   193→
+   194→      const messages = ["Vehicle details loaded"];
+   195→      if (dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry) {
+   196→        const motDate = dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry;

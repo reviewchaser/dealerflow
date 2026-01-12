@@ -1,0 +1,204 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import { useSession } from "next-auth/react";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import { toast } from "react-hot-toast";
+     8→
+     9→export default function Calendar() {
+    10→  const router = useRouter();
+    11→  const { data: session } = useSession();
+    12→  const [events, setEvents] = useState([]);
+    13→  const [categories, setCategories] = useState([]);
+    14→  const [isLoading, setIsLoading] = useState(true);
+    15→  const [showAddModal, setShowAddModal] = useState(false);
+    16→  const [editingEvent, setEditingEvent] = useState(null);
+    17→  const [selectedDate, setSelectedDate] = useState(new Date());
+    18→  const [viewMode, setViewMode] = useState("week"); // day, 3day, week, month
+    19→  const [isMobile, setIsMobile] = useState(false);
+    20→  const [searchQuery, setSearchQuery] = useState("");
+    21→  const [selectedCategories, setSelectedCategories] = useState([]);
+    22→  const [showHolidayModal, setShowHolidayModal] = useState(false);
+    23→  const [pendingHolidayCount, setPendingHolidayCount] = useState(0);
+    24→  const [userRole, setUserRole] = useState(null);
+    25→
+    26→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    27→
+    28→  // Fetch user's role from dealer context
+    29→  useEffect(() => {
+    30→    const fetchRole = async () => {
+    31→      try {
+    32→        const res = await fetch("/api/dealer");
+    33→        if (res.ok) {
+    34→          const data = await res.json();
+    35→          setUserRole(data.currentUserRole);
+    36→        }
+    37→      } catch (error) {
+    38→        console.error("Failed to fetch user role:", error);
+    39→      }
+    40→    };
+    41→    fetchRole();
+    42→  }, []);
+    43→
+    44→  // Detect mobile
+    45→  useEffect(() => {
+    46→    const checkMobile = () => {
+    47→      const mobile = window.innerWidth < 768;
+    48→      setIsMobile(mobile);
+    49→      // On mobile, default to 3day view if currently on week
+    50→      if (mobile && viewMode === "week") {
+    51→        setViewMode("3day");
+    52→      }
+    53→    };
+    54→    checkMobile();
+    55→    window.addEventListener("resize", checkMobile);
+    56→    return () => window.removeEventListener("resize", checkMobile);
+    57→  }, [viewMode]);
+    58→
+    59→  useEffect(() => {
+    60→    fetchEvents();
+    61→    fetchCategories();
+    62→    if (isAdmin) {
+    63→      fetchPendingHolidayCount();
+    64→    }
+    65→  }, [isAdmin]);
+    66→
+    67→  const fetchEvents = async () => {
+    68→    try {
+    69→      const start = new Date();
+    70→      start.setMonth(start.getMonth() - 1);
+    71→      const end = new Date();
+    72→      end.setMonth(end.getMonth() + 3);
+    73→
+    74→      const res = await fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`);
+    75→      // Check for JSON response
+    76→      const contentType = res.headers.get("content-type") || "";
+    77→      if (!contentType.includes("application/json")) {
+    78→        console.error("[Calendar] Non-JSON response:", res.status);
+    79→        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load events");
+    80→        setEvents([]);
+    81→        return;
+    82→      }
+    83→      if (!res.ok) {
+    84→        const err = await res.json();
+    85→        toast.error(err.error || "Failed to load events");
+    86→        setEvents([]);
+    87→        return;
+    88→      }
+    89→      const data = await res.json();
+    90→      setEvents(Array.isArray(data) ? data : []);
+    91→    } catch (error) {
+    92→      console.error("[Calendar] Fetch error:", error);
+    93→      toast.error("Failed to load events");
+    94→      setEvents([]);
+    95→    } finally {
+    96→      setIsLoading(false);
+    97→    }
+    98→  };
+    99→
+   100→  const fetchCategories = async () => {
+   101→    try {
+   102→      const res = await fetch("/api/calendar/categories");
+   103→      // Check for JSON response
+   104→      const contentType = res.headers.get("content-type") || "";
+   105→      if (!contentType.includes("application/json")) {
+   106→        console.error("[Calendar] Categories non-JSON response:", res.status);
+   107→        setCategories([]);
+   108→        return;
+   109→      }
+   110→      if (!res.ok) {
+   111→        setCategories([]);
+   112→        return;
+   113→      }
+   114→      const data = await res.json();
+   115→      setCategories(Array.isArray(data) ? data : []);
+   116→    } catch (error) {
+   117→      console.error("Failed to load categories");
+   118→      setCategories([]);
+   119→    }
+   120→  };
+   121→
+   122→  const fetchPendingHolidayCount = async () => {
+   123→    try {
+   124→      const res = await fetch("/api/holiday-requests?status=PENDING");
+   125→      // Check for JSON response
+   126→      const contentType = res.headers.get("content-type") || "";
+   127→      if (!contentType.includes("application/json")) {
+   128→        setPendingHolidayCount(0);
+   129→        return;
+   130→      }
+   131→      if (!res.ok) {
+   132→        setPendingHolidayCount(0);
+   133→        return;
+   134→      }
+   135→      const data = await res.json();
+   136→      setPendingHolidayCount(Array.isArray(data) ? data.length : 0);
+   137→    } catch (error) {
+   138→      console.error("Failed to load pending holiday count");
+   139→      setPendingHolidayCount(0);
+   140→    }
+   141→  };
+   142→
+   143→  // Filter events by search query and categories
+   144→  const filteredEvents = events.filter((event) => {
+   145→    // Search filter
+   146→    if (searchQuery) {
+   147→      const query = searchQuery.toLowerCase();
+   148→      const matchesTitle = event.title?.toLowerCase().includes(query);
+   149→      const matchesDescription = event.description?.toLowerCase().includes(query);
+   150→      const matchesCategory = event.categoryId?.name?.toLowerCase().includes(query);
+   151→      if (!matchesTitle && !matchesDescription && !matchesCategory) {
+   152→        return false;
+   153→      }
+   154→    }
+   155→    // Category filter
+   156→    if (selectedCategories.length > 0) {
+   157→      if (!selectedCategories.includes(event.categoryId?.id || event.categoryId?._id)) {
+   158→        return false;
+   159→      }
+   160→    }
+   161→    return true;
+   162→  });
+   163→
+   164→  // Group filtered events by date
+   165→  const eventsByDate = filteredEvents.reduce((acc, event) => {
+   166→    const dateKey = new Date(event.startDatetime).toDateString();
+   167→    if (!acc[dateKey]) acc[dateKey] = [];
+   168→    acc[dateKey].push(event);
+   169→    return acc;
+   170→  }, {});
+   171→
+   172→  // Navigation functions
+   173→  const goToToday = () => setSelectedDate(new Date());
+   174→
+   175→  const goToPrevious = () => {
+   176→    const newDate = new Date(selectedDate);
+   177→    if (viewMode === "day") newDate.setDate(newDate.getDate() - 1);
+   178→    else if (viewMode === "3day") newDate.setDate(newDate.getDate() - 3);
+   179→    else if (viewMode === "week") newDate.setDate(newDate.getDate() - 7);
+   180→    else newDate.setMonth(newDate.getMonth() - 1);
+   181→    setSelectedDate(newDate);
+   182→  };
+   183→
+   184→  const goToNext = () => {
+   185→    const newDate = new Date(selectedDate);
+   186→    if (viewMode === "day") newDate.setDate(newDate.getDate() + 1);
+   187→    else if (viewMode === "3day") newDate.setDate(newDate.getDate() + 3);
+   188→    else if (viewMode === "week") newDate.setDate(newDate.getDate() + 7);
+   189→    else newDate.setMonth(newDate.getMonth() + 1);
+   190→    setSelectedDate(newDate);
+   191→  };
+   192→
+   193→  // Get 3 days for 3-day view (centered on selected date)
+   194→  const get3Days = () => {
+   195→    const days = [];
+   196→    const startDate = new Date(selectedDate);
+   197→    startDate.setDate(startDate.getDate() - 1); // Start from day before
+   198→
+   199→    for (let i = 0; i < 3; i++) {
+   200→      const day = new Date(startDate);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

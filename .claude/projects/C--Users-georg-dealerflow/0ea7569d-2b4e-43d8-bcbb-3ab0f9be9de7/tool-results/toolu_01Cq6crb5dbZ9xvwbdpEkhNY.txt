@@ -1,0 +1,404 @@
+   400→      .filter((p) => !p.isRefunded)
+   401→      .reduce((sum, p) => sum + p.amount, 0);
+   402→
+   403→    const pxNetValue = deal.partExchange
+   404→      ? (deal.partExchange.allowance || 0) - (deal.partExchange.settlement || 0)
+   405→      : 0;
+   406→
+   407→    const balanceDue = grandTotal - totalPaid - pxNetValue;
+   408→
+   409→    return {
+   410→      addOnsNetTotal,
+   411→      addOnsVatTotal,
+   412→      subtotal,
+   413→      totalVat,
+   414→      grandTotal,
+   415→      totalPaid,
+   416→      pxNetValue,
+   417→      balanceDue,
+   418→    };
+   419→  };
+   420→
+   421→  // Deal actions
+   422→  const handleTakeDeposit = async () => {
+   423→    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+   424→      toast.error("Please enter a valid deposit amount");
+   425→      return;
+   426→    }
+   427→
+   428→    setActionLoading("deposit");
+   429→    try {
+   430→      const res = await fetch(`/api/deals/${dealId}/take-deposit`, {
+   431→        method: "POST",
+   432→        headers: { "Content-Type": "application/json" },
+   433→        body: JSON.stringify({
+   434→          amount: parseFloat(depositAmount),
+   435→          method: depositMethod,
+   436→          reference: depositReference,
+   437→        }),
+   438→      });
+   439→
+   440→      if (!res.ok) {
+   441→        const err = await res.json();
+   442→        throw new Error(err.error || "Failed to record deposit");
+   443→      }
+   444→
+   445→      const result = await res.json();
+   446→      toast.success(`Deposit recorded: ${result.documentNumber}`);
+   447→      setShowDepositModal(false);
+   448→      setDepositAmount("");
+   449→      setDepositReference("");
+   450→      fetchDeal();
+   451→      onUpdate?.();
+   452→    } catch (error) {
+   453→      toast.error(error.message);
+   454→    } finally {
+   455→      setActionLoading(null);
+   456→    }
+   457→  };
+   458→
+   459→  const handleGenerateInvoice = async () => {
+   460→    setActionLoading("invoice");
+   461→    try {
+   462→      const res = await fetch(`/api/deals/${dealId}/generate-invoice`, {
+   463→        method: "POST",
+   464→        headers: { "Content-Type": "application/json" },
+   465→      });
+   466→
+   467→      if (!res.ok) {
+   468→        const err = await res.json();
+   469→        throw new Error(err.error || "Failed to generate invoice");
+   470→      }
+   471→
+   472→      const result = await res.json();
+   473→      toast.success(`Invoice generated: ${result.documentNumber}`);
+   474→      fetchDeal();
+   475→      onUpdate?.();
+   476→    } catch (error) {
+   477→      toast.error(error.message);
+   478→    } finally {
+   479→      setActionLoading(null);
+   480→    }
+   481→  };
+   482→
+   483→  const handleMarkDelivered = async () => {
+   484→    setActionLoading("delivered");
+   485→    try {
+   486→      const res = await fetch(`/api/deals/${dealId}/mark-delivered`, {
+   487→        method: "POST",
+   488→        headers: { "Content-Type": "application/json" },
+   489→      });
+   490→
+   491→      if (!res.ok) {
+   492→        const err = await res.json();
+   493→        throw new Error(err.error || "Failed to mark as delivered");
+   494→      }
+   495→
+   496→      toast.success("Deal marked as delivered");
+   497→      fetchDeal();
+   498→      onUpdate?.();
+   499→    } catch (error) {
+   500→      toast.error(error.message);
+   501→    } finally {
+   502→      setActionLoading(null);
+   503→    }
+   504→  };
+   505→
+   506→  const handleMarkCompleted = async () => {
+   507→    setActionLoading("completed");
+   508→    try {
+   509→      const res = await fetch(`/api/deals/${dealId}/mark-completed`, {
+   510→        method: "POST",
+   511→        headers: { "Content-Type": "application/json" },
+   512→      });
+   513→
+   514→      if (!res.ok) {
+   515→        const err = await res.json();
+   516→        throw new Error(err.error || "Failed to complete deal");
+   517→      }
+   518→
+   519→      toast.success("Deal completed");
+   520→      fetchDeal();
+   521→      onUpdate?.();
+   522→    } catch (error) {
+   523→      toast.error(error.message);
+   524→    } finally {
+   525→      setActionLoading(null);
+   526→    }
+   527→  };
+   528→
+   529→  const handleCancelDeal = async () => {
+   530→    if (!confirm("Are you sure you want to cancel this deal?")) return;
+   531→
+   532→    setActionLoading("cancel");
+   533→    try {
+   534→      const res = await fetch(`/api/deals/${dealId}`, {
+   535→        method: "DELETE",
+   536→        headers: { "Content-Type": "application/json" },
+   537→        body: JSON.stringify({ cancelReason: "Cancelled by user" }),
+   538→      });
+   539→
+   540→      if (!res.ok) {
+   541→        const err = await res.json();
+   542→        throw new Error(err.error || "Failed to cancel deal");
+   543→      }
+   544→
+   545→      toast.success("Deal cancelled");
+   546→      fetchDeal();
+   547→      onUpdate?.();
+   548→    } catch (error) {
+   549→      toast.error(error.message);
+   550→    } finally {
+   551→      setActionLoading(null);
+   552→    }
+   553→  };
+   554→
+   555→  const handleUpdateCustomer = async (contactId) => {
+   556→    if (!contactId) return;
+   557→
+   558→    setActionLoading("customer");
+   559→    try {
+   560→      const res = await fetch(`/api/deals/${dealId}`, {
+   561→        method: "PUT",
+   562→        headers: { "Content-Type": "application/json" },
+   563→        body: JSON.stringify({ soldToContactId: contactId }),
+   564→      });
+   565→
+   566→      if (!res.ok) {
+   567→        const err = await res.json();
+   568→        throw new Error(err.error || "Failed to update customer");
+   569→      }
+   570→
+   571→      toast.success("Customer updated");
+   572→      setIsEditingCustomer(false);
+   573→      fetchDeal();
+   574→      onUpdate?.();
+   575→    } catch (error) {
+   576→      toast.error(error.message);
+   577→    } finally {
+   578→      setActionLoading(null);
+   579→    }
+   580→  };
+   581→
+   582→  const handleUpdateInvoiceTo = async (contactId) => {
+   583→    setActionLoading("invoiceTo");
+   584→    try {
+   585→      const res = await fetch(`/api/deals/${dealId}`, {
+   586→        method: "PUT",
+   587→        headers: { "Content-Type": "application/json" },
+   588→        body: JSON.stringify({ invoiceToContactId: contactId || null }),
+   589→      });
+   590→
+   591→      if (!res.ok) {
+   592→        const err = await res.json();
+   593→        throw new Error(err.error || "Failed to update invoice recipient");
+   594→      }
+   595→
+   596→      toast.success("Invoice recipient updated");
+   597→      setIsEditingInvoiceTo(false);
+   598→      fetchDeal();
+   599→      onUpdate?.();
+   600→    } catch (error) {
+   601→      toast.error(error.message);
+   602→    } finally {
+   603→      setActionLoading(null);
+   604→    }
+   605→  };
+   606→
+   607→  // Update invoice to option when deal loads
+   608→  useEffect(() => {
+   609→    if (deal) {
+   610→      if (deal.invoiceToContactId && deal.invoiceToContactId !== deal.soldToContactId) {
+   611→        setInvoiceToOption("OTHER");
+   612→      } else {
+   613→        setInvoiceToOption("CUSTOMER");
+   614→      }
+   615→    }
+   616→  }, [deal?.id, deal?.invoiceToContactId, deal?.soldToContactId]);
+   617→
+   618→  // Generic field update handler
+   619→  const handleUpdateField = async (updates, successMessage) => {
+   620→    setActionLoading("field");
+   621→    try {
+   622→      const res = await fetch(`/api/deals/${dealId}`, {
+   623→        method: "PUT",
+   624→        headers: { "Content-Type": "application/json" },
+   625→        body: JSON.stringify(updates),
+   626→      });
+   627→
+   628→      if (!res.ok) {
+   629→        const err = await res.json();
+   630→        throw new Error(err.error || "Failed to update");
+   631→      }
+   632→
+   633→      if (successMessage) toast.success(successMessage);
+   634→      fetchDeal();
+   635→      onUpdate?.();
+   636→    } catch (error) {
+   637→      toast.error(error.message);
+   638→    } finally {
+   639→      setActionLoading(null);
+   640→    }
+   641→  };
+   642→
+   643→  // Update vehicle price
+   644→  const handleUpdatePrice = async () => {
+   645→    const price = parseFloat(priceInput);
+   646→    if (isNaN(price) || price <= 0) {
+   647→      toast.error("Please enter a valid price");
+   648→      return;
+   649→    }
+   650→
+   651→    const updates = { vehiclePriceGross: price };
+   652→
+   653→    // For VAT qualifying, calculate net and VAT
+   654→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   655→      const vatRate = deal.vatRate || 0.2;
+   656→      const net = price / (1 + vatRate);
+   657→      updates.vehiclePriceNet = Math.round(net * 100) / 100;
+   658→      updates.vehicleVatAmount = Math.round((price - net) * 100) / 100;
+   659→    }
+   660→
+   661→    await handleUpdateField(updates, "Price updated");
+   662→    setIsEditingPrice(false);
+   663→  };
+   664→
+   665→  // Delete draft deal
+   666→  const handleDeleteDraft = async () => {
+   667→    if (deal.status !== "DRAFT") {
+   668→      toast.error("Only draft deals can be deleted");
+   669→      return;
+   670→    }
+   671→
+   672→    setActionLoading("delete");
+   673→    try {
+   674→      const res = await fetch(`/api/deals/${dealId}`, {
+   675→        method: "DELETE",
+   676→        headers: { "Content-Type": "application/json" },
+   677→        body: JSON.stringify({ hardDelete: true }),
+   678→      });
+   679→
+   680→      if (!res.ok) {
+   681→        const err = await res.json();
+   682→        throw new Error(err.error || "Failed to delete deal");
+   683→      }
+   684→
+   685→      toast.success("Draft deleted");
+   686→      setShowDeleteConfirm(false);
+   687→      onClose?.();
+   688→      onUpdate?.();
+   689→    } catch (error) {
+   690→      toast.error(error.message);
+   691→    } finally {
+   692→      setActionLoading(null);
+   693→    }
+   694→  };
+   695→
+   696→  // Check deal readiness
+   697→  const getReadinessChecks = () => {
+   698→    if (!deal) return [];
+   699→
+   700→    const checks = [
+   701→      {
+   702→        id: "vehicle",
+   703→        label: "Vehicle selected",
+   704→        passed: !!deal.vehicleId || !!deal.vehicle,
+   705→        tab: null, // Vehicle is auto-selected on deal creation
+   706→      },
+   707→      {
+   708→        id: "customer",
+   709→        label: "Customer selected",
+   710→        passed: !!deal.soldToContactId || !!deal.customer,
+   711→        tab: "customer",
+   712→      },
+   713→      {
+   714→        id: "saleType",
+   715→        label: "Sale type set",
+   716→        passed: !!deal.saleType,
+   717→        tab: "overview",
+   718→      },
+   719→      {
+   720→        id: "paymentType",
+   721→        label: "Payment type set",
+   722→        passed: !!deal.paymentType,
+   723→        tab: "overview",
+   724→      },
+   725→      {
+   726→        id: "price",
+   727→        label: "Vehicle price set",
+   728→        passed: deal.vehiclePriceGross > 0,
+   729→        tab: "overview",
+   730→      },
+   731→      {
+   732→        id: "vatScheme",
+   733→        label: "VAT treatment set",
+   734→        passed: !!deal.vatScheme,
+   735→        tab: "overview",
+   736→      },
+   737→    ];
+   738→
+   739→    return checks;
+   740→  };
+   741→
+   742→  // Check if deposit can be taken
+   743→  const canTakeDeposit = () => {
+   744→    if (!deal) return { allowed: false, reasons: [] };
+   745→
+   746→    const reasons = [];
+   747→    if (!deal.soldToContactId && !deal.customer) reasons.push("Customer not selected");
+   748→    if (!deal.vehiclePriceGross || deal.vehiclePriceGross <= 0) reasons.push("Vehicle price not set");
+   749→
+   750→    return { allowed: reasons.length === 0, reasons };
+   751→  };
+   752→
+   753→  // Check if invoice can be generated
+   754→  const canGenerateInvoice = () => {
+   755→    if (!deal) return { allowed: false, reasons: [] };
+   756→
+   757→    // Already invoiced
+   758→    if (["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) {
+   759→      return { allowed: false, reasons: ["Invoice already generated"] };
+   760→    }
+   761→    if (deal.status === "CANCELLED") {
+   762→      return { allowed: false, reasons: ["Deal is cancelled"] };
+   763→    }
+   764→
+   765→    const reasons = [];
+   766→    if (!deal.soldToContactId && !deal.customer) reasons.push("Customer not selected");
+   767→    if (!deal.vehiclePriceGross || deal.vehiclePriceGross <= 0) reasons.push("Vehicle price not set");
+   768→    if (!deal.vatScheme) reasons.push("VAT treatment not set");
+   769→    if (!deal.saleType) reasons.push("Sale type not set");
+   770→
+   771→    return { allowed: reasons.length === 0, reasons };
+   772→  };
+   773→
+   774→  if (!isOpen) return null;
+   775→
+   776→  const totals = calculateTotals();
+   777→  const statusConfig = STATUS_CONFIG[deal?.status] || STATUS_CONFIG.DRAFT;
+   778→
+   779→  return (
+   780→    <div
+   781→      className="fixed inset-0 flex justify-end z-50 drawer-locked"
+   782→      style={{ touchAction: "none", overscrollBehavior: "none" }}
+   783→    >
+   784→      {/* Backdrop */}
+   785→      <div
+   786→        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+   787→        onClick={onClose}
+   788→      />
+   789→
+   790→      {/* Drawer */}
+   791→      <div
+   792→        className="relative bg-[#f8fafc] flex flex-col w-full max-w-3xl min-w-0 translate-x-0 overflow-x-hidden shadow-2xl"
+   793→        style={{
+   794→          height: "100dvh",
+   795→          maxHeight: "100dvh",
+   796→          touchAction: "pan-y",
+   797→        }}
+   798→      >
+   799→        {isLoading ? (
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

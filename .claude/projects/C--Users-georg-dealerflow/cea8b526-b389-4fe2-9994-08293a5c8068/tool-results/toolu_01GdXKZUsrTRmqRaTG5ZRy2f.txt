@@ -1,0 +1,104 @@
+   750→            <div className="absolute z-30 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+   751→              <div className="flex justify-between items-center mb-3">
+   752→                <h4 className="font-semibold text-sm">Filters</h4>
+   753→                {hasActiveFilters() && (
+   754→                  <button className="btn btn-ghost btn-xs" onClick={clearFilters}>
+   755→                    Clear all
+   756→                  </button>
+   757→                )}
+   758→              </div>
+   759→
+   760→              <div className="space-y-3">
+   761→                {/* Location Filter */}
+   762→                <div className="form-control">
+   763→                  <label className="label label-text text-xs py-0">Location</label>
+   764→                  <select
+   765→                    className="select select-bordered select-sm w-full"
+   766→                    value={filters.location}
+   767→                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+   768→                  >
+   769→                    <option value="all">All</option>
+   770→                    <option value="WITH_CUSTOMER">With customer</option>
+   771→                    <option value="ON_SITE">On-site</option>
+   772→                    <option value="THIRD_PARTY">Third-party</option>
+   773→                  </select>
+   774→                </div>
+   775→
+   776→                {/* Booked Filter */}
+   777→                <div className="form-control">
+   778→                  <label className="label label-text text-xs py-0">Booked Status</label>
+   779→                  <select
+   780→                    className="select select-bordered select-sm w-full"
+   781→                    value={filters.booked}
+   782→                    onChange={(e) => setFilters({ ...filters, booked: e.target.value })}
+   783→                  >
+   784→                    <option value="all">All</option>
+   785→                    <option value="booked">Booked</option>
+   786→                    <option value="not_booked">Not Booked</option>
+   787→                  </select>
+   788→                </div>
+   789→
+   790→                {/* Parts Required Filter */}
+   791→                <div className="form-control">
+   792→                  <label className="label label-text text-xs py-0">Parts Required</label>
+   793→                  <select
+   794→                    className="select select-bordered select-sm w-full"
+   795→                    value={filters.partsRequired}
+   796→                    onChange={(e) => setFilters({ ...filters, partsRequired: e.target.value })}
+   797→                  >
+   798→                    <option value="all">All</option>
+   799→                    <option value="yes">Yes</option>
+   800→                    <option value="no">No</option>
+   801→                  </select>
+   802→                </div>
+   803→
+   804→                {/* Priority Filter */}
+   805→                <div className="form-control">
+   806→                  <label className="label label-text text-xs py-0">Priority</label>
+   807→                  <select
+   808→                    className="select select-bordered select-sm w-full"
+   809→                    value={filters.priority}
+   810→                    onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+   811→                  >
+   812→                    <option value="all">All</option>
+   813→                    <option value="low">Low</option>
+   814→                    <option value="normal">Normal</option>
+   815→                    <option value="high">High</option>
+   816→                    <option value="critical">Critical</option>
+   817→                  </select>
+   818→                </div>
+   819→              </div>
+   820→
+   821→              <button
+   822→                className="btn btn-sm btn-block mt-4"
+   823→                onClick={() => setShowFiltersDropdown(false)}
+   824→              >
+   825→                Apply
+   826→              </button>
+   827→            </div>
+   828→          )}
+   829→        </div>
+   830→      </div>
+   831→
+   832→      {/* Active filters / result count summary */}
+   833→      {(searchQuery || hasActiveFilters()) && (
+   834→        <div className="mb-4">
+   835→          <p className="text-sm text-slate-500">
+   836→            Showing {getFilteredCases().length} of {cases.length} cases
+   837→            {hasActiveFilters() && (
+   838→              <button className="ml-2 text-primary hover:underline" onClick={clearFilters}>
+   839→                Clear filters
+   840→              </button>
+   841→            )}
+   842→          </p>
+   843→        </div>
+   844→      )}
+   845→
+   846→      {isLoading ? (
+   847→        <div className="flex justify-center py-20">
+   848→          <span className="loading loading-spinner loading-lg"></span>
+   849→        </div>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

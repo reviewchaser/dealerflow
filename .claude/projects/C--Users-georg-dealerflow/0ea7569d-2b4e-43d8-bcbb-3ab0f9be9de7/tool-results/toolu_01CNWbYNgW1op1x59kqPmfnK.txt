@@ -1,0 +1,67 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import FormSubmission from "@/models/FormSubmission";
+     4→import { withDealerContext } from "@/libs/authContext";
+     5→
+     6→/**
+     7→ * Vehicle Submissions API
+     8→ * GET /api/vehicles/[id]/submissions
+     9→ *
+    10→ * Returns all form submissions linked to a vehicle.
+    11→ */
+    12→async function handler(req, res, ctx) {
+    13→  await connectMongo();
+    14→  const { dealerId } = ctx;
+    15→  const { id } = req.query;
+    16→
+    17→  if (req.method !== "GET") {
+    18→    return res.status(405).json({ error: "Method not allowed" });
+    19→  }
+    20→
+    21→  // Validate ID format
+    22→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    23→    return res.status(400).json({ error: "Invalid vehicle ID" });
+    24→  }
+    25→
+    26→  // Verify vehicle belongs to dealer
+    27→  const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    28→  if (!vehicle) {
+    29→    return res.status(404).json({ error: "Vehicle not found" });
+    30→  }
+    31→
+    32→  // Fetch submissions that are linked to this vehicle
+    33→  // They could be linked via vehicleId field or via data.vrm matching
+    34→  const submissions = await FormSubmission.find({
+    35→    dealerId,
+    36→    $or: [
+    37→      { vehicleId: id },
+    38→      { "data.vrm": vehicle.regCurrent },
+    39→      { "data.vehicleReg": vehicle.regCurrent },
+    40→    ],
+    41→    status: { $ne: "DELETED" },
+    42→  })
+    43→    .sort({ createdAt: -1 })
+    44→    .lean();
+    45→
+    46→  // Format response
+    47→  const formattedSubmissions = submissions.map((sub) => ({
+    48→    id: sub._id.toString(),
+    49→    formType: sub.formType,
+    50→    formName: sub.formName,
+    51→    status: sub.status,
+    52→    token: sub.token,
+    53→    createdAt: sub.createdAt,
+    54→    publicUrl: `/public/forms/${sub.token}`,
+    55→  }));
+    56→
+    57→  return res.status(200).json({
+    58→    submissions: formattedSubmissions,
+    59→  });
+    60→}
+    61→
+    62→export default withDealerContext(handler);
+    63→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

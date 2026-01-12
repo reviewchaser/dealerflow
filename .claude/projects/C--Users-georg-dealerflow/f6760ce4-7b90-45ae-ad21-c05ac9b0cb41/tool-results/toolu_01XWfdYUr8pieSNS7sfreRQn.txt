@@ -1,0 +1,80 @@
+     1→import { withDealerContext, requireRole } from "../../../../../libs/authContext";
+     2→import connectMongo from "../../../../../libs/mongoose";
+     3→import OvertimeSubmission from "../../../../../models/OvertimeSubmission";
+     4→import User from "../../../../../models/User";
+     5→
+     6→/**
+     7→ * POST /api/admin/overtime/:id/reject
+     8→ * Reject an overtime submission
+     9→ * Only OWNER and ADMIN roles can access
+    10→ */
+    11→async function handler(req, res, ctx) {
+    12→  // Require admin or owner role
+    13→  const roleCheck = requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+    14→  if (!roleCheck.allowed) {
+    15→    return res.status(403).json({ error: roleCheck.message || "Access denied" });
+    16→  }
+    17→
+    18→  if (req.method !== "POST") {
+    19→    res.setHeader("Allow", ["POST"]);
+    20→    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    21→  }
+    22→
+    23→  await connectMongo();
+    24→  const { dealerId, userId } = ctx;
+    25→  const { id } = req.query;
+    26→
+    27→  if (!id) {
+    28→    return res.status(400).json({ error: "Submission ID is required" });
+    29→  }
+    30→
+    31→  try {
+    32→    const { reason } = req.body;
+    33→
+    34→    // Fetch the submission
+    35→    const submission = await OvertimeSubmission.findOne({
+    36→      _id: id,
+    37→      dealerId,
+    38→    });
+    39→
+    40→    if (!submission) {
+    41→      return res.status(404).json({ error: "Submission not found" });
+    42→    }
+    43→
+    44→    // Can only reject SUBMITTED submissions
+    45→    if (submission.status !== "SUBMITTED") {
+    46→      return res.status(400).json({
+    47→        error: "Cannot reject",
+    48→        reason: `Submission is ${submission.status}, only SUBMITTED submissions can be rejected`,
+    49→      });
+    50→    }
+    51→
+    52→    // Get rejecter's display name
+    53→    const rejecter = await User.findById(userId).lean();
+    54→    const rejecterName = rejecter?.fullName || rejecter?.name || ctx.user?.email?.split("@")[0] || "Admin";
+    55→
+    56→    // Update submission
+    57→    submission.status = "REJECTED";
+    58→    submission.rejectedAt = new Date();
+    59→    submission.rejectedByUserId = userId;
+    60→    submission.rejectedByName = rejecterName;
+    61→    submission.rejectedReason = reason?.trim() || null;
+    62→
+    63→    await submission.save();
+    64→
+    65→    return res.status(200).json({
+    66→      submission: submission.toObject(),
+    67→      message: "Overtime rejected",
+    68→    });
+    69→  } catch (error) {
+    70→    console.error("Error rejecting overtime:", error);
+    71→    return res.status(500).json({ error: "Failed to reject overtime" });
+    72→  }
+    73→}
+    74→
+    75→export default withDealerContext(handler);
+    76→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

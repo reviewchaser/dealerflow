@@ -1,0 +1,29 @@
+   135→        type: { type: String }, // ADVISORY, DANGEROUS, MAJOR, MINOR
+   136→        dangerous: { type: Boolean }
+   137→      }]
+   138→    }],
+   139→    motHistoryFetchedAt: { type: Date },
+   140→
+   141→    // Form integrations
+   142→    testDriveCount: { type: Number, default: 0 },
+   143→    pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   144→    pdiCompletedAt: { type: Date },
+   145→    deliverySubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   146→    // Sale tracking
+   147→    soldAt: { type: Date },
+   148→    // Audit fields
+   149→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   150→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   151→  },
+   152→  { timestamps: true }
+   153→);
+   154→
+   155→vehicleSchema.plugin(toJSON);
+   156→
+   157→// Indexes for dashboard and common queries
+   158→vehicleSchema.index({ dealerId: 1, status: 1 });
+   159→vehicleSchema.index({ dealerId: 1, createdAt: -1 });
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

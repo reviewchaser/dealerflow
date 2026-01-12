@@ -1,0 +1,10 @@
+     1→import NextAuth from "next-auth";
+     2→import { authOptions } from "@/libs/authOptions";
+     3→
+     4→export { authOptions };
+     5→export default NextAuth(authOptions);
+     6→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

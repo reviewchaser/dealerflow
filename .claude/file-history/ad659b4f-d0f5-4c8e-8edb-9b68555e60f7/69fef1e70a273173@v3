@@ -1,0 +1,480 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import StatsCard from "@/components/StatsCard";
+
+// Human-readable form type labels
+const FORM_TYPE_LABELS = {
+  PDI: "PDI",
+  TEST_DRIVE: "Test Drive",
+  WARRANTY_CLAIM: "Warranty Claim",
+  COURTESY_OUT: "Courtesy Out",
+  COURTESY_IN: "Courtesy In",
+  SERVICE_RECEIPT: "Service",
+  REVIEW_FEEDBACK: "Feedback",
+  OTHER: "Other",
+};
+
+// Default priority forms (fallback if no usage data)
+const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "SERVICE_RECEIPT", "TEST_DRIVE"];
+
+// Needs Attention item configurations
+const NEEDS_ATTENTION_ITEMS = [
+  {
+    key: "soldInProgress",
+    label: "Sold in progress",
+    href: "/sales-prep",
+    color: "bg-amber-500",
+    description: "vehicles awaiting delivery"
+  },
+  {
+    key: "warrantyNotBookedIn",
+    label: "Warranty not booked in",
+    href: "/warranty",
+    color: "bg-red-500",
+    description: "cases need scheduling"
+  },
+  {
+    key: "eventsToday",
+    label: "Events today",
+    href: "/calendar",
+    color: "bg-blue-500",
+    description: "on your calendar"
+  },
+  {
+    key: "courtesyDueBack",
+    label: "Courtesy due back",
+    href: "/warranty",
+    color: "bg-amber-500",
+    description: "vehicles due today or overdue"
+  },
+  {
+    key: "motExpiringSoon",
+    label: "MOT expiring soon",
+    href: "/sales-prep",
+    color: "bg-red-500",
+    description: "within 14 days"
+  }
+];
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [stats, setStats] = useState(null);
+  const [forms, setForms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/dashboard/stats").then(res => {
+        if (!res.ok) throw new Error("Failed to fetch stats");
+        return res.json();
+      }),
+      fetch("/api/forms").then(res => {
+        if (!res.ok) throw new Error("Failed to fetch forms");
+        return res.json();
+      }),
+    ])
+      .then(([statsData, formsData]) => {
+        if (statsData.error) {
+          console.error("Dashboard stats error:", statsData.error);
+          setStats(null);
+        } else {
+          setStats(statsData);
+        }
+        setForms(Array.isArray(formsData) ? formsData : []);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Dashboard fetch error:", err);
+        setIsLoading(false);
+      });
+  }, []);
+
+  const handleFormClick = (form) => {
+    if (form.isPublic && form.publicSlug) {
+      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+    } else {
+      router.push(`/forms/fill/${form.id || form._id}`);
+    }
+  };
+
+  // Get top forms from stats (by submission count) or fall back to defaults
+  const getTopForms = () => {
+    if (stats?.topForms?.length > 0) {
+      // Map topForms to actual form objects
+      return stats.topForms
+        .map(tf => forms.find(f => (f.id || f._id) === tf.formId?.toString()))
+        .filter(Boolean)
+        .slice(0, 3);
+    }
+    // Fallback to default priority forms
+    return forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type)).slice(0, 3);
+  };
+
+  const topForms = getTopForms();
+  const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id) === (f.id || f._id)));
+
+  // Get active needs attention items (only those with count > 0)
+  const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
+    stats?.needsAttention?.[item.key] > 0
+  );
+
+  // Check if today strip has any data to show
+  const hasTodayData = stats?.today && (
+    stats.today.events > 0 ||
+    stats.today.deliveries > 0 ||
+    stats.today.testDrives > 0 ||
+    stats.today.courtesyDueBack > 0
+  );
+
+  return (
+    <DashboardLayout>
+      <Head><title>Dashboard | DealerFlow</title></Head>
+
+      {/* Header - Compact */}
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500 text-sm mt-1">Here's what needs attention today</p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Today Strip - Only show if there's data */}
+          {hasTodayData && (
+            <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl px-3 py-2 flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-semibold text-slate-700">Today</span>
+              <div className="h-4 w-px bg-slate-300" />
+              <div className="flex items-center gap-3 flex-wrap">
+                {stats.today.events > 0 && (
+                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition-colors">
+                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+                    {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
+                  </Link>
+                )}
+                {stats.today.deliveries > 0 && (
+                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
+                  </Link>
+                )}
+                {stats.today.testDrives > 0 && (
+                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium hover:bg-cyan-200 transition-colors">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                    {stats.today.testDrives} test drive{stats.today.testDrives !== 1 ? "s" : ""}
+                  </Link>
+                )}
+                {stats.today.courtesyDueBack > 0 && (
+                  <Link href="/warranty" className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    {stats.today.courtesyDueBack} courtesy due
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Top Row - KPI Cards with micro-context */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard
+              title="Total Stock"
+              value={(stats?.vehicles?.inStock || 0) + (stats?.vehicles?.inPrep || 0)}
+              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+              icon="🚗"
+              color="primary"
+            />
+            <StatsCard
+              title="Pending Appraisals"
+              value={stats?.appraisals?.pending || 0}
+              trend={stats?.oldestAppraisalDays !== null ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
+              icon="📋"
+              color="warning"
+            />
+            <StatsCard
+              title="Live Vehicles"
+              value={stats?.vehicles?.live || 0}
+              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+              icon="✨"
+              color="success"
+            />
+            <StatsCard
+              title="Avg Rating"
+              value={stats?.reviews?.avgRating || "N/A"}
+              trend={
+                stats?.reviews?.lastReviewDays !== null
+                  ? `Last review: ${stats.reviews.lastReviewDays}d ago`
+                  : stats?.reviews?.count === 0
+                  ? "No reviews yet"
+                  : null
+              }
+              icon="⭐"
+              color="info"
+            />
+          </div>
+
+          {/* Quick Forms - Compact Strip */}
+          {forms.length > 0 && (
+            <div className="bg-white shadow-sm rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 mr-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                <span className="text-sm font-semibold text-slate-700">Quick Forms</span>
+              </div>
+              {/* Top form buttons - compact chips */}
+              {topForms.map((form) => (
+                <button
+                  key={form.id || form._id}
+                  onClick={() => handleFormClick(form)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 transition-all"
+                >
+                  <span>📋</span>
+                  <span>{FORM_TYPE_LABELS[form.type] || form.name}</span>
+                </button>
+              ))}
+              {/* More dropdown */}
+              {otherForms.length > 0 && (
+                <div className="dropdown dropdown-end">
+                  <label tabIndex={0} className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:border-slate-300 transition-all cursor-pointer">
+                    <span>More</span>
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </label>
+                  <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-52 max-h-60 overflow-y-auto">
+                    {otherForms.map((form) => (
+                      <li key={form.id || form._id}>
+                        <button onClick={() => handleFormClick(form)} className="text-sm">
+                          {form.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <Link href="/forms" className="ml-auto text-xs text-blue-600 hover:text-blue-700 font-medium">All Submissions →</Link>
+            </div>
+          )}
+
+          {/* Middle Row - Needs Attention + Dealer Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Needs Attention - 2/3 width */}
+            <div className="lg:col-span-2 bg-white shadow-sm rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-4 rounded-full bg-amber-500"></div>
+                <h3 className="text-base font-semibold text-slate-800">Needs Attention</h3>
+              </div>
+              {activeNeedsAttention.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {activeNeedsAttention.map((item) => (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-amber-200 hover:bg-amber-50/30 transition-all group"
+                    >
+                      <div className={`w-9 h-9 ${item.color} text-white rounded-lg flex items-center justify-center text-sm font-bold shadow`}>
+                        {stats.needsAttention[item.key]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
+                        <p className="text-xs text-slate-500">{item.description}</p>
+                      </div>
+                      <svg className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-6 bg-slate-50 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-emerald-600 font-medium text-sm">All clear!</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Nothing needs attention right now</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Dealer Actions - 1/3 width */}
+            <div className="bg-white shadow-sm rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-1 h-4 rounded-full bg-indigo-500"></div>
+                <h3 className="text-base font-semibold text-slate-800">Dealer Actions</h3>
+              </div>
+              <div className="space-y-2">
+                <Link href="/sales-prep" className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-lg flex items-center justify-center text-xs shadow">
+                      🚗
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">Add Vehicle</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                <Link href="/appraisals/new" className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-lg flex items-center justify-center text-xs shadow">
+                      ➕
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">New Appraisal</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                <Link href="/forms" className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-blue-200 hover:bg-blue-50/50 transition-all group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-lg flex items-center justify-center text-xs shadow">
+                      📝
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">View Submissions</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                <Link href="/settings/team" className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-violet-50 to-indigo-50 border border-violet-200 hover:border-violet-300 hover:from-violet-100 hover:to-indigo-100 transition-all group">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-gradient-to-br from-violet-500 to-purple-500 text-white rounded-lg flex items-center justify-center text-xs shadow">
+                      👥
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-slate-700 block">Invite Your Team</span>
+                      <span className="text-xs text-slate-500">Add staff members</span>
+                    </div>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-300 group-hover:text-violet-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Row - Recent Lists */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Recent Appraisals */}
+            <div className="bg-white shadow-sm rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full bg-blue-500"></div>
+                  <h3 className="text-base font-semibold text-slate-800">Recent Appraisals</h3>
+                </div>
+                <Link href="/appraisals" className="text-xs text-blue-600 hover:text-blue-700 font-medium">View All →</Link>
+              </div>
+
+              {stats?.recent?.appraisals?.length > 0 ? (
+                <div className="overflow-y-auto max-h-[220px]">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Vehicle</th>
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Contact</th>
+                        <th className="text-right py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.recent.appraisals.map((a) => (
+                        <tr
+                          key={a.id}
+                          onClick={() => router.push(`/appraisals/${a.id}`)}
+                          className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                        >
+                          <td className="py-2.5 px-2">
+                            <p className="text-sm font-semibold text-slate-900 font-mono">{a.vehicleReg}</p>
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <p className="text-sm text-slate-500">{a.contactId?.name || "—"}</p>
+                          </td>
+                          <td className="py-2.5 px-2 text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              a.decision === "purchased"
+                                ? "bg-green-100 text-green-800"
+                                : a.decision === "not_purchased"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {a.decision}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-6 bg-slate-50 rounded-lg">
+                  <p className="text-slate-400 text-sm">No appraisals yet</p>
+                </div>
+              )}
+            </div>
+
+            {/* Pending Prep */}
+            <div className="bg-white shadow-sm rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-1 h-4 rounded-full bg-indigo-500"></div>
+                  <h3 className="text-base font-semibold text-slate-800">Pending Prep</h3>
+                </div>
+                <Link href="/sales-prep" className="text-xs text-blue-600 hover:text-blue-700 font-medium">View All →</Link>
+              </div>
+
+              {stats?.recent?.vehicles?.length > 0 ? (
+                <div className="overflow-y-auto max-h-[220px]">
+                  <table className="w-full">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Vehicle</th>
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Reg</th>
+                        <th className="text-right py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.recent.vehicles.map((v) => (
+                        <tr
+                          key={v.id}
+                          onClick={() => router.push("/sales-prep")}
+                          className="border-b border-slate-100 hover:bg-blue-50 cursor-pointer transition-colors"
+                        >
+                          <td className="py-2.5 px-2">
+                            <p className="text-sm font-semibold text-slate-900">{v.make} {v.model}</p>
+                          </td>
+                          <td className="py-2.5 px-2">
+                            <p className="text-sm text-slate-500 font-mono">{v.regCurrent}</p>
+                          </td>
+                          <td className="py-2.5 px-2 text-right">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              v.status === "delivered"
+                                ? "bg-green-100 text-green-800"
+                                : v.status === "live"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {v.status.replace("_", " ")}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center py-6 bg-slate-50 rounded-lg">
+                  <p className="text-slate-400 text-sm">No vehicles yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

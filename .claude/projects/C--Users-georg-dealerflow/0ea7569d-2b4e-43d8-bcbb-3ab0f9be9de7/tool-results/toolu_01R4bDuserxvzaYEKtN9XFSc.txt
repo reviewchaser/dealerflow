@@ -1,0 +1,398 @@
+C:\Users\georg\dealerflow\pages\forms.js-103-
+C:\Users\georg\dealerflow\pages\forms.js-104-  // Filters for submissions
+C:\Users\georg\dealerflow\pages\forms.js-105-  const [searchQuery, setSearchQuery] = useState("");
+C:\Users\georg\dealerflow\pages\forms.js:106:  const [vrmSearch, setVrmSearch] = useState("");
+C:\Users\georg\dealerflow\pages\forms.js-107-  const [selectedFormId, setSelectedFormId] = useState("");
+C:\Users\georg\dealerflow\pages\forms.js-108-  const [statusFilter, setStatusFilter] = useState("");
+C:\Users\georg\dealerflow\pages\forms.js-109-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+--
+C:\Users\georg\dealerflow\pages\forms.js-120-  }, []);
+C:\Users\georg\dealerflow\pages\forms.js-121-
+C:\Users\georg\dealerflow\pages\forms.js-122-  // Check if any filters are active
+C:\Users\georg\dealerflow\pages\forms.js:123:  const hasActiveFilters = vrmSearch || searchQuery || statusFilter || selectedFormId;
+C:\Users\georg\dealerflow\pages\forms.js:124:  const activeFilterCount = [vrmSearch, searchQuery, statusFilter, selectedFormId].filter(Boolean).length;
+C:\Users\georg\dealerflow\pages\forms.js-125-
+C:\Users\georg\dealerflow\pages\forms.js-126-  // Clear all filters
+C:\Users\georg\dealerflow\pages\forms.js-127-  const clearAllFilters = () => {
+C:\Users\georg\dealerflow\pages\forms.js:128:    setVrmSearch("");
+C:\Users\georg\dealerflow\pages\forms.js-129-    setSearchQuery("");
+C:\Users\georg\dealerflow\pages\forms.js-130-    setStatusFilter("");
+C:\Users\georg\dealerflow\pages\forms.js-131-    setSelectedFormId("");
+--
+C:\Users\georg\dealerflow\pages\forms.js-144-
+C:\Users\georg\dealerflow\pages\forms.js-145-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\forms.js-146-    applyFilters();
+C:\Users\georg\dealerflow\pages\forms.js:147:  }, [submissions, searchQuery, vrmSearch, selectedFormId, statusFilter]);
+C:\Users\georg\dealerflow\pages\forms.js-148-
+C:\Users\georg\dealerflow\pages\forms.js-149-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\forms.js-150-    applyTemplateFilters();
+--
+C:\Users\georg\dealerflow\pages\forms.js-270-      }
+C:\Users\georg\dealerflow\pages\forms.js-271-    }
+C:\Users\georg\dealerflow\pages\forms.js-272-
+C:\Users\georg\dealerflow\pages\forms.js:273:    if (vrmSearch) {
+C:\Users\georg\dealerflow\pages\forms.js:274:      const vrmQuery = vrmSearch.toLowerCase().replace(/\s/g, "");
+C:\Users\georg\dealerflow\pages\forms.js-275-      filtered = filtered.filter((s) => {
+C:\Users\georg\dealerflow\pages\forms.js-276-        const answers = s.rawAnswers || {};
+C:\Users\georg\dealerflow\pages\forms.js-277-        const vrmFields = [
+--
+C:\Users\georg\dealerflow\pages\forms.js-1107-                type="text"
+C:\Users\georg\dealerflow\pages\forms.js-1108-                placeholder="Search VRM..."
+C:\Users\georg\dealerflow\pages\forms.js-1109-                className="w-full h-10 pl-9 pr-3 text-sm font-mono uppercase bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+C:\Users\georg\dealerflow\pages\forms.js:1110:                value={vrmSearch}
+C:\Users\georg\dealerflow\pages\forms.js:1111:                onChange={(e) => setVrmSearch(e.target.value.toUpperCase())}
+C:\Users\georg\dealerflow\pages\forms.js-1112-              />
+C:\Users\georg\dealerflow\pages\forms.js-1113-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+C:\Users\georg\dealerflow\pages\forms.js-1114-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+--
+C:\Users\georg\dealerflow\pages\forms.js-1142-                type="text"
+C:\Users\georg\dealerflow\pages\forms.js-1143-                placeholder="Search VRM..."
+C:\Users\georg\dealerflow\pages\forms.js-1144-                className="w-full h-9 pl-9 pr-3 text-sm font-mono uppercase bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+C:\Users\georg\dealerflow\pages\forms.js:1145:                value={vrmSearch}
+C:\Users\georg\dealerflow\pages\forms.js:1146:                onChange={(e) => setVrmSearch(e.target.value.toUpperCase())}
+C:\Users\georg\dealerflow\pages\forms.js-1147-              />
+C:\Users\georg\dealerflow\pages\forms.js-1148-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+C:\Users\georg\dealerflow\pages\forms.js-1149-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+--
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-42-  const [stockSearch, setStockSearch] = useState("");
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-43-  // Smart VRM lookup state
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-44-  const [vrmSuggestions, setVrmSuggestions] = useState([]);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:45:  const [vrmSearchActive, setVrmSearchActive] = useState(false);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-46-  const [vrmLookupConfig, setVrmLookupConfig] = useState(null);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-47-  // Dealer info for token replacement
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-48-  const [dealer, setDealer] = useState(null);
+--
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-251-      _selectedVehicle: vehicle,
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-252-    }));
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-253-    setVrmSuggestions([]);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:254:    setVrmSearchActive(false);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-255-    toast.success(`Selected: ${vehicle.displayName}`);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-256-  };
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-257-
+--
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-512-                // Trigger smart search if VRM lookup is configured
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-513-                if (vrmLookupConfig?.enabled !== false) {
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-514-                  searchVehicles(newValue);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:515:                  setVrmSearchActive(true);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-516-                }
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-517-              }}
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-518-              onFocus={() => {
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-519-                if (vrmLookupConfig?.enabled !== false && value && value.length >= 2) {
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-520-                  searchVehicles(value);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:521:                  setVrmSearchActive(true);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-522-                }
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-523-              }}
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-524-              onBlur={() => {
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-525-                // Delay hiding to allow click on suggestion
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:526:                setTimeout(() => setVrmSearchActive(false), 200);
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-527-              }}
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-528-              required={field.required}
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-529-              placeholder={vrmLookupConfig ? "Search or enter VRM..." : "AB12 CDE"}
+--
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-539-            </button>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-540-          </div>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-541-          {/* Smart VRM suggestions dropdown */}
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:542:          {vrmSearchActive && vrmSuggestions.length > 0 && (
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-543-            <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-544-              <div className="text-xs text-base-content/60 px-3 py-1 border-b border-base-200 bg-base-200/50">
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js-545-                Select from your vehicles or press DVLA for external lookup
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-34-  const [showNewDropdown, setShowNewDropdown] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-35-  const [showShareModal, setShowShareModal] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-36-  const [dealerSlug, setDealerSlug] = useState("");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:37:  const [vrmSearch, setVrmSearch] = useState("");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-38-  const [showVrmSuggestions, setShowVrmSuggestions] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-39-  const menuRef = useRef(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-40-  const newDropdownRef = useRef(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:41:  const vrmSearchRef = useRef(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-42-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-43-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-44-    fetchAppraisals();
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-55-      if (newDropdownRef.current && !newDropdownRef.current.contains(event.target)) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-56-        setShowNewDropdown(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-57-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js:58:      if (vrmSearchRef.current && !vrmSearchRef.current.contains(event.target)) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-59-        setShowVrmSuggestions(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-60-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-61-    };
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-211-    else result = pxAppraisals.map(a => ({ ...a, source: "px" }));
+C:\Users\georg\dealerflow\pages\appraisals\index.js-212-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-213-    // Apply VRM search filter
+C:\Users\georg\dealerflow\pages\appraisals\index.js:214:    if (vrmSearch.trim()) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:215:      const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-216-      result = result.filter(a =>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-217-        a.vehicleReg?.toUpperCase().replace(/\s/g, "").includes(searchTerm)
+C:\Users\georg\dealerflow\pages\appraisals\index.js-218-      );
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-224-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-225-  // Get unique VRMs for suggestions
+C:\Users\georg\dealerflow\pages\appraisals\index.js-226-  const getVrmSuggestions = () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:227:    if (!vrmSearch.trim()) return [];
+C:\Users\georg\dealerflow\pages\appraisals\index.js-228-    const allAppraisals = getAllAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:229:    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-230-    const uniqueVrms = [...new Set(allAppraisals.map(a => a.vehicleReg).filter(Boolean))];
+C:\Users\georg\dealerflow\pages\appraisals\index.js-231-    return uniqueVrms
+C:\Users\georg\dealerflow\pages\appraisals\index.js:232:      .filter(vrm => vrm.toUpperCase().replace(/\s/g, "").includes(searchTerm))
+C:\Users\georg\dealerflow\pages\appraisals\index.js-233-      .slice(0, 5);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-234-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-235-
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-407-        />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-408-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-409-        {/* VRM Search Box */}
+C:\Users\georg\dealerflow\pages\appraisals\index.js:410:        <div className="relative" ref={vrmSearchRef}>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-411-          <div className="relative">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-412-            <svg
+C:\Users\georg\dealerflow\pages\appraisals\index.js-413-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-420-            <input
+C:\Users\georg\dealerflow\pages\appraisals\index.js-421-              type="text"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-422-              placeholder="Search VRM..."
+C:\Users\georg\dealerflow\pages\appraisals\index.js:423:              value={vrmSearch}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-424-              onChange={(e) => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:425:                setVrmSearch(e.target.value);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-426-                setShowVrmSuggestions(true);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-427-              }}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-428-              onFocus={() => setShowVrmSuggestions(true)}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-429-              className="w-full sm:w-56 pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-430-            />
+C:\Users\georg\dealerflow\pages\appraisals\index.js:431:            {vrmSearch && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-432-              <button
+C:\Users\georg\dealerflow\pages\appraisals\index.js-433-                onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:434:                  setVrmSearch("");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-435-                  setShowVrmSuggestions(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-436-                }}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-437-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-450-                <button
+C:\Users\georg\dealerflow\pages\appraisals\index.js-451-                  key={vrm}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-452-                  onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:453:                    setVrmSearch(vrm);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-454-                    setShowVrmSuggestions(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-455-                  }}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-456-                  className="w-full px-4 py-2 text-left text-sm hover:bg-slate-50 transition-colors"
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-195-  const [activityLoading, setActivityLoading] = useState(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js-196-
+C:\Users\georg\dealerflow\pages\sales-prep.js-197-  // VRM Search state
+C:\Users\georg\dealerflow\pages\sales-prep.js:198:  const [vrmSearch, setVrmSearch] = useState("");
+C:\Users\georg\dealerflow\pages\sales-prep.js-199-  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js-200-  const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
+C:\Users\georg\dealerflow\pages\sales-prep.js-201-  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+C:\Users\georg\dealerflow\pages\sales-prep.js:202:  const vrmSearchInputRef = useRef(null);
+C:\Users\georg\dealerflow\pages\sales-prep.js-203-  const vrmDropdownRef = useRef(null);
+C:\Users\georg\dealerflow\pages\sales-prep.js-204-  const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0 });
+C:\Users\georg\dealerflow\pages\sales-prep.js-205-
+C:\Users\georg\dealerflow\pages\sales-prep.js:206:  // Compute VRM search results reactively based on vrmSearch and vehicles
+C:\Users\georg\dealerflow\pages\sales-prep.js:207:  const vrmSearchResults = useMemo(() => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:208:    if (vrmSearch.length < 2) return [];
+C:\Users\georg\dealerflow\pages\sales-prep.js-209-    if (!vehicles.length) return [];
+C:\Users\georg\dealerflow\pages\sales-prep.js-210-
+C:\Users\georg\dealerflow\pages\sales-prep.js:211:    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+C:\Users\georg\dealerflow\pages\sales-prep.js-212-
+C:\Users\georg\dealerflow\pages\sales-prep.js-213-    // Filter vehicles matching the query (VRM, make, or model)
+C:\Users\georg\dealerflow\pages\sales-prep.js-214-    const matches = vehicles.filter((v) => {
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-226-    });
+C:\Users\georg\dealerflow\pages\sales-prep.js-227-
+C:\Users\georg\dealerflow\pages\sales-prep.js-228-    return sorted.slice(0, 10);
+C:\Users\georg\dealerflow\pages\sales-prep.js:229:  }, [vrmSearch, vehicles]);
+C:\Users\georg\dealerflow\pages\sales-prep.js-230-
+C:\Users\georg\dealerflow\pages\sales-prep.js-231-  // Calculate dropdown position when opening
+C:\Users\georg\dealerflow\pages\sales-prep.js-232-  const updateVrmDropdownPosition = useCallback(() => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:233:    if (vrmSearchInputRef.current) {
+C:\Users\georg\dealerflow\pages\sales-prep.js:234:      const rect = vrmSearchInputRef.current.getBoundingClientRect();
+C:\Users\georg\dealerflow\pages\sales-prep.js-235-      setVrmDropdownPos({
+C:\Users\georg\dealerflow\pages\sales-prep.js-236-        top: rect.bottom + 8,
+C:\Users\georg\dealerflow\pages\sales-prep.js-237-        left: rect.left,
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-253-    const handleClickOutside = (e) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js-254-      if (
+C:\Users\georg\dealerflow\pages\sales-prep.js-255-        showVrmDropdown &&
+C:\Users\georg\dealerflow\pages\sales-prep.js:256:        vrmSearchInputRef.current &&
+C:\Users\georg\dealerflow\pages\sales-prep.js:257:        !vrmSearchInputRef.current.contains(e.target) &&
+C:\Users\georg\dealerflow\pages\sales-prep.js-258-        vrmDropdownRef.current &&
+C:\Users\georg\dealerflow\pages\sales-prep.js-259-        !vrmDropdownRef.current.contains(e.target)
+C:\Users\georg\dealerflow\pages\sales-prep.js-260-      ) {
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1325-    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+C:\Users\georg\dealerflow\pages\sales-prep.js-1326-  };
+C:\Users\georg\dealerflow\pages\sales-prep.js-1327-
+C:\Users\georg\dealerflow\pages\sales-prep.js:1328:  const handleVrmSearchChange = (value) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1329-    const normalized = value.toUpperCase();
+C:\Users\georg\dealerflow\pages\sales-prep.js:1330:    setVrmSearch(normalized);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1331-    setVrmSelectedIndex(-1); // Reset selection on input change
+C:\Users\georg\dealerflow\pages\sales-prep.js-1332-
+C:\Users\georg\dealerflow\pages\sales-prep.js-1333-    // Show dropdown when 2+ characters
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1340-
+C:\Users\georg\dealerflow\pages\sales-prep.js-1341-  // Apply VRM filter to board (pressing Enter)
+C:\Users\georg\dealerflow\pages\sales-prep.js-1342-  const applyVrmFilter = () => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:1343:    const filterValue = vrmSearch.trim();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1344-    setVrmFilter(filterValue);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1345-    setShowVrmDropdown(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1346-    if (filterValue) {
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1350-
+C:\Users\georg\dealerflow\pages\sales-prep.js-1351-  // Clear VRM filter
+C:\Users\georg\dealerflow\pages\sales-prep.js-1352-  const clearVrmFilter = () => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:1353:    setVrmSearch("");
+C:\Users\georg\dealerflow\pages\sales-prep.js-1354-    setVrmFilter("");
+C:\Users\georg\dealerflow\pages\sales-prep.js-1355-    setShowVrmDropdown(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1356-  };
+C:\Users\georg\dealerflow\pages\sales-prep.js-1357-
+C:\Users\georg\dealerflow\pages\sales-prep.js-1358-  // Keyboard navigation for VRM search
+C:\Users\georg\dealerflow\pages\sales-prep.js-1359-  const handleVrmKeyDown = (e) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:1360:    if (!showVrmDropdown || vrmSearchResults.length === 0) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1361-      // Enter applies filter even without dropdown
+C:\Users\georg\dealerflow\pages\sales-prep.js:1362:      if (e.key === "Enter" && vrmSearch.length >= 2) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1363-        e.preventDefault();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1364-        applyVrmFilter();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1365-      }
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1370-      case "ArrowDown":
+C:\Users\georg\dealerflow\pages\sales-prep.js-1371-        e.preventDefault();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1372-        setVrmSelectedIndex((prev) =>
+C:\Users\georg\dealerflow\pages\sales-prep.js:1373:          prev < vrmSearchResults.length - 1 ? prev + 1 : prev
+C:\Users\georg\dealerflow\pages\sales-prep.js-1374-        );
+C:\Users\georg\dealerflow\pages\sales-prep.js-1375-        break;
+C:\Users\georg\dealerflow\pages\sales-prep.js-1376-      case "ArrowUp":
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1379-        break;
+C:\Users\georg\dealerflow\pages\sales-prep.js-1380-      case "Enter":
+C:\Users\georg\dealerflow\pages\sales-prep.js-1381-        e.preventDefault();
+C:\Users\georg\dealerflow\pages\sales-prep.js:1382:        if (vrmSelectedIndex >= 0 && vrmSearchResults[vrmSelectedIndex]) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1383-          // Select highlighted vehicle
+C:\Users\georg\dealerflow\pages\sales-prep.js:1384:          handleVrmSelect(vrmSearchResults[vrmSelectedIndex]);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1385-        } else {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1386-          // Apply filter to board
+C:\Users\georg\dealerflow\pages\sales-prep.js-1387-          applyVrmFilter();
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1390-      case "Escape":
+C:\Users\georg\dealerflow\pages\sales-prep.js-1391-        e.preventDefault();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1392-        setShowVrmDropdown(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js:1393:        vrmSearchInputRef.current?.blur();
+C:\Users\georg\dealerflow\pages\sales-prep.js-1394-        break;
+C:\Users\georg\dealerflow\pages\sales-prep.js-1395-    }
+C:\Users\georg\dealerflow\pages\sales-prep.js-1396-  };
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1398-  const handleVrmSelect = (vehicle) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1399-    // Close dropdown and keep search term as filter
+C:\Users\georg\dealerflow\pages\sales-prep.js-1400-    const vrm = vehicle.regCurrent || vehicle.vrm || "";
+C:\Users\georg\dealerflow\pages\sales-prep.js:1401:    setVrmSearch(vrm);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1402-    setVrmFilter(vrm);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1403-    setShowVrmDropdown(false);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1404-
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1786-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+C:\Users\georg\dealerflow\pages\sales-prep.js-1787-                </svg>
+C:\Users\georg\dealerflow\pages\sales-prep.js-1788-                <input
+C:\Users\georg\dealerflow\pages\sales-prep.js:1789:                  ref={vrmSearchInputRef}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1790-                  type="text"
+C:\Users\georg\dealerflow\pages\sales-prep.js-1791-                  placeholder={vrmFilter ? `Filtered: ${vrmFilter}` : "Search VRM..."}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1792-                  className={`input input-sm input-bordered pl-9 pr-8 w-32 sm:w-48 font-mono uppercase ${vrmFilter ? "border-blue-400 bg-blue-50" : ""}`}
+C:\Users\georg\dealerflow\pages\sales-prep.js:1793:                  value={vrmSearch}
+C:\Users\georg\dealerflow\pages\sales-prep.js:1794:                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1795-                  onFocus={() => {
+C:\Users\georg\dealerflow\pages\sales-prep.js:1796:                    if (vrmSearch.length >= 2) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1797-                      setShowVrmDropdown(true);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1798-                    }
+C:\Users\georg\dealerflow\pages\sales-prep.js-1799-                  }}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1800-                  onKeyDown={handleVrmKeyDown}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1801-                />
+C:\Users\georg\dealerflow\pages\sales-prep.js:1802:                {(vrmSearch || vrmFilter) && (
+C:\Users\georg\dealerflow\pages\sales-prep.js-1803-                  <button
+C:\Users\georg\dealerflow\pages\sales-prep.js-1804-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+C:\Users\georg\dealerflow\pages\sales-prep.js-1805-                    onClick={clearVrmFilter}
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1819-          className="fixed w-80 bg-white rounded-xl shadow-xl border border-slate-200 z-[101] overflow-hidden"
+C:\Users\georg\dealerflow\pages\sales-prep.js-1820-          style={{ top: vrmDropdownPos.top, left: vrmDropdownPos.left }}
+C:\Users\georg\dealerflow\pages\sales-prep.js-1821-        >
+C:\Users\georg\dealerflow\pages\sales-prep.js:1822:          {vrmSearchResults.length > 0 ? (
+C:\Users\georg\dealerflow\pages\sales-prep.js-1823-            <>
+C:\Users\georg\dealerflow\pages\sales-prep.js-1824-              <ul className="py-1 max-h-64 overflow-y-auto">
+C:\Users\georg\dealerflow\pages\sales-prep.js:1825:                {vrmSearchResults.map((vehicle, idx) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js-1826-                  // Check if this VRM has duplicates (for "Latest" badge)
+C:\Users\georg\dealerflow\pages\sales-prep.js-1827-                  const vrm = (vehicle.regCurrent || "").toUpperCase();
+C:\Users\georg\dealerflow\pages\sales-prep.js:1828:                  const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
+C:\Users\georg\dealerflow\pages\sales-prep.js:1829:                  const isFirstOfDuplicate = idx === vrmSearchResults.findIndex(v => (v.regCurrent || "").toUpperCase() === vrm);
+C:\Users\georg\dealerflow\pages\sales-prep.js-1830-                  const isSelected = idx === vrmSelectedIndex;
+C:\Users\georg\dealerflow\pages\sales-prep.js-1831-
+C:\Users\georg\dealerflow\pages\sales-prep.js-1832-                  return (
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-1865-                <span className="text-slate-400">↑↓ Navigate</span>
+C:\Users\georg\dealerflow\pages\sales-prep.js-1866-              </div>
+C:\Users\georg\dealerflow\pages\sales-prep.js-1867-            </>
+C:\Users\georg\dealerflow\pages\sales-prep.js:1868:          ) : vrmSearch.length >= 2 ? (
+C:\Users\georg\dealerflow\pages\sales-prep.js-1869-            <div className="px-4 py-6 text-center">
+C:\Users\georg\dealerflow\pages\sales-prep.js-1870-              <svg className="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\sales-prep.js-1871-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-4781-  };
+C:\Users\georg\dealerflow\pages\sales-prep.js-4782-
+C:\Users\georg\dealerflow\pages\sales-prep.js-4783-  // Search unconverted appraisals as user types VRM
+C:\Users\georg\dealerflow\pages\sales-prep.js:4784:  const searchAppraisals = async (vrm) => {
+C:\Users\georg\dealerflow\pages\sales-prep.js-4785-    if (!vrm || vrm.length < 2) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-4786-      setAppraisalSuggestions([]);
+C:\Users\georg\dealerflow\pages\sales-prep.js-4787-      setShowAppraisalDropdown(false);
+--
+C:\Users\georg\dealerflow\pages\sales-prep.js-4789-    }
+C:\Users\georg\dealerflow\pages\sales-prep.js-4790-    setIsSearchingAppraisals(true);
+C:\Users\georg\dealerflow\pages\sales-prep.js-4791-    try {
+C:\Users\georg\dealerflow\pages\sales-prep.js:4792:      const res = await fetch(`/api/appraisals/search-unconverted?q=${encodeURIComponent(vrm)}`);
+C:\Users\georg\dealerflow\pages\sales-prep.js-4793-      if (res.ok) {
+C:\Users\georg\dealerflow\pages\sales-prep.js-4794-        const results = await res.json();
+C:\Users\georg\dealerflow\pages\sales-prep.js-4795-        setAppraisalSuggestions(results);
+--
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-29-  const [manualVrmEntry, setManualVrmEntry] = useState(false);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-30-  // VRM suggestions for PDI/Delivery forms
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-31-  const [vrmSuggestions, setVrmSuggestions] = useState([]);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:32:  const [vrmSearchActive, setVrmSearchActive] = useState(false);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-33-  // Licence extraction state
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-34-  const [isExtractingLicence, setIsExtractingLicence] = useState(false);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-35-  const [licenceExtracted, setLicenceExtracted] = useState(false);
+--
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-83-      _selectedVehicleId: vehicle.id,
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-84-    }));
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-85-    setVrmSuggestions([]);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:86:    setVrmSearchActive(false);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-87-    setSelectedFromStock(true);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-88-    toast.success(`Selected: ${vehicle.make} ${vehicle.model} (${vehicle.vrm || vehicle.regCurrent})`);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-89-  };
+--
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-599-                // Trigger VRM suggestions for PDI/Delivery
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-600-                if (showVrmSuggestions) {
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-601-                  searchVrmVehicles(newValue);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:602:                  setVrmSearchActive(true);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-603-                }
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-604-              }}
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-605-              onFocus={() => {
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-606-                if (showVrmSuggestions && value && value.length >= 2) {
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-607-                  searchVrmVehicles(value);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:608:                  setVrmSearchActive(true);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-609-                }
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-610-              }}
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-611-              onBlur={() => {
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-612-                // Delay hiding to allow click on suggestion
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:613:                setTimeout(() => setVrmSearchActive(false), 200);
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-614-              }}
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-615-              required={field.required}
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-616-              placeholder={showVrmSuggestions ? "Search or enter VRM..." : "AB12 CDE"}
+--
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-626-            </button>
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-627-          </div>
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-628-          {/* VRM suggestions dropdown for PDI/Delivery */}
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:629:          {showVrmSuggestions && vrmSearchActive && vrmSuggestions.length > 0 && (
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-630-            <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-631-              <div className="text-xs text-base-content/60 px-3 py-1 border-b border-base-200 bg-base-200/50">
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js-632-                Select from stock or use Lookup for external search
+--
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-48-          { "rawAnswers.email": { $regex: search, $options: "i" } },
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-49-          { "rawAnswers.phone": { $regex: search, $options: "i" } },
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-50-          { "rawAnswers.reg": { $regex: search, $options: "i" } },
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js:51:          { "rawAnswers.vrm": { $regex: search, $options: "i" } },
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-52-        ];
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-53-      }
+C:\Users\georg\dealerflow\pages\api\forms\submissions.js-54-

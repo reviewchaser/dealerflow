@@ -1,0 +1,571 @@
+import { useEffect, useState, useCallback } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const FIELD_TYPE_LABELS = {
+  TEXT: "Text",
+  TEXTAREA: "Textarea",
+  NUMBER: "Number",
+  DATE: "Date",
+  DATETIME: "Date & Time",
+  DROPDOWN: "Dropdown",
+  CHECKBOX: "Checkbox",
+  RADIO: "Radio",
+  FILE: "File Upload",
+  SIGNATURE: "Signature",
+  RATING: "Rating",
+  BOOLEAN: "Yes/No",
+};
+
+const FIELD_TYPE_OPTIONS = [
+  { value: "TEXT", label: "Text (single line)" },
+  { value: "TEXTAREA", label: "Textarea (multi-line)" },
+  { value: "NUMBER", label: "Number" },
+  { value: "DATE", label: "Date" },
+  { value: "DATETIME", label: "Date & Time" },
+  { value: "BOOLEAN", label: "Yes/No (checkbox)" },
+  { value: "DROPDOWN", label: "Dropdown (select)" },
+  { value: "RADIO", label: "Radio buttons" },
+  { value: "FILE", label: "File Upload" },
+  { value: "SIGNATURE", label: "Signature" },
+  { value: "RATING", label: "Rating" },
+];
+
+export default function EditFormFields() {
+  const router = useRouter();
+  const { id } = router.query;
+
+  const [form, setForm] = useState(null);
+  const [fields, setFields] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  // Modal states
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+
+  // New field form
+  const [newField, setNewField] = useState({
+    label: "",
+    type: "TEXT",
+    required: false,
+    options: "",
+  });
+
+  // Drag state
+  const [draggedIndex, setDraggedIndex] = useState(null);
+
+  useEffect(() => {
+    if (id) {
+      fetchForm();
+      fetchFields();
+    }
+  }, [id]);
+
+  const fetchForm = async () => {
+    try {
+      const res = await fetch(`/api/forms/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setForm(data);
+      }
+    } catch (error) {
+      console.error("Failed to load form:", error);
+    }
+  };
+
+  const fetchFields = async () => {
+    try {
+      const res = await fetch(`/api/forms/${id}/fields`);
+      if (res.ok) {
+        const data = await res.json();
+        setFields(data);
+      }
+    } catch (error) {
+      console.error("Failed to load fields:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+
+    const newFields = [...fields];
+    const draggedItem = newFields[draggedIndex];
+    newFields.splice(draggedIndex, 1);
+    newFields.splice(index, 0, draggedItem);
+
+    setFields(newFields);
+    setDraggedIndex(index);
+    setHasChanges(true);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const toggleVisibility = (index) => {
+    const newFields = [...fields];
+    newFields[index].visible = !newFields[index].visible;
+    setFields(newFields);
+    setHasChanges(true);
+  };
+
+  const toggleRequired = (index) => {
+    const newFields = [...fields];
+    newFields[index].required = !newFields[index].required;
+    setFields(newFields);
+    setHasChanges(true);
+  };
+
+  const openEditModal = (field, index) => {
+    setEditingField({ ...field, index });
+    setShowEditModal(true);
+  };
+
+  const saveFieldEdit = () => {
+    if (!editingField) return;
+
+    const newFields = [...fields];
+    newFields[editingField.index] = {
+      ...newFields[editingField.index],
+      label: editingField.label,
+      required: editingField.required,
+    };
+    setFields(newFields);
+    setHasChanges(true);
+    setShowEditModal(false);
+    setEditingField(null);
+  };
+
+  const deleteField = async (index) => {
+    const field = fields[index];
+
+    if (field.isDefault) {
+      toast.error("Cannot delete default fields. You can hide them instead.");
+      return;
+    }
+
+    if (!confirm("Delete this custom field?")) return;
+
+    // If field has an ID, delete from server
+    if (field._id || field.id) {
+      try {
+        await fetch(`/api/forms/${id}/fields?fieldId=${field._id || field.id}`, {
+          method: "DELETE",
+        });
+      } catch (error) {
+        toast.error("Failed to delete field");
+        return;
+      }
+    }
+
+    const newFields = [...fields];
+    newFields.splice(index, 1);
+    setFields(newFields);
+    setHasChanges(true);
+    toast.success("Field deleted");
+  };
+
+  const addCustomField = async () => {
+    if (!newField.label.trim()) {
+      toast.error("Field label is required");
+      return;
+    }
+
+    const fieldData = {
+      label: newField.label.trim(),
+      type: newField.type,
+      required: newField.required,
+      visible: true,
+      isCustom: true,
+      isDefault: false,
+    };
+
+    // Add options for dropdown and radio types
+    if ((newField.type === "DROPDOWN" || newField.type === "RADIO") && newField.options) {
+      fieldData.options = {
+        choices: newField.options.split("\n").map((o) => o.trim()).filter(Boolean),
+      };
+    }
+
+    try {
+      const res = await fetch(`/api/forms/${id}/fields`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(fieldData),
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        setFields([...fields, created]);
+        setShowAddModal(false);
+        setNewField({ label: "", type: "TEXT", required: false, options: "" });
+        toast.success("Custom field added");
+      } else {
+        toast.error("Failed to add field");
+      }
+    } catch (error) {
+      toast.error("Failed to add field");
+    }
+  };
+
+  const saveAllChanges = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/forms/${id}/fields`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fields }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setFields(updated);
+        setHasChanges(false);
+        toast.success("Changes saved");
+      } else {
+        toast.error("Failed to save changes");
+      }
+    } catch (error) {
+      toast.error("Failed to save changes");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <Head>
+        <title>Edit Fields - {form?.name || "Form"} | DealerFlow</title>
+      </Head>
+
+      {/* Header */}
+      <div className="mb-6">
+        <div className="flex items-center gap-2 text-sm text-base-content/60 mb-2">
+          <Link href="/settings" className="hover:text-primary">Settings</Link>
+          <span>/</span>
+          <Link href="/settings/forms" className="hover:text-primary">Form Templates</Link>
+          <span>/</span>
+          <span>{form?.name || "Edit Fields"}</span>
+        </div>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">{form?.name || "Form Fields"}</h1>
+            <p className="text-base-content/60 mt-1">
+              Drag to reorder, toggle visibility, or add custom fields
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/settings/forms" className="btn btn-ghost">
+              Cancel
+            </Link>
+            <button
+              className={`btn btn-primary ${!hasChanges ? "btn-disabled" : ""}`}
+              onClick={saveAllChanges}
+              disabled={!hasChanges || isSaving}
+            >
+              {isSaving ? (
+                <span className="loading loading-spinner loading-sm"></span>
+              ) : (
+                "Save Changes"
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Unsaved Changes Warning */}
+      {hasChanges && (
+        <div className="alert alert-warning mb-4">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span>You have unsaved changes</span>
+        </div>
+      )}
+
+      {/* Fields List */}
+      <div className="card bg-base-200">
+        <div className="card-body p-0">
+          {fields.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-base-content/60">No fields configured for this form.</p>
+              <button
+                className="btn btn-primary btn-sm mt-4"
+                onClick={() => setShowAddModal(true)}
+              >
+                + Add First Field
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-base-300">
+              {fields.map((field, index) => (
+                <div
+                  key={field._id || field.id || index}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`flex items-center gap-4 p-4 transition-colors ${
+                    draggedIndex === index ? "bg-primary/10" : "hover:bg-base-300"
+                  } ${!field.visible ? "opacity-50" : ""}`}
+                >
+                  {/* Drag Handle */}
+                  <div className="cursor-grab active:cursor-grabbing text-base-content/40 hover:text-base-content">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M7 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 2zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 7 14zm6-8a2 2 0 1 0-.001-4.001A2 2 0 0 0 13 6zm0 2a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 8zm0 6a2 2 0 1 0 .001 4.001A2 2 0 0 0 13 14z" />
+                    </svg>
+                  </div>
+
+                  {/* Visibility Toggle */}
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-sm toggle-success"
+                    checked={field.visible !== false}
+                    onChange={() => toggleVisibility(index)}
+                    title={field.visible ? "Click to hide" : "Click to show"}
+                  />
+
+                  {/* Field Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className={`font-medium ${!field.visible ? "line-through" : ""}`}>
+                        {field.label}
+                      </span>
+                      {field.required && (
+                        <span className="badge badge-error badge-xs">Required</span>
+                      )}
+                      {field.isCustom && (
+                        <span className="badge badge-info badge-xs">Custom</span>
+                      )}
+                    </div>
+                    <div className="text-sm text-base-content/60">
+                      {FIELD_TYPE_LABELS[field.type] || field.type}
+                      {field.options?.choices && (
+                        <span className="ml-2 text-xs">
+                          ({field.options.choices.length} options)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="btn btn-ghost btn-sm btn-square"
+                      onClick={() => openEditModal(field, index)}
+                      title="Edit field"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    {field.isCustom && (
+                      <button
+                        className="btn btn-ghost btn-sm btn-square text-error"
+                        onClick={() => deleteField(index)}
+                        title="Delete field"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add Custom Field Button */}
+      <div className="mt-4">
+        <button
+          className="btn btn-outline btn-primary"
+          onClick={() => setShowAddModal(true)}
+        >
+          + Add Custom Field
+        </button>
+      </div>
+
+      {/* Add Custom Field Modal */}
+      {showAddModal && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">Add Custom Field</h3>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Field Label</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered"
+                placeholder="e.g., Customer Notes"
+                value={newField.label}
+                onChange={(e) => setNewField({ ...newField, label: e.target.value })}
+              />
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Field Type</span>
+              </label>
+              <select
+                className="select select-bordered"
+                value={newField.type}
+                onChange={(e) => setNewField({ ...newField, type: e.target.value })}
+              >
+                {FIELD_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(newField.type === "DROPDOWN" || newField.type === "RADIO") && (
+              <div className="form-control mb-4">
+                <label className="label">
+                  <span className="label-text">Options (one per line)</span>
+                </label>
+                <textarea
+                  className="textarea textarea-bordered"
+                  placeholder={"Option 1\nOption 2\nOption 3"}
+                  rows={4}
+                  value={newField.options}
+                  onChange={(e) => setNewField({ ...newField, options: e.target.value })}
+                />
+                <label className="label">
+                  <span className="label-text-alt">Enter each option on a new line</span>
+                </label>
+              </div>
+            )}
+
+            <div className="form-control mb-4">
+              <label className="label cursor-pointer justify-start gap-3">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={newField.required}
+                  onChange={(e) => setNewField({ ...newField, required: e.target.checked })}
+                />
+                <span className="label-text">Required field</span>
+              </label>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowAddModal(false);
+                  setNewField({ label: "", type: "TEXT", required: false, options: "" });
+                }}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={addCustomField}>
+                Add Field
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowAddModal(false)}></div>
+        </div>
+      )}
+
+      {/* Edit Field Modal */}
+      {showEditModal && editingField && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-4">Edit Field</h3>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Field Label</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered"
+                value={editingField.label}
+                onChange={(e) =>
+                  setEditingField({ ...editingField, label: e.target.value })
+                }
+              />
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
+                <span className="label-text">Field Type</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered bg-base-200"
+                value={FIELD_TYPE_LABELS[editingField.type] || editingField.type}
+                disabled
+              />
+              <label className="label">
+                <span className="label-text-alt text-base-content/50">
+                  Field type cannot be changed
+                </span>
+              </label>
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label cursor-pointer justify-start gap-3">
+                <input
+                  type="checkbox"
+                  className="checkbox"
+                  checked={editingField.required}
+                  onChange={(e) =>
+                    setEditingField({ ...editingField, required: e.target.checked })
+                  }
+                />
+                <span className="label-text">Required field</span>
+              </label>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingField(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={saveFieldEdit}>
+                Save
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowEditModal(false)}></div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

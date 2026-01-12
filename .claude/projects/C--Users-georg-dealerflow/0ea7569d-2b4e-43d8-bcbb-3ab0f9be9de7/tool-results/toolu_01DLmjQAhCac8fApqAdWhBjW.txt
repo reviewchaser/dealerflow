@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   442→              Main
+   443→            </p>
+   444→          )}
+   445→          <ul className="space-y-1">
+   446→            {navigation.slice(0, 4).map((item) => {
+   447→              const { Icon } = item;
+   448→              const itemPath = getPath(item.href);
+   449→              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+   450→              return (

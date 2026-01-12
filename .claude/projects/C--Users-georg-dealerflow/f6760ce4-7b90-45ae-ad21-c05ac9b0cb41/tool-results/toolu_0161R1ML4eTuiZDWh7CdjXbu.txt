@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\api\admin\overtime\[id]\approve.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     7→ * POST /api/admin/overtime/:id/approve
+     8→ * Approve an overtime submission
+     9→ * Only OWNER and ADMIN roles can access
+    10→ */
+    11→async function handler(req, res, ctx) {
+    12→  // Require admin or owner role
+    13→  requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+    14→
+    15→  if (req.method !== "POST") {
+    16→    res.setHeader("Allow", ["POST"]);
+    17→    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    18→  }
+    19→

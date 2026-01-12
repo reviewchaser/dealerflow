@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1298→      }
+  1299→    };
+  1300→  }, []);
+  1301→
+  1302→  const handleVrmSelect = (vehicle) => {
+  1303→    // Close dropdown and clear search
+  1304→    setVrmSearch("");
+  1305→    setShowVrmDropdown(false);
+  1306→    setVrmSearchResults([]);
+  1307→
+  1308→    // Find which column this vehicle is in and scroll to it
+  1309→    const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
+  1310→    if (columnIndex >= 0) {

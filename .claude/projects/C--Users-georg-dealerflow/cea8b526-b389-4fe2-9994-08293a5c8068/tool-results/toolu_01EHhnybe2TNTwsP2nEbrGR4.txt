@@ -1,0 +1,34 @@
+   170→  // Courtesy car state
+   171→  const [courtesyVehicles, setCourtesyVehicles] = useState([]);
+   172→  const [isLoadingCourtesy, setIsLoadingCourtesy] = useState(false);
+   173→
+   174→  // Column sorting state
+   175→  const [columnSortOptions, setColumnSortOptions] = useState({});
+   176→
+   177→  // Search filter state
+   178→  const [searchQuery, setSearchQuery] = useState("");
+   179→
+   180→  // Filter state (matching stock board style)
+   181→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   182→  const [filters, setFilters] = useState({
+   183→    location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
+   184→    booked: "all",        // "all" | "booked" | "not_booked"
+   185→    partsRequired: "all", // "all" | "yes" | "no"
+   186→    priority: "all",      // "all" | "low" | "normal" | "high" | "critical"
+   187→  });
+   188→
+   189→  // Mobile column selection
+   190→  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+   191→
+   192→  // Job sheet share state
+   193→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+   194→  const [jobSheetLink, setJobSheetLink] = useState(null);
+   195→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+   196→
+   197→  useEffect(() => { fetchCases(); }, []);
+   198→
+   199→  // Auto-open case from query param (e.g., /warranty?caseId=123)
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

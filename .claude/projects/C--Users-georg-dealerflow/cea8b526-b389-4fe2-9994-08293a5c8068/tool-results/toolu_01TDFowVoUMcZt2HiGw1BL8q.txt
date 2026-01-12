@@ -1,0 +1,31 @@
+C:\Users\georg\dealerflow\pages\appraisals\index.js:28:  const [filter, setFilter] = useState("all");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:391:              onClick={() => setFilter(status)}
+C:\Users\georg\dealerflow\pages\forms.js:85:  const [filteredForms, setFilteredForms] = useState([]);
+C:\Users\georg\dealerflow\pages\forms.js:87:  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+C:\Users\georg\dealerflow\pages\forms.js:102:  const [filterFormType, setFilterFormType] = useState("");
+C:\Users\georg\dealerflow\pages\forms.js:281:    setFilteredSubmissions(filtered);
+C:\Users\georg\dealerflow\pages\forms.js:295:    setFilteredForms(filtered);
+C:\Users\georg\dealerflow\pages\forms.js:1065:                onChange={(e) => setFilterFormType(e.target.value)}
+C:\Users\georg\dealerflow\pages\forms.js:1094:                  setFilterFormType("");
+C:\Users\georg\dealerflow\pages\contacts\index.js:11:  const [filter, setFilter] = useState("all");
+C:\Users\georg\dealerflow\pages\contacts\index.js:107:              className={`btn btn-sm ${filter === type ? "btn-primary" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\contacts\index.js:108:              onClick={() => setFilter(type)}
+C:\Users\georg\dealerflow\pages\warranty.js:182:  const [filters, setFilters] = useState({
+C:\Users\georg\dealerflow\pages\warranty.js:654:    setFilters({
+C:\Users\georg\dealerflow\pages\warranty.js:767:                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+C:\Users\georg\dealerflow\pages\warranty.js:782:                    onChange={(e) => setFilters({ ...filters, booked: e.target.value })}
+C:\Users\georg\dealerflow\pages\warranty.js:796:                    onChange={(e) => setFilters({ ...filters, partsRequired: e.target.value })}
+C:\Users\georg\dealerflow\pages\warranty.js:810:                    onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+C:\Users\georg\dealerflow\pages\vehicles\index.js:19:  const [filter, setFilter] = useState("all");
+C:\Users\georg\dealerflow\pages\vehicles\index.js:91:            className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\vehicles\index.js:92:            onClick={() => setFilter(status)}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:14:  const [filter, setFilter] = useState("all"); // all, pending, approved, rejected
+C:\Users\georg\dealerflow\pages\settings\holidays.js:21:      setFilter(router.query.filter);
+C:\Users\georg\dealerflow\pages\settings\holidays.js:450:            className={`btn btn-sm ${filter === "all" ? "btn-primary" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:451:            onClick={() => setFilter("all")}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:456:            className={`btn btn-sm ${filter === "pending" ? "btn-warning" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:457:            onClick={() => setFilter("pending")}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:467:            className={`btn btn-sm ${filter === "approved" ? "btn-success" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:468:            onClick={() => setFilter("approved")}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:473:            className={`btn btn-sm ${filter === "rejected" ? "btn-error" : "btn-ghost"}`}
+C:\Users\georg\dealerflow\pages\settings\holidays.js:474:            onClick={() => setFilter("rejected")}

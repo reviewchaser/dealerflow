@@ -1,0 +1,101 @@
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+import DealerMembership from "@/models/DealerMembership";
+import { withDealerContext, requireAuth } from "@/libs/authContext";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/authOptions";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, dealer, role, userId } = ctx;
+
+  if (req.method === "GET") {
+    // Check if requesting dealer by slug (for tenant-aware routes)
+    const { slug } = req.query;
+
+    if (slug) {
+      // Lookup dealer by slug and verify user has access
+      const session = await getServerSession(req, res, authOptions);
+      if (!session?.user?.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const requestedDealer = await Dealer.findOne({ slug }).lean();
+      if (!requestedDealer) {
+        return res.status(404).json({ error: "Dealer not found" });
+      }
+
+      // Verify user has membership to this dealer
+      const membership = await DealerMembership.findOne({
+        dealerId: requestedDealer._id,
+        userId: session.user.id
+      }).lean();
+
+      if (!membership) {
+        return res.status(403).json({ error: "No access to this dealer" });
+      }
+
+      return res.status(200).json({
+        ...requestedDealer,
+        currentUserRole: membership.role,
+        currentUserId: session.user.id,
+      });
+    }
+
+    // Return the current dealer from context, including user's role
+    const dealerData = dealer.toJSON ? dealer.toJSON() : dealer;
+    return res.status(200).json({
+      ...dealerData,
+      // Include current user's context
+      currentUserRole: role,
+      currentUserId: userId,
+    });
+  }
+
+  if (req.method === "PUT") {
+    const {
+      name, email, phone, address, websiteUrl, googleReviewUrl, logoUrl, settings,
+      companyName, companyAddress, companyPhone, companyEmail, slug, formCustomText,
+      // Onboarding fields
+      completedOnboarding, timezone, primaryContactEmail, primaryContactPhone,
+      boardConfig, taskAutoComplete, defaultTaskTemplateGroupId
+    } = req.body;
+
+    // Update the current dealer
+    const updateFields = {};
+    if (name !== undefined) updateFields.name = name;
+    if (companyName !== undefined) updateFields.companyName = companyName;
+    if (companyAddress !== undefined) updateFields.companyAddress = companyAddress;
+    if (companyPhone !== undefined) updateFields.companyPhone = companyPhone;
+    if (companyEmail !== undefined) updateFields.companyEmail = companyEmail;
+    if (email !== undefined) updateFields.email = email;
+    if (phone !== undefined) updateFields.phone = phone;
+    if (address !== undefined) updateFields.address = address;
+    if (websiteUrl !== undefined) updateFields.websiteUrl = websiteUrl;
+    if (googleReviewUrl !== undefined) updateFields.googleReviewUrl = googleReviewUrl;
+    if (logoUrl !== undefined) updateFields.logoUrl = logoUrl;
+    if (slug !== undefined) updateFields.slug = slug;
+    if (settings !== undefined) updateFields.settings = settings;
+    if (formCustomText !== undefined) updateFields.formCustomText = formCustomText;
+    // Onboarding fields
+    if (completedOnboarding !== undefined) updateFields.completedOnboarding = completedOnboarding;
+    if (timezone !== undefined) updateFields.timezone = timezone;
+    if (primaryContactEmail !== undefined) updateFields.primaryContactEmail = primaryContactEmail;
+    if (primaryContactPhone !== undefined) updateFields.primaryContactPhone = primaryContactPhone;
+    if (boardConfig !== undefined) updateFields.boardConfig = boardConfig;
+    if (taskAutoComplete !== undefined) updateFields.taskAutoComplete = taskAutoComplete;
+    if (defaultTaskTemplateGroupId !== undefined) updateFields.defaultTaskTemplateGroupId = defaultTaskTemplateGroupId;
+
+    const updatedDealer = await Dealer.findByIdAndUpdate(
+      dealerId,
+      { $set: updateFields },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json(updatedDealer.toJSON());
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

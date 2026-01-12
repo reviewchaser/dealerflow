@@ -1,0 +1,231 @@
+Claude Code instruction: Final UX + branding + mobile + Vercel fixes (DealerHQ)
+Context
+
+We are now using this internally for a live dealership. We need these items fixed properly (tested on Vercel deployment and iPhone Safari), not just “implemented”.
+
+A) Dashboard: Quick Forms missing tile
+Problem
+
+Dashboard “Quick Forms” shows an empty/spare slot.
+
+Required change
+
+Add “Courtesy Out” as the missing quick form tile.
+
+Clicking it should start the courtesy out form flow exactly like other quick forms.
+
+Acceptance criteria
+
+Dashboard shows 3 tiles: PDI, Test Drive, Courtesy Out, plus “More…”.
+
+Works on desktop + mobile.
+
+B) Theme default should be Light (not System)
+Problem
+
+Theme defaults to “System”. We want Light by default for all users.
+
+Required change
+
+Update theme initialization so default = Light unless user explicitly chooses otherwise.
+
+Ensure persisted user preference still overrides.
+
+Acceptance criteria
+
+New user / first load shows Light theme even if OS is dark.
+
+Existing users keep their chosen theme.
+
+C) Vercel: images in Submissions open on localhost but not on Vercel
+Problem
+
+On Vercel, opening an image from a submission often fails / doesn’t load.
+
+Required debugging checklist (do ALL)
+
+Reproduce on Vercel and inspect:
+
+Network tab: status code, response headers, content-type, redirects.
+
+Confirm file storage strategy:
+
+If using Cloudflare R2 / S3 / blob storage: confirm public access vs signed URLs, correct CORS, correct Content-Type, correct cache headers, and that the URL is not localhost or server-only.
+
+Ensure the app is not using filesystem paths (e.g. /uploads/...) that only work locally.
+
+Confirm Next/Vercel config:
+
+If using next/image, ensure external domains are allowed in next.config.js (images.domains or remotePatterns).
+
+Fix by using a single consistent “get file URL” approach:
+
+Prefer: store storageKey + generate a public URL or signed URL from API.
+
+Ensure frontend uses that URL.
+
+Acceptance criteria
+
+On Vercel: open image in submissions works reliably for images uploaded on Vercel.
+
+No localhost URLs appear in production.
+
+Works on iPhone Safari.
+
+D) Mobile bottom nav: rename “Warranty” to “Aftersales”
+Required change
+
+Change label from Warranty → Aftersales everywhere in mobile bottom nav.
+
+Ensure route still points to the same module (Aftersales/Warranty area).
+
+Acceptance criteria
+
+Mobile bottom bar shows Home / Stock / Aftersales / Forms / More.
+
+E) Add page-level tooltips (first-time guidance under headers)
+Requirement
+
+On each core page, add a short helper tooltip/message under the page header describing what the page is for and how to start.
+
+Implementation approach
+
+Create a reusable component, e.g. <PageHint />.
+
+Content should be short (1–2 lines) and dismissible.
+
+Dismissal should persist per-user (localStorage is fine; DB optional).
+
+Show again if user clicks a small “?” icon to reopen.
+
+Pages to include minimum
+
+Dashboard
+
+Stock & Prep board
+
+Aftersales/Warranty
+
+Appraisals
+
+Submissions
+
+Calendar
+
+Holidays
+
+Overtime
+
+Acceptance criteria
+
+Tooltip is visible first time, dismissible, stays dismissed.
+
+Doesn’t break layout on mobile.
+
+F) Stock page: VRM search dropdown positioning + purple buttons on iPhone
+Problems
+
+On iPhone when focusing VRM search, page shifts off-screen and the suggestions dropdown renders incorrectly/off-screen.
+
+Some buttons show as purple on iPhone (likely default iOS “tap highlight” / input accent / browser styling bleeding through).
+
+Required fix (do properly)
+1) Dropdown positioning
+
+Ensure the VRM search suggestions are rendered in a positioned popover anchored to the input:
+
+Use a portal/popover strategy (Radix Popover / Headless UI / your existing popover) so it doesn’t get clipped by container overflow.
+
+Set proper z-index, max-height, and overflow-y:auto.
+
+On mobile Safari specifically:
+
+Avoid layout shift on focus by ensuring the input container isn’t inside an element with problematic transforms.
+
+Consider using position: fixed for the dropdown on small screens with left/right padding to viewport.
+
+Ensure it never renders beyond viewport edges.
+
+2) iOS “purple” styling
+
+Remove iOS default styling where needed:
+
+Ensure buttons/inputs have explicit Tailwind classes for background/border/text.
+
+For inputs/buttons: appearance: none; -webkit-appearance: none;
+
+Ensure :focus styles are controlled (not browser default).
+
+If any element is being treated as a link (<a>) and iOS colors it: apply text-inherit + explicit colors.
+
+Acceptance criteria
+
+iPhone Safari: tapping search shows dropdown fully visible and aligned.
+
+No horizontal page shift/off-screen behavior when focusing.
+
+Buttons remain consistent with site theme (no unexpected purple).
+
+G) Rebrand sitewide: “Dealerflow” → “DealerHQ”
+Requirement
+
+We have rebranded. Replace Dealerflow with DealerHQ across the entire product.
+
+Required work
+
+Global search for strings: “Dealerflow”, “DealerFlow”, “Dealer Flow”.
+
+Replace in:
+
+Titles, headings, footer, auth screens, emails (invite emails too), meta tags, page titles, etc.
+
+Ensure logo alt text and any “Powered by …” becomes DealerHQ.
+
+Acceptance criteria
+
+No “Dealerflow” appears anywhere in UI or generated emails/pages.
+
+H) Temporary homepage for internal use (login-first), while marketing homepage is WIP
+Requirement
+
+We want a “temporary” homepage that is basically a login screen for internal use, without losing the ability to keep building the marketing homepage.
+
+Preferred solution (implement this)
+
+Make / route behave like:
+
+If user is authenticated → redirect to /dashboard (or dealer slug landing).
+
+If not authenticated → show a clean Login page (and optionally “Request access”).
+
+Move marketing homepage to /home (or /landing) for now.
+
+Add simple protection for /home in production:
+
+Option A (simple): require an env var password to view (basic prompt, store hashed compare).
+
+Option B (cleaner): only allow authenticated OWNER/ADMIN to view /home.
+
+Choose whichever is quickest and least risky.
+
+Acceptance criteria
+
+Visiting root / always gives login-first experience for staff use.
+
+Marketing page still accessible at /home but protected (as above).
+
+No SEO worries right now; this is for internal ops.
+
+Final “definition of done”
+
+All items A–H complete.
+
+Tested on:
+
+localhost
+
+Vercel deployment
+
+iPhone Safari (focus VRM search, open submission images)
+
+No regressions: Stock board works, drawers unaffected, auth flows correct.

@@ -1,0 +1,84 @@
+  1520→                        <div className="flex justify-between items-center text-emerald-600">
+  1521→                          <span className="text-sm">Part Exchange</span>
+  1522→                          <span className="font-semibold">-{formatCurrency(totals.pxNetValue)}</span>
+  1523→                        </div>
+  1524→                      )}
+  1525→
+  1526→                      {/* Payments */}
+  1527→                      {totals.totalPaid > 0 && (
+  1528→                        <div className="flex justify-between items-center text-emerald-600">
+  1529→                          <span className="text-sm">Paid</span>
+  1530→                          <span className="font-semibold">-{formatCurrency(totals.totalPaid)}</span>
+  1531→                        </div>
+  1532→                      )}
+  1533→
+  1534→                      {/* Balance Due */}
+  1535→                      <div className="border-t border-slate-100 pt-3">
+  1536→                        <div className="flex justify-between items-center">
+  1537→                          <span className="text-sm font-semibold text-slate-700">Balance Due</span>
+  1538→                          <span className={`text-lg font-bold ${
+  1539→                            totals.balanceDue <= 0 ? "text-emerald-600" : "text-slate-900"
+  1540→                          }`}>
+  1541→                            {formatCurrency(Math.max(0, totals.balanceDue))}
+  1542→                          </span>
+  1543→                        </div>
+  1544→                      </div>
+  1545→                    </div>
+  1546→                  </div>
+  1547→
+  1548→                  {/* Timeline */}
+  1549→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1550→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1551→                      <div className="flex items-center gap-2">
+  1552→                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+  1553→                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1554→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1555→                          </svg>
+  1556→                        </div>
+  1557→                        <h3 className="text-sm font-bold text-slate-800">Timeline</h3>
+  1558→                      </div>
+  1559→                    </div>
+  1560→                    <div className="p-4 space-y-3 text-sm">
+  1561→                      <div className="flex justify-between">
+  1562→                        <span className="text-slate-500">Created</span>
+  1563→                        <span className="text-slate-900">{formatDateTime(deal.createdAt)}</span>
+  1564→                      </div>
+  1565→                      {deal.depositTakenAt && (
+  1566→                        <div className="flex justify-between">
+  1567→                          <span className="text-slate-500">Deposit Taken</span>
+  1568→                          <span className="text-slate-900">{formatDateTime(deal.depositTakenAt)}</span>
+  1569→                        </div>
+  1570→                      )}
+  1571→                      {deal.invoicedAt && (
+  1572→                        <div className="flex justify-between">
+  1573→                          <span className="text-slate-500">Invoiced</span>
+  1574→                          <span className="text-slate-900">{formatDateTime(deal.invoicedAt)}</span>
+  1575→                        </div>
+  1576→                      )}
+  1577→                      {deal.deliveredAt && (
+  1578→                        <div className="flex justify-between">
+  1579→                          <span className="text-slate-500">Delivered</span>
+  1580→                          <span className="text-slate-900">{formatDateTime(deal.deliveredAt)}</span>
+  1581→                        </div>
+  1582→                      )}
+  1583→                      {deal.completedAt && (
+  1584→                        <div className="flex justify-between">
+  1585→                          <span className="text-slate-500">Completed</span>
+  1586→                          <span className="text-slate-900">{formatDateTime(deal.completedAt)}</span>
+  1587→                        </div>
+  1588→                      )}
+  1589→                      {deal.cancelledAt && (
+  1590→                        <div className="flex justify-between text-red-600">
+  1591→                          <span>Cancelled</span>
+  1592→                          <span>{formatDateTime(deal.cancelledAt)}</span>
+  1593→                        </div>
+  1594→                      )}
+  1595→                    </div>
+  1596→                  </div>
+  1597→
+  1598→                  {/* Notes */}
+  1599→                  {(deal.notes || deal.internalNotes) && (
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

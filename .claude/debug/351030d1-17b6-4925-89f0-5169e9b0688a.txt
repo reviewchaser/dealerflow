@@ -1,0 +1,6 @@
+2025-12-17T16:00:49.005Z [DEBUG] [Query.streamInput] Starting to process input stream
+2025-12-17T16:00:49.006Z [DEBUG] [Query.streamInput] Finished processing 0 messages from input stream
+2025-12-17T16:00:49.006Z [DEBUG] [Query.streamInput] Has bidirectional needs, waiting for inactivity
+2025-12-17T16:00:49.007Z [DEBUG] [Query.waitForInactivity] Waiting for inactivity (timeout: 5000ms)
+2025-12-17T16:00:49.007Z [DEBUG] [Query.waitForInactivity] Still active, checking again in 4986ms
+2025-12-17T16:00:52.767Z [DEBUG] [Query.streamInput] Starting to process input stream

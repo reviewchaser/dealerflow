@@ -1,0 +1,44 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  5063→              </div>
+  5064→            )}
+  5065→          </div>
+  5066→
+  5067→          {/* Notes Section */}
+  5068→          <div className="mb-4">
+  5069→            <div className="form-control">
+  5070→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
+  5071→              <textarea
+  5072→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
+  5073→                rows={4}
+  5074→                value={formData.notes}
+  5075→                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+  5076→              ></textarea>
+  5077→            </div>
+  5078→          </div>
+  5079→          </div>{/* End scrollable content */}
+  5080→
+  5081→          {/* Sticky Footer */}
+  5082→          <div
+  5083→            className="shrink-0 flex items-center justify-end gap-3 px-4 md:px-6 py-4 border-t border-slate-200 bg-white"
+  5084→            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+  5085→          >
+  5086→            <button
+  5087→              type="button"
+  5088→              className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
+  5089→              onClick={onClose}
+  5090→            >
+  5091→              Cancel
+  5092→            </button>
+  5093→            <button
+  5094→              type="submit"
+  5095→              className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+  5096→              disabled={isLoading}
+  5097→            >
+  5098→              {isLoading ? <><span className="loading loading-spinner loading-sm"></span><span>Saving...</span></> : "Add Vehicle"}
+  5099→            </button>
+  5100→          </div>
+  5101→        </form>
+  5102→      </div>
+  5103→      <div className="modal-backdrop" onClick={onClose}></div>
+  5104→
+  5105→      {/* Nested Add Issue Modal */}

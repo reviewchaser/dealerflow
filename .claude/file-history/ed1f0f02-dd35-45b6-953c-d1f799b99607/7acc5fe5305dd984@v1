@@ -1,0 +1,104 @@
+import { NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
+
+// Routes that require authentication and tenant context
+const TENANT_ROUTES = [
+  '/dashboard',
+  '/sales-prep',
+  '/warranty',
+  '/appraisals',
+  '/forms',
+  '/reviews',
+  '/calendar',
+  '/settings',
+  '/vehicles',
+];
+
+// Routes that are public (no auth required)
+const PUBLIC_ROUTES = [
+  '/public',
+  '/appraisal',
+  '/auth',
+  '/api/auth',
+  '/api/public',
+  '/',
+  '/tos',
+  '/privacy-policy',
+];
+
+export async function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // Skip middleware for static files, API routes, and public routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.includes('.') ||
+    PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+  ) {
+    return NextResponse.next();
+  }
+
+  // Check if this is a tenant route that needs to be redirected to /app/[dealerSlug]/...
+  const isTenantRoute = TENANT_ROUTES.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+
+  if (isTenantRoute) {
+    // Get the user's session token
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token) {
+      // Not authenticated - redirect to signin
+      const signInUrl = new URL('/auth/signin', request.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // User is authenticated - they should use the legacy routes for now
+    // The tenant context is handled by the API layer
+    // In future, we can redirect to /app/[dealerSlug]/... here
+
+    return NextResponse.next();
+  }
+
+  // Handle /app routes - require auth
+  if (pathname.startsWith('/app')) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token) {
+      const signInUrl = new URL('/auth/signin', request.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // Extract dealer slug from path: /app/[dealerSlug]/...
+    const pathParts = pathname.split('/');
+    const dealerSlug = pathParts[2];
+
+    if (!dealerSlug || dealerSlug === '') {
+      // No dealer slug provided - redirect to tenant picker or default dealer
+      // For now, redirect to legacy dashboard which handles this
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // Dealer slug is provided - pass it along in a header for API routes to use
+    const response = NextResponse.next();
+    response.headers.set('x-dealer-slug', dealerSlug);
+    return response;
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};

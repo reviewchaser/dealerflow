@@ -1,0 +1,17 @@
+The file C:\Users\georg\dealerflow\pages\forms.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import ShareFormModal from "@/components/ShareFormModal";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { PageHint } from "@/components/ui";
+     9→import { useSession } from "next-auth/react";
+    10→import { toast } from "react-hot-toast";
+    11→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    12→import { AttachmentField, isAttachmentValue, formatAttachmentHtml } from "@/components/ui/AttachmentField";
+    13→
+    14→// Human-readable form type labels
+    15→// Note: Appraisal forms are handled in the dedicated Appraisals section
+    16→const FORM_TYPE_LABELS = {

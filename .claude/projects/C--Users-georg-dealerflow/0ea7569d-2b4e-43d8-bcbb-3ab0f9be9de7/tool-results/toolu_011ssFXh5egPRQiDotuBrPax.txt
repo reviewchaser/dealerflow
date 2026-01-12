@@ -1,0 +1,24 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    50→  ZERO: "Zero-rated",
+    51→  EXEMPT: "VAT Exempt",
+    52→};
+    53→
+    54→const SALE_TYPE_OPTIONS = [
+    55→  { value: "RETAIL", label: "Retail", description: "Sale to end customer" },
+    56→  { value: "TRADE", label: "Trade", description: "Sale to motor trader" },
+    57→  { value: "EXPORT", label: "Export", description: "Export sale" },
+    58→];
+    59→
+    60→const BUYER_USE_OPTIONS = [
+    61→  { value: "PERSONAL", label: "Personal use", description: "Consumer rights apply" },
+    62→  { value: "BUSINESS", label: "Business use", description: "B2B terms apply" },
+    63→];
+    64→
+    65→const SALE_CHANNEL_OPTIONS = [
+    66→  { value: "IN_PERSON", label: "In person", description: "Customer saw vehicle on-site" },
+    67→  { value: "DISTANCE", label: "Distance", description: "Online/phone sale - 14 day cooling off" },
+    68→];
+    69→
+    70→const PAYMENT_TYPE_OPTIONS = [
+    71→  { value: "CASH", label: "Cash" },
+    72→  { value: "CARD", label: "Card" },

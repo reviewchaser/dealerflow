@@ -1,0 +1,504 @@
+     1→import { useEffect, useState, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { toast } from "react-hot-toast";
+     8→
+     9→// Column config matching Sales & Prep style
+    10→// NOTE: Internal keys are legacy names - keep stable for database compatibility
+    11→// Display labels have been updated for clarity
+    12→const COLUMNS = [
+    13→  { key: "not_booked_in", label: "Not Booked In", gradient: "from-red-100/60", accent: "border-l-red-400", accentBg: "bg-red-400" },
+    14→  { key: "on_site", label: "Booked In", gradient: "from-amber-100/60", accent: "border-l-amber-400", accentBg: "bg-amber-400" }, // Legacy key: "on_site" displays as "Booked In"
+    15→  { key: "work_complete", label: "Work Complete", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    16→  { key: "collected", label: "Closed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" }, // Legacy key: "collected" displays as "Closed"
+    17→];
+    18→
+    19→const PRIORITIES = {
+    20→  low: { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" },
+    21→  normal: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-100" },
+    22→  high: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100" },
+    23→  critical: { bg: "bg-red-50", text: "text-red-700", border: "border-red-100" },
+    24→};
+    25→
+    26→const SOURCE_LABELS = {
+    27→  warranty_claim_form: "Warranty Claim",
+    28→  low_review: "Low Review",
+    29→  complaint_form: "Complaint",
+    30→  manual: "Manual",
+    31→};
+    32→
+    33→// Timeline event icons
+    34→const EVENT_ICONS = {
+    35→  CASE_CREATED: "📋",
+    36→  SUBMISSION_LINKED: "🔗",
+    37→  COMMENT_ADDED: "💬",
+    38→  STATUS_CHANGED: "🔄",
+    39→  AI_REVIEW_GENERATED: "🤖",
+    40→  ATTACHMENT_ADDED: "📎",
+    41→  LOCATION_UPDATED: "📍",
+    42→  BOOKING_UPDATED: "📅",
+    43→  PARTS_UPDATED: "🔧",
+    44→  COURTESY_REQUIRED_TOGGLED: "🚗",
+    45→  COURTESY_ALLOCATED: "🚗",
+    46→  COURTESY_RETURNED: "🚗",
+    47→  COURTESY_OUT_RECORDED: "🚗",
+    48→  COURTESY_IN_RECORDED: "🚗",
+    49→  // Warranty booking auto-move events
+    50→  WARRANTY_BOOKED_IN: "📅",
+    51→  WARRANTY_BOOKING_UPDATED: "📅",
+    52→  WARRANTY_BOOKING_CANCELLED: "❌",
+    53→  WARRANTY_STAGE_MOVED: "🔀",
+    54→};
+    55→
+    56→// Timeline grouping constant
+    57→const STATUS_FLIP_GROUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+    58→
+    59→// Group consecutive STATUS_CHANGED events within the time window
+    60→const groupTimelineEvents = (events) => {
+    61→  if (!events || events.length === 0) return [];
+    62→
+    63→  const sorted = [...events].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    64→  const grouped = [];
+    65→  let currentGroup = null;
+    66→
+    67→  for (const event of sorted) {
+    68→    if (event.type === "STATUS_CHANGED") {
+    69→      if (currentGroup) {
+    70→        // Check if this event is within the time window of the last event in the group
+    71→        const lastEventTime = new Date(currentGroup.events[currentGroup.events.length - 1].createdAt).getTime();
+    72→        const thisEventTime = new Date(event.createdAt).getTime();
+    73→
+    74→        if (lastEventTime - thisEventTime <= STATUS_FLIP_GROUP_WINDOW_MS) {
+    75→          currentGroup.events.push(event);
+    76→          continue;
+    77→        } else {
+    78→          // Close current group and start new one
+    79→          grouped.push(currentGroup);
+    80→          currentGroup = { isGroup: true, type: "STATUS_CHANGED_GROUP", events: [event] };
+    81→        }
+    82→      } else {
+    83→        currentGroup = { isGroup: true, type: "STATUS_CHANGED_GROUP", events: [event] };
+    84→      }
+    85→    } else {
+    86→      // Non-status event - close any current group and add this event
+    87→      if (currentGroup) {
+    88→        grouped.push(currentGroup);
+    89→        currentGroup = null;
+    90→      }
+    91→      grouped.push(event);
+    92→    }
+    93→  }
+    94→
+    95→  // Don't forget to add the last group if exists
+    96→  if (currentGroup) {
+    97→    grouped.push(currentGroup);
+    98→  }
+    99→
+   100→  return grouped;
+   101→};
+   102→
+   103→// Repair location type labels
+   104→const REPAIR_LOCATION_LABELS = {
+   105→  WITH_CUSTOMER: "With customer",
+   106→  ON_SITE: "On-site",
+   107→  THIRD_PARTY: "Third-party",
+   108→};
+   109→
+   110→// Repair location type badge styles
+   111→const REPAIR_LOCATION_STYLES = {
+   112→  WITH_CUSTOMER: { bg: "bg-slate-100", text: "text-slate-600" },
+   113→  ON_SITE: { bg: "bg-emerald-100", text: "text-emerald-700" },
+   114→  THIRD_PARTY: { bg: "bg-purple-100", text: "text-purple-700" },
+   115→};
+   116→
+   117→// Format booked date/time for display
+   118→const formatBookedDate = (date) => {
+   119→  if (!date) return null;
+   120→  const d = new Date(date);
+   121→  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
+   122→    " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+   123→};
+   124→
+   125→// Helper to calculate days since date
+   126→const daysSince = (date) => {
+   127→  if (!date) return 0;
+   128→  const diff = Date.now() - new Date(date).getTime();
+   129→  return Math.floor(diff / (1000 * 60 * 60 * 24));
+   130→};
+   131→
+   132→// Helper for relative time display
+   133→const relativeTime = (date) => {
+   134→  const days = daysSince(date);
+   135→  if (days === 0) {
+   136→    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+   137→    if (hours === 0) {
+   138→      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+   139→      return mins <= 1 ? "Just now" : `${mins}m ago`;
+   140→    }
+   141→    return `${hours}h ago`;
+   142→  }
+   143→  if (days === 1) return "Yesterday";
+   144→  if (days < 7) return `${days}d ago`;
+   145→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+   146→  return `${Math.floor(days / 30)}mo ago`;
+   147→};
+   148→
+   149→export default function Warranty() {
+   150→  const router = useRouter();
+   151→  const [cases, setCases] = useState([]);
+   152→  const [isLoading, setIsLoading] = useState(true);
+   153→  const [selectedCase, setSelectedCase] = useState(null);
+   154→  const [showAddModal, setShowAddModal] = useState(false);
+   155→  const [newComment, setNewComment] = useState("");
+   156→  const [commentAttachments, setCommentAttachments] = useState([]);
+   157→  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+   158→  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+   159→  const [aiDiagnostics, setAiDiagnostics] = useState(null);
+   160→  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+   161→  const [expandedTimelineGroups, setExpandedTimelineGroups] = useState({});
+   162→  const [isVehicleDrawerOpen, setIsVehicleDrawerOpen] = useState(false);
+   163→  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+   164→  const fileInputRef = useRef(null);
+   165→
+   166→  // Drag state - matching Sales & Prep
+   167→  const [draggedCard, setDraggedCard] = useState(null);
+   168→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+   169→
+   170→  // Courtesy car state
+   171→  const [courtesyVehicles, setCourtesyVehicles] = useState([]);
+   172→  const [isLoadingCourtesy, setIsLoadingCourtesy] = useState(false);
+   173→
+   174→  // Column sorting state
+   175→  const [columnSortOptions, setColumnSortOptions] = useState({});
+   176→
+   177→  // Search filter state
+   178→  const [searchQuery, setSearchQuery] = useState("");
+   179→
+   180→  // Filter state (matching stock board style)
+   181→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   182→  const [filters, setFilters] = useState({
+   183→    location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
+   184→    booked: "all",        // "all" | "booked" | "not_booked"
+   185→    partsRequired: "all", // "all" | "yes" | "no"
+   186→    priority: "all",      // "all" | "low" | "normal" | "high" | "critical"
+   187→  });
+   188→
+   189→  // Mobile column selection
+   190→  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+   191→
+   192→  // Job sheet share state
+   193→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+   194→  const [jobSheetLink, setJobSheetLink] = useState(null);
+   195→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+   196→
+   197→  useEffect(() => { fetchCases(); }, []);
+   198→
+   199→  // Auto-open case from query param (e.g., /warranty?caseId=123)
+   200→  useEffect(() => {
+   201→    if (router.query.caseId && !selectedCase) {
+   202→      fetchCaseDetail(router.query.caseId);
+   203→    }
+   204→  }, [router.query.caseId]);
+   205→
+   206→  const fetchCases = async () => {
+   207→    try {
+   208→      const res = await fetch("/api/aftercare");
+   209→      // Check for JSON response
+   210→      const contentType = res.headers.get("content-type") || "";
+   211→      if (!contentType.includes("application/json")) {
+   212→        console.error("[Warranty] Non-JSON response:", res.status);
+   213→        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load cases");
+   214→        setCases([]);
+   215→        return;
+   216→      }
+   217→      if (!res.ok) {
+   218→        const err = await res.json();
+   219→        toast.error(err.error || "Failed to load cases");
+   220→        setCases([]);
+   221→        return;
+   222→      }
+   223→      const data = await res.json();
+   224→      setCases(Array.isArray(data) ? data : []);
+   225→    } catch (error) {
+   226→      console.error("[Warranty] Fetch error:", error);
+   227→      toast.error("Failed to load cases");
+   228→      setCases([]);
+   229→    } finally {
+   230→      setIsLoading(false);
+   231→    }
+   232→  };
+   233→
+   234→  const fetchCaseDetail = async (caseId) => {
+   235→    if (!caseId) return; // Guard against undefined/null caseId
+   236→    // Clear AI diagnostics when switching cases
+   237→    setAiDiagnostics(null);
+   238→    try {
+   239→      const res = await fetch(`/api/aftercare/${caseId}`);
+   240→      // Check for JSON response
+   241→      const contentType = res.headers.get("content-type") || "";
+   242→      if (!contentType.includes("application/json")) {
+   243→        console.error("[Warranty] Case detail non-JSON response:", res.status);
+   244→        toast.error("Failed to load case details");
+   245→        return;
+   246→      }
+   247→      if (!res.ok) {
+   248→        const err = await res.json();
+   249→        toast.error(err.error || "Failed to load case");
+   250→        return;
+   251→      }
+   252→      const data = await res.json();
+   253→      // Normalize id field (API returns _id, we use id internally)
+   254→      setSelectedCase({ ...data, id: data._id || data.id });
+   255→    } catch (error) {
+   256→      console.error("[Warranty] Case detail error:", error);
+   257→      toast.error("Failed to load case");
+   258→    }
+   259→  };
+   260→
+   261→  // Helper function to update case fields with proper error handling
+   262→  const updateCase = async (updates, successMessage) => {
+   263→    const caseId = selectedCase?.id || selectedCase?._id;
+   264→    if (!caseId) return false;
+   265→    try {
+   266→      const res = await fetch(`/api/aftercare/${caseId}`, {
+   267→        method: "PUT",
+   268→        headers: { "Content-Type": "application/json" },
+   269→        body: JSON.stringify(updates),
+   270→      });
+   271→      const data = await res.json();
+   272→      if (!res.ok || !data.ok) {
+   273→        throw new Error(data.error || "Failed to update case");
+   274→      }
+   275→      // Update local state from response
+   276→      if (data.case) {
+   277→        setSelectedCase({ ...data.case, id: data.case._id || data.case.id });
+   278→        setCases(prev => prev.map(c =>
+   279→          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+   280→        ));
+   281→      }
+   282→
+   283→      // Handle auto-move toast messages for booking changes
+   284→      if (data.autoMoved) {
+   285→        const COLUMN_LABELS = {
+   286→          not_booked_in: "Not Booked In",
+   287→          on_site: "Booked In",
+   288→          work_complete: "Work Complete",
+   289→          collected: "Closed"
+   290→        };
+   291→        if (data.autoMovedTo === "on_site") {
+   292→          toast.success(`Booked in — moved to Booked In`, { duration: 4000 });
+   293→        } else if (data.autoMovedFrom === "on_site") {
+   294→          toast.success(`Booking cancelled — moved back to ${COLUMN_LABELS[data.autoMovedTo] || data.autoMovedTo}`, { duration: 4000 });
+   295→        }
+   296→      } else if (successMessage) {
+   297→        toast.success(successMessage);
+   298→      }
+   299→      return data;
+   300→    } catch (error) {
+   301→      toast.error(error.message || "Failed to update case");
+   302→      return false;
+   303→    }
+   304→  };
+   305→
+   306→  // Load available courtesy vehicles
+   307→  const loadCourtesyVehicles = async () => {
+   308→    setIsLoadingCourtesy(true);
+   309→    try {
+   310→      const res = await fetch("/api/aftercare/courtesy");
+   311→      const data = await res.json();
+   312→      setCourtesyVehicles(data.available || []);
+   313→    } catch (error) {
+   314→      console.error("Error loading courtesy vehicles:", error);
+   315→    } finally {
+   316→      setIsLoadingCourtesy(false);
+   317→    }
+   318→  };
+   319→
+   320→  // Allocate courtesy vehicle to case
+   321→  const allocateCourtesy = async (courtesyVehicleId, dateDueBack) => {
+   322→    const caseId = selectedCase?.id || selectedCase?._id;
+   323→    if (!caseId || !courtesyVehicleId) return false;
+   324→    try {
+   325→      const res = await fetch("/api/aftercare/courtesy", {
+   326→        method: "POST",
+   327→        headers: { "Content-Type": "application/json" },
+   328→        body: JSON.stringify({ caseId, courtesyVehicleId, dateDueBack }),
+   329→      });
+   330→      const data = await res.json();
+   331→      if (!res.ok || !data.ok) {
+   332→        throw new Error(data.error || "Failed to allocate courtesy vehicle");
+   333→      }
+   334→      if (data.case) {
+   335→        setSelectedCase({ ...data.case, id: data.case._id || data.case.id });
+   336→        setCases(prev => prev.map(c =>
+   337→          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+   338→        ));
+   339→      }
+   340→      toast.success("Courtesy vehicle allocated");
+   341→      loadCourtesyVehicles(); // Refresh available list
+   342→      return true;
+   343→    } catch (error) {
+   344→      toast.error(error.message || "Failed to allocate courtesy vehicle");
+   345→      return false;
+   346→    }
+   347→  };
+   348→
+   349→  // Return courtesy vehicle
+   350→  const returnCourtesy = async () => {
+   351→    const allocationId = selectedCase?.courtesyAllocationId || selectedCase?.courtesyAllocation?._id;
+   352→    if (!allocationId) return false;
+   353→    try {
+   354→      const res = await fetch("/api/aftercare/courtesy", {
+   355→        method: "PATCH",
+   356→        headers: { "Content-Type": "application/json" },
+   357→        body: JSON.stringify({ allocationId }),
+   358→      });
+   359→      const data = await res.json();
+   360→      if (!res.ok || !data.ok) {
+   361→        throw new Error(data.error || "Failed to return courtesy vehicle");
+   362→      }
+   363→      // Refresh case detail
+   364→      fetchCaseDetail(selectedCase.id || selectedCase._id);
+   365→      loadCourtesyVehicles(); // Refresh available list
+   366→      toast.success("Courtesy vehicle returned");
+   367→      return true;
+   368→    } catch (error) {
+   369→      toast.error(error.message || "Failed to return courtesy vehicle");
+   370→      return false;
+   371→    }
+   372→  };
+   373→
+   374→  // Generate job sheet share link
+   375→  const handleGenerateJobSheet = async () => {
+   376→    const caseId = selectedCase?.id || selectedCase?._id;
+   377→    if (!caseId) return;
+   378→    setIsGeneratingJobSheet(true);
+   379→    setShowJobSheetModal(true);
+   380→    try {
+   381→      const res = await fetch(`/api/aftercare/${caseId}/job-sheet`, {
+   382→        method: "POST",
+   383→        headers: { "Content-Type": "application/json" },
+   384→        body: JSON.stringify({ expiresInDays: 60 }),
+   385→      });
+   386→      const data = await res.json();
+   387→      if (!res.ok) {
+   388→        throw new Error(data.error || "Failed to generate share link");
+   389→      }
+   390→      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+   391→      setJobSheetLink(fullUrl);
+   392→      toast.success("Job sheet link generated");
+   393→    } catch (error) {
+   394→      toast.error(error.message || "Failed to generate share link");
+   395→      setShowJobSheetModal(false);
+   396→    } finally {
+   397→      setIsGeneratingJobSheet(false);
+   398→    }
+   399→  };
+   400→
+   401→  // Copy job sheet link to clipboard
+   402→  const copyJobSheetLink = () => {
+   403→    if (jobSheetLink) {
+   404→      navigator.clipboard.writeText(jobSheetLink);
+   405→      toast.success("Link copied to clipboard");
+   406→    }
+   407→  };
+   408→
+   409→  // Share job sheet via WhatsApp
+   410→  const shareViaWhatsApp = () => {
+   411→    if (jobSheetLink) {
+   412→      const reg = selectedCase?.regAtPurchase || selectedCase?.currentReg || "Vehicle";
+   413→      const text = `Job Sheet for ${reg}: ${jobSheetLink}`;
+   414→      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+   415→    }
+   416→  };
+   417→
+   418→  // Drag handlers - matching Sales & Prep exactly
+   419→  const handleDragStart = (e, caseItem) => {
+   420→    setDraggedCard(caseItem);
+   421→    setDragPosition({ x: e.clientX, y: e.clientY });
+   422→    e.dataTransfer.effectAllowed = "move";
+   423→    // Create invisible drag image (we render our own preview)
+   424→    const emptyImg = new Image();
+   425→    emptyImg.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+   426→    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+   427→  };
+   428→
+   429→  const handleDrag = (e) => {
+   430→    if (e.clientX !== 0 && e.clientY !== 0) {
+   431→      setDragPosition({ x: e.clientX, y: e.clientY });
+   432→    }
+   433→  };
+   434→
+   435→  const handleDragOver = (e) => {
+   436→    e.preventDefault();
+   437→    e.dataTransfer.dropEffect = "move";
+   438→  };
+   439→
+   440→  const handleDragEnd = () => {
+   441→    setDraggedCard(null);
+   442→  };
+   443→
+   444→  const handleDrop = async (e, newStatus) => {
+   445→    e.preventDefault();
+   446→    if (!draggedCard || draggedCard.boardStatus === newStatus) {
+   447→      setDraggedCard(null);
+   448→      return;
+   449→    }
+   450→    const caseId = draggedCard.id || draggedCard._id;
+   451→
+   452→    // Optimistic update
+   453→    setCases(prev => prev.map(c =>
+   454→      (c.id || c._id) === caseId ? { ...c, boardStatus: newStatus } : c
+   455→    ));
+   456→
+   457→    try {
+   458→      const res = await fetch(`/api/aftercare/${caseId}`, {
+   459→        method: "PUT",
+   460→        headers: { "Content-Type": "application/json" },
+   461→        body: JSON.stringify({ boardStatus: newStatus }),
+   462→      });
+   463→      const data = await res.json();
+   464→      if (!res.ok || !data.ok) {
+   465→        throw new Error(data.error || "Failed to update status");
+   466→      }
+   467→      toast.success(`Moved to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`);
+   468→      // Update local state from response
+   469→      if (data.case) {
+   470→        setCases(prev => prev.map(c =>
+   471→          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+   472→        ));
+   473→      } else {
+   474→        fetchCases();
+   475→      }
+   476→    } catch (error) {
+   477→      toast.error(error.message || "Failed to update");
+   478→      fetchCases(); // Revert on error
+   479→    }
+   480→    setDraggedCard(null);
+   481→  };
+   482→
+   483→  const handleFileSelect = async (e) => {
+   484→    const files = Array.from(e.target.files);
+   485→    if (files.length === 0) return;
+   486→
+   487→    const uploadedFiles = [];
+   488→    for (const file of files) {
+   489→      const formData = new FormData();
+   490→      formData.append("file", file);
+   491→      try {
+   492→        const res = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
+   493→        const data = await res.json();
+   494→        if (data.url) {
+   495→          uploadedFiles.push({ url: data.url, filename: data.filename || file.name });
+   496→        }
+   497→      } catch (err) {
+   498→        toast.error(`Failed to upload ${file.name}`);
+   499→      }
+   500→    }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

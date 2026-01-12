@@ -1,0 +1,203 @@
+     1→/**
+     2→ * OpenAI Client Helper
+     3→ *
+     4→ * Server-side only helper for OpenAI API access.
+     5→ * Provides a singleton client and helper functions.
+     6→ */
+     7→
+     8→import OpenAI from "openai";
+     9→
+    10→// Singleton client - created once and reused
+    11→let _client = null;
+    12→
+    13→/**
+    14→ * Get or create the OpenAI client singleton
+    15→ * Always call this function - don't use a top-level export
+    16→ * because env vars may not be available at module load time.
+    17→ * @returns {OpenAI | null}
+    18→ */
+    19→export function getOpenAIClient() {
+    20→  const apiKey = process.env.OPENAI_API_KEY;
+    21→  if (!apiKey) {
+    22→    console.warn("[OpenAI] OPENAI_API_KEY not set - AI features disabled");
+    23→    return null;
+    24→  }
+    25→  if (!_client) {
+    26→    _client = new OpenAI({
+    27→      apiKey: apiKey,
+    28→    });
+    29→  }
+    30→  return _client;
+    31→}
+    32→
+    33→/**
+    34→ * Get the OpenAI API key from environment
+    35→ * @returns {{ apiKey: string | null, isConfigured: boolean }}
+    36→ */
+    37→export function getAIConfig() {
+    38→  const apiKey = process.env.OPENAI_API_KEY;
+    39→  return {
+    40→    apiKey,
+    41→    isConfigured: !!apiKey,
+    42→  };
+    43→}
+    44→
+    45→/**
+    46→ * Safely parse JSON from AI response
+    47→ * Strips code fences if present and throws clear error if parsing fails
+    48→ * @param {string} text - Raw text from AI
+    49→ * @returns {object} Parsed JSON object
+    50→ * @throws {Error} If parsing fails
+    51→ */
+    52→export function safeJsonParse(text) {
+    53→  if (!text) {
+    54→    throw new Error("Empty AI response - cannot parse JSON");
+    55→  }
+    56→
+    57→  // Strip markdown code fences if present
+    58→  const cleaned = text
+    59→    .replace(/```json\s*/gi, "")
+    60→    .replace(/```\s*/g, "")
+    61→    .trim();
+    62→
+    63→  try {
+    64→    return JSON.parse(cleaned);
+    65→  } catch (e) {
+    66→    throw new Error(`Failed to parse AI JSON response: ${e.message}. Raw text: ${cleaned.slice(0, 200)}...`);
+    67→  }
+    68→}
+    69→
+    70→/**
+    71→ * Standard AI suggestion response schema
+    72→ */
+    73→export const AI_SUGGESTION_SCHEMA = {
+    74→  suspected_issues: [{ title: "", why: "", urgency: "low|med|high" }],
+    75→  checks_to_run: [{ step: "", tools: "", time_estimate_mins: 0 }],
+    76→  questions_for_customer: [{ question: "", why: "" }],
+    77→  parts_to_consider: [{ part: "", notes: "" }],
+    78→  safety_notes: [{ note: "" }],
+    79→};
+    80→
+    81→/**
+    82→ * Call OpenAI API with structured JSON output
+    83→ * @param {string} systemPrompt - System message for context
+    84→ * @param {string} userPrompt - User message with the request
+    85→ * @param {object} options - Additional options
+    86→ * @returns {Promise<object>} Parsed JSON response
+    87→ */
+    88→export async function callOpenAI(systemPrompt, userPrompt, options = {}) {
+    89→  const { isConfigured } = getAIConfig();
+    90→
+    91→  if (!isConfigured) {
+    92→    return {
+    93→      success: false,
+    94→      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+    95→      errorCode: "NOT_CONFIGURED",
+    96→      isDummy: true,
+    97→      data: generateDummySuggestions(),
+    98→    };
+    99→  }
+   100→
+   101→  const client = getOpenAIClient();
+   102→  if (!client) {
+   103→    return {
+   104→      success: false,
+   105→      error: "OpenAI client not available",
+   106→      errorCode: "CLIENT_ERROR",
+   107→      isDummy: true,
+   108→      data: generateDummySuggestions(),
+   109→    };
+   110→  }
+   111→
+   112→  try {
+   113→    const response = await client.chat.completions.create({
+   114→      model: options.model || "gpt-4o-mini",
+   115→      messages: [
+   116→        { role: "system", content: systemPrompt },
+   117→        { role: "user", content: userPrompt },
+   118→      ],
+   119→      temperature: options.temperature || 0.3,
+   120→      max_tokens: options.maxTokens || 1500,
+   121→      response_format: { type: "json_object" },
+   122→    });
+   123→
+   124→    const content = response.choices?.[0]?.message?.content;
+   125→
+   126→    if (!content) {
+   127→      return {
+   128→        success: false,
+   129→        error: "Empty AI response",
+   130→        errorCode: "EMPTY_RESPONSE",
+   131→        isDummy: true,
+   132→        data: generateDummySuggestions(),
+   133→      };
+   134→    }
+   135→
+   136→    // Parse JSON response
+   137→    const parsed = safeJsonParse(content);
+   138→    return {
+   139→      success: true,
+   140→      isDummy: false,
+   141→      data: parsed,
+   142→    };
+   143→  } catch (error) {
+   144→    console.error("[OpenAI] Error:", error.message);
+   145→
+   146→    if (error.status === 401) {
+   147→      return {
+   148→        success: false,
+   149→        error: "OpenAI authentication failed. Check your API key.",
+   150→        errorCode: "AUTH_FAILED",
+   151→        isDummy: true,
+   152→        data: generateDummySuggestions(),
+   153→      };
+   154→    }
+   155→
+   156→    return {
+   157→      success: false,
+   158→      error: "OpenAI service unavailable",
+   159→      errorCode: "SERVICE_ERROR",
+   160→      isDummy: true,
+   161→      data: generateDummySuggestions(),
+   162→    };
+   163→  }
+   164→}
+   165→
+   166→/**
+   167→ * Generate dummy suggestions when AI is not available
+   168→ */
+   169→function generateDummySuggestions() {
+   170→  return {
+   171→    suspected_issues: [
+   172→      {
+   173→        title: "Unable to generate AI suggestions",
+   174→        why: "OpenAI service is not configured or unavailable. Please set OPENAI_API_KEY.",
+   175→        urgency: "low",
+   176→      },
+   177→    ],
+   178→    checks_to_run: [],
+   179→    questions_for_customer: [],
+   180→    parts_to_consider: [],
+   181→    safety_notes: [],
+   182→  };
+   183→}
+   184→
+   185→/**
+   186→ * UK used car dealer context for AI prompts
+   187→ */
+   188→export const UK_DEALER_CONTEXT = `You are an expert automotive diagnostic assistant for a UK used car dealership.
+   189→Your role is to help service advisors and technicians diagnose vehicle issues.
+   190→
+   191→Important constraints:
+   192→- UK context: Use British terminology (bonnet not hood, boot not trunk, etc.)
+   193→- Used car dealer context: Practical, cost-effective advice
+   194→- Practical tone: Clear, actionable guidance
+   195→- DO NOT invent facts or make assumptions without evidence
+   196→- If information is insufficient, ask questions rather than guess
+   197→- Focus on common issues and realistic scenarios
+   198→- Always consider customer safety`;
+   199→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

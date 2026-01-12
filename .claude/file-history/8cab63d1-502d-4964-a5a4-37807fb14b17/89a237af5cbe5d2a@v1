@@ -1,0 +1,103 @@
+import connectMongo from "@/libs/mongoose";
+import AftercareCase from "@/models/AftercareCase";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
+import FormSubmission from "@/models/FormSubmission";
+import FormSubmissionFile from "@/models/FormSubmissionFile";
+import { withDealerContext } from "@/libs/authContext";
+
+// Human-readable board status labels
+const BOARD_STATUS_LABELS = {
+  not_booked_in: "Not Booked In",
+  on_site: "On Site",
+  work_complete: "Work Complete",
+  collected: "Collected"
+};
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+
+  if (req.method === "GET") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+      .populate("contactId")
+      .populate("vehicleId")
+      .populate("vehicleSaleId")
+      .lean();
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    aftercareCase.comments = await AftercareCaseComment.find({ aftercareCaseId: id })
+      .sort({ createdAt: 1 }).lean();
+
+    // Count submission attachments if linked
+    let submissionAttachmentCount = 0;
+    if (aftercareCase.linkedSubmissionIds?.length > 0) {
+      submissionAttachmentCount = await FormSubmissionFile.countDocuments({
+        formSubmissionId: { $in: aftercareCase.linkedSubmissionIds }
+      });
+    }
+    aftercareCase.submissionAttachmentCount = submissionAttachmentCount;
+
+    // Count comment attachments
+    let commentAttachmentCount = 0;
+    aftercareCase.comments.forEach(c => {
+      if (c.attachments?.length) commentAttachmentCount += c.attachments.length;
+    });
+    aftercareCase.commentAttachmentCount = commentAttachmentCount;
+
+    return res.status(200).json(aftercareCase);
+  }
+
+  if (req.method === "PUT") {
+    const { boardStatus, ...otherUpdates } = req.body;
+
+    // Check if boardStatus is changing
+    let statusChangeEvent = null;
+    if (boardStatus) {
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+      if (currentCase && currentCase.boardStatus !== boardStatus) {
+        statusChangeEvent = {
+          type: "STATUS_CHANGED",
+          createdAt: new Date(),
+          createdByUserId: userId,
+          summary: `Status changed from "${BOARD_STATUS_LABELS[currentCase.boardStatus] || currentCase.boardStatus}" to "${BOARD_STATUS_LABELS[boardStatus] || boardStatus}"`,
+          metadata: {
+            fromStatus: currentCase.boardStatus,
+            toStatus: boardStatus
+          }
+        };
+      }
+    }
+
+    // Build update object
+    const updateObj = { ...otherUpdates };
+    if (boardStatus) updateObj.boardStatus = boardStatus;
+
+    // If status changed, push event
+    if (statusChangeEvent) {
+      updateObj.$push = { events: statusChangeEvent };
+    }
+
+    const aftercareCase = await AftercareCase.findOneAndUpdate(
+      { _id: id, dealerId },
+      updateObj,
+      { new: true }
+    ).populate("contactId").lean();
+
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+    return res.status(200).json(aftercareCase);
+  }
+
+  if (req.method === "DELETE") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId });
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    await AftercareCaseComment.deleteMany({ aftercareCaseId: id });
+    await AftercareCase.findByIdAndDelete(id);
+    return res.status(200).json({ message: "Deleted" });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

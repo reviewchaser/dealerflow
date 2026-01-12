@@ -1,0 +1,50 @@
+The file C:\Users\georg\dealerflow\pages\px\[dealerSlug].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   343→              </div>
+   344→            </div>
+   345→          </div>
+   346→
+   347→          {/* Vehicle Registration */}
+   348→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   349→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Registration</h2>
+   350→            <div className="space-y-3">
+   351→              <input
+   352→                type="text"
+   353→                name="vehicleReg"
+   354→                value={formData.vehicleReg}
+   355→                onChange={handleChange}
+   356→                className="w-full px-4 py-3 border border-slate-200 rounded-lg text-xl font-mono uppercase text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   357→                placeholder="AB12 CDE"
+   358→                required
+   359→              />
+   360→              <button
+   361→                type="button"
+   362→                onClick={handleDvlaLookup}
+   363→                disabled={isLookingUp || !formData.vehicleReg}
+   364→                className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+   365→              >
+   366→                {isLookingUp ? (
+   367→                  <>
+   368→                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+   369→                    Looking up...
+   370→                  </>
+   371→                ) : (
+   372→                  <>
+   373→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   374→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+   375→                    </svg>
+   376→                    Lookup Vehicle
+   377→                  </>
+   378→                )}
+   379→              </button>
+   380→            </div>
+   381→            {dvlaData && (
+   382→              <div className={`mt-4 p-3 rounded-lg ${dvlaData.isDummy ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+   383→                {dvlaData.isDummy && <span className="font-medium">Demo: </span>}
+   384→                {dvlaData.yearOfManufacture} {dvlaData.make} {dvlaData.model} - {dvlaData.colour}
+   385→              </div>
+   386→            )}
+   387→          </div>
+   388→
+   389→          {/* Vehicle Details */}
+   390→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   391→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>

@@ -1,0 +1,100 @@
+// Debug endpoint - DELETE AFTER USE
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/authOptions";
+import connectMongo from "@/libs/mongoose";
+import User from "@/models/User";
+import DealerMembership from "@/models/DealerMembership";
+
+export default async function handler(req, res) {
+  const debug = {
+    step: "start",
+    errors: [],
+    data: {},
+  };
+
+  try {
+    // Step 1: Check authOptions
+    debug.step = "checking authOptions";
+    debug.data.hasAuthOptions = !!authOptions;
+    debug.data.authOptionsKeys = authOptions ? Object.keys(authOptions) : [];
+
+    // Step 2: Get session
+    debug.step = "getting session";
+    const session = await getServerSession(req, res, authOptions);
+    debug.data.hasSession = !!session;
+    debug.data.session = session ? {
+      hasUser: !!session.user,
+      user: session.user ? {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      } : null,
+      expires: session.expires,
+    } : null;
+
+    if (!session) {
+      debug.errors.push("No session found - user not logged in or cookie issue");
+
+      // Check cookies
+      debug.data.cookies = req.headers.cookie ? req.headers.cookie.substring(0, 200) + "..." : "NO COOKIES";
+      debug.data.hasCookieHeader = !!req.headers.cookie;
+      debug.data.hasNextAuthCookie = req.headers.cookie?.includes("next-auth");
+
+      return res.status(200).json(debug);
+    }
+
+    // Step 3: Check user ID
+    debug.step = "checking user id";
+    const userId = session.user?.id;
+    debug.data.userId = userId;
+
+    if (!userId) {
+      debug.errors.push("Session exists but user.id is missing - JWT callback issue");
+      return res.status(200).json(debug);
+    }
+
+    // Step 4: Connect to MongoDB
+    debug.step = "connecting to mongo";
+    await connectMongo();
+    debug.data.mongoConnected = true;
+
+    // Step 5: Find user in database
+    debug.step = "finding user in database";
+    const dbUser = await User.findById(userId).lean();
+    debug.data.userInDb = !!dbUser;
+    debug.data.dbUser = dbUser ? {
+      id: dbUser._id?.toString(),
+      email: dbUser.email,
+      name: dbUser.name,
+      dealerId: dbUser.dealerId?.toString(),
+      defaultDealerId: dbUser.defaultDealerId?.toString(),
+    } : null;
+
+    // Step 6: Check memberships
+    debug.step = "checking memberships";
+    const memberships = await DealerMembership.find({ userId }).lean();
+    debug.data.membershipCount = memberships.length;
+    debug.data.memberships = memberships.map(m => ({
+      id: m._id?.toString(),
+      dealerId: m.dealerId?.toString(),
+      role: m.role,
+      removedAt: m.removedAt,
+    }));
+
+    // Step 7: Try the actual findOneActive call
+    debug.step = "testing findOneActive";
+    const activeMembership = await DealerMembership.findOneActive({ userId });
+    debug.data.hasActiveMembership = !!activeMembership;
+
+    debug.step = "complete";
+    debug.data.conclusion = memberships.length === 0
+      ? "User has no memberships - onboarding should create one"
+      : "User has memberships";
+
+  } catch (error) {
+    debug.errors.push(`Error at step '${debug.step}': ${error.message}`);
+    debug.data.errorStack = error.stack;
+  }
+
+  return res.status(200).json(debug);
+}

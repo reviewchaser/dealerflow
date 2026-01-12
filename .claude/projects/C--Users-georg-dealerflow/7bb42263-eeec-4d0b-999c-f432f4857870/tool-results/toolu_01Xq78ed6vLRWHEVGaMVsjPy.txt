@@ -1,0 +1,242 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   208→            )}
+   209→          </Link>
+   210→        </div>
+   211→
+   212→        {/* Navigation */}
+   213→        <nav className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto`}>
+   214→          {/* Main Section */}
+   215→          {!sidebarCollapsed && (
+   216→            <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   217→              Main
+   218→            </p>
+   219→          )}
+   220→          <ul className="space-y-1">
+   221→            {navigation.slice(0, 3).map((item) => {
+   222→              const { Icon } = item;
+   223→              const isActive = router.pathname.startsWith(item.href);
+   224→              return (
+   225→                <li key={item.name} className="relative group">
+   226→                  <Link
+   227→                    href={item.href}
+   228→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   229→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   230→                    } ${
+   231→                      isActive
+   232→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   233→                        : "hover:bg-slate-50"
+   234→                    }`}
+   235→                    title={sidebarCollapsed ? item.name : undefined}
+   236→                  >
+   237→                    {/* Active indicator bar */}
+   238→                    {isActive && !sidebarCollapsed && (
+   239→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   240→                    )}
+   241→                    {/* Icon with colored container */}
+   242→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   243→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   244→                    } ${
+   245→                      isActive
+   246→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   247→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   248→                    }`}>
+   249→                      <Icon className="w-[18px] h-[18px]" />
+   250→                    </div>
+   251→                    {!sidebarCollapsed && (
+   252→                      <span className={`text-sm transition-colors ${
+   253→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   254→                      }`}>{item.name}</span>
+   255→                    )}
+   256→                  </Link>
+   257→                  {/* Tooltip for collapsed state */}
+   258→                  {sidebarCollapsed && (
+   259→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   260→                      {item.name}
+   261→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   262→                    </div>
+   263→                  )}
+   264→                </li>
+   265→              );
+   266→            })}
+   267→          </ul>
+   268→
+   269→          {/* Management Section */}
+   270→          {!sidebarCollapsed && (
+   271→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   272→              Management
+   273→            </p>
+   274→          )}
+   275→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   276→          <ul className="space-y-1">
+   277→            {navigation.slice(3, 7).map((item) => {
+   278→              const { Icon } = item;
+   279→
+   280→              if (item.children) {
+   281→                const isExpanded = expandedMenus[item.name];
+   282→                const isActive = router.pathname.startsWith("/forms");
+   283→
+   284→                return (
+   285→                  <li key={item.name}>
+   286→                    <button
+   287→                      onClick={() => setExpandedMenus(prev => ({ ...prev, [item.name]: !prev[item.name] }))}
+   288→                      className={`flex items-center w-full rounded-xl transition-all duration-200 group ${
+   289→                        sidebarCollapsed ? "justify-center p-2" : "justify-between gap-3 px-3 py-2.5"
+   290→                      } ${
+   291→                        isActive
+   292→                          ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   293→                          : "hover:bg-slate-50"
+   294→                      }`}
+   295→                      title={sidebarCollapsed ? item.name : undefined}
+   296→                    >
+   297→                      <div className={`flex items-center ${sidebarCollapsed ? "" : "gap-3"}`}>
+   298→                        <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   299→                          sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   300→                        } ${
+   301→                          isActive
+   302→                            ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   303→                            : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   304→                        }`}>
+   305→                          <Icon className="w-[18px] h-[18px]" />
+   306→                        </div>
+   307→                        {!sidebarCollapsed && (
+   308→                          <span className={`text-sm transition-colors ${
+   309→                            isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   310→                          }`}>{item.name}</span>
+   311→                        )}
+   312→                      </div>
+   313→                      {!sidebarCollapsed && (
+   314→                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isActive ? "text-[#0066CC]" : "text-slate-400"}`} />
+   315→                      )}
+   316→                    </button>
+   317→                    {!sidebarCollapsed && isExpanded && (
+   318→                      <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
+   319→                        {item.children.map((child) => {
+   320→                          const isChildActive = router.pathname === child.href || router.asPath === child.href;
+   321→                          return (
+   322→                            <li key={child.name}>
+   323→                              <Link
+   324→                                href={child.href}
+   325→                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+   326→                                  isChildActive
+   327→                                    ? "bg-[#0066CC]/10 text-[#0066CC] font-semibold"
+   328→                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+   329→                                }`}
+   330→                              >
+   331→                                {isChildActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0066CC]" />}
+   332→                                <span>{child.name}</span>
+   333→                              </Link>
+   334→                            </li>
+   335→                          );
+   336→                        })}
+   337→                      </ul>
+   338→                    )}
+   339→                  </li>
+   340→                );
+   341→              }
+   342→
+   343→              const isActive = router.pathname.startsWith(item.href);
+   344→              return (
+   345→                <li key={item.name} className="relative group">
+   346→                  <Link
+   347→                    href={item.href}
+   348→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   349→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   350→                    } ${
+   351→                      isActive
+   352→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   353→                        : "hover:bg-slate-50"
+   354→                    }`}
+   355→                    title={sidebarCollapsed ? item.name : undefined}
+   356→                  >
+   357→                    {/* Active indicator bar */}
+   358→                    {isActive && !sidebarCollapsed && (
+   359→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   360→                    )}
+   361→                    {/* Icon with colored container */}
+   362→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   363→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   364→                    } ${
+   365→                      isActive
+   366→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   367→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   368→                    }`}>
+   369→                      <Icon className="w-[18px] h-[18px]" />
+   370→                    </div>
+   371→                    {!sidebarCollapsed && (
+   372→                      <span className={`text-sm transition-colors ${
+   373→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   374→                      }`}>{item.name}</span>
+   375→                    )}
+   376→                  </Link>
+   377→                  {/* Tooltip for collapsed state */}
+   378→                  {sidebarCollapsed && (
+   379→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   380→                      {item.name}
+   381→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   382→                    </div>
+   383→                  )}
+   384→                </li>
+   385→              );
+   386→            })}
+   387→          </ul>
+   388→
+   389→          {/* Settings Section */}
+   390→          {!sidebarCollapsed && (
+   391→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   392→              System
+   393→            </p>
+   394→          )}
+   395→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   396→          <ul className="space-y-1">
+   397→            {navigation.slice(7).map((item) => {
+   398→              const { Icon } = item;
+   399→              const isActive = router.pathname.startsWith(item.href);
+   400→              return (
+   401→                <li key={item.name} className="relative group">
+   402→                  <Link
+   403→                    href={item.href}
+   404→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   405→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   406→                    } ${
+   407→                      isActive
+   408→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   409→                        : "hover:bg-slate-50"
+   410→                    }`}
+   411→                    title={sidebarCollapsed ? item.name : undefined}
+   412→                  >
+   413→                    {/* Active indicator bar */}
+   414→                    {isActive && !sidebarCollapsed && (
+   415→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   416→                    )}
+   417→                    {/* Icon with colored container */}
+   418→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   419→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   420→                    } ${
+   421→                      isActive
+   422→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   423→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   424→                    }`}>
+   425→                      <Icon className="w-[18px] h-[18px]" />
+   426→                    </div>
+   427→                    {!sidebarCollapsed && (
+   428→                      <span className={`text-sm transition-colors ${
+   429→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   430→                      }`}>{item.name}</span>
+   431→                    )}
+   432→                  </Link>
+   433→                  {/* Tooltip for collapsed state */}
+   434→                  {sidebarCollapsed && (
+   435→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   436→                      {item.name}
+   437→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   438→                    </div>
+   439→                  )}
+   440→                </li>
+   441→              );
+   442→            })}
+   443→          </ul>
+   444→        </nav>
+   445→
+   446→        {/* Footer - Collapse Toggle + SaaS Branding */}
+   447→        <div className={`mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+   448→          {/* Collapse Toggle Button */}

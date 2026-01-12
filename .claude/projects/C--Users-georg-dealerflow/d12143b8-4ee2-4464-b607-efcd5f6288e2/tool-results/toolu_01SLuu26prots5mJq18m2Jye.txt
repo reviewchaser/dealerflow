@@ -1,0 +1,38 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1315→      setVrmSearchLoading(false);
+  1316→    }
+  1317→  };
+  1318→
+  1319→  const handleVrmSearchChange = (value) => {
+  1320→    const normalized = value.toUpperCase();
+  1321→    setVrmSearch(normalized);
+  1322→
+  1323→    // Clear previous timeout
+  1324→    if (vrmSearchTimeout.current) {
+  1325→      clearTimeout(vrmSearchTimeout.current);
+  1326→    }
+  1327→
+  1328→    if (normalized.length >= 2) {
+  1329→      setShowVrmDropdown(true);
+  1330→
+  1331→      // First, try client-side filtering for instant results (if vehicles are loaded)
+  1332→      if (vehicles.length > 0) {
+  1333→        const clientResults = searchVehiclesClientSide(normalized);
+  1334→        setVrmSearchResults(clientResults);
+  1335→        setVrmSearchLoading(false);
+  1336→      } else {
+  1337→        // If no client-side data, debounce API call by 200ms
+  1338→        setVrmSearchLoading(true);
+  1339→        vrmSearchTimeout.current = setTimeout(() => {
+  1340→          searchVehiclesApi(normalized);
+  1341→        }, 200);
+  1342→      }
+  1343→    } else {
+  1344→      setVrmSearchResults([]);
+  1345→      setShowVrmDropdown(false);
+  1346→    }
+  1347→  };
+  1348→
+  1349→  // Cleanup timeout on unmount
+  1350→  useEffect(() => {
+  1351→    return () => {

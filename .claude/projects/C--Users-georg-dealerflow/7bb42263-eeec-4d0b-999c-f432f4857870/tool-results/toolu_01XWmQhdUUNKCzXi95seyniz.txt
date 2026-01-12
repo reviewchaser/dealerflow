@@ -1,0 +1,504 @@
+  3800→                        const subject = `Job Sheet - ${selectedVehicle?.regCurrent || 'Vehicle'}`;
+  3801→                        const body = `Here is the job sheet for ${selectedVehicle?.regCurrent || 'the vehicle'}:\n\n${jobSheetLink}`;
+  3802→                        window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  3803→                      }}
+  3804→                      className="btn btn-outline btn-sm gap-2"
+  3805→                    >
+  3806→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3807→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  3808→                      </svg>
+  3809→                      Email
+  3810→                    </button>
+  3811→                    <button
+  3812→                      onClick={() => window.open(jobSheetLink, '_blank')}
+  3813→                      className="btn btn-outline btn-sm gap-2"
+  3814→                    >
+  3815→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3816→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  3817→                      </svg>
+  3818→                      Print / PDF
+  3819→                    </button>
+  3820→                  </div>
+  3821→                </div>
+  3822→              ) : (
+  3823→                <div className="text-center py-8 text-slate-500">
+  3824→                  No link generated yet
+  3825→                </div>
+  3826→              )}
+  3827→            </div>
+  3828→            <div className="flex justify-end p-4 border-t border-slate-200">
+  3829→              <button
+  3830→                className="btn btn-ghost"
+  3831→                onClick={() => {
+  3832→                  setShowJobSheetModal(false);
+  3833→                  setJobSheetLink(null);
+  3834→                }}
+  3835→              >
+  3836→                Close
+  3837→              </button>
+  3838→            </div>
+  3839→          </div>
+  3840→        </div>
+  3841→      )}
+  3842→
+  3843→      {/* Prep Summary Share Modal */}
+  3844→      {showPrepSummaryModal && (
+  3845→        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+  3846→          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+  3847→            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+  3848→              <h3 className="text-lg font-bold text-slate-900">Prep Summary PDF</h3>
+  3849→              <button
+  3850→                onClick={() => {
+  3851→                  setShowPrepSummaryModal(false);
+  3852→                  setPrepSummaryLink(null);
+  3853→                }}
+  3854→                className="btn btn-ghost btn-sm btn-circle"
+  3855→              >
+  3856→                ✕
+  3857→              </button>
+  3858→            </div>
+  3859→            <div className="p-4">
+  3860→              {isGeneratingPrepSummary ? (
+  3861→                <div className="flex flex-col items-center py-8">
+  3862→                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+  3863→                  <p className="text-slate-600">Generating prep summary...</p>
+  3864→                </div>
+  3865→              ) : prepSummaryLink ? (
+  3866→                <div className="space-y-4">
+  3867→                  <div className="bg-slate-50 rounded-lg p-3">
+  3868→                    <p className="text-xs text-slate-500 mb-1">Shareable Link</p>
+  3869→                    <p className="text-sm font-mono text-slate-900 break-all">{prepSummaryLink.url}</p>
+  3870→                  </div>
+  3871→                  <p className="text-xs text-slate-500">
+  3872→                    This link expires in 60 days. Click Print/PDF to save a PDF of the prep summary.
+  3873→                  </p>
+  3874→                  <div className="grid grid-cols-2 gap-3">
+  3875→                    <button
+  3876→                      onClick={copyPrepSummaryLink}
+  3877→                      className="btn btn-outline btn-sm gap-2"
+  3878→                    >
+  3879→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3880→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  3881→                      </svg>
+  3882→                      Copy Link
+  3883→                    </button>
+  3884→                    <button
+  3885→                      onClick={sharePrepSummaryViaWhatsApp}
+  3886→                      className="btn btn-success btn-sm gap-2 text-white"
+  3887→                    >
+  3888→                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+  3889→                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+  3890→                      </svg>
+  3891→                      WhatsApp
+  3892→                    </button>
+  3893→                    <button
+  3894→                      onClick={() => {
+  3895→                        const subject = `Prep Summary - ${selectedVehicle?.regCurrent || 'Vehicle'}`;
+  3896→                        const body = `Here is the prep summary for ${selectedVehicle?.regCurrent || 'the vehicle'}:\n\n${prepSummaryLink.url}`;
+  3897→                        window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
+  3898→                      }}
+  3899→                      className="btn btn-outline btn-sm gap-2"
+  3900→                    >
+  3901→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3902→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+  3903→                      </svg>
+  3904→                      Email
+  3905→                    </button>
+  3906→                    <button
+  3907→                      onClick={() => window.open(prepSummaryLink.url, '_blank')}
+  3908→                      className="btn btn-primary btn-sm gap-2"
+  3909→                    >
+  3910→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3911→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+  3912→                      </svg>
+  3913→                      Print / PDF
+  3914→                    </button>
+  3915→                  </div>
+  3916→                </div>
+  3917→              ) : (
+  3918→                <div className="text-center py-8 text-slate-500">
+  3919→                  No link generated yet
+  3920→                </div>
+  3921→              )}
+  3922→            </div>
+  3923→            <div className="flex justify-end p-4 border-t border-slate-200">
+  3924→              <button
+  3925→                className="btn btn-ghost"
+  3926→                onClick={() => {
+  3927→                  setShowPrepSummaryModal(false);
+  3928→                  setPrepSummaryLink(null);
+  3929→                }}
+  3930→              >
+  3931→                Close
+  3932→              </button>
+  3933→            </div>
+  3934→          </div>
+  3935→        </div>
+  3936→      )}
+  3937→
+  3938→      {/* Manual Share Fallback Modal */}
+  3939→      {showManualShareModal && (
+  3940→        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  3941→          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
+  3942→            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+  3943→              <h3 className="text-lg font-bold text-slate-900">Share Link</h3>
+  3944→              <button
+  3945→                onClick={() => {
+  3946→                  setShowManualShareModal(false);
+  3947→                  setManualShareUrl("");
+  3948→                }}
+  3949→                className="btn btn-ghost btn-sm btn-circle"
+  3950→              >
+  3951→                ✕
+  3952→              </button>
+  3953→            </div>
+  3954→            <div className="p-4 space-y-4">
+  3955→              <p className="text-sm text-slate-600">
+  3956→                Copy the link below to share:
+  3957→              </p>
+  3958→              <div className="bg-slate-50 rounded-lg p-3 relative">
+  3959→                <input
+  3960→                  type="text"
+  3961→                  value={manualShareUrl}
+  3962→                  readOnly
+  3963→                  className="w-full bg-transparent text-sm font-mono text-slate-900 border-none focus:outline-none pr-10"
+  3964→                  onClick={(e) => e.target.select()}
+  3965→                />
+  3966→                <button
+  3967→                  onClick={async () => {
+  3968→                    try {
+  3969→                      await navigator.clipboard.writeText(manualShareUrl);
+  3970→                      toast.success("Link copied!");
+  3971→                    } catch {
+  3972→                      // If clipboard still fails, user can manually copy
+  3973→                      toast.info("Select and copy the link manually");
+  3974→                    }
+  3975→                  }}
+  3976→                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-200 rounded transition-colors"
+  3977→                  title="Copy to clipboard"
+  3978→                >
+  3979→                  <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3980→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  3981→                  </svg>
+  3982→                </button>
+  3983→              </div>
+  3984→              <p className="text-xs text-slate-500">
+  3985→                Click the link to select it, then use Ctrl+C (or Cmd+C on Mac) to copy.
+  3986→              </p>
+  3987→            </div>
+  3988→            <div className="flex justify-end p-4 border-t border-slate-200">
+  3989→              <button
+  3990→                className="btn btn-primary"
+  3991→                onClick={() => {
+  3992→                  setShowManualShareModal(false);
+  3993→                  setManualShareUrl("");
+  3994→                }}
+  3995→              >
+  3996→                Done
+  3997→              </button>
+  3998→            </div>
+  3999→          </div>
+  4000→        </div>
+  4001→      )}
+  4002→    </DashboardLayout>
+  4003→  );
+  4004→}
+  4005→
+  4006→function AddVehicleModal({ onClose, onSuccess }) {
+  4007→  const [isLoading, setIsLoading] = useState(false);
+  4008→  const [isLookingUp, setIsLookingUp] = useState(false);
+  4009→  const [locations, setLocations] = useState([]);
+  4010→  const [prepTemplates, setPrepTemplates] = useState([]);
+  4011→  const [formData, setFormData] = useState({
+  4012→    regCurrent: "", make: "", model: "", year: "", mileageCurrent: "",
+  4013→    fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
+  4014→    motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
+  4015→    type: "STOCK", // STOCK, COURTESY, FLEET_OTHER
+  4016→    saleType: "RETAIL", // RETAIL, TRADE - only used when type is STOCK
+  4017→  });
+  4018→
+  4019→  // Appraisal lookup state
+  4020→  const [matchedAppraisal, setMatchedAppraisal] = useState(null);
+  4021→  const [isCheckingAppraisal, setIsCheckingAppraisal] = useState(false);
+  4022→  const [appraisalDismissed, setAppraisalDismissed] = useState(false);
+  4023→
+  4024→  // VRM appraisal suggestions
+  4025→  const [appraisalSuggestions, setAppraisalSuggestions] = useState([]);
+  4026→  const [showAppraisalDropdown, setShowAppraisalDropdown] = useState(false);
+  4027→  const [isSearchingAppraisals, setIsSearchingAppraisals] = useState(false);
+  4028→
+  4029→  // Document uploads
+  4030→  const [v5File, setV5File] = useState(null);
+  4031→  const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
+  4032→  const [faultCodesFile, setFaultCodesFile] = useState(null);
+  4033→  const [otherDocuments, setOtherDocuments] = useState([]);
+  4034→
+  4035→  // Initial issues (array of issues to create with the vehicle)
+  4036→  const [initialIssues, setInitialIssues] = useState([]);
+  4037→  const [showAddIssueInVehicleModal, setShowAddIssueInVehicleModal] = useState(false);
+  4038→  const [newIssueForm, setNewIssueForm] = useState({
+  4039→    category: "",
+  4040→    subcategory: "",
+  4041→    description: "",
+  4042→    actionNeeded: "",
+  4043→    status: "Outstanding",
+  4044→    notes: "",
+  4045→    photos: [],
+  4046→  });
+  4047→
+  4048→  // Prep checklist template
+  4049→  const [selectedTemplate, setSelectedTemplate] = useState("default");
+  4050→
+  4051→  useEffect(() => {
+  4052→    fetchLocations();
+  4053→    fetchPrepTemplates();
+  4054→  }, []);
+  4055→
+  4056→  const fetchLocations = async () => {
+  4057→    try {
+  4058→      const res = await fetch("/api/locations");
+  4059→      const data = await res.json();
+  4060→      setLocations(data);
+  4061→    } catch (error) {
+  4062→      console.error("Failed to fetch locations");
+  4063→    }
+  4064→  };
+  4065→
+  4066→  const fetchPrepTemplates = async () => {
+  4067→    try {
+  4068→      const res = await fetch("/api/prep-tasks");
+  4069→      const data = await res.json();
+  4070→      setPrepTemplates(data);
+  4071→      // Auto-select first template if available
+  4072→      if (data.length > 0) setSelectedTemplate("default");
+  4073→    } catch (error) {
+  4074→      console.error("Failed to fetch prep templates");
+  4075→    }
+  4076→  };
+  4077→
+  4078→  // Search unconverted appraisals as user types VRM
+  4079→  const searchAppraisals = async (vrm) => {
+  4080→    if (!vrm || vrm.length < 2) {
+  4081→      setAppraisalSuggestions([]);
+  4082→      setShowAppraisalDropdown(false);
+  4083→      return;
+  4084→    }
+  4085→    setIsSearchingAppraisals(true);
+  4086→    try {
+  4087→      const res = await fetch(`/api/appraisals/search-unconverted?q=${encodeURIComponent(vrm)}`);
+  4088→      if (res.ok) {
+  4089→        const results = await res.json();
+  4090→        setAppraisalSuggestions(results);
+  4091→        setShowAppraisalDropdown(results.length > 0);
+  4092→      } else {
+  4093→        setAppraisalSuggestions([]);
+  4094→        setShowAppraisalDropdown(false);
+  4095→      }
+  4096→    } catch (error) {
+  4097→      setAppraisalSuggestions([]);
+  4098→      setShowAppraisalDropdown(false);
+  4099→    } finally {
+  4100→      setIsSearchingAppraisals(false);
+  4101→    }
+  4102→  };
+  4103→
+  4104→  // Handle selecting an appraisal from suggestions
+  4105→  const handleSelectAppraisalSuggestion = (appraisal) => {
+  4106→    setFormData(prev => ({
+  4107→      ...prev,
+  4108→      regCurrent: appraisal.vehicleReg || prev.regCurrent,
+  4109→      make: appraisal.vehicleMake || prev.make,
+  4110→      model: appraisal.vehicleModel || prev.model,
+  4111→      year: appraisal.vehicleYear || prev.year,
+  4112→      mileageCurrent: appraisal.mileage || prev.mileageCurrent,
+  4113→    }));
+  4114→    setMatchedAppraisal(appraisal);
+  4115→    setAppraisalDismissed(false);
+  4116→    setShowAppraisalDropdown(false);
+  4117→    setAppraisalSuggestions([]);
+  4118→    toast.success(`Loaded appraisal for ${appraisal.vehicleReg}`);
+  4119→  };
+  4120→
+  4121→  // Check for existing appraisal when VRM changes
+  4122→  const checkForAppraisal = async (vrm) => {
+  4123→    if (!vrm || vrm.length < 2) {
+  4124→      setMatchedAppraisal(null);
+  4125→      return;
+  4126→    }
+  4127→    setIsCheckingAppraisal(true);
+  4128→    try {
+  4129→      const res = await fetch(`/api/appraisals/by-vrm?vrm=${encodeURIComponent(vrm)}`);
+  4130→      if (res.ok) {
+  4131→        const appraisal = await res.json();
+  4132→        setMatchedAppraisal(appraisal);
+  4133→        setAppraisalDismissed(false);
+  4134→      } else {
+  4135→        setMatchedAppraisal(null);
+  4136→      }
+  4137→    } catch (error) {
+  4138→      setMatchedAppraisal(null);
+  4139→    } finally {
+  4140→      setIsCheckingAppraisal(false);
+  4141→    }
+  4142→  };
+  4143→
+  4144→  // Import data from matched appraisal
+  4145→  const importFromAppraisal = () => {
+  4146→    if (!matchedAppraisal) return;
+  4147→    setFormData(prev => ({
+  4148→      ...prev,
+  4149→      regCurrent: matchedAppraisal.vehicleReg || prev.regCurrent,
+  4150→      make: matchedAppraisal.vehicleMake || prev.make,
+  4151→      model: matchedAppraisal.vehicleModel || prev.model,
+  4152→      year: matchedAppraisal.vehicleYear || prev.year,
+  4153→      mileageCurrent: matchedAppraisal.mileage || prev.mileageCurrent,
+  4154→      notes: matchedAppraisal.conditionNotes || prev.notes,
+  4155→    }));
+  4156→    setAppraisalDismissed(true);
+  4157→    toast.success("Imported data from appraisal");
+  4158→  };
+  4159→
+  4160→  // Convert appraisal directly to stock (uses the convert API)
+  4161→  const convertAppraisalToStock = async () => {
+  4162→    if (!matchedAppraisal) return;
+  4163→    setIsLoading(true);
+  4164→    try {
+  4165→      // Determine the API endpoint based on appraisal type
+  4166→      const endpoint = matchedAppraisal.type === "customer_px"
+  4167→        ? `/api/customer-px/${matchedAppraisal.id}/convert`
+  4168→        : `/api/appraisals/${matchedAppraisal.id}/convert`;
+  4169→
+  4170→      const res = await fetch(endpoint, {
+  4171→        method: "POST",
+  4172→        headers: { "Content-Type": "application/json" },
+  4173→        body: JSON.stringify({ initialStatus: "in_stock" }),
+  4174→      });
+  4175→
+  4176→      if (!res.ok) {
+  4177→        const error = await res.json();
+  4178→        throw new Error(error.error || "Failed to convert appraisal");
+  4179→      }
+  4180→
+  4181→      toast.success("Appraisal converted to stock!");
+  4182→      onSuccess();
+  4183→    } catch (error) {
+  4184→      toast.error(error.message);
+  4185→    } finally {
+  4186→      setIsLoading(false);
+  4187→    }
+  4188→  };
+  4189→
+  4190→  const handleLookup = async () => {
+  4191→    if (!formData.regCurrent) return toast.error("Enter registration first");
+  4192→    setIsLookingUp(true);
+  4193→    try {
+  4194→      const res = await fetch("/api/dvla-lookup", {
+  4195→        method: "POST",
+  4196→        headers: { "Content-Type": "application/json" },
+  4197→        body: JSON.stringify({ vehicleReg: formData.regCurrent }),
+  4198→      });
+  4199→      const data = await res.json();
+  4200→
+  4201→      // Check for error response
+  4202→      if (!res.ok || data.error) {
+  4203→        toast.error(data.message || data.error || "Vehicle not found");
+  4204→        return;
+  4205→      }
+  4206→
+  4207→      if (data.isDummy) showDummyNotification("DVLA API");
+  4208→
+  4209→      // Update form with DVLA data
+  4210→      setFormData(prev => ({
+  4211→        ...prev,
+  4212→        make: data.make || prev.make,
+  4213→        model: data.model || prev.model,
+  4214→        year: data.yearOfManufacture || prev.year,
+  4215→        colour: data.colour || prev.colour,
+  4216→        fuelType: data.fuelType || prev.fuelType,
+  4217→        transmission: data.transmission || prev.transmission,
+  4218→        motExpiryDate: data.motExpiryDate || prev.motExpiryDate,
+  4219→      }));
+  4220→
+  4221→      toast.success(`Found: ${data.make} ${data.model || ""} (${data.yearOfManufacture || ""})`);
+  4222→    } catch (error) {
+  4223→      toast.error("Lookup failed - please try again");
+  4224→    } finally {
+  4225→      setIsLookingUp(false);
+  4226→    }
+  4227→  };
+  4228→
+  4229→  const uploadFile = async (file) => {
+  4230→    if (!file) return null;
+  4231→    const formData = new FormData();
+  4232→    formData.append("file", file);
+  4233→    const res = await fetch("/api/vehicles/upload", {
+  4234→      method: "POST",
+  4235→      body: formData,
+  4236→    });
+  4237→    if (!res.ok) throw new Error("Upload failed");
+  4238→    const data = await res.json();
+  4239→    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+  4240→    return data.key || data.url;
+  4241→  };
+  4242→
+  4243→  const handleSubmit = async (e) => {
+  4244→    e.preventDefault();
+  4245→    if (!formData.regCurrent || !formData.make || !formData.model) {
+  4246→      return toast.error("Reg, make and model are required");
+  4247→    }
+  4248→    setIsLoading(true);
+  4249→    try {
+  4250→      // Create vehicle first
+  4251→      // If "None" is selected, skip default tasks
+  4252→      // If "default" is selected, create default tasks (don't skip)
+  4253→      const skipDefault = selectedTemplate === "";
+  4254→      const vehicleRes = await fetch("/api/vehicles", {
+  4255→        method: "POST",
+  4256→        headers: { "Content-Type": "application/json" },
+  4257→        body: JSON.stringify({ ...formData, skipDefaultTasks: skipDefault }),
+  4258→      });
+  4259→      if (!vehicleRes.ok) {
+  4260→        const errorData = await vehicleRes.json();
+  4261→        throw new Error(errorData.error || "Failed to create vehicle");
+  4262→      }
+  4263→      const vehicle = await vehicleRes.json();
+  4264→
+  4265→      // Upload documents
+  4266→      if (v5File) {
+  4267→        const v5Url = await uploadFile(v5File);
+  4268→        await fetch(`/api/vehicles/${vehicle.id}`, {
+  4269→          method: "PUT",
+  4270→          headers: { "Content-Type": "application/json" },
+  4271→          body: JSON.stringify({ v5Url }),
+  4272→        });
+  4273→      }
+  4274→
+  4275→      if (serviceHistoryFile) {
+  4276→        const url = await uploadFile(serviceHistoryFile);
+  4277→        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4278→          method: "POST",
+  4279→          headers: { "Content-Type": "application/json" },
+  4280→          body: JSON.stringify({ name: "Service History", type: "service_history", url }),
+  4281→        });
+  4282→      }
+  4283→
+  4284→      if (faultCodesFile) {
+  4285→        const url = await uploadFile(faultCodesFile);
+  4286→        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4287→          method: "POST",
+  4288→          headers: { "Content-Type": "application/json" },
+  4289→          body: JSON.stringify({ name: "Fault Codes", type: "fault_codes", url }),
+  4290→        });
+  4291→      }
+  4292→
+  4293→      // Upload other documents
+  4294→      for (const doc of otherDocuments) {
+  4295→        if (doc.file) {
+  4296→          const url = await uploadFile(doc.file);
+  4297→          await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4298→            method: "POST",
+  4299→            headers: { "Content-Type": "application/json" },
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

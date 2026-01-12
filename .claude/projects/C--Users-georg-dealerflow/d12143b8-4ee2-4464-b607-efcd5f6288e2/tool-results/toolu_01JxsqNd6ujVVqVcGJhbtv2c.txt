@@ -1,0 +1,18 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2954→                </div>
+  2955→              </div>
+  2956→            </div>
+  2957→
+  2958→            <div
+  2959→              className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6 overscroll-contain"
+  2960→              style={{
+  2961→                // Generous bottom padding for mobile bottom nav and safe area
+  2962→                paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
+  2963→                WebkitOverflowScrolling: "touch",
+  2964→              }}
+  2965→            >
+  2966→              {/* Overview Tab */}
+  2967→              {activeTab === "overview" && (
+  2968→                <div className="space-y-6">
+  2969→                  {/* Identity Section */}
+  2970→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">

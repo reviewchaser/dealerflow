@@ -1,0 +1,233 @@
+     1→import GoogleProvider from "next-auth/providers/google";
+     2→import CredentialsProvider from "next-auth/providers/credentials";
+     3→import config from "@/config";
+     4→import connectMongo from "@/libs/mongoose";
+     5→
+     6→export const authOptions = {
+     7→  // Set any random key in .env.local
+     8→  secret: process.env.NEXTAUTH_SECRET,
+     9→
+    10→  providers: [
+    11→    // Credentials provider for email/password login
+    12→    CredentialsProvider({
+    13→      name: "Credentials",
+    14→      credentials: {
+    15→        email: { label: "Email", type: "email", placeholder: "you@example.com" },
+    16→        password: { label: "Password", type: "password" },
+    17→      },
+    18→      async authorize(credentials) {
+    19→        if (!credentials?.email || !credentials?.password) {
+    20→          console.log("[Auth] Login failed: missing email or password");
+    21→          return null;
+    22→        }
+    23→
+    24→        const normalizedEmail = credentials.email.trim().toLowerCase();
+    25→
+    26→        try {
+    27→          // Connect to MongoDB using shared connection util
+    28→          await connectMongo();
+    29→
+    30→          // Import User model dynamically to avoid circular deps
+    31→          const User = (await import("@/models/User")).default;
+    32→
+    33→          // Find user with password hash
+    34→          const user = await User.findByEmailWithPassword(normalizedEmail);
+    35→
+    36→          if (!user) {
+    37→            console.log(`[Auth] Login failed: user not found for email ${normalizedEmail}`);
+    38→            // Dev login: create user with test password (only when ENABLE_DEV_LOGIN=true)
+    39→            const devLoginEnabled = process.env.ENABLE_DEV_LOGIN === "true";
+    40→            if (devLoginEnabled && credentials.password === "test123") {
+    41→              console.log(`[Auth] Dev login: creating new user for ${normalizedEmail}`);
+    42→              const newUser = await User.create({
+    43→                email: normalizedEmail,
+    44→                name: normalizedEmail.split("@")[0],
+    45→                fullName: normalizedEmail.split("@")[0],
+    46→              });
+    47→              return {
+    48→                id: newUser._id.toString(),
+    49→                email: newUser.email,
+    50→                name: newUser.name,
+    51→              };
+    52→            }
+    53→            return null;
+    54→          }
+    55→
+    56→          // Check if user is disabled
+    57→          if (user.status === "DISABLED") {
+    58→            console.log(`[Auth] Login failed: user ${normalizedEmail} is disabled`);
+    59→            return null;
+    60→          }
+    61→
+    62→          // If user has password hash, verify it
+    63→          if (user.passwordHash) {
+    64→            const isValid = await user.comparePassword(credentials.password);
+    65→            if (!isValid) {
+    66→              console.log(`[Auth] Login failed: bcrypt mismatch for ${normalizedEmail}`);
+    67→              return null;
+    68→            }
+    69→          } else {
+    70→            console.log(`[Auth] Login failed: passwordHash missing for ${normalizedEmail}`);
+    71→            // User exists but no password - allow dev login with test123
+    72→            const devLoginEnabled = process.env.ENABLE_DEV_LOGIN === "true";
+    73→            if (devLoginEnabled && credentials.password === "test123") {
+    74→              console.log(`[Auth] Dev login: allowing access without password for ${normalizedEmail}`);
+    75→              // Dev login fallback - user exists without password
+    76→            } else {
+    77→              // No password set means can't login with credentials
+    78→              return null;
+    79→            }
+    80→          }
+    81→
+    82→          console.log(`[Auth] Login success for ${normalizedEmail}`);
+    83→          return {
+    84→            id: user._id.toString(),
+    85→            email: user.email,
+    86→            name: user.fullName || user.name,
+    87→          };
+    88→        } catch (error) {
+    89→          console.error("[CredentialsProvider] Error:", error.message, error.stack);
+    90→          return null;
+    91→        }
+    92→      },
+    93→    }),
+    94→    // GoogleProvider - only enable if credentials are configured
+    95→    ...(process.env.GOOGLE_ID && process.env.GOOGLE_SECRET ? [
+    96→      GoogleProvider({
+    97→        clientId: process.env.GOOGLE_ID,
+    98→        clientSecret: process.env.GOOGLE_SECRET,
+    99→        async profile(profile) {
+   100→          return {
+   101→            id: profile.sub,
+   102→            name: profile.given_name ? profile.given_name : profile.name,
+   103→            email: profile.email,
+   104→            image: profile.picture,
+   105→            createdAt: new Date(),
+   106→          };
+   107→        },
+   108→      }),
+   109→    ] : []),
+   110→  ],
+   111→  callbacks: {
+   112→    redirect: async ({ url, baseUrl }) => {
+   113→      // Handle post-login redirects to tenant-aware URLs
+   114→      // If redirecting to /dashboard, check if we should use tenant URL
+   115→      if (url === `${baseUrl}/dashboard` || url === "/dashboard") {
+   116→        try {
+   117→          // We can't access token here, so we'll let the dashboard handle the redirect
+   118→          // The dashboard will check dealer context and redirect if needed
+   119→          return `${baseUrl}/dashboard`;
+   120→        } catch (error) {
+   121→          console.error("[Redirect Callback] Error:", error);
+   122→        }
+   123→      }
+   124→      // Allow relative URLs
+   125→      if (url.startsWith("/")) {
+   126→        return `${baseUrl}${url}`;
+   127→      }
+   128→      // Allow same-origin URLs
+   129→      if (url.startsWith(baseUrl)) {
+   130→        return url;
+   131→      }
+   132→      // Default to base URL
+   133→      return baseUrl;
+   134→    },
+   135→    jwt: async ({ token, user, account }) => {
+   136→      // On sign in, add user info to token
+   137→      if (user) {
+   138→        token.sub = user.id;
+   139→        token.email = user.email;
+   140→        token.name = user.name;
+   141→      }
+   142→
+   143→      // Fetch dealer context on every JWT refresh
+   144→      if (token.sub) {
+   145→        try {
+   146→          await connectMongo();
+   147→          const DealerMembership = (await import("@/models/DealerMembership")).default;
+   148→          const User = (await import("@/models/User")).default;
+   149→
+   150→          // Get user's default dealer or first active membership
+   151→          const userDoc = await User.findById(token.sub);
+   152→          let membership = null;
+   153→
+   154→          if (userDoc?.defaultDealerId) {
+   155→            membership = await DealerMembership.findOneActive({
+   156→              userId: token.sub,
+   157→              dealerId: userDoc.defaultDealerId,
+   158→            });
+   159→          }
+   160→
+   161→          if (!membership) {
+   162→            // Fall back to first active membership
+   163→            membership = await DealerMembership.findOneActive({
+   164→              userId: token.sub,
+   165→            }).sort({ lastActiveAt: -1 });
+   166→          }
+   167→
+   168→          if (membership) {
+   169→            token.dealerId = membership.dealerId.toString();
+   170→            token.role = membership.role;
+   171→          } else {
+   172→            token.dealerId = null;
+   173→            token.role = null;
+   174→          }
+   175→        } catch (error) {
+   176→          console.error("[JWT Callback] Error fetching dealer context:", error);
+   177→        }
+   178→      }
+   179→
+   180→      return token;
+   181→    },
+   182→    session: async ({ session, token }) => {
+   183→      if (session?.user) {
+   184→        session.user.id = token.sub;
+   185→        session.user.dealerId = token.dealerId || null;
+   186→        session.user.role = token.role || null;
+   187→      }
+   188→      return session;
+   189→    },
+   190→    signIn: async ({ user, account, profile }) => {
+   191→      // Handle Google OAuth sign-in
+   192→      if (account?.provider === "google" && user?.email) {
+   193→        try {
+   194→          await connectMongo();
+   195→          const User = (await import("@/models/User")).default;
+   196→
+   197→          // Find or create user
+   198→          let dbUser = await User.findOne({ email: user.email.toLowerCase() });
+   199→          if (!dbUser) {
+   200→            dbUser = await User.create({
+   201→              email: user.email.toLowerCase(),
+   202→              name: user.name,
+   203→              fullName: user.name,
+   204→              image: user.image,
+   205→            });
+   206→          }
+   207→
+   208→          // Update user ID to match our DB
+   209→          user.id = dbUser._id.toString();
+   210→        } catch (error) {
+   211→          console.error("[SignIn Callback] Error:", error);
+   212→        }
+   213→      }
+   214→      return true;
+   215→    },
+   216→  },
+   217→  session: {
+   218→    strategy: "jwt",
+   219→  },
+   220→  theme: {
+   221→    brandColor: config.colors.main,
+   222→    logo: `https://${config.domainName}/logoAndName.png`,
+   223→  },
+   224→  pages: {
+   225→    signIn: "/auth/signin",
+   226→    newUser: "/onboarding/create-dealer", // Redirect new users to create dealer
+   227→  },
+   228→};
+   229→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

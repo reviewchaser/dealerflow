@@ -1,0 +1,376 @@
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const COLUMNS = [
+  { key: "not_booked_in", label: "Warranty Cases – Not Booked In", color: "bg-error/20" },
+  { key: "on_site", label: "Customer Cars On Site", color: "bg-warning/20" },
+  { key: "work_complete", label: "Work Complete – Awaiting Collection", color: "bg-info/20" },
+  { key: "collected", label: "Collected / Closed", color: "bg-success/20" },
+];
+
+const PRIORITIES = {
+  low: "badge-ghost",
+  normal: "badge-info",
+  high: "badge-warning",
+  critical: "badge-error",
+};
+
+export default function Warranty() {
+  const router = useRouter();
+  const [cases, setCases] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newComment, setNewComment] = useState("");
+
+  useEffect(() => { fetchCases(); }, []);
+
+  // Auto-open case from query param (e.g., /warranty?caseId=123)
+  useEffect(() => {
+    if (router.query.caseId && !selectedCase) {
+      fetchCaseDetail(router.query.caseId);
+    }
+  }, [router.query.caseId]);
+
+  const fetchCases = async () => {
+    try {
+      const res = await fetch("/api/aftercare");
+      const data = await res.json();
+      setCases(data);
+    } catch (error) {
+      toast.error("Failed to load cases");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCaseDetail = async (caseId) => {
+    try {
+      const res = await fetch(`/api/aftercare/${caseId}`);
+      const data = await res.json();
+      setSelectedCase(data);
+    } catch (error) {
+      toast.error("Failed to load case");
+    }
+  };
+
+  const updateCaseBoardStatus = async (caseId, newStatus) => {
+    try {
+      await fetch(`/api/aftercare/${caseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardStatus: newStatus }),
+      });
+      fetchCases();
+      toast.success(`Moved to ${newStatus.replace(/_/g, " ")}`);
+    } catch (error) {
+      toast.error("Failed to update");
+    }
+  };
+
+  const addComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      await fetch(`/api/aftercare/${selectedCase.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newComment, authorType: "staff" }),
+      });
+      setNewComment("");
+      fetchCaseDetail(selectedCase.id);
+      toast.success("Comment added");
+    } catch (error) {
+      toast.error("Failed to add comment");
+    }
+  };
+
+  const getCasesByStatus = (status) => cases.filter(c => c.boardStatus === status);
+
+  return (
+    <DashboardLayout>
+      <Head><title>Customer/Warranty | DealerFlow</title></Head>
+
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Customer / Warranty Board</h1>
+          <p className="text-base-content/60 mt-1">Manage warranty cases and aftercare</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          + New Case
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {COLUMNS.map((col) => (
+            <div key={col.key} className={`flex-shrink-0 w-80 ${col.color} rounded-lg p-3`}>
+              <h3 className="font-semibold mb-3 text-sm flex items-center justify-between">
+                {col.label}
+                <span className="badge badge-ghost">{getCasesByStatus(col.key).length}</span>
+              </h3>
+              
+              <div className="space-y-3">
+                {getCasesByStatus(col.key).map((caseItem) => (
+                  <div
+                    key={caseItem.id}
+                    className="card bg-base-100 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => fetchCaseDetail(caseItem.id)}
+                  >
+                    <div className="card-body p-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-mono font-semibold text-sm">
+                            {caseItem.details?.vehicleReg || "No Reg"}
+                          </p>
+                          <p className="text-sm">{caseItem.contactId?.name}</p>
+                        </div>
+                        <span className={`badge badge-sm ${PRIORITIES[caseItem.priority]}`}>
+                          {caseItem.priority}
+                        </span>
+                      </div>
+                      
+                      {caseItem.summary && (
+                        <p className="text-xs text-base-content/70 mt-2 line-clamp-2">
+                          {caseItem.summary}
+                        </p>
+                      )}
+
+                      <div className="flex gap-2 mt-2 text-xs">
+                        <span className="badge badge-ghost badge-xs">{caseItem.source.replace(/_/g, " ")}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Case Detail Drawer */}
+      {selectedCase && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="bg-black/50 absolute inset-0" onClick={() => setSelectedCase(null)}></div>
+          <div className="relative bg-base-100 w-full max-w-xl h-full overflow-y-auto">
+            <div className="sticky top-0 bg-base-100 border-b border-base-300 p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-lg font-bold">
+                    {selectedCase.details?.vehicleReg || "Case"} – {selectedCase.contactId?.name}
+                  </h2>
+                  <p className="text-sm text-base-content/60">{selectedCase.source?.replace(/_/g, " ") || "Unknown source"}</p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSelectedCase(null)}>✕</button>
+              </div>
+
+              <div className="flex gap-2 mt-3">
+                <select
+                  className="select select-bordered select-sm"
+                  value={selectedCase.boardStatus}
+                  onChange={(e) => {
+                    updateCaseBoardStatus(selectedCase.id, e.target.value);
+                    setSelectedCase({ ...selectedCase, boardStatus: e.target.value });
+                  }}
+                >
+                  {COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                <select
+                  className="select select-bordered select-sm"
+                  value={selectedCase.priority}
+                  onChange={async (e) => {
+                    await fetch(`/api/aftercare/${selectedCase.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ priority: e.target.value }),
+                    });
+                    setSelectedCase({ ...selectedCase, priority: e.target.value });
+                    fetchCases();
+                  }}
+                >
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* AI Summary placeholder */}
+              <div className="card bg-info/10 border border-info/30">
+                <div className="card-body p-4">
+                  <h3 className="font-semibold text-sm flex items-center gap-2">
+                    🤖 AI Summary
+                  </h3>
+                  <p className="text-sm text-base-content/70">
+                    ⚠️ AI summary not configured. This would show a generated summary of the case history.
+                  </p>
+                </div>
+              </div>
+
+              {/* Customer & Vehicle Info */}
+              <div className="card bg-base-200">
+                <div className="card-body p-4">
+                  <h3 className="font-semibold mb-2">Customer & Vehicle</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div><span className="text-base-content/60">Name:</span> {selectedCase.contactId?.name}</div>
+                    <div><span className="text-base-content/60">Phone:</span> {selectedCase.contactId?.phone || "—"}</div>
+                    <div><span className="text-base-content/60">Email:</span> {selectedCase.contactId?.email || "—"}</div>
+                    <div><span className="text-base-content/60">Current Reg:</span> {selectedCase.details?.vehicleReg || "—"}</div>
+                    {selectedCase.regAtPurchase && (
+                      <div><span className="text-base-content/60">Reg at Purchase:</span> {selectedCase.regAtPurchase}</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Summary */}
+              {selectedCase.summary && (
+                <div className="card bg-base-200">
+                  <div className="card-body p-4">
+                    <h3 className="font-semibold mb-2">Issue Summary</h3>
+                    <p className="text-sm whitespace-pre-wrap">{selectedCase.summary}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
+              <div className="card bg-base-200">
+                <div className="card-body p-4">
+                  <h3 className="font-semibold mb-3">Timeline</h3>
+                  <div className="space-y-3">
+                    {selectedCase.comments?.map((comment) => (
+                      <div key={comment.id} className={`p-3 rounded-lg ${
+                        comment.authorType === "customer" ? "bg-primary/10" : "bg-base-100"
+                      }`}>
+                        <div className="flex justify-between text-xs text-base-content/60 mb-1">
+                          <span>{comment.authorType === "customer" ? "Customer" : "Staff"}</span>
+                          <span>{new Date(comment.createdAt).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm">{comment.content}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add Comment */}
+                  <div className="mt-4 flex gap-2">
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm flex-1"
+                      placeholder="Add a comment..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      onKeyPress={(e) => e.key === "Enter" && addComment()}
+                    />
+                    <button className="btn btn-primary btn-sm" onClick={addComment}>Add</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Case Modal */}
+      {showAddModal && (
+        <AddCaseModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); fetchCases(); }} />
+      )}
+    </DashboardLayout>
+  );
+}
+
+function AddCaseModal({ onClose, onSuccess }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    customerName: "", customerEmail: "", customerPhone: "",
+    vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.customerName) return toast.error("Customer name required");
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, source: "manual" }),
+      });
+      if (!res.ok) throw new Error("Failed to create");
+      toast.success("Case created!");
+      onSuccess();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal modal-open">
+      <div className="modal-box">
+        <h3 className="font-bold text-lg mb-4">New Aftercare Case</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-control mb-3">
+            <label className="label"><span className="label-text">Customer Name *</span></label>
+            <input type="text" className="input input-bordered" value={formData.customerName}
+              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Phone</span></label>
+              <input type="tel" className="input input-bordered" value={formData.customerPhone}
+                onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })} />
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Email</span></label>
+              <input type="email" className="input input-bordered" value={formData.customerEmail}
+                onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Current Reg</span></label>
+              <input type="text" className="input input-bordered uppercase" value={formData.vehicleReg}
+                onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })} />
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Reg at Purchase</span></label>
+              <input type="text" className="input input-bordered uppercase" value={formData.regAtPurchase}
+                onChange={(e) => setFormData({ ...formData, regAtPurchase: e.target.value.toUpperCase() })} />
+            </div>
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Priority</span></label>
+            <select className="select select-bordered" value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Issue Summary</span></label>
+            <textarea className="textarea textarea-bordered" value={formData.summary}
+              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}></textarea>
+          </div>
+          <div className="modal-action">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+              {isLoading ? <span className="loading loading-spinner"></span> : "Create Case"}
+            </button>
+          </div>
+        </form>
+      </div>
+      <div className="modal-backdrop" onClick={onClose}></div>
+    </div>
+  );
+}

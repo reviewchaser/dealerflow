@@ -1,0 +1,47 @@
+import connectMongo from "@/libs/mongoose";
+import AftercareCase from "@/models/AftercareCase";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId } = ctx;
+  const { id } = req.query;
+
+  if (req.method === "GET") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+      .populate("contactId")
+      .populate("vehicleId")
+      .populate("vehicleSaleId")
+      .lean();
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    aftercareCase.comments = await AftercareCaseComment.find({ aftercareCaseId: id })
+      .sort({ createdAt: 1 }).lean();
+
+    return res.status(200).json(aftercareCase);
+  }
+
+  if (req.method === "PUT") {
+    const aftercareCase = await AftercareCase.findOneAndUpdate(
+      { _id: id, dealerId },
+      req.body,
+      { new: true }
+    ).populate("contactId").lean();
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+    return res.status(200).json(aftercareCase);
+  }
+
+  if (req.method === "DELETE") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId });
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    await AftercareCaseComment.deleteMany({ aftercareCaseId: id });
+    await AftercareCase.findByIdAndDelete(id);
+    return res.status(200).json({ message: "Deleted" });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

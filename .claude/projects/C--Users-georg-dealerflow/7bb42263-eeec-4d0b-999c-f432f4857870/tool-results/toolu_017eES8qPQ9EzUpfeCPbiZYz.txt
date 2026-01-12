@@ -1,0 +1,46 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  5022→                rows="3"
+  5023→              ></textarea>
+  5024→            </div>
+  5025→
+  5026→            <div className="form-control col-span-2">
+  5027→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Action Needed</label>
+  5028→              <input
+  5029→                type="text"
+  5030→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+  5031→                value={issueForm.actionNeeded}
+  5032→                onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
+  5033→                placeholder="What needs to be done?"
+  5034→              />
+  5035→            </div>
+  5036→
+  5037→            <div className="form-control">
+  5038→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Priority</label>
+  5039→              <select
+  5040→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+  5041→                value={issueForm.priority || "medium"}
+  5042→                onChange={(e) => setIssueForm({ ...issueForm, priority: e.target.value })}
+  5043→              >
+  5044→                <option value="low">Low</option>
+  5045→                <option value="medium">Medium</option>
+  5046→                <option value="high">High</option>
+  5047→              </select>
+  5048→            </div>
+  5049→
+  5050→            <div className="form-control">
+  5051→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Location</label>
+  5052→              <input
+  5053→                type="text"
+  5054→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none"
+  5055→                value={issueForm.location || ""}
+  5056→                onChange={(e) => setIssueForm({ ...issueForm, location: e.target.value })}
+  5057→                placeholder="e.g., Front Left, Rear Bumper"
+  5058→              />
+  5059→            </div>
+  5060→
+  5061→            <div className="form-control">
+  5062→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
+  5063→              <select
+  5064→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+  5065→                value={issueForm.status}
+  5066→                onChange={(e) => setIssueForm({ ...issueForm, status: e.target.value })}

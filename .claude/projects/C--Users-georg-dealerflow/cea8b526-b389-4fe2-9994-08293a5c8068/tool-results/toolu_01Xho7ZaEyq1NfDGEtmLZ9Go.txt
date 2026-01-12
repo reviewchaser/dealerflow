@@ -1,0 +1,84 @@
+   850→      ) : (
+   851→        <>
+   852→          {/* Mobile Column Tabs */}
+   853→          <div className="md:hidden mb-4 overflow-x-auto">
+   854→            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl min-w-max">
+   855→              {COLUMNS.map((col) => {
+   856→                const count = getCasesByStatus(col.key).length;
+   857→                return (
+   858→                  <button
+   859→                    key={col.key}
+   860→                    onClick={() => setMobileActiveColumn(col.key)}
+   861→                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+   862→                      mobileActiveColumn === col.key
+   863→                        ? "bg-white shadow-sm text-slate-900"
+   864→                        : "text-slate-500 hover:text-slate-700"
+   865→                    }`}
+   866→                  >
+   867→                    <span>{col.label}</span>
+   868→                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+   869→                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
+   870→                    }`}>
+   871→                      {count}
+   872→                    </span>
+   873→                  </button>
+   874→                );
+   875→              })}
+   876→            </div>
+   877→          </div>
+   878→
+   879→          {/* Mobile Single Column View */}
+   880→          <div className="md:hidden">
+   881→            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
+   882→              const columnCases = getCasesByStatus(col.key);
+   883→              return (
+   884→                <div key={col.key} className="space-y-3">
+   885→                  {columnCases.map((caseItem) => {
+   886→                    const daysOpen = daysSince(caseItem.createdAt);
+   887→                    const priority = caseItem.priority || "normal";
+   888→                    const priorityStyle = PRIORITIES[priority] || PRIORITIES.normal;
+   889→                    const locationType = caseItem.repairLocationType || "WITH_CUSTOMER";
+   890→                    const locationStyle = REPAIR_LOCATION_STYLES[locationType] || REPAIR_LOCATION_STYLES.WITH_CUSTOMER;
+   891→                    const attachmentCount = (caseItem.submissionAttachmentCount || 0) + (caseItem.commentAttachmentCount || 0);
+   892→                    const activityCount = (caseItem.comments?.length || 0) + (caseItem.events?.length || 0);
+   893→
+   894→                    return (
+   895→                      <div
+   896→                        key={caseItem.id || caseItem._id}
+   897→                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100/50 overflow-hidden active:scale-[0.98]"
+   898→                        onClick={() => {
+   899→                          const id = caseItem.id || caseItem._id;
+   900→                          fetchCaseDetail(id);
+   901→                        }}
+   902→                      >
+   903→                        <div className={`border-l-4 ${col.accent}`}>
+   904→                          <div className="p-4">
+   905→                            {/* Top row: Reg + badges */}
+   906→                            <div className="flex justify-between items-start mb-2">
+   907→                              <div className="flex-1 min-w-0">
+   908→                                <div className="flex items-center gap-1.5 flex-wrap">
+   909→                                  <span className="inline-block bg-[#fcd34d] border border-yellow-500/50 rounded-md px-2 py-0.5 shadow-sm font-mono font-bold text-slate-900 text-xs tracking-wider uppercase">
+   910→                                    {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "NO REG"}
+   911→                                  </span>
+   912→                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold ${locationStyle.bg} ${locationStyle.text}`}>
+   913→                                    {REPAIR_LOCATION_LABELS[locationType]}
+   914→                                  </span>
+   915→                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${priorityStyle.bg} ${priorityStyle.text} border ${priorityStyle.border}`}>
+   916→                                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+   917→                                  </span>
+   918→                                </div>
+   919→                              </div>
+   920→                            </div>
+   921→
+   922→                            {/* Customer name + Vehicle make/model */}
+   923→                            <div className="mb-2">
+   924→                              <p className="font-semibold text-slate-900 text-sm truncate">
+   925→                                {caseItem.contactId?.name || "Unknown"}
+   926→                              </p>
+   927→                              {caseItem.vehicleId && (
+   928→                                <p className="text-xs text-slate-500">
+   929→                                  {caseItem.vehicleId.make} {caseItem.vehicleId.model}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

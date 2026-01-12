@@ -42,7 +42,9 @@ async function handler(req, res, ctx) {
       companyName, companyAddress, companyPhone, companyEmail, slug, formCustomText,
       // Onboarding fields
       completedOnboarding, timezone, primaryContactEmail, primaryContactPhone,
-      boardConfig, taskAutoComplete, defaultTaskTemplateGroupId
+      boardConfig, taskAutoComplete, defaultTaskTemplateGroupId,
+      // Sales settings
+      salesSettings,
     } = req.body;
 
     // Update the current dealer
@@ -69,6 +71,22 @@ async function handler(req, res, ctx) {
     if (boardConfig !== undefined) updateFields.boardConfig = boardConfig;
     if (taskAutoComplete !== undefined) updateFields.taskAutoComplete = taskAutoComplete;
     if (defaultTaskTemplateGroupId !== undefined) updateFields.defaultTaskTemplateGroupId = defaultTaskTemplateGroupId;
+    // Sales settings - merge with existing to avoid overwriting unset fields
+    if (salesSettings !== undefined) {
+      updateFields["salesSettings.invoiceNumberPrefix"] = salesSettings.invoiceNumberPrefix;
+      updateFields["salesSettings.depositReceiptPrefix"] = salesSettings.depositReceiptPrefix;
+      updateFields["salesSettings.defaultVatScheme"] = salesSettings.defaultVatScheme;
+      updateFields["salesSettings.vatRate"] = salesSettings.vatRate;
+      updateFields["salesSettings.vatNumber"] = salesSettings.vatNumber;
+      updateFields["salesSettings.vatRegistered"] = salesSettings.vatRegistered;
+      updateFields["salesSettings.companyNumber"] = salesSettings.companyNumber;
+      if (salesSettings.bankDetails) {
+        updateFields["salesSettings.bankDetails"] = salesSettings.bankDetails;
+      }
+      if (salesSettings.terms) {
+        updateFields["salesSettings.terms"] = salesSettings.terms;
+      }
+    }
 
     const updatedDealer = await Dealer.findByIdAndUpdate(
       dealerId,

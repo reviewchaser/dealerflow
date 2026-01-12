@@ -1,0 +1,31 @@
+  2975→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  2976→                </svg>
+  2977→              )}
+  2978→              Add Photos
+  2979→              <input
+  2980→                type="file"
+  2981→                multiple
+  2982→                accept="image/*,.pdf"
+  2983→                className="hidden"
+  2984→                onChange={handleMediaUpload}
+  2985→                disabled={isUploadingMedia}
+  2986→              />
+  2987→            </label>
+  2988→          </div>
+  2989→          <div className="modal-action">
+  2990→            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+  2991→            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+  2992→              {isLoading ? <span className="loading loading-spinner"></span> : "Create Case"}
+  2993→            </button>
+  2994→          </div>
+  2995→        </form>
+  2996→      </div>
+  2997→      <div className="modal-backdrop" onClick={onClose}></div>
+  2998→    </div>
+  2999→  );
+  3000→}
+  3001→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

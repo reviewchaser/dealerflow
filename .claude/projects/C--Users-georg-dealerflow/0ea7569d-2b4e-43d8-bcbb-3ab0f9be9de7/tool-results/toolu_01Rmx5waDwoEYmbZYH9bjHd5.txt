@@ -1,0 +1,41 @@
+199:  const [vrmSearch, setVrmSearch] = useState("");
+203:  const vrmSearchInputRef = useRef(null);
+208:    if (!vrmSearchInputRef.current) return { top: 0, left: 0, width: 320 };
+209:    const rect = vrmSearchInputRef.current.getBoundingClientRect();
+217:  // Compute VRM search results reactively based on vrmSearch and vehicles
+218:  const vrmSearchResults = useMemo(() => {
+219:    if (vrmSearch.length < 2) return [];
+222:    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+240:  }, [vrmSearch, vehicles]);
+254:        vrmSearchInputRef.current &&
+255:        !vrmSearchInputRef.current.contains(e.target) &&
+1341:    const filterValue = vrmSearch.trim();
+1359:    if (!showVrmDropdown || vrmSearchResults.length === 0) {
+1370:          prev < vrmSearchResults.length - 1 ? prev + 1 : prev
+1381:          ? vrmSearchResults[vrmSelectedIndex]
+1382:          : vrmSearchResults[0];
+1390:        vrmSearchInputRef.current?.blur();
+1770:        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+1785:                  ref={vrmSearchInputRef}
+1789:                  value={vrmSearch}
+1792:                    if (vrmSearch.length >= 2) {
+1798:                {vrmSearch && (
+1815:              className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+2967:                            className="btn btn-sm btn-primary"
+3381:                        <label className="btn btn-primary btn-sm w-full">
+3576:                      <button className="btn btn-primary btn-sm" onClick={addTask}>
+3823:                    className="btn btn-primary btn-sm w-full"
+4241:                className="btn btn-primary"
+4335:                className="btn btn-primary"
+4506:                      className="btn btn-primary btn-sm gap-2"
+4588:                className="btn btn-primary"
+4646:            {vrmSearchResults.length > 0 ? (
+4649:                  {vrmSearchResults.map((vehicle, idx) => {
+4651:                    const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
+4652:                    const isFirstOfDuplicate = idx === vrmSearchResults.findIndex(v => (v.regCurrent || "").toUpperCase() === vrm);
+4691:            ) : vrmSearch.length >= 2 ? (
+5178:                  <button type="button" className="btn btn-sm btn-primary" onClick={convertAppraisalToStock} disabled={isLoading}>
+5927:            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+5987:            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+
+[Showing results with pagination = limit: 40, offset: 0]

@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2005→
+  2006→                          {/* Tags - Modern Pill Style */}
+  2007→                          <div className="flex gap-1.5 flex-wrap mb-3">
+  2008→                            {vehicle.locationId && (
+  2009→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
+  2010→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2011→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+  2012→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  2013→                                </svg>
+  2014→                                {vehicle.locationId.name || "Offsite"}
+  2015→                              </span>
+  2016→                            )}
+  2017→                            {vehicle.saleType === "TRADE" && (
+  2018→                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
+  2019→                                Trade

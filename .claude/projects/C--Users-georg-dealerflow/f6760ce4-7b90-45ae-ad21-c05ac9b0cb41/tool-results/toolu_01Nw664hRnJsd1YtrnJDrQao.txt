@@ -1,0 +1,43 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2985→                  </button>
+  2986→                </div>
+  2987→              ))}
+  2988→            </div>
+  2989→            <label className="btn btn-outline btn-sm gap-2 w-fit cursor-pointer">
+  2990→              {isUploadingMedia ? (
+  2991→                <span className="loading loading-spinner loading-xs"></span>
+  2992→              ) : (
+  2993→                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2994→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  2995→                </svg>
+  2996→              )}
+  2997→              Add Photos
+  2998→              <input
+  2999→                type="file"
+  3000→                multiple
+  3001→                accept="image/*,.pdf"
+  3002→                className="hidden"
+  3003→                onChange={handleMediaUpload}
+  3004→                disabled={isUploadingMedia}
+  3005→              />
+  3006→            </label>
+  3007→          </div>
+  3008→          </div>{/* End scrollable content */}
+  3009→
+  3010→          {/* Sticky Footer */}
+  3011→          <div
+  3012→            className="shrink-0 flex items-center justify-end gap-3 px-4 py-4 border-t border-slate-200 bg-white"
+  3013→            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+  3014→          >
+  3015→            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+  3016→            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+  3017→              {isLoading ? <span className="loading loading-spinner"></span> : "Create Case"}
+  3018→            </button>
+  3019→          </div>
+  3020→        </form>
+  3021→      </div>
+  3022→      <div className="modal-backdrop" onClick={onClose}></div>
+  3023→    </div>
+  3024→  );
+  3025→}
+  3026→

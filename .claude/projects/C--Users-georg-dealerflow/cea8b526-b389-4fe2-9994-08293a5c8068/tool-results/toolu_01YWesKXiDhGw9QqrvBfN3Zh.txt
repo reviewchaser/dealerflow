@@ -1,0 +1,24 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Appraisal from "@/models/Appraisal";
+     3→import Contact from "@/models/Contact";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import { withDealerContext } from "@/libs/authContext";
+     6→
+     7→async function handler(req, res, ctx) {
+     8→  await connectMongo();
+     9→  const { dealerId } = ctx;
+    10→
+    11→  if (req.method === "GET") {
+    12→    const { decision } = req.query;
+    13→    let query = { dealerId };
+    14→    if (decision && decision !== "all") query.decision = decision;
+    15→
+    16→    const appraisals = await Appraisal.find(query)
+    17→      .populate("contactId")
+    18→      .populate("vehicleId")
+    19→      .sort({ createdAt: -1 })
+    20→      .lean();
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

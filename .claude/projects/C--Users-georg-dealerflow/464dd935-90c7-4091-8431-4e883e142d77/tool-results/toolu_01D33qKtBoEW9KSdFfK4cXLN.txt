@@ -1,0 +1,4 @@
+C:\Users\georg\dealerflow\pages\appraisals\new.js
+C:\Users\georg\dealerflow\pages\appraisals\index.js
+C:\Users\georg\dealerflow\pages\appraisals\[id].js
+C:\Users\georg\dealerflow\pages\appraisals\px\[id].js

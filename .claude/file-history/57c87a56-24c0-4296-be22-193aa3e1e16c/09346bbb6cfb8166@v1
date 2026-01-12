@@ -1,0 +1,92 @@
+// Step 3: Configure workflow templates (board columns, tasks, auto-complete)
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+import VehicleTaskTemplateGroup from "@/models/VehicleTaskTemplateGroup";
+import VehicleTaskTemplate from "@/models/VehicleTaskTemplate";
+import {
+  DEFAULT_BOARD_COLUMNS,
+  DEFAULT_TASK_MAPPINGS,
+  seedFormsForDealer,
+} from "@/libs/seedDefaults";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    await connectMongo();
+
+    const { tasks, autoCompleteEnabled } = req.body;
+
+    // Find the dealer
+    // TODO: In multi-tenant setup, get dealer from session
+    const dealer = await Dealer.findOne();
+
+    if (!dealer) {
+      return res.status(404).json({ error: "Dealer not found" });
+    }
+
+    // 1. Set board columns (use defaults for now)
+    dealer.boardConfig = { columns: DEFAULT_BOARD_COLUMNS };
+
+    // 2. Create or update task template group
+    let taskGroup = await VehicleTaskTemplateGroup.findOne({
+      dealerId: dealer._id,
+      name: "Default Prep",
+    });
+
+    if (!taskGroup) {
+      taskGroup = await VehicleTaskTemplateGroup.create({
+        dealerId: dealer._id,
+        name: "Default Prep",
+        note: "Default preparation tasks for new vehicles",
+      });
+    }
+
+    // Delete existing templates and recreate (simpler than updating)
+    await VehicleTaskTemplate.deleteMany({ groupId: taskGroup._id });
+
+    // Create task templates from provided list or defaults
+    const taskList = tasks && tasks.length > 0 ? tasks : [
+      "Pre-Delivery Inspection",
+      "MOT",
+      "Service / Oil & Filter",
+      "Valet",
+      "Photos",
+      "Advert Live",
+      "Delivery / Handover",
+    ];
+
+    for (let i = 0; i < taskList.length; i++) {
+      await VehicleTaskTemplate.create({
+        groupId: taskGroup._id,
+        name: taskList[i],
+        order: i,
+      });
+    }
+
+    // 3. Set auto-complete settings
+    dealer.taskAutoComplete = {
+      enabled: autoCompleteEnabled !== false,
+      mappings: DEFAULT_TASK_MAPPINGS,
+    };
+
+    // 4. Set default task template group
+    dealer.defaultTaskTemplateGroupId = taskGroup._id;
+
+    await dealer.save();
+
+    // 5. Ensure forms are seeded
+    await seedFormsForDealer(dealer._id);
+
+    return res.status(200).json({
+      success: true,
+      taskGroupId: taskGroup._id,
+      tasksCreated: taskList.length,
+    });
+  } catch (error) {
+    console.error("[Onboarding Workflow] Error:", error);
+    return res.status(500).json({ error: "Failed to save workflow configuration" });
+  }
+}

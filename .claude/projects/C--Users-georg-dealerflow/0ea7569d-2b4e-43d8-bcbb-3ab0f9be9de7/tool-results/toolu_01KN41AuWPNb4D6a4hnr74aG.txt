@@ -1,0 +1,7 @@
+1032:                  {/* Sale Classification Section */}
+1191:                  {/* Vehicle Section */}
+1226:                  {/* Next Actions */}
+1404:                  {/* Pricing Summary */}
+1548:                  {/* Timeline */}
+1626:                  {/* Sold To Section */}
+1695:                  {/* Invoice To Section */}

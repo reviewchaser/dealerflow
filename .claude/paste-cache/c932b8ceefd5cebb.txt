@@ -1,0 +1,365 @@
+Context
+
+DealerHQ is a live, drawer-first dealer ops platform. The Sales module exists but is incomplete. The deal drawer loads and tabs render, but the deal cannot be progressed properly because customer selection/creation doesn’t work, key deal meta fields are missing (finance + B2B/B2C), pricing is not set up to drive totals, deposit is presented too early, and Sales KPIs are not meaningful / not flexible enough.
+
+This work must not break existing Stock & Prep, Aftersales/Warranty, Forms/Submissions, or Contacts modules.
+
+Priority 1 — Fix Customer selection + creation inside Deal Drawer (must work)
+Current issue
+
+On the deal drawer Customer tab, I cannot search or add customers. The UI shows an input but it does nothing / cannot create.
+
+This likely relates to the known Contacts bug (required field mismatch e.g. displayName vs name).
+
+Required behaviour
+
+Inside a sale, I must be able to:
+
+Search existing contacts by name/email/phone/company
+
+Select a contact as the “Sold To” customer
+
+Create a new customer inline if not found (minimal fields)
+
+After creating, it auto-selects the new contact
+
+This must work from both:
+
+Sales page deal drawer
+
+Any “Create sale” flow
+
+Implementation requirements
+
+Fix the Contact schema / API required fields to be consistent
+
+Choose ONE primary name field: either displayName or name
+
+Ensure creation endpoints + UI use the same field
+
+Required fields should be minimal and logical
+
+Ensure contact search API supports:
+
+query q searching across displayName/name, email, phone, company
+
+Customer picker UI behaviour:
+
+shows results as you type
+
+if no results, shows “Create ‘X’” action
+
+creating a contact does not require extra fields beyond a name (email/phone optional)
+
+Acceptance criteria / tests
+
+Create a new deal → open Customer tab → type “John” → results show
+
+Type a new name that doesn’t exist → “Create…” appears → click → contact created and selected
+
+Refresh deal → customer still attached
+
+No console errors, no API errors
+
+Contact creation works globally (not just in Sale picker)
+
+Priority 2 — Fix Deal structure + flow (Summary/Overview must be actionable)
+Current issue
+
+“Take deposit” appears first but deposit cannot be taken until customer and pricing exist. Flow is backwards and allows users to get stuck.
+
+Required outcome
+
+Deal drawer should guide progression without being annoying:
+
+Show what’s missing and block deposit/invoicing actions until prerequisites are met
+
+Keep it drawer-first and calm
+
+Required changes
+
+Rename “Overview” to “Summary” (optional but preferred)
+
+Add a “Deal Readiness” block at top of Summary (or keep “Actions” but redesign it):
+
+Checklist items:
+
+Vehicle selected ✅
+
+Customer selected ✅/❌
+
+Deal Type selected ✅/❌ (Retail/Trade/B2B)
+
+Payment Type selected ✅/❌ (Cash/Card/Finance/Mixed)
+
+Pricing set ✅/❌ (vehicle price at minimum)
+
+VAT treatment selected ✅/❌
+
+Each missing item should link to correct section/tab
+
+Gate actions:
+
+“Take deposit” is disabled until:
+
+customer selected
+
+vehicle sale price entered
+
+deposit amount entered
+
+payment method chosen
+
+When disabled, show tooltip explaining what’s missing
+
+Add “Delete draft” action for Draft deals (see Priority 5)
+
+Acceptance criteria / tests
+
+Open draft deal with no customer → “Take deposit” disabled and explains why
+
+Once customer + price set → deposit can be taken
+
+Deal can progress without dead ends
+
+Priority 3 — Add Deal Meta: Finance, B2B/B2C, rights classification, VAT treatment
+Current gaps
+
+There is nowhere to set:
+
+if the deal is finance
+
+if it is B2B/B2C / trade / retail (affects consumer rights & terms)
+
+VAT treatment on sale (standard, margin, zero-rated)
+
+Required UI section (in Summary tab near the top)
+
+Create a “Deal Details” section with fields:
+
+Sale Type (rights classification)
+
+Retail (B2C)
+
+Trade (B2B)
+
+B2B (non-trade buyer) (optional if you want, but ideally include)
+
+Export (optional; can be a toggle)
+
+Payment Type
+
+Cash/Bank
+
+Card
+
+Finance
+
+Mixed
+
+If Finance selected, show finance sub-fields (MVP level, not a full finance system):
+
+Finance provider (text or dropdown)
+
+Finance type: HP / PCP / Lease / Other
+
+Amount financed
+
+Customer deposit (cash deposit)
+
+Term months (optional)
+
+APR (optional)
+
+Finance status: Quoted / Submitted / Accepted / Paid Out
+
+VAT Treatment on Sale
+
+Standard VAT
+
+Margin scheme
+
+Zero-rated VAT (export/special case)
+
+Exempt / No VAT
+
+Defaults:
+
+if vehicle purchase scheme is VAT qualifying → default Standard VAT
+
+if vehicle scheme is Margin → default Margin
+
+allow override to Zero-rated where needed
+
+Data model requirements
+
+Persist these on the Sale model so reporting can use them:
+
+saleType
+
+paymentType
+
+finance fields (nullable)
+
+vatTreatment
+
+Acceptance criteria / tests
+
+I can set sale type + payment type + VAT treatment
+
+If finance selected, finance fields appear and save
+
+Refresh deal → values persist
+
+VAT treatment exists on sale and is used in invoice logic later
+
+Priority 4 — Pricing must be real (deal totals and balance due must compute)
+Current issue
+
+Pricing shows £0.00 totals and doesn’t appear to be driven by user inputs (vehicle price missing).
+
+Required behaviour
+
+Implement minimum pricing inputs and calculations:
+
+Vehicle sale price (required before deposit/invoice)
+
+Add-ons should contribute to total (existing Add-ons tab)
+
+Payments/deposits reduce balance due
+
+Total + Balance Due should update live
+
+Optional (nice, but can be later):
+
+Part exchange section (PX value, reg, etc.)
+
+Acceptance criteria / tests
+
+Enter vehicle sale price → total updates
+
+Add an add-on → total updates
+
+Record deposit payment → balance due decreases
+
+Total/balance persist on refresh
+
+Priority 5 — Sales page KPIs + reporting flexibility (must match reality)
+Current issues
+
+Period dropdown is too limited
+
+KPIs show £0.00 and “Data Quality 100%” even when deals are incomplete
+
+KPIs likely include Drafts incorrectly or use wrong date basis
+
+Required period options (Sales page)
+
+Replace the current period selector with:
+
+Last 7 days
+
+Last 30 days
+
+This month
+
+Last month
+
+Quarter to date
+
+Year to date
+
+All time
+
+Custom range… (From / To date)
+
+Persist selection in URL (e.g. ?period=last30 or ?from=YYYY-MM-DD&to=YYYY-MM-DD)
+
+KPI definitions
+
+KPIs must be based on event date:
+
+Revenue/VAT/Profit KPIs should be based on invoicedAt or completedAt (choose one and be consistent)
+
+Draft deals must not inflate revenue/profit KPIs
+
+Deposit KPI can use depositTakenAt / payments date
+
+Data Quality KPI
+
+Data Quality must reflect whether KPI calculations include complete data:
+
+Missing SIV should exclude profit calculations and reduce coverage
+
+Missing sale price should exclude revenue/profit etc
+Show coverage indicator like:
+
+“Included: 6/10 deals (4 missing SIV)”
+Never treat missing values as £0 silently.
+
+Acceptance criteria / tests
+
+Switching periods updates KPIs
+
+Draft-only environment shows 0 revenue but correct deal count
+
+If some invoiced deals exist, revenue shows and matches totals
+
+Data Quality reflects missing SIV / missing sale price and shows coverage count
+
+Priority 6 — Add delete for drafts (Sales list + Deal drawer)
+Requirement
+
+I need to delete test draft deals easily.
+
+Rules
+
+Only allow delete if status is Draft
+
+Non-draft should be “Cancel” instead of delete (optional, but at least block delete)
+
+UX
+
+Add kebab menu (⋯) on each sales list item:
+
+Open
+
+Delete (Draft only)
+
+Add “Delete draft” action inside drawer (More actions or footer)
+
+Backend
+
+DELETE /api/app/[dealerSlug]/sales/:id
+
+Confirm modal: irreversible
+
+Acceptance criteria / tests
+
+Delete draft from list removes it
+
+Delete draft from drawer closes drawer and removes from list
+
+Attempt to delete non-draft is blocked or returns 400 with clear message
+
+QA / regression checklist (must be done)
+
+Create sale → select vehicle → automatically routes and opens deal drawer
+
+Customer can be searched and created inside deal
+
+Deposit button disabled until prerequisites met
+
+Deal details persist across refresh
+
+KPIs update with period selector
+
+No Mongoose “model not registered” errors anywhere
+
+No crashes in other modules
+
+If you need to refactor the drawer route state:
+
+Drawer should be URL-driven (/sales?saleId=) and should not auto-close on loading/error.
+
+Errors should render inside the drawer instead.

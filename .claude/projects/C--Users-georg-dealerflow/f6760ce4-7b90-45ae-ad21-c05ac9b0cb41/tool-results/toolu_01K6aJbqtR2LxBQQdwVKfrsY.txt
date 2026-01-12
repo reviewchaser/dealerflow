@@ -1,0 +1,3 @@
+C:\Users\georg\dealerflow\models\DealerMembership.js:4:export const MEMBERSHIP_ROLES = ["OWNER", "ADMIN", "STAFF", "WORKSHOP"];
+C:\Users\georg\dealerflow\models\DealerInvite.js:5:export const INVITE_ROLES = ["OWNER", "ADMIN", "STAFF", "WORKSHOP"];
+C:\Users\georg\dealerflow\pages\settings\team.js:6:const ROLES = ["OWNER", "ADMIN", "STAFF", "WORKSHOP"];

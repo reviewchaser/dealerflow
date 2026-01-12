@@ -1,0 +1,64 @@
+   700→          <p className="text-slate-500 mt-1">Manage warranty cases and aftercare</p>
+   701→        </div>
+   702→        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+   703→          + New Case
+   704→        </button>
+   705→      </div>
+   706→
+   707→      {/* Search Filter */}
+   708→      <div className="mb-4">
+   709→        <div className="relative w-full max-w-sm">
+   710→          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   711→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+   712→          </svg>
+   713→          <input
+   714→            type="text"
+   715→            placeholder="Search by VRM or customer name..."
+   716→            className="input input-bordered w-full pl-10 pr-10"
+   717→            value={searchQuery}
+   718→            onChange={(e) => setSearchQuery(e.target.value)}
+   719→          />
+   720→          {searchQuery && (
+   721→            <button
+   722→              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+   723→              onClick={() => setSearchQuery("")}
+   724→            >
+   725→              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   726→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   727→              </svg>
+   728→            </button>
+   729→          )}
+   730→        </div>
+   731→
+   732→        {/* Filter Dropdown - matching stock board style */}
+   733→        <div className="relative">
+   734→          <button
+   735→            className={`btn btn-sm gap-2 ${hasActiveFilters() ? "btn-primary" : "btn-outline"}`}
+   736→            onClick={() => setShowFiltersDropdown(!showFiltersDropdown)}
+   737→          >
+   738→            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   739→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+   740→            </svg>
+   741→            Filters
+   742→            {hasActiveFilters() && (
+   743→              <span className="badge badge-sm badge-secondary">
+   744→                {Object.values(filters).filter(v => v !== "all").length}
+   745→              </span>
+   746→            )}
+   747→          </button>
+   748→
+   749→          {showFiltersDropdown && (
+   750→            <div className="absolute z-30 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+   751→              <div className="flex justify-between items-center mb-3">
+   752→                <h4 className="font-semibold text-sm">Filters</h4>
+   753→                {hasActiveFilters() && (
+   754→                  <button className="btn btn-ghost btn-xs" onClick={clearFilters}>
+   755→                    Clear all
+   756→                  </button>
+   757→                )}
+   758→              </div>
+   759→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

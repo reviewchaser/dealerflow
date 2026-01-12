@@ -1,0 +1,102 @@
+import connectMongo from "@/libs/mongoose";
+import CalendarEvent from "@/models/CalendarEvent";
+import CalendarCategory from "@/models/CalendarCategory";
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { start, end, categoryId } = req.query;
+      let query = {};
+
+      if (start && end) {
+        query.startDatetime = { $gte: new Date(start), $lte: new Date(end) };
+      }
+      if (categoryId) query.categoryId = categoryId;
+
+      const events = await CalendarEvent.find(query)
+        .populate("categoryId")
+        .populate("linkedContactId")
+        .populate("linkedVehicleId")
+        .sort({ startDatetime: 1 })
+        .lean();
+
+      // Transform _id to id for events and nested objects
+      const result = events.map(event => ({
+        id: event._id.toString(),
+        title: event.title,
+        description: event.description,
+        categoryId: event.categoryId ? {
+          id: event.categoryId._id?.toString(),
+          name: event.categoryId.name,
+          colour: event.categoryId.colour,
+        } : null,
+        startDatetime: event.startDatetime,
+        endDatetime: event.endDatetime,
+        linkedContactId: event.linkedContactId,
+        linkedVehicleId: event.linkedVehicleId,
+        createdAt: event.createdAt,
+        updatedAt: event.updatedAt,
+      }));
+
+      return res.status(200).json(result);
+    }
+
+    if (req.method === "POST") {
+      const {
+        title, description, categoryId,
+        startDatetime, endDatetime,
+        linkedContactId, linkedVehicleId, linkedLeadId, linkedAftercareCaseId
+      } = req.body;
+
+      if (!title || !startDatetime || !endDatetime) {
+        return res.status(400).json({ error: "Title, start and end time required" });
+      }
+
+      const eventData = {
+        title,
+        description,
+        startDatetime: new Date(startDatetime),
+        endDatetime: new Date(endDatetime),
+      };
+
+      // Only add categoryId if it's a valid ObjectId
+      if (categoryId && categoryId !== "") {
+        eventData.categoryId = categoryId;
+      }
+
+      // Only add linked IDs if they exist
+      if (linkedContactId) eventData.linkedContactId = linkedContactId;
+      if (linkedVehicleId) eventData.linkedVehicleId = linkedVehicleId;
+      if (linkedLeadId) eventData.linkedLeadId = linkedLeadId;
+      if (linkedAftercareCaseId) eventData.linkedAftercareCaseId = linkedAftercareCaseId;
+
+      const event = await CalendarEvent.create(eventData);
+
+      const populated = await CalendarEvent.findById(event._id)
+        .populate("categoryId").lean();
+
+      // Transform for response
+      return res.status(201).json({
+        id: populated._id.toString(),
+        title: populated.title,
+        description: populated.description,
+        categoryId: populated.categoryId ? {
+          id: populated.categoryId._id?.toString(),
+          name: populated.categoryId.name,
+          colour: populated.categoryId.colour,
+        } : null,
+        startDatetime: populated.startDatetime,
+        endDatetime: populated.endDatetime,
+        createdAt: populated.createdAt,
+        updatedAt: populated.updatedAt,
+      });
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    console.error("Calendar API error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

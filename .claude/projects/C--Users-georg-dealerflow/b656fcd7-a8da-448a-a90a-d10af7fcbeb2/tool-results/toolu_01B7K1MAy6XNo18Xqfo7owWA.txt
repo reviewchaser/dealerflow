@@ -1,0 +1,1430 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import { useSession } from "next-auth/react";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import { toast } from "react-hot-toast";
+     8→
+     9→export default function Calendar() {
+    10→  const router = useRouter();
+    11→  const { data: session } = useSession();
+    12→  const [events, setEvents] = useState([]);
+    13→  const [categories, setCategories] = useState([]);
+    14→  const [isLoading, setIsLoading] = useState(true);
+    15→  const [showAddModal, setShowAddModal] = useState(false);
+    16→  const [editingEvent, setEditingEvent] = useState(null);
+    17→  const [selectedDate, setSelectedDate] = useState(new Date());
+    18→  const [viewMode, setViewMode] = useState("week"); // day, 3day, week, month
+    19→  const [isMobile, setIsMobile] = useState(false);
+    20→  const [searchQuery, setSearchQuery] = useState("");
+    21→  const [selectedCategories, setSelectedCategories] = useState([]);
+    22→  const [showHolidayModal, setShowHolidayModal] = useState(false);
+    23→  const [pendingHolidayCount, setPendingHolidayCount] = useState(0);
+    24→  const [userRole, setUserRole] = useState(null);
+    25→
+    26→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    27→
+    28→  // Fetch user's role from dealer context
+    29→  useEffect(() => {
+    30→    const fetchRole = async () => {
+    31→      try {
+    32→        const res = await fetch("/api/dealer");
+    33→        if (res.ok) {
+    34→          const data = await res.json();
+    35→          setUserRole(data.currentUserRole);
+    36→        }
+    37→      } catch (error) {
+    38→        console.error("Failed to fetch user role:", error);
+    39→      }
+    40→    };
+    41→    fetchRole();
+    42→  }, []);
+    43→
+    44→  // Detect mobile
+    45→  useEffect(() => {
+    46→    const checkMobile = () => {
+    47→      const mobile = window.innerWidth < 768;
+    48→      setIsMobile(mobile);
+    49→      // On mobile, default to 3day view if currently on week
+    50→      if (mobile && viewMode === "week") {
+    51→        setViewMode("3day");
+    52→      }
+    53→    };
+    54→    checkMobile();
+    55→    window.addEventListener("resize", checkMobile);
+    56→    return () => window.removeEventListener("resize", checkMobile);
+    57→  }, [viewMode]);
+    58→
+    59→  useEffect(() => {
+    60→    fetchEvents();
+    61→    fetchCategories();
+    62→    if (isAdmin) {
+    63→      fetchPendingHolidayCount();
+    64→    }
+    65→  }, [isAdmin]);
+    66→
+    67→  const fetchEvents = async () => {
+    68→    try {
+    69→      const start = new Date();
+    70→      start.setMonth(start.getMonth() - 1);
+    71→      const end = new Date();
+    72→      end.setMonth(end.getMonth() + 3);
+    73→
+    74→      const res = await fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`);
+    75→      // Check for JSON response
+    76→      const contentType = res.headers.get("content-type") || "";
+    77→      if (!contentType.includes("application/json")) {
+    78→        console.error("[Calendar] Non-JSON response:", res.status);
+    79→        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load events");
+    80→        setEvents([]);
+    81→        return;
+    82→      }
+    83→      if (!res.ok) {
+    84→        const err = await res.json();
+    85→        toast.error(err.error || "Failed to load events");
+    86→        setEvents([]);
+    87→        return;
+    88→      }
+    89→      const data = await res.json();
+    90→      setEvents(Array.isArray(data) ? data : []);
+    91→    } catch (error) {
+    92→      console.error("[Calendar] Fetch error:", error);
+    93→      toast.error("Failed to load events");
+    94→      setEvents([]);
+    95→    } finally {
+    96→      setIsLoading(false);
+    97→    }
+    98→  };
+    99→
+   100→  const fetchCategories = async () => {
+   101→    try {
+   102→      const res = await fetch("/api/calendar/categories");
+   103→      // Check for JSON response
+   104→      const contentType = res.headers.get("content-type") || "";
+   105→      if (!contentType.includes("application/json")) {
+   106→        console.error("[Calendar] Categories non-JSON response:", res.status);
+   107→        setCategories([]);
+   108→        return;
+   109→      }
+   110→      if (!res.ok) {
+   111→        setCategories([]);
+   112→        return;
+   113→      }
+   114→      const data = await res.json();
+   115→      setCategories(Array.isArray(data) ? data : []);
+   116→    } catch (error) {
+   117→      console.error("Failed to load categories");
+   118→      setCategories([]);
+   119→    }
+   120→  };
+   121→
+   122→  const fetchPendingHolidayCount = async () => {
+   123→    try {
+   124→      const res = await fetch("/api/holiday-requests?status=PENDING");
+   125→      // Check for JSON response
+   126→      const contentType = res.headers.get("content-type") || "";
+   127→      if (!contentType.includes("application/json")) {
+   128→        setPendingHolidayCount(0);
+   129→        return;
+   130→      }
+   131→      if (!res.ok) {
+   132→        setPendingHolidayCount(0);
+   133→        return;
+   134→      }
+   135→      const data = await res.json();
+   136→      setPendingHolidayCount(Array.isArray(data) ? data.length : 0);
+   137→    } catch (error) {
+   138→      console.error("Failed to load pending holiday count");
+   139→      setPendingHolidayCount(0);
+   140→    }
+   141→  };
+   142→
+   143→  // Filter events by search query and categories
+   144→  const filteredEvents = events.filter((event) => {
+   145→    // Search filter
+   146→    if (searchQuery) {
+   147→      const query = searchQuery.toLowerCase();
+   148→      const matchesTitle = event.title?.toLowerCase().includes(query);
+   149→      const matchesDescription = event.description?.toLowerCase().includes(query);
+   150→      const matchesCategory = event.categoryId?.name?.toLowerCase().includes(query);
+   151→      if (!matchesTitle && !matchesDescription && !matchesCategory) {
+   152→        return false;
+   153→      }
+   154→    }
+   155→    // Category filter
+   156→    if (selectedCategories.length > 0) {
+   157→      if (!selectedCategories.includes(event.categoryId?.id || event.categoryId?._id)) {
+   158→        return false;
+   159→      }
+   160→    }
+   161→    return true;
+   162→  });
+   163→
+   164→  // Group filtered events by date
+   165→  const eventsByDate = filteredEvents.reduce((acc, event) => {
+   166→    const dateKey = new Date(event.startDatetime).toDateString();
+   167→    if (!acc[dateKey]) acc[dateKey] = [];
+   168→    acc[dateKey].push(event);
+   169→    return acc;
+   170→  }, {});
+   171→
+   172→  // Navigation functions
+   173→  const goToToday = () => setSelectedDate(new Date());
+   174→
+   175→  const goToPrevious = () => {
+   176→    const newDate = new Date(selectedDate);
+   177→    if (viewMode === "day") newDate.setDate(newDate.getDate() - 1);
+   178→    else if (viewMode === "3day") newDate.setDate(newDate.getDate() - 3);
+   179→    else if (viewMode === "week") newDate.setDate(newDate.getDate() - 7);
+   180→    else newDate.setMonth(newDate.getMonth() - 1);
+   181→    setSelectedDate(newDate);
+   182→  };
+   183→
+   184→  const goToNext = () => {
+   185→    const newDate = new Date(selectedDate);
+   186→    if (viewMode === "day") newDate.setDate(newDate.getDate() + 1);
+   187→    else if (viewMode === "3day") newDate.setDate(newDate.getDate() + 3);
+   188→    else if (viewMode === "week") newDate.setDate(newDate.getDate() + 7);
+   189→    else newDate.setMonth(newDate.getMonth() + 1);
+   190→    setSelectedDate(newDate);
+   191→  };
+   192→
+   193→  // Get 3 days for 3-day view (centered on selected date)
+   194→  const get3Days = () => {
+   195→    const days = [];
+   196→    const startDate = new Date(selectedDate);
+   197→    startDate.setDate(startDate.getDate() - 1); // Start from day before
+   198→
+   199→    for (let i = 0; i < 3; i++) {
+   200→      const day = new Date(startDate);
+   201→      day.setDate(day.getDate() + i);
+   202→      days.push(day);
+   203→    }
+   204→    return days;
+   205→  };
+   206→
+   207→  // Get week days for week view
+   208→  const getWeekDays = () => {
+   209→    const days = [];
+   210→    const startOfWeek = new Date(selectedDate);
+   211→    const dayOfWeek = startOfWeek.getDay();
+   212→    startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek); // Start from Sunday
+   213→
+   214→    for (let i = 0; i < 7; i++) {
+   215→      const day = new Date(startOfWeek);
+   216→      day.setDate(day.getDate() + i);
+   217→      days.push(day);
+   218→    }
+   219→    return days;
+   220→  };
+   221→
+   222→  // Get days for current month view
+   223→  const getDaysInMonth = () => {
+   224→    const year = selectedDate.getFullYear();
+   225→    const month = selectedDate.getMonth();
+   226→    const firstDay = new Date(year, month, 1);
+   227→    const lastDay = new Date(year, month + 1, 0);
+   228→    const days = [];
+   229→
+   230→    for (let i = 0; i < firstDay.getDay(); i++) {
+   231→      days.push(null);
+   232→    }
+   233→
+   234→    for (let i = 1; i <= lastDay.getDate(); i++) {
+   235→      days.push(new Date(year, month, i));
+   236→    }
+   237→
+   238→    return days;
+   239→  };
+   240→
+   241→  const monthNames = ["January", "February", "March", "April", "May", "June",
+   242→    "July", "August", "September", "October", "November", "December"];
+   243→
+   244→  const formatTime = (date) => {
+   245→    return new Date(date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+   246→  };
+   247→
+   248→  const handleEventClick = (event) => {
+   249→    setEditingEvent(event);
+   250→  };
+   251→
+   252→  // Get display text for current view
+   253→  const getDateDisplay = () => {
+   254→    if (viewMode === "day") {
+   255→      return selectedDate.toLocaleDateString("en-GB", { weekday: 'short', day: 'numeric', month: 'short' });
+   256→    }
+   257→    if (viewMode === "3day") {
+   258→      const days = get3Days();
+   259→      return `${days[0].getDate()} - ${days[2].getDate()} ${monthNames[days[1].getMonth()].slice(0, 3)}`;
+   260→    }
+   261→    if (viewMode === "week") {
+   262→      const days = getWeekDays();
+   263→      return `${days[0].getDate()} - ${days[6].getDate()} ${monthNames[days[0].getMonth()].slice(0, 3)}`;
+   264→    }
+   265→    return `${monthNames[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
+   266→  };
+   267→
+   268→  return (
+   269→    <DashboardLayout>
+   270→      <Head><title>Calendar | DealerFlow</title></Head>
+   271→
+   272→      {/* Header - Flex Row on all screens */}
+   273→      <div className="flex items-center justify-between mb-4">
+   274→        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Calendar</h1>
+   275→        <div className="flex items-center gap-2">
+   276→          <button
+   277→            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors"
+   278→            onClick={() => setShowHolidayModal(true)}
+   279→          >
+   280→            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   281→              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+   282→            </svg>
+   283→            <span className="hidden sm:inline">Request Holiday</span>
+   284→          </button>
+   285→          <button
+   286→            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors"
+   287→            onClick={() => setShowAddModal(true)}
+   288→          >
+   289→            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   290→              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+   291→            </svg>
+   292→            <span className="hidden sm:inline">New Event</span>
+   293→          </button>
+   294→        </div>
+   295→      </div>
+   296→
+   297→      {/* Navigation Bar - Clean Light Theme */}
+   298→      <div className="flex flex-col gap-3 mb-4 p-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+   299→        {/* Top Row: Date Navigation + View Toggle */}
+   300→        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+   301→          {/* Date Navigation */}
+   302→          <div className="flex items-center gap-1">
+   303→            <button
+   304→              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+   305→              onClick={goToPrevious}
+   306→            >
+   307→              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   308→                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+   309→              </svg>
+   310→            </button>
+   311→            <button
+   312→              className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+   313→              onClick={goToToday}
+   314→            >
+   315→              Today
+   316→            </button>
+   317→            <button
+   318→              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+   319→              onClick={goToNext}
+   320→            >
+   321→              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   322→                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+   323→              </svg>
+   324→            </button>
+   325→            <span className="font-semibold text-sm text-slate-800 ml-2">
+   326→              {getDateDisplay()}
+   327→            </span>
+   328→          </div>
+   329→
+   330→          {/* View Toggle - Clean buttons */}
+   331→          <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+   332→            <button
+   333→              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "day" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
+   334→              onClick={() => setViewMode("day")}
+   335→            >
+   336→              Day
+   337→            </button>
+   338→            {isMobile ? (
+   339→              <button
+   340→                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "3day" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
+   341→                onClick={() => setViewMode("3day")}
+   342→              >
+   343→                3 Day
+   344→              </button>
+   345→            ) : (
+   346→              <button
+   347→                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "week" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
+   348→                onClick={() => setViewMode("week")}
+   349→              >
+   350→                Week
+   351→              </button>
+   352→            )}
+   353→            <button
+   354→              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${viewMode === "month" ? "bg-white text-slate-800 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}
+   355→              onClick={() => setViewMode("month")}
+   356→            >
+   357→              Month
+   358→            </button>
+   359→          </div>
+   360→        </div>
+   361→
+   362→        {/* Bottom Row: Search + Category Filter */}
+   363→        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+   364→          {/* Search Input */}
+   365→          <div className="relative flex-1 sm:max-w-xs">
+   366→            <input
+   367→              type="text"
+   368→              placeholder="Search events..."
+   369→              className="w-full h-9 pl-9 pr-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+   370→              value={searchQuery}
+   371→              onChange={(e) => setSearchQuery(e.target.value)}
+   372→            />
+   373→            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   374→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+   375→            </svg>
+   376→            {searchQuery && (
+   377→              <button
+   378→                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+   379→                onClick={() => setSearchQuery("")}
+   380→              >
+   381→                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   382→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   383→                </svg>
+   384→              </button>
+   385→            )}
+   386→          </div>
+   387→
+   388→          {/* Category Filter - Multi-select dropdown */}
+   389→          <div className="dropdown dropdown-end">
+   390→            <label
+   391→              tabIndex={0}
+   392→              className="h-9 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg cursor-pointer flex items-center gap-2 hover:bg-slate-100 transition-colors"
+   393→            >
+   394→              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   395→                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+   396→              </svg>
+   397→              <span className="text-slate-700">
+   398→                {selectedCategories.length === 0
+   399→                  ? "All Categories"
+   400→                  : `${selectedCategories.length} selected`}
+   401→              </span>
+   402→              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   403→                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+   404→              </svg>
+   405→            </label>
+   406→            <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-white rounded-lg w-56 max-h-60 overflow-y-auto border border-slate-200 mt-1">
+   407→              {categories.length === 0 ? (
+   408→                <li><span className="text-slate-500 text-sm">No categories</span></li>
+   409→              ) : (
+   410→                <>
+   411→                  {selectedCategories.length > 0 && (
+   412→                    <li className="mb-1">
+   413→                      <button
+   414→                        className="text-sm text-blue-600 hover:bg-blue-50"
+   415→                        onClick={() => setSelectedCategories([])}
+   416→                      >
+   417→                        Clear all
+   418→                      </button>
+   419→                    </li>
+   420→                  )}
+   421→                  {categories.map((cat) => {
+   422→                    const isSelected = selectedCategories.includes(cat.id);
+   423→                    return (
+   424→                      <li key={cat.id}>
+   425→                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+   426→                          <input
+   427→                            type="checkbox"
+   428→                            className="checkbox checkbox-sm checkbox-primary"
+   429→                            checked={isSelected}
+   430→                            onChange={() => {
+   431→                              if (isSelected) {
+   432→                                setSelectedCategories(selectedCategories.filter((id) => id !== cat.id));
+   433→                              } else {
+   434→                                setSelectedCategories([...selectedCategories, cat.id]);
+   435→                              }
+   436→                            }}
+   437→                          />
+   438→                          <div className="w-3 h-3 rounded" style={{ backgroundColor: cat.colour }}></div>
+   439→                          <span>{cat.name}</span>
+   440→                        </label>
+   441→                      </li>
+   442→                    );
+   443→                  })}
+   444→                </>
+   445→              )}
+   446→            </ul>
+   447→          </div>
+   448→
+   449→          {/* Active Filters Indicator */}
+   450→          {(searchQuery || selectedCategories.length > 0) && (
+   451→            <span className="text-xs text-slate-500">
+   452→              {filteredEvents.length} of {events.length} events
+   453→            </span>
+   454→          )}
+   455→        </div>
+   456→      </div>
+   457→
+   458→      {isLoading ? (
+   459→        <div className="flex justify-center py-20">
+   460→          <span className="loading loading-spinner loading-lg text-blue-600"></span>
+   461→        </div>
+   462→      ) : (
+   463→        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+   464→          {/* Calendar View */}
+   465→          <div className="lg:col-span-3">
+   466→            {viewMode === "month" && (
+   467→              <MonthView
+   468→                days={getDaysInMonth()}
+   469→                eventsByDate={eventsByDate}
+   470→                selectedDate={selectedDate}
+   471→                onEventClick={handleEventClick}
+   472→                isMobile={isMobile}
+   473→              />
+   474→            )}
+   475→            {viewMode === "week" && (
+   476→              <WeekView
+   477→                days={getWeekDays()}
+   478→                eventsByDate={eventsByDate}
+   479→                onEventClick={handleEventClick}
+   480→                formatTime={formatTime}
+   481→              />
+   482→            )}
+   483→            {viewMode === "3day" && (
+   484→              <ThreeDayView
+   485→                days={get3Days()}
+   486→                eventsByDate={eventsByDate}
+   487→                onEventClick={handleEventClick}
+   488→                formatTime={formatTime}
+   489→              />
+   490→            )}
+   491→            {viewMode === "day" && (
+   492→              <DayView
+   493→                day={selectedDate}
+   494→                events={eventsByDate[selectedDate.toDateString()] || []}
+   495→                onEventClick={handleEventClick}
+   496→                formatTime={formatTime}
+   497→              />
+   498→            )}
+   499→          </div>
+   500→
+   501→          {/* Sidebar - Hidden on mobile, visible on lg */}
+   502→          <div className="hidden lg:block lg:col-span-1 space-y-4">
+   503→            {/* Pending Holiday Approvals - Admin/Owner only */}
+   504→            {isAdmin && pendingHolidayCount > 0 && (
+   505→              <Link href="/settings/holidays?filter=pending" className="block">
+   506→                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors cursor-pointer">
+   507→                  <div className="flex items-center gap-3">
+   508→                    <div className="p-2 bg-amber-100 rounded-lg">
+   509→                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   510→                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+   511→                      </svg>
+   512→                    </div>
+   513→                    <div className="flex-1">
+   514→                      <p className="font-semibold text-amber-800">Pending Approvals</p>
+   515→                      <p className="text-sm text-amber-600">{pendingHolidayCount} holiday request{pendingHolidayCount !== 1 ? "s" : ""}</p>
+   516→                    </div>
+   517→                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   518→                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+   519→                    </svg>
+   520→                  </div>
+   521→                </div>
+   522→              </Link>
+   523→            )}
+   524→
+   525→            <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+   526→              <div className="p-4">
+   527→                <h3 className="font-semibold text-slate-800 mb-3">Upcoming Events</h3>
+   528→                <div className="space-y-2 max-h-64 overflow-y-auto">
+   529→                  {events
+   530→                    .filter(e => new Date(e.startDatetime) >= new Date())
+   531→                    .slice(0, 5)
+   532→                    .map((event) => (
+   533→                      <div
+   534→                        key={event.id}
+   535→                        className="p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+   536→                        onClick={() => handleEventClick(event)}
+   537→                      >
+   538→                        <div className="flex items-center gap-2">
+   539→                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: event.categoryId?.colour || "#6366f1" }}></div>
+   540→                          <p className="font-medium text-sm text-slate-800 truncate">{event.title}</p>
+   541→                        </div>
+   542→                        <p className="text-xs text-slate-500 mt-1">
+   543→                          {new Date(event.startDatetime).toLocaleDateString()} at {formatTime(event.startDatetime)}
+   544→                        </p>
+   545→                      </div>
+   546→                    ))}
+   547→                  {events.filter(e => new Date(e.startDatetime) >= new Date()).length === 0 && (
+   548→                    <p className="text-sm text-slate-500">No upcoming events</p>
+   549→                  )}
+   550→                </div>
+   551→
+   552→                <div className="border-t border-slate-100 my-3"></div>
+   553→
+   554→                {/* Categories */}
+   555→                <h3 className="font-semibold text-slate-800 mb-3">Categories</h3>
+   556→                <div className="space-y-2">
+   557→                  {categories.map((cat) => (
+   558→                    <div key={cat.id} className="flex items-center gap-2">
+   559→                      <div className="w-3 h-3 rounded" style={{ backgroundColor: cat.colour }}></div>
+   560→                      <span className="text-sm text-slate-600">{cat.name}</span>
+   561→                    </div>
+   562→                  ))}
+   563→                  {categories.length === 0 && (
+   564→                    <p className="text-sm text-slate-500">No categories yet</p>
+   565→                  )}
+   566→                </div>
+   567→              </div>
+   568→            </div>
+   569→          </div>
+   570→        </div>
+   571→      )}
+   572→
+   573→      {/* Mobile FAB */}
+   574→      {isMobile && (
+   575→        <button
+   576→          className="fixed fab-safe right-6 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg z-50 transition-colors"
+   577→          onClick={() => setShowAddModal(true)}
+   578→        >
+   579→          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   580→            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+   581→          </svg>
+   582→        </button>
+   583→      )}
+   584→
+   585→      {/* Add Event Modal */}
+   586→      {showAddModal && (
+   587→        <EventModal
+   588→          categories={categories}
+   589→          onClose={() => setShowAddModal(false)}
+   590→          onSuccess={() => { setShowAddModal(false); fetchEvents(); }}
+   591→          onCategoriesChange={fetchCategories}
+   592→        />
+   593→      )}
+   594→
+   595→      {/* Edit Event Modal */}
+   596→      {editingEvent && (
+   597→        <EventModal
+   598→          event={editingEvent}
+   599→          categories={categories}
+   600→          onClose={() => setEditingEvent(null)}
+   601→          onSuccess={() => { setEditingEvent(null); fetchEvents(); }}
+   602→          onCategoriesChange={fetchCategories}
+   603→          onDelete={() => { setEditingEvent(null); fetchEvents(); }}
+   604→        />
+   605→      )}
+   606→
+   607→      {/* Holiday Request Modal */}
+   608→      {showHolidayModal && (
+   609→        <HolidayRequestModal
+   610→          onClose={() => setShowHolidayModal(false)}
+   611→          onSuccess={() => {
+   612→            setShowHolidayModal(false);
+   613→            toast.success("Holiday request submitted");
+   614→            // Optionally navigate to holidays page
+   615→            router.push("/settings/holidays");
+   616→          }}
+   617→        />
+   618→      )}
+   619→    </DashboardLayout>
+   620→  );
+   621→}
+   622→
+   623→// Month View Component - Clean Light Theme
+   624→function MonthView({ days, eventsByDate, selectedDate, onEventClick, isMobile }) {
+   625→  return (
+   626→    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+   627→      {/* Day Headers */}
+   628→      <div className="grid grid-cols-7 border-b border-slate-100">
+   629→        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+   630→          <div
+   631→            key={day}
+   632→            className={`text-center text-xs font-medium text-slate-500 py-3 ${i < 6 ? "border-r border-slate-100" : ""}`}
+   633→          >
+   634→            {isMobile ? day.charAt(0) : day}
+   635→          </div>
+   636→        ))}
+   637→      </div>
+   638→
+   639→      {/* Calendar Days */}
+   640→      <div className="grid grid-cols-7">
+   641→        {days.map((day, i) => {
+   642→          if (!day) {
+   643→            return (
+   644→              <div
+   645→                key={i}
+   646→                className={`h-20 md:h-28 bg-slate-50/50 ${(i + 1) % 7 !== 0 ? "border-r border-slate-100" : ""} border-b border-slate-100`}
+   647→              ></div>
+   648→            );
+   649→          }
+   650→
+   651→          const dateKey = day.toDateString();
+   652→          const dayEvents = eventsByDate[dateKey] || [];
+   653→          const isToday = day.toDateString() === new Date().toDateString();
+   654→
+   655→          return (
+   656→            <div
+   657→              key={i}
+   658→              className={`h-20 md:h-28 p-1 md:p-2 ${(i + 1) % 7 !== 0 ? "border-r border-slate-100" : ""} border-b border-slate-100 overflow-hidden`}
+   659→            >
+   660→              <div className={`text-xs md:text-sm font-medium ${isToday ? "text-blue-600" : "text-slate-700"}`}>
+   661→                {isToday ? (
+   662→                  <span className="inline-flex items-center justify-center w-6 h-6 bg-blue-600 text-white rounded-full text-xs">
+   663→                    {day.getDate()}
+   664→                  </span>
+   665→                ) : (
+   666→                  day.getDate()
+   667→                )}
+   668→              </div>
+   669→              {isMobile ? (
+   670→                // Mobile: show colored dots
+   671→                <div className="flex flex-wrap gap-0.5 mt-1">
+   672→                  {dayEvents.slice(0, 3).map((event, j) => (
+   673→                    <div
+   674→                      key={j}
+   675→                      className="w-1.5 h-1.5 rounded-full cursor-pointer"
+   676→                      style={{ backgroundColor: event.categoryId?.colour || "#6366f1" }}
+   677→                      onClick={() => onEventClick(event)}
+   678→                    ></div>
+   679→                  ))}
+   680→                  {dayEvents.length > 3 && (
+   681→                    <span className="text-[10px] text-slate-400">+{dayEvents.length - 3}</span>
+   682→                  )}
+   683→                </div>
+   684→              ) : (
+   685→                // Desktop: show event titles
+   686→                <div className="space-y-0.5 mt-1">
+   687→                  {dayEvents.slice(0, 2).map((event, j) => (
+   688→                    <div
+   689→                      key={j}
+   690→                      className="text-xs px-1.5 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity"
+   691→                      style={{ backgroundColor: event.categoryId?.colour || "#6366f1", color: "white" }}
+   692→                      onClick={() => onEventClick(event)}
+   693→                    >
+   694→                      {event.title}
+   695→                    </div>
+   696→                  ))}
+   697→                  {dayEvents.length > 2 && (
+   698→                    <div className="text-[10px] text-slate-400 pl-1">+{dayEvents.length - 2} more</div>
+   699→                  )}
+   700→                </div>
+   701→              )}
+   702→            </div>
+   703→          );
+   704→        })}
+   705→      </div>
+   706→    </div>
+   707→  );
+   708→}
+   709→
+   710→// Week View Component - Clean Light Theme (Desktop only)
+   711→function WeekView({ days, eventsByDate, onEventClick, formatTime }) {
+   712→  return (
+   713→    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+   714→      {/* Day Headers */}
+   715→      <div className="grid grid-cols-7 border-b border-slate-100">
+   716→        {days.map((day, i) => {
+   717→          const isToday = day.toDateString() === new Date().toDateString();
+   718→          return (
+   719→            <div
+   720→              key={i}
+   721→              className={`text-center py-3 ${i < 6 ? "border-r border-slate-100" : ""}`}
+   722→            >
+   723→              <div className={`text-xs font-medium ${isToday ? "text-blue-600" : "text-slate-500"}`}>
+   724→                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day.getDay()]}
+   725→              </div>
+   726→              <div className={`text-lg font-bold ${isToday ? "text-blue-600" : "text-slate-800"}`}>
+   727→                {isToday ? (
+   728→                  <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full">
+   729→                    {day.getDate()}
+   730→                  </span>
+   731→                ) : (
+   732→                  day.getDate()
+   733→                )}
+   734→              </div>
+   735→            </div>
+   736→          );
+   737→        })}
+   738→      </div>
+   739→
+   740→      {/* Events Grid */}
+   741→      <div className="grid grid-cols-7 min-h-[400px]">
+   742→        {days.map((day, i) => {
+   743→          const dateKey = day.toDateString();
+   744→          const dayEvents = eventsByDate[dateKey] || [];
+   745→          const isToday = day.toDateString() === new Date().toDateString();
+   746→
+   747→          return (
+   748→            <div
+   749→              key={i}
+   750→              className={`p-2 ${i < 6 ? "border-r border-slate-100" : ""} ${isToday ? "bg-blue-50/30" : ""}`}
+   751→            >
+   752→              <div className="space-y-1.5">
+   753→                {dayEvents.map((event, j) => (
+   754→                  <EventCard
+   755→                    key={j}
+   756→                    event={event}
+   757→                    onClick={() => onEventClick(event)}
+   758→                    formatTime={formatTime}
+   759→                    compact={false}
+   760→                  />
+   761→                ))}
+   762→                {dayEvents.length === 0 && (
+   763→                  <p className="text-xs text-slate-300 text-center py-4">No events</p>
+   764→                )}
+   765→              </div>
+   766→            </div>
+   767→          );
+   768→        })}
+   769→      </div>
+   770→    </div>
+   771→  );
+   772→}
+   773→
+   774→// 3-Day View Component - Mobile optimized
+   775→function ThreeDayView({ days, eventsByDate, onEventClick, formatTime }) {
+   776→  return (
+   777→    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+   778→      {/* Day Headers */}
+   779→      <div className="grid grid-cols-3 border-b border-slate-100">
+   780→        {days.map((day, i) => {
+   781→          const isToday = day.toDateString() === new Date().toDateString();
+   782→          return (
+   783→            <div
+   784→              key={i}
+   785→              className={`text-center py-3 ${i < 2 ? "border-r border-slate-100" : ""}`}
+   786→            >
+   787→              <div className={`text-xs font-medium ${isToday ? "text-blue-600" : "text-slate-500"}`}>
+   788→                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][day.getDay()]}
+   789→              </div>
+   790→              <div className={`text-lg font-bold ${isToday ? "text-blue-600" : "text-slate-800"}`}>
+   791→                {isToday ? (
+   792→                  <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full">
+   793→                    {day.getDate()}
+   794→                  </span>
+   795→                ) : (
+   796→                  day.getDate()
+   797→                )}
+   798→              </div>
+   799→            </div>
+   800→          );
+   801→        })}
+   802→      </div>
+   803→
+   804→      {/* Events Grid */}
+   805→      <div className="grid grid-cols-3 min-h-[350px]">
+   806→        {days.map((day, i) => {
+   807→          const dateKey = day.toDateString();
+   808→          const dayEvents = eventsByDate[dateKey] || [];
+   809→          const isToday = day.toDateString() === new Date().toDateString();
+   810→
+   811→          return (
+   812→            <div
+   813→              key={i}
+   814→              className={`p-2 ${i < 2 ? "border-r border-slate-100" : ""} ${isToday ? "bg-blue-50/30" : ""}`}
+   815→            >
+   816→              <div className="space-y-1.5">
+   817→                {dayEvents.map((event, j) => (
+   818→                  <EventCard
+   819→                    key={j}
+   820→                    event={event}
+   821→                    onClick={() => onEventClick(event)}
+   822→                    formatTime={formatTime}
+   823→                    compact={true}
+   824→                  />
+   825→                ))}
+   826→                {dayEvents.length === 0 && (
+   827→                  <p className="text-xs text-slate-300 text-center py-4">No events</p>
+   828→                )}
+   829→              </div>
+   830→            </div>
+   831→          );
+   832→        })}
+   833→      </div>
+   834→    </div>
+   835→  );
+   836→}
+   837→
+   838→// Day View Component - Clean Light Theme
+   839→function DayView({ day, events, onEventClick, formatTime }) {
+   840→  const isToday = day.toDateString() === new Date().toDateString();
+   841→
+   842→  // Sort events by time
+   843→  const sortedEvents = [...events].sort((a, b) =>
+   844→    new Date(a.startDatetime) - new Date(b.startDatetime)
+   845→  );
+   846→
+   847→  return (
+   848→    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+   849→      {/* Day Header */}
+   850→      <div className={`text-center py-6 border-b border-slate-100 ${isToday ? "bg-blue-50" : "bg-slate-50"}`}>
+   851→        <div className={`text-sm font-medium ${isToday ? "text-blue-600" : "text-slate-500"}`}>
+   852→          {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][day.getDay()]}
+   853→        </div>
+   854→        <div className={`text-4xl font-bold mt-1 ${isToday ? "text-blue-600" : "text-slate-800"}`}>
+   855→          {day.getDate()}
+   856→        </div>
+   857→        <div className="text-sm text-slate-500 mt-1">
+   858→          {day.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+   859→        </div>
+   860→      </div>
+   861→
+   862→      {/* Events List */}
+   863→      <div className="p-4 space-y-3 min-h-[300px]">
+   864→        {sortedEvents.length === 0 ? (
+   865→          <div className="text-center py-12">
+   866→            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-slate-200 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+   867→              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   868→            </svg>
+   869→            <p className="text-slate-400">No events scheduled</p>
+   870→          </div>
+   871→        ) : (
+   872→          sortedEvents.map((event, i) => (
+   873→            <div
+   874→              key={i}
+   875→              className="flex gap-3 p-3 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+   876→              onClick={() => onEventClick(event)}
+   877→            >
+   878→              <div className="flex flex-col items-center text-xs text-slate-500 min-w-[50px]">
+   879→                <span className="font-semibold text-slate-700">{formatTime(event.startDatetime)}</span>
+   880→                <span>to</span>
+   881→                <span className="font-semibold text-slate-700">{formatTime(event.endDatetime)}</span>
+   882→              </div>
+   883→              <div className="flex-1 border-l-4 pl-3" style={{ borderColor: event.categoryId?.colour || "#6366f1" }}>
+   884→                {event.categoryId && (
+   885→                  <span
+   886→                    className="inline-block px-2 py-0.5 rounded text-[10px] font-bold text-white mb-1"
+   887→                    style={{ backgroundColor: event.categoryId.colour }}
+   888→                  >
+   889→                    {event.categoryId.name.toUpperCase()}
+   890→                  </span>
+   891→                )}
+   892→                <h4 className="font-semibold text-slate-800 text-sm">{event.title}</h4>
+   893→                {event.description && (
+   894→                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{event.description}</p>
+   895→                )}
+   896→              </div>
+   897→            </div>
+   898→          ))
+   899→        )}
+   900→      </div>
+   901→    </div>
+   902→  );
+   903→}
+   904→
+   905→// Event Card Component - Clean and compact
+   906→function EventCard({ event, onClick, formatTime, compact }) {
+   907→  return (
+   908→    <div
+   909→      className="p-2 rounded-lg cursor-pointer hover:opacity-90 transition-opacity text-white"
+   910→      style={{ backgroundColor: event.categoryId?.colour || "#6366f1" }}
+   911→      onClick={onClick}
+   912→    >
+   913→      {event.categoryId && (
+   914→        <div className={`font-bold uppercase opacity-90 mb-0.5 truncate ${compact ? "text-[9px]" : "text-[10px]"}`}>
+   915→          {event.categoryId.name}
+   916→        </div>
+   917→      )}
+   918→      <div className={`font-semibold truncate ${compact ? "text-xs" : "text-sm"}`}>{event.title}</div>
+   919→      <div className={`opacity-75 mt-0.5 ${compact ? "text-[10px]" : "text-xs"}`}>
+   920→        {formatTime(event.startDatetime)}
+   921→      </div>
+   922→      {!compact && event.description && (
+   923→        <div className="text-xs opacity-75 mt-1 line-clamp-2">{event.description}</div>
+   924→      )}
+   925→    </div>
+   926→  );
+   927→}
+   928→
+   929→// Event Modal Component (for Add/Edit)
+   930→function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange, onDelete }) {
+   931→  const isEditing = !!event;
+   932→  const [isLoading, setIsLoading] = useState(false);
+   933→  const [isDeleting, setIsDeleting] = useState(false);
+   934→  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+   935→  const [showAddCategory, setShowAddCategory] = useState(false);
+   936→  const [newCategoryName, setNewCategoryName] = useState("");
+   937→  const [newCategoryColour, setNewCategoryColour] = useState("#3b82f6");
+   938→  const [isAllDay, setIsAllDay] = useState(false);
+   939→  const [formData, setFormData] = useState({
+   940→    title: event?.title || "",
+   941→    description: event?.description || "",
+   942→    categoryId: event?.categoryId?.id || "",
+   943→    startDatetime: event ? new Date(event.startDatetime).toISOString().slice(0, 16) : "",
+   944→    endDatetime: event ? new Date(event.endDatetime).toISOString().slice(0, 16) : "",
+   945→    linkedVehicleId: event?.linkedVehicleId || "",
+   946→    linkedContactId: event?.linkedContactId || "",
+   947→  });
+   948→
+   949→  const handleAddCategory = async () => {
+   950→    if (!newCategoryName.trim()) return toast.error("Category name required");
+   951→    try {
+   952→      const res = await fetch("/api/calendar/categories", {
+   953→        method: "POST",
+   954→        headers: { "Content-Type": "application/json" },
+   955→        body: JSON.stringify({ name: newCategoryName, colour: newCategoryColour }),
+   956→      });
+   957→      if (!res.ok) throw new Error("Failed to create category");
+   958→      const newCat = await res.json();
+   959→      setFormData({ ...formData, categoryId: newCat.id });
+   960→      setShowAddCategory(false);
+   961→      setNewCategoryName("");
+   962→      setNewCategoryColour("#3b82f6");
+   963→      toast.success("Category added!");
+   964→      if (onCategoriesChange) onCategoriesChange();
+   965→    } catch (error) {
+   966→      toast.error(error.message);
+   967→    }
+   968→  };
+   969→
+   970→  const handleSubmit = async (e) => {
+   971→    e.preventDefault();
+   972→    if (!formData.title || !formData.startDatetime) {
+   973→      return toast.error("Title and start time are required");
+   974→    }
+   975→    setIsLoading(true);
+   976→    try {
+   977→      // End datetime defaults to start datetime if not provided
+   978→      const endDatetime = formData.endDatetime || formData.startDatetime;
+   979→
+   980→      const payload = {
+   981→        title: formData.title,
+   982→        description: formData.description || "",
+   983→        startDatetime: formData.startDatetime,
+   984→        endDatetime: endDatetime,
+   985→      };
+   986→      if (formData.categoryId && formData.categoryId !== "") {
+   987→        payload.categoryId = formData.categoryId;
+   988→      }
+   989→
+   990→      const url = isEditing ? `/api/calendar/${event.id}` : "/api/calendar";
+   991→      const method = isEditing ? "PUT" : "POST";
+   992→
+   993→      const res = await fetch(url, {
+   994→        method,
+   995→        headers: { "Content-Type": "application/json" },
+   996→        body: JSON.stringify(payload),
+   997→      });
+   998→      const data = await res.json();
+   999→      if (!res.ok) {
+  1000→        throw new Error(data.error || `Failed to ${isEditing ? "update" : "create"} event`);
+  1001→      }
+  1002→      toast.success(`Event ${isEditing ? "updated" : "created"}!`);
+  1003→      onSuccess();
+  1004→    } catch (error) {
+  1005→      console.error("Event error:", error);
+  1006→      toast.error(error.message);
+  1007→    } finally {
+  1008→      setIsLoading(false);
+  1009→    }
+  1010→  };
+  1011→
+  1012→  const handleDelete = async () => {
+  1013→    setIsDeleting(true);
+  1014→    try {
+  1015→      const res = await fetch(`/api/calendar/${event.id}`, { method: "DELETE" });
+  1016→      if (!res.ok) throw new Error("Failed to delete event");
+  1017→      toast.success("Event deleted");
+  1018→      onDelete();
+  1019→    } catch (error) {
+  1020→      toast.error(error.message);
+  1021→    } finally {
+  1022→      setIsDeleting(false);
+  1023→    }
+  1024→  };
+  1025→
+  1026→  return (
+  1027→    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  1028→      {/* Backdrop */}
+  1029→      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+  1030→
+  1031→      {/* Modal */}
+  1032→      <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+  1033→        <div className="p-6">
+  1034→          <h3 className="font-bold text-lg text-slate-800 mb-4">{isEditing ? "Edit Event" : "New Event"}</h3>
+  1035→          <form onSubmit={handleSubmit}>
+  1036→            <div className="space-y-4">
+  1037→              <div>
+  1038→                <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
+  1039→                <input
+  1040→                  type="text"
+  1041→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+  1042→                  value={formData.title}
+  1043→                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+  1044→                  required
+  1045→                />
+  1046→              </div>
+  1047→
+  1048→              <div>
+  1049→                <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+  1050→                {showAddCategory ? (
+  1051→                  <div className="flex gap-2 items-center">
+  1052→                    <input
+  1053→                      type="text"
+  1054→                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+  1055→                      placeholder="Category name"
+  1056→                      value={newCategoryName}
+  1057→                      onChange={(e) => setNewCategoryName(e.target.value)}
+  1058→                    />
+  1059→                    <input
+  1060→                      type="color"
+  1061→                      className="w-10 h-10 rounded cursor-pointer border border-slate-300"
+  1062→                      value={newCategoryColour}
+  1063→                      onChange={(e) => setNewCategoryColour(e.target.value)}
+  1064→                    />
+  1065→                    <button type="button" className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium" onClick={handleAddCategory}>Add</button>
+  1066→                    <button type="button" className="px-3 py-2 text-slate-600 text-sm" onClick={() => setShowAddCategory(false)}>Cancel</button>
+  1067→                  </div>
+  1068→                ) : (
+  1069→                  <select
+  1070→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+  1071→                    value={formData.categoryId}
+  1072→                    onChange={(e) => {
+  1073→                      if (e.target.value === "__add_new__") {
+  1074→                        setShowAddCategory(true);
+  1075→                      } else {
+  1076→                        setFormData({ ...formData, categoryId: e.target.value });
+  1077→                      }
+  1078→                    }}
+  1079→                  >
+  1080→                    <option value="">Select category...</option>
+  1081→                    {categories.map(c => (
+  1082→                      <option key={c.id} value={c.id}>{c.name}</option>
+  1083→                    ))}
+  1084→                    <option value="__add_new__">+ Add New Category</option>
+  1085→                  </select>
+  1086→                )}
+  1087→              </div>
+  1088→
+  1089→              <div className="flex items-center gap-2">
+  1090→                <input
+  1091→                  type="checkbox"
+  1092→                  id="allDay"
+  1093→                  className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+  1094→                  checked={isAllDay}
+  1095→                  onChange={(e) => setIsAllDay(e.target.checked)}
+  1096→                />
+  1097→                <label htmlFor="allDay" className="text-sm text-slate-700">All day</label>
+  1098→              </div>
+  1099→
+  1100→              <div className="grid grid-cols-2 gap-3">
+  1101→                <div>
+  1102→                  <label className="block text-sm font-medium text-slate-700 mb-1">Start *</label>
+  1103→                  <input
+  1104→                    type="datetime-local"
+  1105→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+  1106→                    value={formData.startDatetime}
+  1107→                    onChange={(e) => setFormData({ ...formData, startDatetime: e.target.value })}
+  1108→                    required
+  1109→                  />
+  1110→                </div>
+  1111→                <div>
+  1112→                  <label className="block text-sm font-medium text-slate-700 mb-1">
+  1113→                    End <span className="text-slate-400 font-normal text-xs">(optional)</span>
+  1114→                  </label>
+  1115→                  <input
+  1116→                    type="datetime-local"
+  1117→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+  1118→                    value={formData.endDatetime}
+  1119→                    onChange={(e) => setFormData({ ...formData, endDatetime: e.target.value })}
+  1120→                    placeholder="Same as start"
+  1121→                  />
+  1122→                </div>
+  1123→              </div>
+  1124→
+  1125→              <div>
+  1126→                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+  1127→                <textarea
+  1128→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+  1129→                  value={formData.description}
+  1130→                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+  1131→                  rows={3}
+  1132→                ></textarea>
+  1133→              </div>
+  1134→            </div>
+  1135→
+  1136→            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+  1137→              <div>
+  1138→                {isEditing && (
+  1139→                  showDeleteConfirm ? (
+  1140→                    <div className="flex gap-2 items-center">
+  1141→                      <span className="text-sm text-red-600">Delete?</span>
+  1142→                      <button
+  1143→                        type="button"
+  1144→                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium"
+  1145→                        onClick={handleDelete}
+  1146→                        disabled={isDeleting}
+  1147→                      >
+  1148→                        {isDeleting ? "..." : "Yes"}
+  1149→                      </button>
+  1150→                      <button
+  1151→                        type="button"
+  1152→                        className="px-3 py-1.5 text-slate-600 text-sm"
+  1153→                        onClick={() => setShowDeleteConfirm(false)}
+  1154→                      >
+  1155→                        No
+  1156→                      </button>
+  1157→                    </div>
+  1158→                  ) : (
+  1159→                    <button
+  1160→                      type="button"
+  1161→                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+  1162→                      onClick={() => setShowDeleteConfirm(true)}
+  1163→                    >
+  1164→                      Delete Event
+  1165→                    </button>
+  1166→                  )
+  1167→                )}
+  1168→              </div>
+  1169→              <div className="flex gap-2">
+  1170→                <button
+  1171→                  type="button"
+  1172→                  className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium"
+  1173→                  onClick={onClose}
+  1174→                >
+  1175→                  Cancel
+  1176→                </button>
+  1177→                <button
+  1178→                  type="submit"
+  1179→                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+  1180→                  disabled={isLoading}
+  1181→                >
+  1182→                  {isLoading ? "Saving..." : (isEditing ? "Save Changes" : "Create Event")}
+  1183→                </button>
+  1184→              </div>
+  1185→            </div>
+  1186→          </form>
+  1187→        </div>
+  1188→      </div>
+  1189→    </div>
+  1190→  );
+  1191→}
+  1192→
+  1193→// Holiday Request Modal Component
+  1194→function HolidayRequestModal({ onClose, onSuccess }) {
+  1195→  const [isLoading, setIsLoading] = useState(false);
+  1196→  const [formData, setFormData] = useState({
+  1197→    startDate: "",
+  1198→    endDate: "",
+  1199→    startSession: "AM",
+  1200→    endSession: "PM",
+  1201→    type: "Holiday",
+  1202→    notes: "",
+  1203→  });
+  1204→
+  1205→  // Compute total days with AM/PM sessions
+  1206→  const computeTotalDays = (startDate, endDate, startSession, endSession) => {
+  1207→    if (!startDate) return 0;
+  1208→    const start = new Date(startDate);
+  1209→    const end = endDate ? new Date(endDate) : new Date(startDate);
+  1210→    start.setHours(0, 0, 0, 0);
+  1211→    end.setHours(0, 0, 0, 0);
+  1212→
+  1213→    const msPerDay = 1000 * 60 * 60 * 24;
+  1214→    const daysDiff = Math.round((end - start) / msPerDay);
+  1215→
+  1216→    if (daysDiff < 0) return null;
+  1217→
+  1218→    // Same day
+  1219→    if (daysDiff === 0) {
+  1220→      if (startSession === "PM" && endSession === "AM") return null;
+  1221→      if (startSession === "AM" && endSession === "PM") return 1.0;
+  1222→      return 0.5;
+  1223→    }
+  1224→
+  1225→    // Multi-day
+  1226→    const startDayValue = startSession === "PM" ? 0.5 : 1.0;
+  1227→    const endDayValue = endSession === "AM" ? 0.5 : 1.0;
+  1228→    const middleDays = daysDiff - 1;
+  1229→
+  1230→    return startDayValue + middleDays + endDayValue;
+  1231→  };
+  1232→
+  1233→  const handleSubmit = async (e) => {
+  1234→    e.preventDefault();
+  1235→    if (!formData.startDate) {
+  1236→      return toast.error("Please select a start date");
+  1237→    }
+  1238→
+  1239→    const start = new Date(formData.startDate);
+  1240→    const end = formData.endDate ? new Date(formData.endDate) : new Date(formData.startDate);
+  1241→
+  1242→    if (end < start) {
+  1243→      return toast.error("End date must be on or after start date");
+  1244→    }
+  1245→
+  1246→    const totalDays = computeTotalDays(start, end, formData.startSession, formData.endSession);
+  1247→
+  1248→    if (totalDays === null) {
+  1249→      return toast.error("Invalid session combination: PM to AM on the same day is not allowed");
+  1250→    }
+  1251→
+  1252→    setIsLoading(true);
+  1253→    try {
+  1254→      const res = await fetch("/api/holiday-requests", {
+  1255→        method: "POST",
+  1256→        headers: { "Content-Type": "application/json" },
+  1257→        body: JSON.stringify({
+  1258→          startDate: formData.startDate,
+  1259→          endDate: formData.endDate || formData.startDate,
+  1260→          startSession: formData.startSession,
+  1261→          endSession: formData.endSession,
+  1262→          type: formData.type,
+  1263→          notes: formData.notes,
+  1264→        }),
+  1265→      });
+  1266→      if (!res.ok) {
+  1267→        const data = await res.json();
+  1268→        throw new Error(data.error || "Failed to submit request");
+  1269→      }
+  1270→      onSuccess();
+  1271→    } catch (error) {
+  1272→      toast.error(error.message);
+  1273→    } finally {
+  1274→      setIsLoading(false);
+  1275→    }
+  1276→  };
+  1277→
+  1278→  return (
+  1279→    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  1280→      {/* Backdrop */}
+  1281→      <div className="absolute inset-0 bg-black/50" onClick={onClose}></div>
+  1282→
+  1283→      {/* Modal */}
+  1284→      <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+  1285→        <div className="p-6">
+  1286→          <div className="flex items-center gap-3 mb-6">
+  1287→            <div className="p-2 bg-emerald-100 rounded-lg">
+  1288→              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1289→                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+  1290→              </svg>
+  1291→            </div>
+  1292→            <div>
+  1293→              <h3 className="font-bold text-lg text-slate-800">Request Time Off</h3>
+  1294→              <p className="text-sm text-slate-500">Submit a holiday request for approval</p>
+  1295→            </div>
+  1296→          </div>
+  1297→          <form onSubmit={handleSubmit}>
+  1298→            <div className="space-y-4">
+  1299→              <div>
+  1300→                <label className="block text-sm font-medium text-slate-700 mb-1">Type</label>
+  1301→                <select
+  1302→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+  1303→                  value={formData.type}
+  1304→                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+  1305→                >
+  1306→                  <option value="Holiday">Holiday</option>
+  1307→                  <option value="Sick">Sick Leave</option>
+  1308→                  <option value="Unpaid">Unpaid Leave</option>
+  1309→                  <option value="Other">Other</option>
+  1310→                </select>
+  1311→              </div>
+  1312→
+  1313→              {/* Start Date and Session */}
+  1314→              <div className="grid grid-cols-3 gap-2">
+  1315→                <div className="col-span-2">
+  1316→                  <label className="block text-sm font-medium text-slate-700 mb-1">Start Date *</label>
+  1317→                  <input
+  1318→                    type="date"
+  1319→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+  1320→                    value={formData.startDate}
+  1321→                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+  1322→                    required
+  1323→                  />
+  1324→                </div>
+  1325→                <div>
+  1326→                  <label className="block text-sm font-medium text-slate-700 mb-1">Session</label>
+  1327→                  <select
+  1328→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+  1329→                    value={formData.startSession}
+  1330→                    onChange={(e) => setFormData({ ...formData, startSession: e.target.value })}
+  1331→                  >
+  1332→                    <option value="AM">AM</option>
+  1333→                    <option value="PM">PM</option>
+  1334→                  </select>
+  1335→                </div>
+  1336→              </div>
+  1337→
+  1338→              {/* End Date and Session */}
+  1339→              <div className="grid grid-cols-3 gap-2">
+  1340→                <div className="col-span-2">
+  1341→                  <label className="block text-sm font-medium text-slate-700 mb-1">
+  1342→                    End Date <span className="text-slate-400 font-normal text-xs">(optional)</span>
+  1343→                  </label>
+  1344→                  <input
+  1345→                    type="date"
+  1346→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+  1347→                    value={formData.endDate}
+  1348→                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+  1349→                  />
+  1350→                </div>
+  1351→                <div>
+  1352→                  <label className="block text-sm font-medium text-slate-700 mb-1">Session</label>
+  1353→                  <select
+  1354→                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+  1355→                    value={formData.endSession}
+  1356→                    onChange={(e) => setFormData({ ...formData, endSession: e.target.value })}
+  1357→                  >
+  1358→                    <option value="AM">AM</option>
+  1359→                    <option value="PM">PM</option>
+  1360→                  </select>
+  1361→                </div>
+  1362→              </div>
+  1363→
+  1364→              {/* Computed Total Days */}
+  1365→              {formData.startDate && (() => {
+  1366→                const start = new Date(formData.startDate);
+  1367→                const end = formData.endDate ? new Date(formData.endDate) : new Date(formData.startDate);
+  1368→                const totalDays = computeTotalDays(start, end, formData.startSession, formData.endSession);
+  1369→                const isInvalid = totalDays === null || end < start;
+  1370→
+  1371→                return (
+  1372→                  <div className={`flex items-center gap-2 p-3 rounded-lg ${isInvalid ? 'bg-red-50' : 'bg-emerald-50'}`}>
+  1373→                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 ${isInvalid ? 'text-red-600' : 'text-emerald-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  1374→                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  1375→                    </svg>
+  1376→                    <span className={`text-sm font-medium ${isInvalid ? 'text-red-700' : 'text-emerald-700'}`}>
+  1377→                      {end < start ? (
+  1378→                        "End date must be on or after start date"
+  1379→                      ) : totalDays === null ? (
+  1380→                        "Invalid: PM to AM on same day not allowed"
+  1381→                      ) : (
+  1382→                        <>
+  1383→                          Total requested: {totalDays} day{totalDays !== 1 ? "s" : ""}
+  1384→                          {totalDays === 0.5 && <span className="text-xs opacity-75 ml-1">(half day)</span>}
+  1385→                        </>
+  1386→                      )}
+  1387→                    </span>
+  1388→                  </div>
+  1389→                );
+  1390→              })()}
+  1391→
+  1392→              <div>
+  1393→                <label className="block text-sm font-medium text-slate-700 mb-1">Notes (optional)</label>
+  1394→                <textarea
+  1395→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+  1396→                  value={formData.notes}
+  1397→                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+  1398→                  rows={3}
+  1399→                  placeholder="Any additional details..."
+  1400→                ></textarea>
+  1401→              </div>
+  1402→            </div>
+  1403→
+  1404→            <div className="flex gap-2 mt-6 pt-4 border-t border-slate-100">
+  1405→              <button
+  1406→                type="button"
+  1407→                className="flex-1 px-4 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg text-sm font-medium transition-colors"
+  1408→                onClick={onClose}
+  1409→              >
+  1410→                Cancel
+  1411→              </button>
+  1412→              <button
+  1413→                type="submit"
+  1414→                className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+  1415→                disabled={isLoading}
+  1416→              >
+  1417→                {isLoading ? "Submitting..." : "Submit Request"}
+  1418→              </button>
+  1419→            </div>
+  1420→          </form>
+  1421→        </div>
+  1422→      </div>
+  1423→    </div>
+  1424→  );
+  1425→}
+  1426→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

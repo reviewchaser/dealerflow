@@ -1,0 +1,208 @@
+     1→/**
+     2→ * Extract Driving Licence Details via OpenAI Vision API
+     3→ *
+     4→ * POST /api/forms/test-drive/extract-licence
+     5→ *
+     6→ * Accepts a base64-encoded image of a UK driving licence and extracts
+     7→ * key details using OpenAI's vision model.
+     8→ *
+     9→ * Request body:
+    10→ * - image: base64-encoded image data (required)
+    11→ * - mimeType: image MIME type (optional, defaults to image/jpeg)
+    12→ *
+    13→ * Response:
+    14→ * - ok: boolean
+    15→ * - data: extracted fields if successful
+    16→ * - error: error message if failed
+    17→ */
+    18→
+    19→import { withDealerContext } from "@/libs/authContext";
+    20→import { getOpenAIClient, getAIConfig } from "@/libs/openai";
+    21→
+    22→const EXTRACTION_PROMPT = `You are an expert at reading UK driving licences. Analyse this image of a UK driving licence and extract the following information.
+    23→
+    24→Return ONLY valid JSON with exactly these keys:
+    25→{
+    26→  "fullName": "The full name as shown on the licence (first name and surname)",
+    27→  "firstName": "The first name only",
+    28→  "lastName": "The surname/family name only",
+    29→  "dateOfBirth": "Date of birth in YYYY-MM-DD format if visible",
+    30→  "addressLine1": "First line of address",
+    31→  "addressLine2": "Second line of address (empty string if none)",
+    32→  "town": "Town/city name",
+    33→  "postcode": "Postcode",
+    34→  "licenceNumber": "The driving licence number (the long alphanumeric code)",
+    35→  "issueDate": "Issue date in YYYY-MM-DD format if visible (section 4a)",
+    36→  "expiryDate": "Expiry date in YYYY-MM-DD format if visible (section 4b)",
+    37→  "confidence": "HIGH, MEDIUM, or LOW - your confidence in the extraction accuracy",
+    38→  "missingFields": ["array of field names that could not be extracted"]
+    39→}
+    40→
+    41→Important rules:
+    42→- Only extract what you can clearly read - do not guess
+    43→- For dates, use ISO format YYYY-MM-DD
+    44→- If a field is not visible or readable, use null and add it to missingFields
+    45→- The licence number is in section 5 and is usually 16+ characters
+    46→- UK postcodes are in format like "SW1A 1AA" or "M1 1AA"
+    47→- Return ONLY the JSON object, no markdown or explanations`;
+    48→
+    49→async function handler(req, res, ctx) {
+    50→  if (req.method !== "POST") {
+    51→    return res.status(405).json({ error: "Method not allowed" });
+    52→  }
+    53→
+    54→  const { isConfigured } = getAIConfig();
+    55→  if (!isConfigured) {
+    56→    return res.status(200).json({
+    57→      ok: false,
+    58→      errorCode: "NOT_CONFIGURED",
+    59→      error: "AI service is not configured. Please contact your administrator.",
+    60→    });
+    61→  }
+    62→
+    63→  const client = getOpenAIClient();
+    64→  if (!client) {
+    65→    return res.status(200).json({
+    66→      ok: false,
+    67→      errorCode: "CLIENT_ERROR",
+    68→      error: "AI service is temporarily unavailable.",
+    69→    });
+    70→  }
+    71→
+    72→  const { image, mimeType = "image/jpeg" } = req.body;
+    73→
+    74→  if (!image) {
+    75→    return res.status(400).json({
+    76→      ok: false,
+    77→      error: "No image provided. Please upload a driving licence image.",
+    78→    });
+    79→  }
+    80→
+    81→  // Validate base64 data
+    82→  if (typeof image !== "string" || image.length < 100) {
+    83→    return res.status(400).json({
+    84→      ok: false,
+    85→      error: "Invalid image data. Please upload a valid image.",
+    86→    });
+    87→  }
+    88→
+    89→  try {
+    90→    // Prepare the image URL - support both raw base64 and data URLs
+    91→    let imageUrl = image;
+    92→    if (!image.startsWith("data:")) {
+    93→      imageUrl = `data:${mimeType};base64,${image}`;
+    94→    }
+    95→
+    96→    const response = await client.chat.completions.create({
+    97→      model: "gpt-4o-mini",
+    98→      messages: [
+    99→        {
+   100→          role: "user",
+   101→          content: [
+   102→            { type: "text", text: EXTRACTION_PROMPT },
+   103→            {
+   104→              type: "image_url",
+   105→              image_url: {
+   106→                url: imageUrl,
+   107→                detail: "high",
+   108→              },
+   109→            },
+   110→          ],
+   111→        },
+   112→      ],
+   113→      max_tokens: 800,
+   114→      temperature: 0.1,
+   115→    });
+   116→
+   117→    const content = response.choices?.[0]?.message?.content;
+   118→
+   119→    if (!content) {
+   120→      return res.status(200).json({
+   121→        ok: false,
+   122→        error: "Could not extract details from this image. Please try a clearer photo or enter details manually.",
+   123→      });
+   124→    }
+   125→
+   126→    // Parse the JSON response
+   127→    let extracted;
+   128→    try {
+   129→      // Clean up the response - remove any markdown code fences
+   130→      const cleaned = content
+   131→        .replace(/```json\s*/gi, "")
+   132→        .replace(/```\s*/g, "")
+   133→        .trim();
+   134→      extracted = JSON.parse(cleaned);
+   135→    } catch (parseError) {
+   136→      console.error("[Licence Extract] Failed to parse AI response:", content);
+   137→      return res.status(200).json({
+   138→        ok: false,
+   139→        error: "Could not read the licence details. Please try a clearer photo or enter details manually.",
+   140→      });
+   141→    }
+   142→
+   143→    // Validate the extracted data has at least some useful fields
+   144→    const hasMinimumData =
+   145→      extracted.fullName ||
+   146→      extracted.firstName ||
+   147→      extracted.addressLine1 ||
+   148→      extracted.licenceNumber;
+   149→
+   150→    if (!hasMinimumData) {
+   151→      return res.status(200).json({
+   152→        ok: false,
+   153→        error: "Could not extract enough details from this image. Please try a clearer photo or enter details manually.",
+   154→        data: extracted,
+   155→      });
+   156→    }
+   157→
+   158→    // Return successful extraction
+   159→    return res.status(200).json({
+   160→      ok: true,
+   161→      data: {
+   162→        fullName: extracted.fullName || null,
+   163→        firstName: extracted.firstName || null,
+   164→        lastName: extracted.lastName || null,
+   165→        dateOfBirth: extracted.dateOfBirth || null,
+   166→        addressLine1: extracted.addressLine1 || null,
+   167→        addressLine2: extracted.addressLine2 || null,
+   168→        town: extracted.town || null,
+   169→        postcode: extracted.postcode || null,
+   170→        licenceNumber: extracted.licenceNumber || null,
+   171→        issueDate: extracted.issueDate || null,
+   172→        expiryDate: extracted.expiryDate || null,
+   173→        confidence: extracted.confidence || "MEDIUM",
+   174→        missingFields: extracted.missingFields || [],
+   175→      },
+   176→    });
+   177→  } catch (error) {
+   178→    console.error("[Licence Extract] Error:", error.message, error.status);
+   179→
+   180→    if (error.status === 401) {
+   181→      return res.status(200).json({
+   182→        ok: false,
+   183→        errorCode: "AUTH_FAILED",
+   184→        error: "AI authentication failed. Please contact your administrator.",
+   185→      });
+   186→    }
+   187→
+   188→    if (error.status === 429) {
+   189→      return res.status(200).json({
+   190→        ok: false,
+   191→        errorCode: "RATE_LIMIT",
+   192→        error: "Too many requests. Please wait a moment and try again.",
+   193→      });
+   194→    }
+   195→
+   196→    return res.status(200).json({
+   197→      ok: false,
+   198→      error: "Failed to process the licence image. Please try again or enter details manually.",
+   199→    });
+   200→  }
+   201→}
+   202→
+   203→export default withDealerContext(handler);
+   204→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

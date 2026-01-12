@@ -1,0 +1,51 @@
+Claude — thanks, the Deal lifecycle UI/endpoints sound like a solid start, but it’s not yet aligned with the full Sales module spec and it isn’t working end-to-end.
+
+1) Fix routing (Deals page currently 404)
+
+The sidebar link you added (“Deals”) points to a route that does not exist.
+
+This repo uses Next.js Pages Router, so ensure the page is created under /pages/... and matches the sidebar href.
+
+Also ensure it respects our multi-tenant routing structure (dealer slug). If the app route pattern is /app/[dealerSlug]/..., the deals page must live under that and the sidebar link must point there.
+Deliverable: confirm the final canonical URL path (e.g. /app/[dealerSlug]/sales/deals) and ensure the sidebar matches it.
+
+2) Rename navigation properly: Sales vs Deals
+
+Top-level nav should be Sales (not Deals).
+
+The Deals list can be the default landing page inside Sales.
+Implement:
+
+Sidebar label: Sales
+
+Route: /app/[dealerSlug]/sales redirects to /app/[dealerSlug]/sales/deals (or renders deals list directly)
+
+3) Add Sales/Deal integration into Stock vehicle drawer (required)
+
+Add a “Sales” section/tab in the open vehicle drawer on Stock & Prep.
+Minimum features:
+
+Show whether a Deal exists for this vehicle + status
+
+Buttons: Create Deal / Open Deal
+
+If deal exists: Take Deposit / Generate Invoice / Mark Delivered / Complete (depending on state)
+
+Links to generated documents (deposit receipt + invoice) if available
+
+4) Confirm what’s not implemented yet
+
+Your summary didn’t mention:
+
+Contacts page + CRUD
+
+Add-ons catalog (settings) + deal add-ons editing
+
+Part exchange linking from appraisals/submissions
+
+Reports: Stock book, VAT summary, profit KPIs
+
+Terms templates + signatures rules + PDF pack export
+Please list exactly what is implemented vs remaining so we can continue in the right order.
+
+Do not mark the Sales module “complete” until the routing works and the Stock drawer Sales section exists.

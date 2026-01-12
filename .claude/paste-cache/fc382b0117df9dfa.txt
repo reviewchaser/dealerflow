@@ -1,0 +1,468 @@
+DealerHQ is a drawer-first dealer ops platform used live. The Sales module now loads deals and has a Summary/Customer/Add-ons/Payments structure with readiness and next actions.
+
+We need to:
+
+polish the Summary flow to match real dealer workflows (deposit-first or invoice-first)
+
+fix customer selection/create UI issues
+
+implement proper document outputs (Deposit Receipt + Invoice) with correct branding, content, numbering, and terms
+
+introduce a robust method to capture “customer raised issues/promised work” at deposit and push them into prep + docs
+
+fix Reports pages that still fail to load
+
+add “Generate Handover Pack” post-invoice that bundles invoice + PDI + service receipt (and ideally the promised work list)
+
+The result must not break Stock & Prep, Aftersales/Warranty, Forms/Submissions, or Contacts.
+
+Priority 1 — Customer picker UI: fix dropdown behind drawer + add create-in-place
+Problem
+
+Customer search results appear behind the open drawer; can’t reliably create customers in the sale context.
+
+Required outcome
+
+Customer dropdown renders above drawer and is clickable (portal + z-index).
+
+Support search and inline create in the sale.
+
+Implementation
+
+Render dropdown in a portal (to document.body) and set a z-index above the drawer overlay (e.g. z-[10000]).
+
+Ensure no parent container clips with overflow:hidden or a transform stacking context.
+
+Inline “Create ‘X’” in results when none found:
+
+required: displayName/name only (standardise schema)
+
+optional: email/phone
+
+Acceptance tests
+
+Open sale → Customer tab → type → dropdown appears above drawer and selectable.
+
+Create new → auto-attaches to sale.
+
+Priority 2 — Summary structure polish: correct order + clearer language
+Current structure is close, but improve ordering and semantics:
+
+Keep the drawer sections but order them as:
+
+Deal Readiness
+
+Sale Classification (legal/rights)
+
+Vehicle (read-only summary)
+
+Pricing (vehicle price + totals)
+
+Part Exchange (optional)
+
+Next Actions (Take Deposit / Generate Invoice / Delete Draft)
+
+Settlement plan (“How will remaining balance be settled?”)
+
+Timeline (audit trail with users)
+
+Important semantic change
+
+Rename “Payment type set” to:
+
+“Settlement plan set” or “Remaining balance settlement method”
+Because a deposit can be taken before you know whether the balance is finance/cash.
+
+Priority 3 — Sale Classification: expand rules + persist fields
+Required fields (already partially implemented)
+
+Sale Type:
+
+Retail
+
+Trade
+
+Export
+
+Retail-only fields:
+
+Buyer Use: Personal use / Business use
+
+Sale Channel: In person / Distance
+
+Persist on sale model:
+
+saleType: retail|trade|export
+
+buyerUse: personal|business (retail only)
+
+saleChannel: in_person|distance (retail only)
+
+These fields must drive:
+
+invoice terms selection
+
+handover pack terms selection
+
+Priority 4 — Part Exchange: add it before deposit/invoice, but allow later
+Requirements
+
+Add a Part Exchange section in Summary (between Pricing and Next Actions):
+
+Toggle: “Is there a part exchange?”
+
+If yes:
+
+add PX basic details (reg/value/notes; can be minimal MVP)
+
+allow link to existing appraisal form (already exists elsewhere)
+
+Do not force appraisal immediately
+
+Instead:
+
+If PX exists but no appraisal, show status “Appraisal incomplete”
+
+Require appraisal completion only before handover/delivery, not before deposit.
+
+Acceptance tests:
+
+Can take deposit with PX unknown
+
+Can add PX later
+
+Appraisal can be done later but tracked
+
+Priority 5 — NEW: “Customer Promises / Agreed Work” captured at deposit (key request)
+Problem
+
+At deposit, customers often agree work items (e.g. cambelt change, alloy refurb). These must:
+
+show in vehicle prep/issues workflow
+
+show on vehicle card
+
+appear on deposit receipt
+
+be included in handover pack (optional but strongly recommended)
+
+Best structure: create a dedicated entity linked to both Sale and Vehicle
+
+Implement a model/field set for Agreed Work Items (name can be saleAgreements, promisedWork, or saleConditions).
+
+Each item should include:
+
+title (e.g. “Cambelt change”)
+
+type (enum: prep|repair|refurb|service|other)
+
+notes (optional)
+
+targetDate (optional)
+
+responsible (optional: internal staff/user)
+
+status (open/done)
+
+createdAt, createdBy
+
+Links:
+
+saleId
+
+vehicleId
+
+UI placement
+
+In Sale drawer Summary, add a card before Next Actions:
+Agreed Work (Customer Promises)
+
+list items + status
+
+“Add item” button (quick add)
+
+This should be usable at deposit time
+
+Sync into vehicle workflow (very important)
+
+When an agreed work item is added:
+
+automatically create (or update) a Vehicle Issue OR a prep task tagged as:
+
+source: sale
+
+saleId: <id>
+
+category: agreed-work
+So it appears:
+
+in vehicle drawer Issues tab
+
+on vehicle card as a badge/count (“Agreed Work: 2”)
+
+and in prep tracking
+
+Do NOT rely on notes fields; make it structured.
+
+Deposit receipt inclusion
+
+When generating deposit receipt PDF, include a section:
+Agreed Work Items
+
+bullet list of active items at the time of deposit
+
+status should be “pending” on receipt
+
+This is essential for expectation-setting.
+
+Acceptance tests
+
+Add promised work item in sale → appears in vehicle Issues (linked/tagged) and shows on vehicle card badge/count.
+
+Deposit receipt prints with agreed work list.
+
+Priority 6 — Deposit receipt PDF improvements (based on current DealerHQ receipt)
+
+You already generate a deposit receipt that includes:
+
+dealer details
+
+receipt number
+
+received from
+
+vehicle details
+
+amount + payment method
+
+price/deposit/balance 
+
+Deposit Receipt DEP00001 _ Deal…
+
+Required improvements
+
+Add company logo (from settings)
+
+Use white background header, no coloured strip behind logo.
+
+Show payment method + a transaction/reference field (if available).
+
+Add a short terms footer (not full Ts & Cs):
+
+“Deposit taken to reserve the vehicle pending completion of sale. Subject to terms of sale.”
+
+Include Agreed Work Items section (Priority 5)
+
+Add “Taken by” (user name) and date/time (audit clarity)
+
+Priority 7 — Invoice PDF improvements (using legacy DMS invoice as reference)
+
+Your legacy invoice contains useful concepts we must replicate:
+
+Invoice To (finance co) + Deliver To (customer)
+
+Salesperson/lead shown
+
+Sales invoice/stock number
+
+Vehicle details include engine/chassis numbers and recorded mileage
+
+Item line + warranty + admin/delivery notes
+
+Less amount on finance + less deposit → amount due from customer
+
+Seller/Buyer certificate blocks + signature/date boxes
+
+Bank details + VAT number and company reg number 
+
+LX13 YNV
+
+Required invoice structure in DealerHQ
+
+Page 1: Commercial
+
+Logo + dealer details
+
+Invoice number + date
+
+Salesperson (createdBy)
+
+Invoice To (customer OR finance company contact)
+
+Deliver To (customer) if different
+
+Vehicle details: VRM, make/model, year, colour, VIN, mileage (where available)
+
+Line items:
+
+Vehicle price
+
+Add-ons (warranty, admin fee, delivery etc)
+
+VAT breakdown based on VAT treatment:
+
+Standard VAT
+
+Margin scheme
+
+Zero-rated/No VAT
+
+Totals:
+
+Total
+
+Deposit paid
+
+Finance contribution (if applicable)
+
+Balance due + “Due from” (customer vs broker)
+
+Page 2: Terms + Signatures
+
+Full terms & conditions chosen by classification:
+
+Retail personal in-person
+
+Retail personal distance
+
+Retail business use
+
+Trade
+
+Export / zero-rated
+
+Signature boxes:
+
+Dealer signature/date
+
+Buyer signature/date
+
+Also include:
+
+VAT number + company registration number (from settings)
+
+Bank details (from settings)
+
+Minimal compliance footer (do not overstuff page 1)
+
+Priority 8 — Invoice/deposit numbering: next numbers not editable
+
+In Sales Settings you currently allow editing “next invoice number” / “next receipt number”. This must change.
+
+Required behaviour
+
+Prefix editable (INV/DEP)
+
+Starting number set once (or via “Reset sequence” with confirmation)
+
+Next number displayed read-only
+
+On generating invoice/receipt, increment atomically per dealer ($inc), prevent duplicates
+
+Priority 9 — Next Actions: deposit-first OR invoice-first supported cleanly
+
+In Summary “Next Actions”, keep both actions:
+
+Take Deposit
+
+Generate Invoice
+
+Enablement rules
+
+Deposit enabled when:
+
+customer selected
+
+deposit amount > 0
+
+deposit payment method selected
+
+Invoice enabled when:
+
+customer selected (and invoice-to contact if used)
+
+vehicle price set
+
+VAT treatment set
+
+sale classification set
+
+Add invoice-to flow for broker/finance company
+
+Add optional Invoice To contact:
+
+default = Sold To customer
+
+allow set Invoice To = finance company (contact picker)
+
+invoice uses Invoice To; vehicle delivered to Sold To
+
+Priority 10 — Reports pages still not loading: fix routing + model registration first
+
+Two report links in sidebar still fail to load.
+This is a hard blocker.
+
+Requirements
+
+Fix routes so the pages load consistently in production (Vercel/serverless).
+
+Ensure any Mongoose models used are registered in each route’s module graph (import a central models/index if needed).
+
+Return real data or safe placeholders, but do not crash.
+
+Add:
+
+Inventory report (total stock, known SIV, unknown SIV count, avg days in stock)
+
+VAT report (date range, purchases VAT, sales VAT, export CSV)
+
+Priority 11 — Post-invoice: Generate Handover Pack (bundle docs)
+
+Once invoice generated, show action:
+Generate Handover Pack
+
+Modal checkboxes:
+
+Invoice (always)
+
+PDI (if linked to vehicle)
+
+Service receipt (if linked)
+
+(Optional) Agreed Work Items summary page (recommended)
+
+Output:
+
+combined PDF merged in order:
+
+Invoice (with correct terms)
+
+PDI (if selected)
+
+Service receipt (if selected)
+
+Agreed Work summary (if selected or always included as final page)
+
+QA / Definition of Done (must pass)
+
+Customer dropdown works above drawer; create customer works.
+
+“Agreed Work” items can be captured at deposit, sync to vehicle Issues, show on vehicle card, print on deposit receipt.
+
+Deposit receipt includes logo, payment method, taken by, and agreed work list.
+
+Invoice includes logo, invoice-to/deliver-to, salesperson, vehicle details, VAT breakdown, and page 2 terms + signatures.
+
+Next invoice/receipt numbers are automatic and not editable.
+
+Reports pages load (no crashes) and return data + CSV export.
+
+Handover pack generates combined PDF after invoice and includes PDI/service receipt if present.
+
+Notes / Implementation guidance
+
+Avoid dumping customer promises into a generic notes field. They must be structured and linkable.
+
+Do not block deposits due to missing PX appraisal.
+
+Keep documents white-background friendly for logos.

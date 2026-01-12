@@ -1,0 +1,70 @@
+     1→import { Dialog, Transition } from "@headlessui/react";
+     2→import { Fragment } from "react";
+     3→
+     4→const Modal = ({ isModalOpen, setIsModalOpen }) => {
+     5→  return (
+     6→    <Transition appear show={isModalOpen} as={Fragment}>
+     7→      <Dialog
+     8→        as="div"
+     9→        className="relative z-50"
+    10→        onClose={() => setIsModalOpen(false)}
+    11→      >
+    12→        <Transition.Child
+    13→          as={Fragment}
+    14→          enter="ease-out duration-300"
+    15→          enterFrom="opacity-0"
+    16→          enterTo="opacity-100"
+    17→          leave="ease-in duration-200"
+    18→          leaveFrom="opacity-100"
+    19→          leaveTo="opacity-0"
+    20→        >
+    21→          <div className="fixed inset-0 bg-neutral-focus bg-opacity-50" />
+    22→        </Transition.Child>
+    23→
+    24→        <div className="fixed inset-0 overflow-y-auto">
+    25→          <div className="flex min-h-full overflow-hidden items-start md:items-center justify-center p-2">
+    26→            <Transition.Child
+    27→              as={Fragment}
+    28→              enter="ease-out duration-300"
+    29→              enterFrom="opacity-0 scale-95"
+    30→              enterTo="opacity-100 scale-100"
+    31→              leave="ease-in duration-200"
+    32→              leaveFrom="opacity-100 scale-100"
+    33→              leaveTo="opacity-0 scale-95"
+    34→            >
+    35→              <Dialog.Panel className="relative w-full max-w-3xl h-full overflow-visible transform text-left align-middle shadow-xl transition-all rounded-xl bg-base-100 p-6 md:p-8">
+    36→                <div className="flex justify-between items-center mb-4">
+    37→                  <Dialog.Title as="h2" className="font-semibold">
+    38→                    I&apos;m a modal
+    39→                  </Dialog.Title>
+    40→                  <button
+    41→                    className="btn btn-square btn-ghost btn-sm"
+    42→                    onClick={() => setIsModalOpen(false)}
+    43→                  >
+    44→                    <svg
+    45→                      xmlns="http://www.w3.org/2000/svg"
+    46→                      viewBox="0 0 20 20"
+    47→                      fill="currentColor"
+    48→                      className="w-5 h-5"
+    49→                    >
+    50→                      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+    51→                    </svg>
+    52→                  </button>
+    53→                </div>
+    54→
+    55→                <section>And here is my content</section>
+    56→              </Dialog.Panel>
+    57→            </Transition.Child>
+    58→          </div>
+    59→        </div>
+    60→      </Dialog>
+    61→    </Transition>
+    62→  );
+    63→};
+    64→
+    65→export default Modal;
+    66→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

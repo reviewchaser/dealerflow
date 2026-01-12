@@ -1,0 +1,140 @@
+     1→import crypto from "crypto";
+     2→import connectMongo from "@/libs/mongoose";
+     3→import JobSheetShareLink from "@/models/JobSheetShareLink";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import AftercareCase from "@/models/AftercareCase";
+     7→import Dealer from "@/models/Dealer";
+     8→
+     9→// Hash token with SHA256
+    10→function hashToken(token) {
+    11→  return crypto.createHash("sha256").update(token).digest("hex");
+    12→}
+    13→
+    14→// This endpoint is PUBLIC - no auth required
+    15→export default async function handler(req, res) {
+    16→  if (req.method !== "GET") {
+    17→    return res.status(405).json({ error: "Method not allowed" });
+    18→  }
+    19→
+    20→  await connectMongo();
+    21→
+    22→  try {
+    23→    const { token } = req.query;
+    24→
+    25→    if (!token) {
+    26→      return res.status(400).json({ error: "Token is required" });
+    27→    }
+    28→
+    29→    // Hash the provided token to find the share link
+    30→    const tokenHash = hashToken(token);
+    31→    const link = await JobSheetShareLink.findOne({ tokenHash });
+    32→
+    33→    if (!link) {
+    34→      return res.status(404).json({ error: "Invalid or expired link" });
+    35→    }
+    36→
+    37→    // Check if link is active
+    38→    if (!link.isActive) {
+    39→      return res.status(403).json({ error: "This link has been deactivated" });
+    40→    }
+    41→
+    42→    // Check if link has expired
+    43→    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+    44→      return res.status(403).json({ error: "This link has expired" });
+    45→    }
+    46→
+    47→    // Get dealer info for branding
+    48→    const dealer = await Dealer.findById(link.dealerId).lean();
+    49→    const dealerInfo = dealer ? {
+    50→      name: dealer.name,
+    51→      logo: dealer.logoUrl,
+    52→      phone: dealer.phone,
+    53→      email: dealer.email,
+    54→      address: dealer.address,
+    55→    } : null;
+    56→
+    57→    let jobSheet = null;
+    58→
+    59→    if (link.type === "STOCK") {
+    60→      // Get vehicle and issues
+    61→      const vehicle = await Vehicle.findById(link.vehicleId).lean();
+    62→      if (!vehicle) {
+    63→        return res.status(404).json({ error: "Vehicle not found" });
+    64→      }
+    65→
+    66→      const issues = await VehicleIssue.find({ vehicleId: link.vehicleId }).sort({ createdAt: -1 }).lean();
+    67→
+    68→      jobSheet = {
+    69→        type: "STOCK",
+    70→        vehicle: {
+    71→          vrm: vehicle.regCurrent,
+    72→          make: vehicle.make,
+    73→          model: vehicle.model,
+    74→          year: vehicle.yearManufacture,
+    75→          colour: vehicle.colour,
+    76→          fuelType: vehicle.fuelType,
+    77→          mileage: vehicle.mileage,
+    78→        },
+    79→        issues: issues.map(i => ({
+    80→          category: i.category,
+    81→          subcategory: i.subcategory,
+    82→          description: i.description,
+    83→          actionNeeded: i.actionNeeded,
+    84→          notes: i.notes,
+    85→          status: i.status,
+    86→          partsRequired: i.partsRequired,
+    87→          partsDetails: i.partsDetails,
+    88→        })),
+    89→        bookingDate: vehicle.bookingDate,
+    90→      };
+    91→    } else if (link.type === "WARRANTY") {
+    92→      // Get warranty case
+    93→      const aftercareCase = await AftercareCase.findById(link.aftercareCaseId)
+    94→        .populate("contactId")
+    95→        .populate("vehicleId")
+    96→        .lean();
+    97→
+    98→      if (!aftercareCase) {
+    99→        return res.status(404).json({ error: "Warranty case not found" });
+   100→      }
+   101→
+   102→      jobSheet = {
+   103→        type: "WARRANTY",
+   104→        vehicle: {
+   105→          vrm: aftercareCase.currentReg || aftercareCase.vehicleId?.regCurrent || aftercareCase.regAtPurchase,
+   106→          make: aftercareCase.vehicleId?.make,
+   107→          model: aftercareCase.vehicleId?.model,
+   108→          year: aftercareCase.vehicleId?.yearManufacture,
+   109→        },
+   110→        warrantyType: aftercareCase.warrantyType,
+   111→        repairLocationType: aftercareCase.repairLocationType,
+   112→        repairLocationName: aftercareCase.repairLocationName,
+   113→        summary: aftercareCase.summary,
+   114→        partsRequired: aftercareCase.partsRequired,
+   115→        partsNotes: aftercareCase.partsNotes,
+   116→        bookingDate: aftercareCase.bookedInAt,
+   117→        customerName: aftercareCase.contactId?.name,
+   118→      };
+   119→    }
+   120→
+   121→    // Update view count
+   122→    await JobSheetShareLink.updateOne(
+   123→      { _id: link._id },
+   124→      { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } }
+   125→    );
+   126→
+   127→    return res.status(200).json({
+   128→      jobSheet,
+   129→      dealer: dealerInfo,
+   130→    });
+   131→  } catch (error) {
+   132→    console.error("Error fetching public job sheet:", error);
+   133→    return res.status(500).json({ error: "Failed to load job sheet" });
+   134→  }
+   135→}
+   136→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

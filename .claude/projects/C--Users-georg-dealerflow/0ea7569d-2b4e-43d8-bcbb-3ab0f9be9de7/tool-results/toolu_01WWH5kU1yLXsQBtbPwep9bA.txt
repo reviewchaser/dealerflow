@@ -1,0 +1,6 @@
+C:\Users\georg\dealerflow\pages\api\deals\index.js
+C:\Users\georg\dealerflow\pages\api\deals\[id]\take-deposit.js
+C:\Users\georg\dealerflow\pages\api\deals\[id]\generate-invoice.js
+C:\Users\georg\dealerflow\pages\api\deals\[id]\mark-delivered.js
+C:\Users\georg\dealerflow\pages\api\deals\[id]\mark-completed.js
+C:\Users\georg\dealerflow\pages\api\deals\[id].js

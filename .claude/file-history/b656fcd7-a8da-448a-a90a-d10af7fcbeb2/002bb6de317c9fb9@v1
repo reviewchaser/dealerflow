@@ -1,0 +1,224 @@
+/**
+ * Tenant (Dealer) Context Helpers
+ *
+ * Provides utilities for multi-tenant routing and context resolution.
+ * Works with both legacy routes (/dashboard) and new tenant routes (/app/[dealerSlug]/dashboard)
+ */
+
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/authOptions";
+import Dealer from "@/models/Dealer";
+import DealerMembership from "@/models/DealerMembership";
+import User, { PLATFORM_ROLES, USER_STATUS } from "@/models/User";
+import { DEALER_STATUS } from "@/models/Dealer";
+import connectMongo from "@/libs/mongoose";
+
+/**
+ * Error class for tenant access errors
+ */
+export class TenantError extends Error {
+  constructor(message, code = "ACCESS_DENIED", status = 403) {
+    super(message);
+    this.name = "TenantError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+/**
+ * Get tenant context from URL slug
+ *
+ * Use this in page getServerSideProps or API routes that need to resolve
+ * dealer from URL path instead of user's default dealer.
+ *
+ * @param {object} req - Request object
+ * @param {object} res - Response object
+ * @param {string} dealerSlug - Dealer slug from URL
+ * @returns {Promise<{ user, dealer, membership, userId, dealerId, role, dealerSlug }>}
+ * @throws {TenantError} if access denied
+ */
+export async function getTenantFromSlug(req, res, dealerSlug) {
+  await connectMongo();
+
+  // Get session
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user?.id) {
+    throw new TenantError("Unauthorized - Please sign in", "UNAUTHORIZED", 401);
+  }
+
+  const userId = session.user.id;
+
+  // Get user and check status
+  const user = await User.findById(userId).lean();
+  if (!user) {
+    throw new TenantError("User not found", "USER_NOT_FOUND", 404);
+  }
+
+  if (user.status === USER_STATUS.DISABLED) {
+    throw new TenantError(
+      "Your account has been disabled. Please contact support.",
+      "USER_DISABLED",
+      403
+    );
+  }
+
+  // SUPER_ADMIN users should use admin routes
+  if (user.role === PLATFORM_ROLES.SUPER_ADMIN) {
+    throw new TenantError(
+      "Platform admins cannot access dealer workflows. Use the admin panel instead.",
+      "ADMIN_BLOCKED",
+      403
+    );
+  }
+
+  // Find dealer by slug
+  const dealer = await Dealer.findOne({ slug: dealerSlug }).lean();
+  if (!dealer) {
+    throw new TenantError(
+      `Dealership "${dealerSlug}" not found`,
+      "DEALER_NOT_FOUND",
+      404
+    );
+  }
+
+  // Check if dealer is disabled
+  if (dealer.status === DEALER_STATUS.DISABLED) {
+    throw new TenantError(
+      "This dealership has been disabled. Please contact support.",
+      "DEALER_DISABLED",
+      403
+    );
+  }
+
+  // Check user's membership to this dealer
+  const membership = await DealerMembership.findOneActive({
+    userId,
+    dealerId: dealer._id,
+  }).lean();
+
+  if (!membership) {
+    throw new TenantError(
+      "You don't have access to this dealership",
+      "NO_MEMBERSHIP",
+      403
+    );
+  }
+
+  // Update last active timestamp (fire and forget)
+  DealerMembership.updateOne(
+    { _id: membership._id },
+    { lastActiveAt: new Date() }
+  ).exec();
+
+  return {
+    user: session.user,
+    userId,
+    dealer,
+    dealerId: dealer._id,
+    dealerSlug: dealer.slug,
+    membership: {
+      id: membership._id,
+      role: membership.role,
+    },
+    role: membership.role,
+  };
+}
+
+/**
+ * Get tenant from request (for API routes)
+ *
+ * Checks for x-dealer-slug header (set by middleware) or falls back to
+ * user's default/most recent dealer.
+ *
+ * @param {object} req - Request object
+ * @param {object} res - Response object
+ * @returns {Promise<{ user, dealer, membership, userId, dealerId, role, dealerSlug? }>}
+ */
+export async function getTenantFromRequest(req, res) {
+  const dealerSlug = req.headers["x-dealer-slug"];
+
+  if (dealerSlug) {
+    // URL-based tenant from middleware
+    return getTenantFromSlug(req, res, dealerSlug);
+  }
+
+  // Fall back to default dealer context (existing behavior)
+  const { requireDealerContext } = await import("@/libs/authContext");
+  const ctx = await requireDealerContext(req, res);
+
+  return {
+    ...ctx,
+    dealerSlug: ctx.dealer?.slug || null,
+  };
+}
+
+/**
+ * Wrapper for API routes with tenant context from URL or session
+ *
+ * @param {function} handler - Async handler function(req, res, ctx)
+ * @returns {function} Wrapped handler
+ */
+export function withTenantContext(handler) {
+  return async (req, res) => {
+    try {
+      const ctx = await getTenantFromRequest(req, res);
+      return await handler(req, res, ctx);
+    } catch (error) {
+      console.error("[withTenantContext]", error.message);
+      const status = error.status || 500;
+      return res.status(status).json({
+        error: error.message,
+        code: error.code || "UNKNOWN_ERROR",
+      });
+    }
+  };
+}
+
+/**
+ * Get all dealers a user has access to (for dealer switcher)
+ *
+ * @param {string} userId
+ * @returns {Promise<Array<{ id, name, slug, logoUrl, role }>>}
+ */
+export async function getUserDealers(userId) {
+  await connectMongo();
+
+  const memberships = await DealerMembership.findActive({ userId })
+    .populate("dealerId", "name slug logoUrl status")
+    .sort({ lastActiveAt: -1 })
+    .lean();
+
+  return memberships
+    .filter((m) => m.dealerId && m.dealerId.status !== DEALER_STATUS.DISABLED)
+    .map((m) => ({
+      id: m.dealerId._id.toString(),
+      name: m.dealerId.name,
+      slug: m.dealerId.slug,
+      logoUrl: m.dealerId.logoUrl,
+      role: m.role,
+    }));
+}
+
+/**
+ * Generate URL path for tenant-aware routes
+ *
+ * @param {string} dealerSlug - Dealer slug
+ * @param {string} path - Path after dealer slug (e.g., "dashboard", "vehicles")
+ * @returns {string} Full path
+ */
+export function tenantPath(dealerSlug, path = "") {
+  if (!dealerSlug) {
+    // Fall back to legacy routes
+    return `/${path}`;
+  }
+  return `/app/${dealerSlug}/${path}`.replace(/\/+$/, "");
+}
+
+export default {
+  getTenantFromSlug,
+  getTenantFromRequest,
+  withTenantContext,
+  getUserDealers,
+  tenantPath,
+  TenantError,
+};

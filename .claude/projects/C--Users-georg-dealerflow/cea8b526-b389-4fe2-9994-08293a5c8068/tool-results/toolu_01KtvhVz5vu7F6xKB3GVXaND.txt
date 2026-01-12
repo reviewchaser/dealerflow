@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\api\public\job\[token].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import crypto from "crypto";
+     2→import connectMongo from "@/libs/mongoose";
+     3→import JobSheetShareLink from "@/models/JobSheetShareLink";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import AftercareCase from "@/models/AftercareCase";
+     7→import Contact from "@/models/Contact"; // Required for populate
+     8→import Dealer from "@/models/Dealer";
+     9→
+    10→// Hash token with SHA256
+    11→function hashToken(token) {
+    12→  return crypto.createHash("sha256").update(token).digest("hex");

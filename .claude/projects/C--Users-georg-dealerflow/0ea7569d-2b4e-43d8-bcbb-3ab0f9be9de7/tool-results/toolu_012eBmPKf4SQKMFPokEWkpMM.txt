@@ -1,0 +1,154 @@
+  3550→
+  3551→                  {/* Purchase Section - Only for Stock vehicles */}
+  3552→                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
+  3553→                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3554→                      <div className="flex items-center justify-between mb-4">
+  3555→                        <h3 className="text-sm font-semibold text-slate-900">Purchase Info (SIV)</h3>
+  3556→                        {!selectedVehicle.purchase?.purchasePriceNet && (
+  3557→                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+  3558→                            Missing
+  3559→                          </span>
+  3560→                        )}
+  3561→                      </div>
+  3562→                      <div className="space-y-3">
+  3563→                        <div className="grid grid-cols-2 gap-3">
+  3564→                          <div className="form-control">
+  3565→                            <label className="label label-text text-xs">Purchase Price (SIV)</label>
+  3566→                            <div className="relative">
+  3567→                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  3568→                              <input
+  3569→                                type="number"
+  3570→                                step="0.01"
+  3571→                                className="input input-sm input-bordered w-full pl-7"
+  3572→                                placeholder="0.00"
+  3573→                                value={selectedVehicle.purchase?.purchasePriceNet || ""}
+  3574→                                onChange={(e) => setSelectedVehicle({
+  3575→                                  ...selectedVehicle,
+  3576→                                  purchase: { ...selectedVehicle.purchase, purchasePriceNet: e.target.value ? parseFloat(e.target.value) : null }
+  3577→                                })}
+  3578→                                onBlur={async () => {
+  3579→                                  await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3580→                                    method: "PUT",
+  3581→                                    headers: { "Content-Type": "application/json" },
+  3582→                                    body: JSON.stringify({ purchase: selectedVehicle.purchase }),
+  3583→                                  });
+  3584→                                  fetchVehicles();
+  3585→                                }}
+  3586→                              />
+  3587→                            </div>
+  3588→                          </div>
+  3589→                          <div className="form-control">
+  3590→                            <label className="label label-text text-xs">VAT on Purchase</label>
+  3591→                            <div className="relative">
+  3592→                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  3593→                              <input
+  3594→                                type="number"
+  3595→                                step="0.01"
+  3596→                                className="input input-sm input-bordered w-full pl-7"
+  3597→                                placeholder="0.00"
+  3598→                                value={selectedVehicle.purchase?.purchaseVat || ""}
+  3599→                                onChange={(e) => setSelectedVehicle({
+  3600→                                  ...selectedVehicle,
+  3601→                                  purchase: { ...selectedVehicle.purchase, purchaseVat: e.target.value ? parseFloat(e.target.value) : null }
+  3602→                                })}
+  3603→                                onBlur={async () => {
+  3604→                                  await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3605→                                    method: "PUT",
+  3606→                                    headers: { "Content-Type": "application/json" },
+  3607→                                    body: JSON.stringify({ purchase: selectedVehicle.purchase }),
+  3608→                                  });
+  3609→                                  fetchVehicles();
+  3610→                                }}
+  3611→                              />
+  3612→                            </div>
+  3613→                          </div>
+  3614→                        </div>
+  3615→                        <div className="grid grid-cols-2 gap-3">
+  3616→                          <div className="form-control">
+  3617→                            <label className="label label-text text-xs">Purchase Date</label>
+  3618→                            <input
+  3619→                              type="date"
+  3620→                              className="input input-sm input-bordered"
+  3621→                              value={selectedVehicle.purchase?.purchaseDate ? new Date(selectedVehicle.purchase.purchaseDate).toISOString().split('T')[0] : ""}
+  3622→                              onChange={async (e) => {
+  3623→                                const newValue = e.target.value;
+  3624→                                const updatedPurchase = { ...selectedVehicle.purchase, purchaseDate: newValue || null };
+  3625→                                setSelectedVehicle({ ...selectedVehicle, purchase: updatedPurchase });
+  3626→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3627→                                  method: "PUT",
+  3628→                                  headers: { "Content-Type": "application/json" },
+  3629→                                  body: JSON.stringify({ purchase: updatedPurchase }),
+  3630→                                });
+  3631→                                fetchVehicles();
+  3632→                              }}
+  3633→                            />
+  3634→                          </div>
+  3635→                          <div className="form-control">
+  3636→                            <label className="label label-text text-xs">Invoice Ref</label>
+  3637→                            <input
+  3638→                              type="text"
+  3639→                              className="input input-sm input-bordered"
+  3640→                              placeholder="INV-001"
+  3641→                              value={selectedVehicle.purchase?.purchaseInvoiceRef || ""}
+  3642→                              onChange={(e) => setSelectedVehicle({
+  3643→                                ...selectedVehicle,
+  3644→                                purchase: { ...selectedVehicle.purchase, purchaseInvoiceRef: e.target.value }
+  3645→                              })}
+  3646→                              onBlur={async () => {
+  3647→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3648→                                  method: "PUT",
+  3649→                                  headers: { "Content-Type": "application/json" },
+  3650→                                  body: JSON.stringify({ purchase: selectedVehicle.purchase }),
+  3651→                                });
+  3652→                                fetchVehicles();
+  3653→                              }}
+  3654→                            />
+  3655→                          </div>
+  3656→                        </div>
+  3657→                        <div className="form-control">
+  3658→                          <label className="label label-text text-xs">Purchased From</label>
+  3659→                          <ContactPicker
+  3660→                            value={selectedVehicle.purchase?.purchasedFromContactId}
+  3661→                            onChange={async (contactId) => {
+  3662→                              const updatedPurchase = { ...selectedVehicle.purchase, purchasedFromContactId: contactId };
+  3663→                              setSelectedVehicle({ ...selectedVehicle, purchase: updatedPurchase });
+  3664→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3665→                                method: "PUT",
+  3666→                                headers: { "Content-Type": "application/json" },
+  3667→                                body: JSON.stringify({ purchase: updatedPurchase }),
+  3668→                              });
+  3669→                              fetchVehicles();
+  3670→                            }}
+  3671→                            filterTypeTags={["SUPPLIER"]}
+  3672→                            placeholder="Search suppliers..."
+  3673→                            allowCreate={true}
+  3674→                          />
+  3675→                        </div>
+  3676→                        <div className="form-control">
+  3677→                          <label className="label label-text text-xs">VAT Scheme</label>
+  3678→                          <select
+  3679→                            className="select select-sm select-bordered w-full"
+  3680→                            value={selectedVehicle.vatScheme || "MARGIN"}
+  3681→                            onChange={async (e) => {
+  3682→                              const newValue = e.target.value;
+  3683→                              setSelectedVehicle({ ...selectedVehicle, vatScheme: newValue });
+  3684→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3685→                                method: "PUT",
+  3686→                                headers: { "Content-Type": "application/json" },
+  3687→                                body: JSON.stringify({ vatScheme: newValue }),
+  3688→                              });
+  3689→                              fetchVehicles();
+  3690→                            }}
+  3691→                          >
+  3692→                            <option value="MARGIN">Margin Scheme</option>
+  3693→                            <option value="VAT_QUALIFYING">VAT Qualifying</option>
+  3694→                            <option value="NO_VAT">No VAT</option>
+  3695→                          </select>
+  3696→                          <p className="text-xs text-slate-400 mt-1">
+  3697→                            {selectedVehicle.vatScheme === "VAT_QUALIFYING"
+  3698→                              ? "VAT can be reclaimed on purchase and charged on sale"
+  3699→                              : selectedVehicle.vatScheme === "NO_VAT"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

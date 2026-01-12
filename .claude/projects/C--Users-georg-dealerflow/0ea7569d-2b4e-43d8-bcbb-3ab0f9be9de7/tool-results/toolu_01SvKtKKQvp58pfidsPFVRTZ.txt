@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\dashboard.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import { useSession } from "next-auth/react";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import StatsCard from "@/components/StatsCard";
+     8→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     9→import { PageHint } from "@/components/ui";
+    10→
+    11→// Human-readable form type labels
+    12→const FORM_TYPE_LABELS = {
+    13→  PDI: "PDI",

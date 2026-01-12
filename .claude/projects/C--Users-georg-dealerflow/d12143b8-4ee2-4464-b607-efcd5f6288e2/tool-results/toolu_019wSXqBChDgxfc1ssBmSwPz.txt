@@ -1,0 +1,84 @@
+  2970→                            type="text"
+  2971→                            className="input input-sm bg-slate-50 border-slate-200 text-slate-900 flex-1 font-mono uppercase"
+  2972→                            value={selectedVehicle.regCurrent || ""}
+  2973→                            onChange={(e) => setSelectedVehicle({ ...selectedVehicle, regCurrent: e.target.value.toUpperCase() })}
+  2974→                            onBlur={async () => {
+  2975→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  2976→                                method: "PUT",
+  2977→                                headers: { "Content-Type": "application/json" },
+  2978→                                body: JSON.stringify({ regCurrent: selectedVehicle.regCurrent }),
+  2979→                              });
+  2980→                              fetchVehicles();
+  2981→                            }}
+  2982→                          />
+  2983→                          <button
+  2984→                            type="button"
+  2985→                            className="btn btn-sm btn-primary"
+  2986→                            onClick={lookupVehicleDVLA}
+  2987→                            disabled={isLookingUpDrawer}
+  2988→                            title="Lookup DVLA data for this registration"
+  2989→                          >
+  2990→                            {isLookingUpDrawer ? (
+  2991→                              <span className="loading loading-spinner loading-xs"></span>
+  2992→                            ) : (
+  2993→                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2994→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  2995→                              </svg>
+  2996→                            )}
+  2997→                          </button>
+  2998→                        </div>
+  2999→                        <p className="text-xs text-slate-400 mt-1">Click lookup to refresh DVLA data</p>
+  3000→                      </div>
+  3001→                      <div className="form-control">
+  3002→                        <label className="text-xs font-medium text-slate-600 mb-1 block">VIN</label>
+  3003→                        <input
+  3004→                          type="text"
+  3005→                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900"
+  3006→                          value={selectedVehicle.vin || ""}
+  3007→                          onChange={(e) => setSelectedVehicle({ ...selectedVehicle, vin: e.target.value })}
+  3008→                          onBlur={async () => {
+  3009→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3010→                              method: "PUT",
+  3011→                              headers: { "Content-Type": "application/json" },
+  3012→                              body: JSON.stringify({ vin: selectedVehicle.vin }),
+  3013→                            });
+  3014→                            fetchVehicles();
+  3015→                          }}
+  3016→                        />
+  3017→                      </div>
+  3018→                    </div>
+  3019→                  </div>
+  3020→
+  3021→                  {/* Custom Labels Section */}
+  3022→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3023→                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Custom Labels</h3>
+  3024→
+  3025→                    {/* Applied Labels Display */}
+  3026→                    {selectedVehicle.labels?.length > 0 && (
+  3027→                      <div className="flex flex-wrap gap-2 mb-3">
+  3028→                        {selectedVehicle.labels.map((label) => (
+  3029→                          <span
+  3030→                            key={label.id}
+  3031→                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+  3032→                            style={{
+  3033→                              backgroundColor: `${label.colour}20`,
+  3034→                              color: label.colour,
+  3035→                            }}
+  3036→                          >
+  3037→                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+  3038→                            {label.name}
+  3039→                            <button
+  3040→                              type="button"
+  3041→                              onClick={() => toggleVehicleLabel(selectedVehicle.id, label.id)}
+  3042→                              className="ml-0.5 hover:opacity-70"
+  3043→                            >
+  3044→                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3045→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  3046→                              </svg>
+  3047→                            </button>
+  3048→                          </span>
+  3049→                        ))}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

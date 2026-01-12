@@ -1,0 +1,29 @@
+├ ○ /public/prep-summary/[token]               3.14 kB        98.3 kB
+├ ○ /public/px-valuation                       5.68 kB         101 kB
+├ ○ /public/review/[token]                     1.6 kB         96.8 kB
+├ ○ /public/warranty-claim                     1.99 kB        97.2 kB
+├ ○ /px/[dealerSlug]                           5.31 kB         100 kB
+├ ○ /px/a/[token]                              2.82 kB          98 kB
+├ ○ /reviews                                   195 B           113 kB
+├ ○ /sales                                     2.46 kB         112 kB
+├ ○ /sales-prep                                206 B           153 kB
+├ ○ /settings                                  198 B           117 kB
+├ ○ /settings/forms                            5.21 kB         118 kB
+├ ○ /settings/forms/[id]                       5.99 kB         113 kB
+├ ○ /settings/team                             6.6 kB          113 kB
+├ ○ /tos                                       1.65 kB         104 kB
+├ ○ /vehicles                                  196 B           112 kB
+├ ○ /vehicles/[id]                             200 B           112 kB
+├ ○ /vehicles/new                              199 B           114 kB
+└ ○ /warranty                                  205 B           161 kB
++ First Load JS shared by all                  127 kB
+  ├ chunks/framework-840cff9d6bb95703.js       44.8 kB
+  ├ chunks/main-a534b3c83607e72c.js            34.1 kB
+  ├ chunks/pages/_app-66c7c06a921cc2b0.js      14.6 kB
+  ├ css/04c4713ad78cc5bf.css                   31.6 kB
+  └ other shared chunks (total)                1.57 kB
+
+ƒ Middleware                                   48 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

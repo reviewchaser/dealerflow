@@ -1,0 +1,254 @@
+  3070→                  </div>
+  3071→                </div>
+  3072→              )}
+  3073→
+  3074→              {/* Issues Tab */}
+  3075→              {activeTab === "issues" && (
+  3076→                <div className="space-y-4">
+  3077→                  <button
+  3078→                    className="btn btn-primary btn-sm w-full"
+  3079→                    onClick={() => setShowAddIssueModal(true)}
+  3080→                  >
+  3081→                    + Add Issue
+  3082→                  </button>
+  3083→
+  3084→                  {selectedVehicle.issues && selectedVehicle.issues.length > 0 ? (
+  3085→                    <div className="space-y-3">
+  3086→                      {selectedVehicle.issues.map((issue) => (
+  3087→                        <div key={issue.id} className="card bg-base-200">
+  3088→                          <div className="card-body p-4">
+  3089→                            {/* Header with badges and status */}
+  3090→                            <div className="flex justify-between items-start mb-2">
+  3091→                              <div>
+  3092→                                <span className="badge badge-sm">{issue.category}</span>
+  3093→                                {issue.subcategory && <span className="badge badge-sm badge-ghost ml-1">{issue.subcategory}</span>}
+  3094→                              </div>
+  3095→                              <select
+  3096→                                className="select select-bordered select-xs"
+  3097→                                value={issue.status || "Outstanding"}
+  3098→                                onChange={(e) => updateIssue(issue.id, { status: e.target.value })}
+  3099→                              >
+  3100→                                <option value="Outstanding">Outstanding</option>
+  3101→                                <option value="Ordered">Ordered</option>
+  3102→                                <option value="In Progress">In Progress</option>
+  3103→                                <option value="Complete">Complete</option>
+  3104→                              </select>
+  3105→                            </div>
+  3106→
+  3107→                            {/* Issue details */}
+  3108→                            <p className="text-sm font-medium">{issue.description}</p>
+  3109→                            {issue.actionNeeded && (
+  3110→                              <p className="text-xs text-base-content/60 mt-1">Action: {issue.actionNeeded}</p>
+  3111→                            )}
+  3112→                            {issue.notes && (
+  3113→                              <p className="text-xs text-base-content/60 mt-1">Notes: {issue.notes}</p>
+  3114→                            )}
+  3115→
+  3116→                            {/* Photos */}
+  3117→                            {issue.photos && issue.photos.length > 0 && (
+  3118→                              <div className="flex flex-wrap gap-2 mt-2">
+  3119→                                {issue.photos.map((photo, idx) => (
+  3120→                                  <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">
+  3121→                                    <img
+  3122→                                      src={photo}
+  3123→                                      alt={`Issue photo ${idx + 1}`}
+  3124→                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity border border-base-300"
+  3125→                                    />
+  3126→                                  </a>
+  3127→                                ))}
+  3128→                              </div>
+  3129→                            )}
+  3130→
+  3131→                            {/* Updates Timeline */}
+  3132→                            <div className="mt-3">
+  3133→                              <button
+  3134→                                className="btn btn-ghost btn-xs w-full justify-between"
+  3135→                                onClick={() => setExpandedIssues(prev => ({
+  3136→                                  ...prev,
+  3137→                                  [issue.id]: !prev[issue.id]
+  3138→                                }))}
+  3139→                              >
+  3140→                                <span>
+  3141→                                  {expandedIssues[issue.id] ? "Hide" : "Show"} Updates
+  3142→                                  {issue.updates?.length > 0 && ` (${issue.updates.length})`}
+  3143→                                </span>
+  3144→                                <span>{expandedIssues[issue.id] ? "▲" : "▼"}</span>
+  3145→                              </button>
+  3146→
+  3147→                              {expandedIssues[issue.id] && (
+  3148→                                <div className="mt-3 space-y-3">
+  3149→                                  {/* Creation timestamp */}
+  3150→                                  <div className="flex gap-2 text-xs">
+  3151→                                    <div className="w-1 bg-base-300 rounded"></div>
+  3152→                                    <p className="text-base-content/60">
+  3153→                                      Created {formatDate(issue.createdAt)}
+  3154→                                    </p>
+  3155→                                  </div>
+  3156→
+  3157→                                  {/* Updates timeline */}
+  3158→                                  {issue.updates && issue.updates.length > 0 ? (
+  3159→                                    issue.updates.map((update, idx) => (
+  3160→                                      <div key={idx} className="flex gap-2 text-xs">
+  3161→                                        <div className="w-1 bg-primary rounded"></div>
+  3162→                                        <div className="flex-1">
+  3163→                                          <p className="font-medium">{update.userName || "User"}</p>
+  3164→                                          <p className="text-sm mt-1">{update.content}</p>
+  3165→                                          <p className="text-base-content/60 mt-1">
+  3166→                                            {formatDate(update.createdAt)}
+  3167→                                          </p>
+  3168→                                        </div>
+  3169→                                      </div>
+  3170→                                    ))
+  3171→                                  ) : (
+  3172→                                    <p className="text-xs text-base-content/60 text-center py-2">
+  3173→                                      No updates yet
+  3174→                                    </p>
+  3175→                                  )}
+  3176→
+  3177→                                  {/* Add update input */}
+  3178→                                  <div className="flex gap-2 mt-3">
+  3179→                                    <input
+  3180→                                      type="text"
+  3181→                                      className="input input-bordered input-sm flex-1"
+  3182→                                      placeholder="Add an update..."
+  3183→                                      value={issueUpdateContent[issue.id] || ""}
+  3184→                                      onChange={(e) => setIssueUpdateContent(prev => ({
+  3185→                                        ...prev,
+  3186→                                        [issue.id]: e.target.value
+  3187→                                      }))}
+  3188→                                      onKeyPress={(e) => {
+  3189→                                        if (e.key === "Enter") {
+  3190→                                          addIssueUpdate(issue.id, issueUpdateContent[issue.id]);
+  3191→                                        }
+  3192→                                      }}
+  3193→                                    />
+  3194→                                    <button
+  3195→                                      className="btn btn-primary btn-sm"
+  3196→                                      onClick={() => addIssueUpdate(issue.id, issueUpdateContent[issue.id])}
+  3197→                                    >
+  3198→                                      Add
+  3199→                                    </button>
+  3200→                                  </div>
+  3201→                                </div>
+  3202→                              )}
+  3203→                            </div>
+  3204→
+  3205→                            {/* Delete button */}
+  3206→                            <div className="flex justify-end mt-2">
+  3207→                              <button
+  3208→                                className="btn btn-ghost btn-xs text-error"
+  3209→                                onClick={() => {
+  3210→                                  if (confirm("Delete this issue?")) deleteIssue(issue.id);
+  3211→                                }}
+  3212→                              >
+  3213→                                Delete
+  3214→                              </button>
+  3215→                            </div>
+  3216→                          </div>
+  3217→                        </div>
+  3218→                      ))}
+  3219→                    </div>
+  3220→                  ) : (
+  3221→                    <div className="text-center py-8 text-base-content/60">
+  3222→                      No issues recorded
+  3223→                    </div>
+  3224→                  )}
+  3225→                </div>
+  3226→              )}
+  3227→
+  3228→              {/* Documents Tab */}
+  3229→              {activeTab === "documents" && (
+  3230→                <div className="space-y-4">
+  3231→                  <button
+  3232→                    className="btn btn-primary btn-sm w-full"
+  3233→                    onClick={() => setShowAddDocumentModal(true)}
+  3234→                  >
+  3235→                    + Add Document/Image
+  3236→                  </button>
+  3237→
+  3238→                  {selectedVehicle.documents && selectedVehicle.documents.length > 0 ? (
+  3239→                    <div className="space-y-3">
+  3240→                      {selectedVehicle.documents.map((doc) => (
+  3241→                        <div key={doc.id} className="card bg-base-200">
+  3242→                          <div className="card-body p-4">
+  3243→                            <div className="flex justify-between items-start">
+  3244→                              <div className="flex-1">
+  3245→                                <p className="text-sm font-medium">{doc.name}</p>
+  3246→                                <span className="badge badge-sm mt-1">
+  3247→                                  {doc.type === "v5" && "V5"}
+  3248→                                  {doc.type === "service_history" && "Service History"}
+  3249→                                  {doc.type === "fault_codes" && "Fault Codes"}
+  3250→                                  {doc.type === "other" && "Other"}
+  3251→                                </span>
+  3252→                              </div>
+  3253→                              <div className="flex gap-1">
+  3254→                                <a
+  3255→                                  href={doc.url}
+  3256→                                  target="_blank"
+  3257→                                  rel="noopener noreferrer"
+  3258→                                  className="btn btn-ghost btn-xs"
+  3259→                                  onClick={(e) => e.stopPropagation()}
+  3260→                                >
+  3261→                                  View
+  3262→                                </a>
+  3263→                                <button
+  3264→                                  className="btn btn-ghost btn-xs text-error"
+  3265→                                  onClick={() => {
+  3266→                                    if (confirm("Delete this document?")) deleteDocument(doc.id);
+  3267→                                  }}
+  3268→                                >
+  3269→                                  Delete
+  3270→                                </button>
+  3271→                              </div>
+  3272→                            </div>
+  3273→                          </div>
+  3274→                        </div>
+  3275→                      ))}
+  3276→                    </div>
+  3277→                  ) : (
+  3278→                    <div className="text-center py-8 text-base-content/60">
+  3279→                      No documents uploaded
+  3280→                    </div>
+  3281→                  )}
+  3282→                </div>
+  3283→              )}
+  3284→
+  3285→              {/* Activity Tab */}
+  3286→              {activeTab === "activity" && (
+  3287→                <div className="space-y-4">
+  3288→                  <h3 className="text-sm font-semibold text-slate-900">Activity Log</h3>
+  3289→
+  3290→                  {activityLoading && activityData.activities.length === 0 ? (
+  3291→                    <div className="flex justify-center py-8">
+  3292→                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+  3293→                    </div>
+  3294→                  ) : activityData.activities.length === 0 ? (
+  3295→                    <div className="text-center py-8 text-base-content/60">
+  3296→                      No activity recorded yet
+  3297→                    </div>
+  3298→                  ) : (
+  3299→                    <div className="space-y-3">
+  3300→                      {activityData.activities.map((activity) => (
+  3301→                        <div
+  3302→                          key={activity._id || activity.id}
+  3303→                          className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100"
+  3304→                        >
+  3305→                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+  3306→                            activity.type === "VEHICLE_CREATED" ? "bg-green-100" :
+  3307→                            activity.type === "STATUS_CHANGED" ? "bg-blue-100" :
+  3308→                            activity.type === "TYPE_CHANGED" ? "bg-violet-100" :
+  3309→                            activity.type === "LOCATION_CHANGED" ? "bg-indigo-100" :
+  3310→                            activity.type === "TASK_COMPLETED" ? "bg-emerald-100" :
+  3311→                            activity.type === "TASK_STATUS_UPDATED" ? "bg-amber-100" :
+  3312→                            activity.type === "TASK_PROGRESS_UPDATED" ? "bg-orange-100" :
+  3313→                            activity.type === "TASK_PARTS_STATUS_CHANGED" || activity.type === "TASK_PARTS_ORDER_ADDED" ? "bg-amber-100" :
+  3314→                            activity.type === "TASK_PARTS_ORDER_UPDATED" ? "bg-blue-100" :
+  3315→                            activity.type === "TASK_PARTS_ORDER_REMOVED" ? "bg-red-100" :
+  3316→                            activity.type === "TASK_ADDED" || activity.type === "TASK_DELETED" ? "bg-slate-100" :
+  3317→                            activity.type === "ISSUE_ADDED" ? "bg-red-100" :
+  3318→                            activity.type === "ISSUE_RESOLVED" ? "bg-green-100" :
+  3319→                            activity.type === "ISSUE_UPDATED" || activity.type === "ISSUE_COMMENT_ADDED" ? "bg-yellow-100" :
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

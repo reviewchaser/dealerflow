@@ -1,0 +1,50 @@
+The file C:\Users\georg\dealerflow\components\ui\MobileModal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    30→  className = "",
+    31→}) {
+    32→  const modalRef = useRef(null);
+    33→
+    34→  // Lock body scroll and prevent horizontal pan when open
+    35→  useEffect(() => {
+    36→    if (isOpen) {
+    37→      const scrollY = window.scrollY;
+    38→      const html = document.documentElement;
+    39→
+    40→      // Lock both html and body to prevent any horizontal movement
+    41→      document.body.style.position = "fixed";
+    42→      document.body.style.top = `-${scrollY}px`;
+    43→      document.body.style.left = "0";
+    44→      document.body.style.right = "0";
+    45→      document.body.style.width = "100%";
+    46→      document.body.style.overflow = "hidden";
+    47→      document.body.style.overflowX = "hidden";
+    48→      // Use manipulation instead of none to allow pinch zoom on iOS
+    49→      document.body.style.touchAction = "manipulation";
+    50→
+    51→      html.style.overflow = "hidden";
+    52→      html.style.overflowX = "hidden";
+    53→
+    54→      // Add class for additional CSS-based locking
+    55→      document.body.classList.add("modal-open");
+    56→
+    57→      return () => {
+    58→        document.body.style.position = "";
+    59→        document.body.style.top = "";
+    60→        document.body.style.left = "";
+    61→        document.body.style.right = "";
+    62→        document.body.style.width = "";
+    63→        document.body.style.overflow = "";
+    64→        document.body.style.overflowX = "";
+    65→        document.body.style.touchAction = "";
+    66→
+    67→        html.style.overflow = "";
+    68→        html.style.overflowX = "";
+    69→
+    70→        document.body.classList.remove("modal-open");
+    71→        window.scrollTo(0, scrollY);
+    72→      };
+    73→    }
+    74→  }, [isOpen]);
+    75→
+    76→  // Handle escape key
+    77→  useEffect(() => {
+    78→    const handleEscape = (e) => {

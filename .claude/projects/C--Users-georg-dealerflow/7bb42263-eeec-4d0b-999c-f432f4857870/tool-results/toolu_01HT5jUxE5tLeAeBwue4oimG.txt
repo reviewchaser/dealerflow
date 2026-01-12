@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\[id]\issues.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    27→  }
+    28→
+    29→  if (req.method === "POST") {
+    30→    try {
+    31→      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails } = req.body;
+    32→
+    33→      if (!category || !subcategory || !description) {
+    34→        return res.status(400).json({ error: "Category, subcategory, and description are required" });
+    35→      }

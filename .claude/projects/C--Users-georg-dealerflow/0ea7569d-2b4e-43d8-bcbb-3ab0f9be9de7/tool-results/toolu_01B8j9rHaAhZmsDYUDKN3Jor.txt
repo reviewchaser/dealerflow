@@ -1,0 +1,254 @@
+     1→import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→import { BottomSheet } from "@/components/ui/BottomSheet";
+     9→import { PageHint } from "@/components/ui";
+    10→import { Portal } from "@/components/ui/Portal";
+    11→import { MobileStageSelector } from "@/components/ui/PageShell";
+    12→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    13→import VehicleImage from "@/components/VehicleImage";
+    14→import ContactPicker from "@/components/ContactPicker";
+    15→
+    16→const COLUMNS = [
+    17→  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    18→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    19→  { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
+    20→  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+    21→  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+    22→];
+    23→
+    24→const ISSUE_SUBCATEGORIES = {
+    25→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    26→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    27→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    28→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    29→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    30→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    31→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    32→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    33→  other: ["General", "Misc"],
+    34→};
+    35→
+    36→// Sold statuses - these show "Sold X days" instead of "In stock X days"
+    37→const SOLD_STATUSES = ["live", "reserved", "delivered"];
+    38→
+    39→// Helper to compute duration label based on status
+    40→const getVehicleDuration = (vehicle) => {
+    41→  const isSold = SOLD_STATUSES.includes(vehicle.status);
+    42→
+    43→  if (isSold) {
+    44→    if (vehicle.soldAt) {
+    45→      const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
+    46→      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+    47→    }
+    48→    // Legacy sold vehicle without soldAt - just show "Sold"
+    49→    return { days: 0, label: "Sold", isSold: true };
+    50→  }
+    51→
+    52→  const daysInStock = vehicle.createdAt
+    53→    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    54→    : 0;
+    55→  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+    56→};
+    57→
+    58→export default function SalesPrep() {
+    59→  const router = useRouter();
+    60→  const { isRedirecting } = useDealerRedirect();
+    61→  const [vehicles, setVehicles] = useState([]);
+    62→  const [isLoading, setIsLoading] = useState(true);
+    63→  const [selectedVehicle, setSelectedVehicle] = useState(null);
+    64→  const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
+    65→  const [showAddModal, setShowAddModal] = useState(false);
+    66→  const [draggedCard, setDraggedCard] = useState(null);
+    67→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+    68→  const [newTaskName, setNewTaskName] = useState("");
+    69→  const [activeTab, setActiveTab] = useState("overview");
+    70→  const [editingTaskId, setEditingTaskId] = useState(null);
+    71→  const [editingTaskName, setEditingTaskName] = useState("");
+    72→
+    73→  // Parts ordering state
+    74→  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+    75→  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+    76→  const [partsOrderForm, setPartsOrderForm] = useState({
+    77→    supplierType: "EURO_CAR_PARTS",
+    78→    supplierName: "",
+    79→    orderRef: "",
+    80→    expectedAt: "",
+    81→    notes: "",
+    82→  });
+    83→  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+    84→
+    85→  // Column sorting state
+    86→  const [columnSortOptions, setColumnSortOptions] = useState({});
+    87→
+    88→  // Job sheet share state
+    89→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+    90→  const [jobSheetLink, setJobSheetLink] = useState(null);
+    91→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+    92→
+    93→  // Prep summary share state
+    94→  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+    95→  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+    96→  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+    97→
+    98→  // Manual share fallback modal
+    99→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+   100→  const [manualShareUrl, setManualShareUrl] = useState("");
+   101→
+   102→  // Mobile move bottom sheet
+   103→  const [moveVehicle, setMoveVehicle] = useState(null);
+   104→  const [moveCurrentColumn, setMoveCurrentColumn] = useState(null);
+   105→
+   106→  // Touch device detection for adaptive hints
+   107→  const [isTouchDevice, setIsTouchDevice] = useState(false);
+   108→  useEffect(() => {
+   109→    // Check for touch capability
+   110→    const hasTouch = window.matchMedia('(pointer: coarse)').matches;
+   111→    setIsTouchDevice(hasTouch);
+   112→  }, []);
+   113→
+   114→  // Issues state
+   115→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+   116→  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
+   117→  const [issueForm, setIssueForm] = useState({
+   118→    category: "",
+   119→    subcategory: "",
+   120→    description: "",
+   121→    actionNeeded: "",
+   122→    priority: "medium",
+   123→    location: "",
+   124→    status: "outstanding",
+   125→    notes: "",
+   126→    photos: [],
+   127→    partsRequired: false,
+   128→    partsDetails: "",
+   129→  });
+   130→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   131→  const [expandedIssues, setExpandedIssues] = useState({});
+   132→
+   133→  // Filters state - with localStorage persistence
+   134→  const [activeFilters, setActiveFilters] = useState([]);
+   135→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   136→  const filterButtonRef = useRef(null);
+   137→  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+   138→
+   139→  // Calculate popover position when opening
+   140→  const openFiltersDropdown = useCallback(() => {
+   141→    if (filterButtonRef.current) {
+   142→      const rect = filterButtonRef.current.getBoundingClientRect();
+   143→      const viewportHeight = window.innerHeight;
+   144→      const viewportWidth = window.innerWidth;
+   145→
+   146→      // Position below the button, aligned to right edge
+   147→      let top = rect.bottom + 8;
+   148→      let right = viewportWidth - rect.right;
+   149→
+   150→      // Ensure popover doesn't go below viewport (max 70vh height + 16px padding)
+   151→      const popoverHeight = Math.min(viewportHeight * 0.7, 600);
+   152→      if (top + popoverHeight > viewportHeight - 16) {
+   153→        top = Math.max(16, viewportHeight - popoverHeight - 16);
+   154→      }
+   155→
+   156→      // Ensure popover doesn't go off right edge
+   157→      right = Math.max(16, right);
+   158→
+   159→      setFilterPopoverPos({ top, right });
+   160→    }
+   161→    setShowFiltersDropdown(true);
+   162→  }, []);
+   163→
+   164→  // Load filters from localStorage on mount
+   165→  useEffect(() => {
+   166→    try {
+   167→      const savedFilters = localStorage.getItem("salesPrepFilters");
+   168→      if (savedFilters) {
+   169→        setActiveFilters(JSON.parse(savedFilters));
+   170→      }
+   171→    } catch (e) {
+   172→      console.warn("Failed to load saved filters:", e);
+   173→    }
+   174→  }, []);
+   175→
+   176→  // Save filters to localStorage when they change
+   177→  useEffect(() => {
+   178→    try {
+   179→      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+   180→    } catch (e) {
+   181→      console.warn("Failed to save filters:", e);
+   182→    }
+   183→  }, [activeFilters]);
+   184→
+   185→  // Documents state
+   186→  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+   187→  const [documentForm, setDocumentForm] = useState({
+   188→    name: "",
+   189→    type: "other",
+   190→    file: null,
+   191→  });
+   192→
+   193→  // Location state
+   194→  const [locations, setLocations] = useState([]);
+   195→  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+   196→
+   197→  // Vehicle Labels state
+   198→  const [availableLabels, setAvailableLabels] = useState([]);
+   199→  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+   200→  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+   201→  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+   202→
+   203→  // Activity log state
+   204→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   205→  const [activityLoading, setActivityLoading] = useState(false);
+   206→
+   207→  // Sales/Deal state for quick action
+   208→  const [vehicleDeal, setVehicleDeal] = useState(null);
+   209→  const [dealLoading, setDealLoading] = useState(false);
+   210→  const [creatingDeal, setCreatingDeal] = useState(false);
+   211→
+   212→  // VRM Search state
+   213→  const [vrmSearch, setVrmSearch] = useState("");
+   214→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   215→  const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
+   216→  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+   217→  const vrmSearchInputRef = useRef(null);
+   218→  const vrmDropdownRef = useRef(null);
+   219→
+   220→  // VRM dropdown position state - calculated once and updated on changes
+   221→  const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0, width: 320 });
+   222→
+   223→  // Calculate dropdown position relative to input (with mobile Safari fixes)
+   224→  const updateVrmDropdownPosition = useCallback(() => {
+   225→    if (!vrmSearchInputRef.current) return;
+   226→    const rect = vrmSearchInputRef.current.getBoundingClientRect();
+   227→
+   228→    // Use visualViewport for more accurate positioning on mobile (especially iOS Safari with keyboard)
+   229→    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+   230→    const viewportWidth = window.visualViewport?.width || window.innerWidth;
+   231→    const viewportOffsetTop = window.visualViewport?.offsetTop || 0;
+   232→
+   233→    // Calculate available space below the input
+   234→    const spaceBelow = viewportHeight - (rect.bottom - viewportOffsetTop);
+   235→    const dropdownHeight = 280; // Approximate max height of dropdown
+   236→
+   237→    // If not enough space below, position above (mobile-friendly)
+   238→    const shouldPositionAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+   239→
+   240→    const top = shouldPositionAbove
+   241→      ? rect.top + viewportOffsetTop - dropdownHeight - 4
+   242→      : rect.bottom + viewportOffsetTop + 4;
+   243→
+   244→    // On mobile, use full width minus padding for better usability
+   245→    const isMobile = viewportWidth < 640;
+   246→    const desiredWidth = isMobile ? viewportWidth - 32 : Math.max(rect.width, 320);
+   247→    const maxWidth = viewportWidth - 32; // 16px padding on each side
+   248→    const width = Math.min(desiredWidth, maxWidth);
+   249→
+   250→    // Adjust left position to keep dropdown in viewport
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→import { BottomSheet } from "@/components/ui/BottomSheet";
+     9→import { PageHint } from "@/components/ui";
+    10→import { Portal } from "@/components/ui/Portal";
+    11→import { MobileStageSelector } from "@/components/ui/PageShell";
+    12→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    13→import VehicleImage from "@/components/VehicleImage";

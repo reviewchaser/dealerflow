@@ -1,0 +1,33 @@
+The file C:\Users\georg\dealerflow\libs\vehicle\normalizeVrmLookup.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   139→ * Normalize fuel type to consistent format
+   140→ * @param {string} fuelType - Raw fuel type from DVLA
+   141→ * @returns {string} - Normalized fuel type
+   142→ */
+   143→export function normalizeFuelType(fuelType) {
+   144→  if (!fuelType) return "";
+   145→
+   146→  const normalized = fuelType.toUpperCase().trim();
+   147→
+   148→  // Map common variations to capitalized form (for form select compatibility)
+   149→  const fuelMap = {
+   150→    PETROL: "Petrol",
+   151→    DIESEL: "Diesel",
+   152→    ELECTRIC: "Electric",
+   153→    HYBRID: "Hybrid",
+   154→    "HYBRID ELECTRIC": "Hybrid",
+   155→    "PLUG-IN HYBRID": "Hybrid",
+   156→    "PETROL/ELECTRIC HYBRID": "Hybrid",
+   157→    "DIESEL/ELECTRIC HYBRID": "Hybrid",
+   158→    GAS: "Gas",
+   159→    LPG: "LPG",
+   160→    CNG: "CNG",
+   161→    "BI FUEL": "Bi Fuel",
+   162→    HYDROGEN: "Hydrogen",
+   163→  };
+   164→
+   165→  return fuelMap[normalized] || fuelType;
+   166→}
+   167→
+   168→/**
+   169→ * Normalize transmission to consistent format
+   170→ * @param {string} transmission - Raw transmission from DVLA

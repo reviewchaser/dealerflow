@@ -1,0 +1,48 @@
+The file C:\Users\georg\dealerflow\components\ui\BottomSheet.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    24→  hideAbove = "md", // "md" = hide above 768px, "lg" = hide above 1024px
+    25→}) {
+    26→  const sheetRef = useRef(null);
+    27→
+    28→  // Lock body scroll and prevent horizontal pan when open
+    29→  useEffect(() => {
+    30→    if (isOpen) {
+    31→      const scrollY = window.scrollY;
+    32→      const html = document.documentElement;
+    33→
+    34→      // Lock both html and body to prevent any horizontal movement
+    35→      document.body.style.position = "fixed";
+    36→      document.body.style.top = `-${scrollY}px`;
+    37→      document.body.style.left = "0";
+    38→      document.body.style.right = "0";
+    39→      document.body.style.width = "100%";
+    40→      document.body.style.overflow = "hidden";
+    41→      document.body.style.overflowX = "hidden";
+    42→      document.body.style.touchAction = "none";
+    43→
+    44→      html.style.overflow = "hidden";
+    45→      html.style.overflowX = "hidden";
+    46→
+    47→      document.body.classList.add("modal-open");
+    48→
+    49→      return () => {
+    50→        document.body.style.position = "";
+    51→        document.body.style.top = "";
+    52→        document.body.style.left = "";
+    53→        document.body.style.right = "";
+    54→        document.body.style.width = "";
+    55→        document.body.style.overflow = "";
+    56→        document.body.style.overflowX = "";
+    57→        document.body.style.touchAction = "";
+    58→
+    59→        html.style.overflow = "";
+    60→        html.style.overflowX = "";
+    61→
+    62→        document.body.classList.remove("modal-open");
+    63→        window.scrollTo(0, scrollY);
+    64→      };
+    65→    }
+    66→  }, [isOpen]);
+    67→
+    68→  // Handle escape key
+    69→  useEffect(() => {
+    70→    const handleEscape = (e) => {

@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { MobileStageSelector, PageHint } from "@/components/ui/PageShell";
+     9→import { toast } from "react-hot-toast";
+    10→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    11→
+    12→// Column config matching Sales & Prep style
+    13→// NOTE: Internal keys are legacy names - keep stable for database compatibility
+    14→// Display labels have been updated for clarity

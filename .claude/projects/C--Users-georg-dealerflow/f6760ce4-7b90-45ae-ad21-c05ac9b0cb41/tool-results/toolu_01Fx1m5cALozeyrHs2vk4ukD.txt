@@ -1,0 +1,126 @@
+     1→import { useState } from "react";
+     2→import { QRCodeSVG } from "qrcode.react";
+     3→import toast from "react-hot-toast";
+     4→
+     5→export default function ShareFormModal({ form, publicUrl, onClose }) {
+     6→  const [showQR, setShowQR] = useState(false);
+     7→
+     8→  const copyToClipboard = () => {
+     9→    navigator.clipboard.writeText(publicUrl);
+    10→    toast.success("Link copied to clipboard!");
+    11→  };
+    12→
+    13→  const shareViaEmail = () => {
+    14→    const subject = encodeURIComponent(`${form.name} - DealerFlow Form`);
+    15→    const body = encodeURIComponent(`Please fill out this form:\n\n${publicUrl}`);
+    16→    window.open(`mailto:?subject=${subject}&body=${body}`);
+    17→  };
+    18→
+    19→  const shareViaWhatsApp = () => {
+    20→    const text = encodeURIComponent(`Please fill out this form: ${publicUrl}`);
+    21→    window.open(`https://wa.me/?text=${text}`, "_blank");
+    22→  };
+    23→
+    24→  const getSMSText = () => {
+    25→    return `Please fill out this form: ${publicUrl}`;
+    26→  };
+    27→
+    28→  return (
+    29→    <>
+    30→      {/* Modal backdrop */}
+    31→      <div className="modal modal-open">
+    32→        <div className="modal-box max-w-2xl">
+    33→          <h3 className="font-bold text-lg mb-4">Share: {form.name}</h3>
+    34→
+    35→          {/* Public URL */}
+    36→          <div className="form-control mb-6">
+    37→            <label className="label">
+    38→              <span className="label-text font-semibold">Public URL</span>
+    39→            </label>
+    40→            <div className="flex gap-2">
+    41→              <input
+    42→                type="text"
+    43→                className="input input-bordered flex-1"
+    44→                value={publicUrl}
+    45→                readOnly
+    46→                onClick={(e) => e.target.select()}
+    47→              />
+    48→              <button className="btn btn-primary" onClick={copyToClipboard}>
+    49→                Copy
+    50→              </button>
+    51→            </div>
+    52→          </div>
+    53→
+    54→          {/* Share Options */}
+    55→          <div className="grid grid-cols-2 gap-4 mb-6">
+    56→            <button
+    57→              className="btn btn-outline"
+    58→              onClick={shareViaEmail}
+    59→            >
+    60→              📧 Email
+    61→            </button>
+    62→            <button
+    63→              className="btn btn-outline"
+    64→              onClick={shareViaWhatsApp}
+    65→            >
+    66→              💬 WhatsApp
+    67→            </button>
+    68→            <button
+    69→              className="btn btn-outline"
+    70→              onClick={() => setShowQR(!showQR)}
+    71→            >
+    72→              📱 QR Code
+    73→            </button>
+    74→            <div className="form-control">
+    75→              <label className="label cursor-pointer">
+    76→                <span className="label-text">SMS</span>
+    77→                <input type="checkbox" className="toggle" disabled />
+    78→              </label>
+    79→              <p className="text-xs text-base-content/60 mt-1">
+    80→                Copy the link and send via SMS
+    81→              </p>
+    82→            </div>
+    83→          </div>
+    84→
+    85→          {/* SMS Text */}
+    86→          <div className="form-control mb-6">
+    87→            <label className="label">
+    88→              <span className="label-text font-semibold">SMS Text (Copy & Send)</span>
+    89→            </label>
+    90→            <textarea
+    91→              className="textarea textarea-bordered"
+    92→              value={getSMSText()}
+    93→              readOnly
+    94→              rows={3}
+    95→              onClick={(e) => e.target.select()}
+    96→            />
+    97→          </div>
+    98→
+    99→          {/* QR Code */}
+   100→          {showQR && (
+   101→            <div className="flex flex-col items-center mb-6 p-6 bg-base-200 rounded-lg">
+   102→              <p className="font-semibold mb-4">Scan to open form</p>
+   103→              <QRCodeSVG value={publicUrl} size={200} level="H" />
+   104→              <p className="text-sm text-base-content/60 mt-4">
+   105→                Right-click to save or print
+   106→              </p>
+   107→            </div>
+   108→          )}
+   109→
+   110→          {/* Close Button */}
+   111→          <div className="modal-action">
+   112→            <button className="btn" onClick={onClose}>
+   113→              Close
+   114→            </button>
+   115→          </div>
+   116→        </div>
+   117→        <div className="modal-backdrop" onClick={onClose}></div>
+   118→      </div>
+   119→    </>
+   120→  );
+   121→}
+   122→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

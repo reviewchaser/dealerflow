@@ -1,0 +1,363 @@
+     1→/**
+     2→ * AI Suggestions Panel Component
+     3→ *
+     4→ * Displays AI-generated diagnostic suggestions in a collapsible panel.
+     5→ * Shows: suspected issues, checks to run, customer questions, parts, safety notes.
+     6→ * Includes "Copy to notes" functionality.
+     7→ */
+     8→
+     9→import { useState } from "react";
+    10→import { toast } from "react-hot-toast";
+    11→
+    12→// Urgency badge colors
+    13→const URGENCY_COLORS = {
+    14→  low: "badge-success",
+    15→  med: "badge-warning",
+    16→  high: "badge-error",
+    17→};
+    18→
+    19→const URGENCY_LABELS = {
+    20→  low: "Low",
+    21→  med: "Medium",
+    22→  high: "High",
+    23→};
+    24→
+    25→// Error display helper - returns user-friendly message based on error code
+    26→function getErrorDisplay(errorCode, errorMessage) {
+    27→  switch (errorCode) {
+    28→    case "NOT_CONFIGURED":
+    29→    case "MISSING_KEY":
+    30→      return {
+    31→        title: "AI Not Configured",
+    32→        message: "OpenAI API key is not set. Please contact your administrator.",
+    33→        type: "warning",
+    34→      };
+    35→    case "AUTH_FAILED":
+    36→    case "INVALID_KEY_FORMAT":
+    37→      return {
+    38→        title: "AI Authentication Error",
+    39→        message: "The OpenAI API key is invalid. Please check your configuration.",
+    40→        type: "error",
+    41→      };
+    42→    case "RATE_LIMIT":
+    43→      return {
+    44→        title: "Rate Limit Exceeded",
+    45→        message: "Too many requests. Please wait a moment and try again.",
+    46→        type: "warning",
+    47→      };
+    48→    case "SERVICE_UNAVAILABLE":
+    49→      return {
+    50→        title: "AI Service Unavailable",
+    51→        message: "OpenAI is temporarily unavailable. Please try again later.",
+    52→        type: "warning",
+    53→      };
+    54→    case "UNAUTHORIZED":
+    55→      return {
+    56→        title: "Not Authorised",
+    57→        message: "Please sign in to use AI features.",
+    58→        type: "error",
+    59→      };
+    60→    default:
+    61→      return {
+    62→        title: "AI Error",
+    63→        message: errorMessage || "An error occurred while generating suggestions.",
+    64→        type: "error",
+    65→      };
+    66→  }
+    67→}
+    68→
+    69→export default function AISuggestionsPanel({
+    70→  suggestions,
+    71→  isLoading,
+    72→  isDummy,
+    73→  errorCode,
+    74→  errorMessage,
+    75→  onCopyToNotes,
+    76→  className = "",
+    77→}) {
+    78→  const [isExpanded, setIsExpanded] = useState(true);
+    79→
+    80→  if (!suggestions && !isLoading) {
+    81→    return null;
+    82→  }
+    83→
+    84→  const handleCopyToNotes = () => {
+    85→    if (!suggestions) return;
+    86→
+    87→    // Format suggestions as text
+    88→    const lines = [];
+    89→    lines.push("=== AI SUGGESTIONS ===\n");
+    90→
+    91→    if (suggestions.suspected_issues?.length > 0) {
+    92→      lines.push("SUSPECTED ISSUES:");
+    93→      suggestions.suspected_issues.forEach((issue, i) => {
+    94→        lines.push(`${i + 1}. ${issue.title} [${issue.urgency?.toUpperCase()}]`);
+    95→        if (issue.why) lines.push(`   Why: ${issue.why}`);
+    96→      });
+    97→      lines.push("");
+    98→    }
+    99→
+   100→    if (suggestions.checks_to_run?.length > 0) {
+   101→      lines.push("CHECKS TO RUN:");
+   102→      suggestions.checks_to_run.forEach((check, i) => {
+   103→        lines.push(`${i + 1}. ${check.step}`);
+   104→        if (check.tools) lines.push(`   Tools: ${check.tools}`);
+   105→        if (check.time_estimate_mins) lines.push(`   Est. time: ${check.time_estimate_mins} mins`);
+   106→      });
+   107→      lines.push("");
+   108→    }
+   109→
+   110→    if (suggestions.questions_for_customer?.length > 0) {
+   111→      lines.push("QUESTIONS FOR CUSTOMER:");
+   112→      suggestions.questions_for_customer.forEach((q, i) => {
+   113→        lines.push(`${i + 1}. ${q.question}`);
+   114→        if (q.why) lines.push(`   Reason: ${q.why}`);
+   115→      });
+   116→      lines.push("");
+   117→    }
+   118→
+   119→    if (suggestions.parts_to_consider?.length > 0) {
+   120→      lines.push("PARTS TO CONSIDER:");
+   121→      suggestions.parts_to_consider.forEach((part, i) => {
+   122→        lines.push(`${i + 1}. ${part.part}`);
+   123→        if (part.notes) lines.push(`   Notes: ${part.notes}`);
+   124→      });
+   125→      lines.push("");
+   126→    }
+   127→
+   128→    if (suggestions.safety_notes?.length > 0) {
+   129→      lines.push("SAFETY NOTES:");
+   130→      suggestions.safety_notes.forEach((note, i) => {
+   131→        lines.push(`- ${note.note}`);
+   132→      });
+   133→    }
+   134→
+   135→    const text = lines.join("\n");
+   136→
+   137→    // If callback provided, use it
+   138→    if (onCopyToNotes) {
+   139→      onCopyToNotes(text);
+   140→      toast.success("Added to notes");
+   141→    } else {
+   142→      // Otherwise copy to clipboard
+   143→      navigator.clipboard.writeText(text).then(() => {
+   144→        toast.success("Copied to clipboard");
+   145→      }).catch(() => {
+   146→        toast.error("Failed to copy");
+   147→      });
+   148→    }
+   149→  };
+   150→
+   151→  return (
+   152→    <div className={`bg-base-200 rounded-lg border border-base-300 ${className}`}>
+   153→      {/* Header */}
+   154→      <div
+   155→        className="flex items-center justify-between p-3 cursor-pointer hover:bg-base-300/50 rounded-t-lg"
+   156→        onClick={() => setIsExpanded(!isExpanded)}
+   157→      >
+   158→        <div className="flex items-center gap-2">
+   159→          <svg
+   160→            xmlns="http://www.w3.org/2000/svg"
+   161→            className="h-5 w-5 text-primary"
+   162→            viewBox="0 0 24 24"
+   163→            fill="none"
+   164→            stroke="currentColor"
+   165→            strokeWidth="2"
+   166→          >
+   167→            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+   168→          </svg>
+   169→          <span className="font-medium">AI Suggestions</span>
+   170→          {isDummy && (
+   171→            <span className="badge badge-sm badge-ghost">Demo</span>
+   172→          )}
+   173→        </div>
+   174→        <div className="flex items-center gap-2">
+   175→          {isLoading && (
+   176→            <span className="loading loading-spinner loading-sm"></span>
+   177→          )}
+   178→          <svg
+   179→            xmlns="http://www.w3.org/2000/svg"
+   180→            className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+   181→            fill="none"
+   182→            viewBox="0 0 24 24"
+   183→            stroke="currentColor"
+   184→          >
+   185→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+   186→          </svg>
+   187→        </div>
+   188→      </div>
+   189→
+   190→      {/* Content */}
+   191→      {isExpanded && (
+   192→        <div className="p-3 pt-0 space-y-4">
+   193→          {isLoading ? (
+   194→            <div className="text-center py-4 text-base-content/60">
+   195→              <span className="loading loading-dots loading-md"></span>
+   196→              <p className="mt-2 text-sm">Analysing...</p>
+   197→            </div>
+   198→          ) : isDummy && errorCode ? (
+   199→            // Show error message with proper styling when in dummy mode due to error
+   200→            (() => {
+   201→              const errorDisplay = getErrorDisplay(errorCode, errorMessage);
+   202→              const alertClass = errorDisplay.type === "error" ? "alert-error" : "alert-warning";
+   203→              return (
+   204→                <div className={`alert ${alertClass} shadow-sm`}>
+   205→                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+   206→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   207→                  </svg>
+   208→                  <div>
+   209→                    <h3 className="font-bold text-sm">{errorDisplay.title}</h3>
+   210→                    <p className="text-xs">{errorDisplay.message}</p>
+   211→                  </div>
+   212→                </div>
+   213→              );
+   214→            })()
+   215→          ) : suggestions ? (
+   216→            <>
+   217→              {/* Suspected Issues */}
+   218→              {suggestions.suspected_issues?.length > 0 && (
+   219→                <div>
+   220→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   221→                    <span className="text-warning">!</span> Suspected Issues
+   222→                  </h4>
+   223→                  <div className="space-y-2">
+   224→                    {suggestions.suspected_issues.map((issue, i) => (
+   225→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   226→                        <div className="flex items-start justify-between gap-2">
+   227→                          <span className="font-medium">{issue.title}</span>
+   228→                          {issue.urgency && (
+   229→                            <span className={`badge badge-xs ${URGENCY_COLORS[issue.urgency] || "badge-ghost"}`}>
+   230→                              {URGENCY_LABELS[issue.urgency] || issue.urgency}
+   231→                            </span>
+   232→                          )}
+   233→                        </div>
+   234→                        {issue.why && (
+   235→                          <p className="text-base-content/70 mt-1">{issue.why}</p>
+   236→                        )}
+   237→                      </div>
+   238→                    ))}
+   239→                  </div>
+   240→                </div>
+   241→              )}
+   242→
+   243→              {/* Checks to Run */}
+   244→              {suggestions.checks_to_run?.length > 0 && (
+   245→                <div>
+   246→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   247→                    <span className="text-info">&#10003;</span> Checks to Run
+   248→                  </h4>
+   249→                  <div className="space-y-2">
+   250→                    {suggestions.checks_to_run.map((check, i) => (
+   251→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   252→                        <p className="font-medium">{check.step}</p>
+   253→                        <div className="flex gap-4 mt-1 text-xs text-base-content/60">
+   254→                          {check.tools && <span>Tools: {check.tools}</span>}
+   255→                          {check.time_estimate_mins > 0 && (
+   256→                            <span>~{check.time_estimate_mins} mins</span>
+   257→                          )}
+   258→                        </div>
+   259→                      </div>
+   260→                    ))}
+   261→                  </div>
+   262→                </div>
+   263→              )}
+   264→
+   265→              {/* Questions for Customer */}
+   266→              {suggestions.questions_for_customer?.length > 0 && (
+   267→                <div>
+   268→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   269→                    <span className="text-secondary">?</span> Questions for Customer
+   270→                  </h4>
+   271→                  <div className="space-y-2">
+   272→                    {suggestions.questions_for_customer.map((q, i) => (
+   273→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   274→                        <p className="font-medium">{q.question}</p>
+   275→                        {q.why && (
+   276→                          <p className="text-base-content/60 text-xs mt-1">
+   277→                            Why: {q.why}
+   278→                          </p>
+   279→                        )}
+   280→                      </div>
+   281→                    ))}
+   282→                  </div>
+   283→                </div>
+   284→              )}
+   285→
+   286→              {/* Parts to Consider */}
+   287→              {suggestions.parts_to_consider?.length > 0 && (
+   288→                <div>
+   289→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   290→                    <span className="text-accent">&#9881;</span> Parts to Consider
+   291→                  </h4>
+   292→                  <div className="space-y-1">
+   293→                    {suggestions.parts_to_consider.map((part, i) => (
+   294→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   295→                        <span className="font-medium">{part.part}</span>
+   296→                        {part.notes && (
+   297→                          <span className="text-base-content/60"> - {part.notes}</span>
+   298→                        )}
+   299→                      </div>
+   300→                    ))}
+   301→                  </div>
+   302→                </div>
+   303→              )}
+   304→
+   305→              {/* Safety Notes */}
+   306→              {suggestions.safety_notes?.length > 0 && (
+   307→                <div>
+   308→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   309→                    <span className="text-error">&#9888;</span> Safety Notes
+   310→                  </h4>
+   311→                  <div className="bg-error/10 border border-error/20 rounded p-2">
+   312→                    <ul className="text-sm space-y-1">
+   313→                      {suggestions.safety_notes.map((note, i) => (
+   314→                        <li key={i} className="flex items-start gap-2">
+   315→                          <span className="text-error">&#8226;</span>
+   316→                          <span>{note.note}</span>
+   317→                        </li>
+   318→                      ))}
+   319→                    </ul>
+   320→                  </div>
+   321→                </div>
+   322→              )}
+   323→
+   324→              {/* Copy to Notes Button */}
+   325→              <div className="pt-2 border-t border-base-300">
+   326→                <button
+   327→                  type="button"
+   328→                  className="btn btn-sm btn-ghost gap-2"
+   329→                  onClick={handleCopyToNotes}
+   330→                >
+   331→                  <svg
+   332→                    xmlns="http://www.w3.org/2000/svg"
+   333→                    className="h-4 w-4"
+   334→                    fill="none"
+   335→                    viewBox="0 0 24 24"
+   336→                    stroke="currentColor"
+   337→                  >
+   338→                    <path
+   339→                      strokeLinecap="round"
+   340→                      strokeLinejoin="round"
+   341→                      strokeWidth={2}
+   342→                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+   343→                    />
+   344→                  </svg>
+   345→                  Copy to notes
+   346→                </button>
+   347→              </div>
+   348→            </>
+   349→          ) : (
+   350→            <p className="text-sm text-base-content/60 text-center py-4">
+   351→              No suggestions available
+   352→            </p>
+   353→          )}
+   354→        </div>
+   355→      )}
+   356→    </div>
+   357→  );
+   358→}
+   359→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   990→          {/* Links */}
+   991→          <div className="flex items-center gap-6 text-sm">
+   992→            <Link href="/privacy-policy" className="text-slate-400 hover:text-white transition-colors">Privacy</Link>
+   993→            <Link href="/tos" className="text-slate-400 hover:text-white transition-colors">Terms</Link>
+   994→            <a href="mailto:hello@dealerflow.co.uk" className="text-slate-400 hover:text-white transition-colors">Contact</a>
+   995→          </div>
+   996→
+   997→          {/* Copyright */}
+   998→          <div className="text-sm text-slate-500">

@@ -1,0 +1,154 @@
+  4280→              <p className="text-xs text-slate-500">
+  4281→                Click the link to select it, then use Ctrl+C (or Cmd+C on Mac) to copy.
+  4282→              </p>
+  4283→            </div>
+  4284→            <div className="flex justify-end p-4 border-t border-slate-200">
+  4285→              <button
+  4286→                className="btn btn-primary"
+  4287→                onClick={() => {
+  4288→                  setShowManualShareModal(false);
+  4289→                  setManualShareUrl("");
+  4290→                }}
+  4291→              >
+  4292→                Done
+  4293→              </button>
+  4294→            </div>
+  4295→          </div>
+  4296→        </div>
+  4297→      )}
+  4298→    </DashboardLayout>
+  4299→  );
+  4300→}
+  4301→
+  4302→function AddVehicleModal({ onClose, onSuccess }) {
+  4303→  const [isLoading, setIsLoading] = useState(false);
+  4304→  const [isLookingUp, setIsLookingUp] = useState(false);
+  4305→  const [locations, setLocations] = useState([]);
+  4306→  const [prepTemplates, setPrepTemplates] = useState([]);
+  4307→  const [formData, setFormData] = useState({
+  4308→    regCurrent: "", make: "", model: "", year: "", mileageCurrent: "",
+  4309→    fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
+  4310→    motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
+  4311→    engineCapacity: "", // Engine capacity in cc (autofilled from lookup or manual entry)
+  4312→    type: "STOCK", // STOCK, COURTESY, FLEET_OTHER
+  4313→    saleType: "RETAIL", // RETAIL, TRADE - only used when type is STOCK
+  4314→    dvlaDetails: null, // DVLA VES extended details
+  4315→    lastDvlaFetchAt: null, // When DVLA lookup was performed
+  4316→  });
+  4317→
+  4318→  // Appraisal lookup state
+  4319→  const [matchedAppraisal, setMatchedAppraisal] = useState(null);
+  4320→  const [isCheckingAppraisal, setIsCheckingAppraisal] = useState(false);
+  4321→  const [appraisalDismissed, setAppraisalDismissed] = useState(false);
+  4322→
+  4323→  // VRM appraisal suggestions
+  4324→  const [appraisalSuggestions, setAppraisalSuggestions] = useState([]);
+  4325→  const [showAppraisalDropdown, setShowAppraisalDropdown] = useState(false);
+  4326→  const [isSearchingAppraisals, setIsSearchingAppraisals] = useState(false);
+  4327→
+  4328→  // Document uploads
+  4329→  const [v5File, setV5File] = useState(null);
+  4330→  const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
+  4331→  const [faultCodesFile, setFaultCodesFile] = useState(null);
+  4332→  const [otherDocuments, setOtherDocuments] = useState([]);
+  4333→
+  4334→  // Initial issues (array of issues to create with the vehicle)
+  4335→  const [initialIssues, setInitialIssues] = useState([]);
+  4336→  const [showAddIssueInVehicleModal, setShowAddIssueInVehicleModal] = useState(false);
+  4337→  const [newIssueForm, setNewIssueForm] = useState({
+  4338→    category: "",
+  4339→    subcategory: "",
+  4340→    description: "",
+  4341→    actionNeeded: "",
+  4342→    status: "Outstanding",
+  4343→    notes: "",
+  4344→    photos: [],
+  4345→  });
+  4346→
+  4347→  // Prep checklist template
+  4348→  const [selectedTemplate, setSelectedTemplate] = useState("default");
+  4349→
+  4350→  useEffect(() => {
+  4351→    fetchLocations();
+  4352→    fetchPrepTemplates();
+  4353→  }, []);
+  4354→
+  4355→  const fetchLocations = async () => {
+  4356→    try {
+  4357→      const res = await fetch("/api/locations");
+  4358→      const data = await res.json();
+  4359→      setLocations(data);
+  4360→    } catch (error) {
+  4361→      console.error("Failed to fetch locations");
+  4362→    }
+  4363→  };
+  4364→
+  4365→  const fetchPrepTemplates = async () => {
+  4366→    try {
+  4367→      const res = await fetch("/api/prep-tasks");
+  4368→      const data = await res.json();
+  4369→      setPrepTemplates(data);
+  4370→      // Auto-select first template if available
+  4371→      if (data.length > 0) setSelectedTemplate("default");
+  4372→    } catch (error) {
+  4373→      console.error("Failed to fetch prep templates");
+  4374→    }
+  4375→  };
+  4376→
+  4377→  // Search unconverted appraisals as user types VRM
+  4378→  const searchAppraisals = async (vrm) => {
+  4379→    if (!vrm || vrm.length < 2) {
+  4380→      setAppraisalSuggestions([]);
+  4381→      setShowAppraisalDropdown(false);
+  4382→      return;
+  4383→    }
+  4384→    setIsSearchingAppraisals(true);
+  4385→    try {
+  4386→      const res = await fetch(`/api/appraisals/search-unconverted?q=${encodeURIComponent(vrm)}`);
+  4387→      if (res.ok) {
+  4388→        const results = await res.json();
+  4389→        setAppraisalSuggestions(results);
+  4390→        setShowAppraisalDropdown(results.length > 0);
+  4391→      } else {
+  4392→        setAppraisalSuggestions([]);
+  4393→        setShowAppraisalDropdown(false);
+  4394→      }
+  4395→    } catch (error) {
+  4396→      setAppraisalSuggestions([]);
+  4397→      setShowAppraisalDropdown(false);
+  4398→    } finally {
+  4399→      setIsSearchingAppraisals(false);
+  4400→    }
+  4401→  };
+  4402→
+  4403→  // Handle selecting an appraisal from suggestions
+  4404→  const handleSelectAppraisalSuggestion = (appraisal) => {
+  4405→    setFormData(prev => ({
+  4406→      ...prev,
+  4407→      regCurrent: appraisal.vehicleReg || prev.regCurrent,
+  4408→      make: appraisal.vehicleMake || prev.make,
+  4409→      model: appraisal.vehicleModel || prev.model,
+  4410→      year: appraisal.vehicleYear || prev.year,
+  4411→      mileageCurrent: appraisal.mileage || prev.mileageCurrent,
+  4412→    }));
+  4413→    setMatchedAppraisal(appraisal);
+  4414→    setAppraisalDismissed(false);
+  4415→    setShowAppraisalDropdown(false);
+  4416→    setAppraisalSuggestions([]);
+  4417→    toast.success(`Loaded appraisal for ${appraisal.vehicleReg}`);
+  4418→  };
+  4419→
+  4420→  // Check for existing appraisal when VRM changes
+  4421→  const checkForAppraisal = async (vrm) => {
+  4422→    if (!vrm || vrm.length < 2) {
+  4423→      setMatchedAppraisal(null);
+  4424→      return;
+  4425→    }
+  4426→    setIsCheckingAppraisal(true);
+  4427→    try {
+  4428→      const res = await fetch(`/api/appraisals/by-vrm?vrm=${encodeURIComponent(vrm)}`);
+  4429→      if (res.ok) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

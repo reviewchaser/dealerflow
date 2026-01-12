@@ -1,0 +1,46 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   202→  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+   203→  const vrmSearchInputRef = useRef(null);
+   204→  const vrmDropdownRef = useRef(null);
+   205→
+   206→  // Calculate dropdown position relative to input (with mobile Safari fixes)
+   207→  const getVrmDropdownPosition = useCallback(() => {
+   208→    if (!vrmSearchInputRef.current) return { top: 0, left: 0, width: 320 };
+   209→    const rect = vrmSearchInputRef.current.getBoundingClientRect();
+   210→
+   211→    // Use visualViewport for more accurate positioning on mobile (especially iOS Safari with keyboard)
+   212→    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+   213→    const viewportWidth = window.visualViewport?.width || window.innerWidth;
+   214→    const viewportOffsetTop = window.visualViewport?.offsetTop || 0;
+   215→
+   216→    // Calculate available space below the input
+   217→    const spaceBelow = viewportHeight - (rect.bottom - viewportOffsetTop);
+   218→    const dropdownHeight = 280; // Approximate max height of dropdown
+   219→
+   220→    // If not enough space below, position above (mobile-friendly)
+   221→    const shouldPositionAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+   222→
+   223→    const top = shouldPositionAbove
+   224→      ? rect.top - dropdownHeight - 8
+   225→      : rect.bottom + 8;
+   226→
+   227→    // Ensure dropdown doesn't overflow viewport horizontally
+   228→    const desiredWidth = Math.max(rect.width, 320);
+   229→    const maxWidth = viewportWidth - 32; // 16px padding on each side
+   230→    const width = Math.min(desiredWidth, maxWidth);
+   231→
+   232→    // Adjust left position to keep dropdown in viewport
+   233→    let left = rect.left;
+   234→    if (left + width > viewportWidth - 16) {
+   235→      left = viewportWidth - width - 16;
+   236→    }
+   237→    if (left < 16) {
+   238→      left = 16;
+   239→    }
+   240→
+   241→    return { top, left, width };
+   242→  }, []);
+   243→
+   244→  // Compute VRM search results reactively based on vrmSearch and vehicles
+   245→  const vrmSearchResults = useMemo(() => {
+   246→    if (vrmSearch.length < 2) return [];

@@ -1,0 +1,111 @@
+     1→/**
+     2→ * DealerContext - Provides tenant/dealer state to pages in /app/[dealerSlug]/ routes
+     3→ *
+     4→ * This context allows pages to access dealer information resolved from the URL slug.
+     5→ * Pages wrapped with DealerProvider will have access to:
+     6→ * - dealer: The full dealer object
+     7→ * - dealerId: The MongoDB ObjectId as string
+     8→ * - dealerSlug: The URL slug
+     9→ * - isLoading: Whether dealer is still being resolved
+    10→ * - error: Any error that occurred during resolution
+    11→ */
+    12→
+    13→import { createContext, useContext, useState, useEffect } from "react";
+    14→import { useRouter } from "next/router";
+    15→
+    16→const DealerContext = createContext(null);
+    17→
+    18→/**
+    19→ * Hook to access dealer context
+    20→ * @returns {{ dealer: object|null, dealerId: string|null, dealerSlug: string|null, isLoading: boolean, error: string|null }}
+    21→ */
+    22→export function useDealer() {
+    23→  const context = useContext(DealerContext);
+    24→  if (!context) {
+    25→    // Return a default state when not in tenant context
+    26→    // This allows pages to work both in legacy mode and tenant mode
+    27→    return {
+    28→      dealer: null,
+    29→      dealerId: null,
+    30→      dealerSlug: null,
+    31→      isLoading: false,
+    32→      error: null,
+    33→      isTenantRoute: false,
+    34→    };
+    35→  }
+    36→  return context;
+    37→}
+    38→
+    39→/**
+    40→ * Provider component that resolves dealer from URL slug
+    41→ * Wraps pages in /app/[dealerSlug]/ routes
+    42→ */
+    43→export function DealerProvider({ children, initialDealer = null }) {
+    44→  const router = useRouter();
+    45→  const { dealerSlug } = router.query;
+    46→
+    47→  const [dealer, setDealer] = useState(initialDealer);
+    48→  const [isLoading, setIsLoading] = useState(!initialDealer);
+    49→  const [error, setError] = useState(null);
+    50→
+    51→  // Resolve dealer from slug if not provided initially
+    52→  useEffect(() => {
+    53→    // Skip if already have dealer or no slug
+    54→    if (dealer || !dealerSlug) {
+    55→      return;
+    56→    }
+    57→
+    58→    async function resolveDealer() {
+    59→      setIsLoading(true);
+    60→      setError(null);
+    61→
+    62→      try {
+    63→        // Fetch dealer by slug
+    64→        const res = await fetch(`/api/dealers/by-slug/${dealerSlug}`);
+    65→
+    66→        if (!res.ok) {
+    67→          if (res.status === 404) {
+    68→            setError("Dealership not found");
+    69→          } else if (res.status === 403) {
+    70→            setError("You don't have access to this dealership");
+    71→          } else {
+    72→            setError("Failed to load dealership");
+    73→          }
+    74→          return;
+    75→        }
+    76→
+    77→        const dealerData = await res.json();
+    78→        setDealer(dealerData);
+    79→      } catch (err) {
+    80→        console.error("Error resolving dealer:", err);
+    81→        setError("Failed to load dealership");
+    82→      } finally {
+    83→        setIsLoading(false);
+    84→      }
+    85→    }
+    86→
+    87→    resolveDealer();
+    88→  }, [dealerSlug, dealer]);
+    89→
+    90→  const value = {
+    91→    dealer,
+    92→    dealerId: dealer?._id || dealer?.id || null,
+    93→    dealerSlug: dealerSlug || dealer?.slug || null,
+    94→    isLoading,
+    95→    error,
+    96→    isTenantRoute: true,
+    97→  };
+    98→
+    99→  return (
+   100→    <DealerContext.Provider value={value}>
+   101→      {children}
+   102→    </DealerContext.Provider>
+   103→  );
+   104→}
+   105→
+   106→export default DealerContext;
+   107→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

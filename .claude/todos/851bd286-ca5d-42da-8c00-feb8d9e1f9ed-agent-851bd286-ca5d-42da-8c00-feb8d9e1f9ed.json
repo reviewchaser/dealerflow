@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Explore vehicle creation endpoints and prep task structure",
+    "status": "in_progress",
+    "activeForm": "Exploring vehicle creation endpoints"
+  },
+  {
+    "content": "Add default prep tasks to vehicle creation",
+    "status": "pending",
+    "activeForm": "Adding default prep tasks to vehicle creation"
+  },
+  {
+    "content": "Verify tick-off functionality works",
+    "status": "pending",
+    "activeForm": "Verifying tick-off functionality"
+  },
+  {
+    "content": "Test vehicle creation with default tasks",
+    "status": "pending",
+    "activeForm": "Testing vehicle creation"
+  }
+]

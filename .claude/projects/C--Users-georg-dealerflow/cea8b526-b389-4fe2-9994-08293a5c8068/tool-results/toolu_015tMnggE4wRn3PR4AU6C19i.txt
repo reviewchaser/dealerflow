@@ -1,0 +1,73 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const customerPXAppraisalSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+     7→    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" }, // customer
+     8→    // Customer info (for public submissions without contact)
+     9→    customerName: { type: String },
+    10→    customerEmail: { type: String },
+    11→    customerPhone: { type: String },
+    12→    // Vehicle info
+    13→    vehicleReg: { type: String, required: true, uppercase: true },
+    14→    vehicleMake: { type: String },
+    15→    vehicleModel: { type: String },
+    16→    vehicleYear: { type: Number },
+    17→    mileage: { type: Number },
+    18→    colour: { type: String },
+    19→    fuelType: { type: String },
+    20→    motExpiryDate: { type: Date }, // MOT expiry - transferred to vehicle on conversion
+    21→    conditionNotes: { type: String },
+    22→    // Match dealer appraisal fields
+    23→    proposedPurchasePrice: { type: Number },
+    24→    outstandingFinanceAmount: { type: Number },
+    25→    // Document URLs
+    26→    v5Url: { type: String },
+    27→    serviceHistoryUrl: { type: String },
+    28→    otherDocuments: [{
+    29→      name: { type: String },
+    30→      url: { type: String }
+    31→    }],
+    32→    // Vehicle photos
+    33→    photos: {
+    34→      exterior: [{ type: String }],  // Multiple exterior photos
+    35→      interior: [{ type: String }],  // Multiple interior photos
+    36→      dashboard: { type: String },   // Single dashboard photo
+    37→      odometer: { type: String },    // Single odometer photo
+    38→    },
+    39→    // Legacy fields
+    40→    conditionRating: {
+    41→      type: String,
+    42→      enum: ["excellent", "good", "fair", "poor"]
+    43→    },
+    44→    // Prep checklist template to use when converting to stock
+    45→    prepTemplateId: { type: String },
+    46→    // Decision workflow (same as dealer appraisal)
+    47→    decision: {
+    48→      type: String,
+    49→      enum: ["pending", "reviewed", "converted", "declined"],
+    50→      default: "pending"
+    51→    },
+    52→    decidedAt: { type: Date },
+    53→    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" }, // if converted
+    54→    formSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+    55→    aiHintText: { type: String }, // cached AI common faults
+    56→    interestedInVehicle: { type: String }, // which vehicle customer is interested in
+    57→  },
+    58→  { timestamps: true }
+    59→);
+    60→
+    61→customerPXAppraisalSchema.plugin(toJSON);
+    62→
+    63→// Delete cached model to force schema update
+    64→if (mongoose.models.CustomerPXAppraisal) {
+    65→  delete mongoose.models.CustomerPXAppraisal;
+    66→}
+    67→
+    68→export default mongoose.model("CustomerPXAppraisal", customerPXAppraisalSchema);
+    69→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,127 @@
+import connectMongo from "@/libs/mongoose";
+import Contact from "@/models/Contact";
+import { withDealerContext } from "@/libs/authContext";
+
+/**
+ * Contacts API
+ * GET /api/contacts - List contacts with filtering
+ * POST /api/contacts - Create new contact
+ *
+ * Query params:
+ * - type: CUSTOMER|SUPPLIER|FINANCE (filter by typeTag)
+ * - search: Search by name, email, phone, company
+ * - active: true|false (filter by isActive, defaults to true)
+ */
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+
+  if (req.method === "GET") {
+    const { type, search, active } = req.query;
+
+    let query = { dealerId };
+
+    // Filter by typeTag
+    if (type && type !== "all") {
+      query.typeTags = type;
+    }
+
+    // Filter by active status (default to showing active only)
+    if (active === "false") {
+      query.isActive = false;
+    } else if (active !== "all") {
+      query.isActive = { $ne: false }; // Include docs without isActive field
+    }
+
+    // Search across multiple fields
+    if (search) {
+      query.$or = [
+        { displayName: { $regex: search, $options: "i" } },
+        { companyName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+        { mobile: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const contacts = await Contact.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Transform for backward compatibility (name -> displayName)
+    const transformed = contacts.map(c => ({
+      ...c,
+      id: c._id.toString(),
+      name: c.displayName || c.name, // Backward compat
+      _id: undefined,
+      __v: undefined,
+    }));
+
+    return res.status(200).json(transformed);
+  }
+
+  if (req.method === "POST") {
+    const {
+      displayName,
+      name, // Backward compat
+      companyName,
+      email,
+      phone,
+      mobile,
+      address,
+      notes,
+      typeTags,
+      type, // Backward compat - single type string
+      isProspect,
+      companyNumber,
+      vatNumber,
+      accountReference,
+      financeSettings,
+    } = req.body;
+
+    const contactName = displayName || name;
+    if (!contactName) {
+      return res.status(400).json({ error: "Name (displayName) is required" });
+    }
+
+    // Handle backward compatibility for type -> typeTags
+    let tags = typeTags;
+    if (!tags && type) {
+      // Convert old type format to new typeTags
+      const typeMap = {
+        customer: "CUSTOMER",
+        seller: "SUPPLIER",
+        supplier: "SUPPLIER",
+        finance: "FINANCE",
+      };
+      tags = [typeMap[type.toLowerCase()] || "CUSTOMER"];
+    }
+
+    const contact = await Contact.create({
+      dealerId,
+      displayName: contactName,
+      companyName,
+      email,
+      phone,
+      mobile,
+      address,
+      notes,
+      typeTags: tags || ["CUSTOMER"],
+      isProspect: isProspect || false,
+      companyNumber,
+      vatNumber,
+      accountReference,
+      financeSettings,
+      createdByUserId: userId,
+    });
+
+    return res.status(201).json({
+      ...contact.toJSON(),
+      name: contact.displayName, // Backward compat
+    });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

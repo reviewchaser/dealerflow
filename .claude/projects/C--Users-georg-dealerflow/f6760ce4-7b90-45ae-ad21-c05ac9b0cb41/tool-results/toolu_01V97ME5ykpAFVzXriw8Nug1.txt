@@ -1,0 +1,99 @@
+> dealerflow-app@1.0.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Linting and checking validity of types ...
+ ⨯ ESLint must be installed in order to run during builds: npm install --save-dev eslint
+   Creating an optimized production build ...
+
+🌼   [35mdaisyUI[39m [2m4.12.24[22m
+├─ [32m✔︎[39m 3 themes added[2m		https://daisyui.com/docs/themes[22m
+╰─ [32m❤︎[39m [0mSupport daisyUI project:[0m	[2mhttps://opencollective.com/daisyui[22m
+
+ ✓ Compiled successfully
+   Collecting page data ...
+   Generating static pages (0/57) ...
+   Generating static pages (14/57) 
+   Generating static pages (28/57) 
+   Generating static pages (42/57) 
+ ✓ Generating static pages (57/57)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (pages)                                  Size     First Load JS
+┌ ○ /                                          6.07 kB         104 kB
+├   /_app                                      0 B            95.2 kB
+├ ○ /404                                       613 B          98.3 kB
+├ ○ /500                                       612 B          98.3 kB
+├ ○ /admin                                     3.34 kB        98.5 kB
+├ ○ /admin-setup                               2 kB           97.2 kB
+├ ƒ /api/admin/activity                        0 B            95.2 kB
+├ ƒ /api/admin/dealers                         0 B            95.2 kB
+├ ƒ /api/admin/overtime                        0 B            95.2 kB
+├ ƒ /api/admin/overtime/[id]/approve           0 B            95.2 kB
+├ ƒ /api/admin/overtime/[id]/reject            0 B            95.2 kB
+├ ƒ /api/admin/users                           0 B            95.2 kB
+├ ƒ /api/aftercare                             0 B            95.2 kB
+├ ƒ /api/aftercare/[id]                        0 B            95.2 kB
+├ ƒ /api/aftercare/[id]/comments               0 B            95.2 kB
+├ ƒ /api/aftercare/[id]/job-sheet              0 B            95.2 kB
+├ ƒ /api/aftercare/courtesy                    0 B            95.2 kB
+├ ƒ /api/ai-hints                              0 B            95.2 kB
+├ ƒ /api/ai/appraisal-issue-suggestions        0 B            95.2 kB
+├ ƒ /api/ai/appraisal-summary                  0 B            95.2 kB
+├ ƒ /api/ai/case-review                        0 B            95.2 kB
+├ ƒ /api/ai/health                             0 B            95.2 kB
+├ ƒ /api/ai/warranty-suggestions               0 B            95.2 kB
+├ ƒ /api/ai/warranty-summary                   0 B            95.2 kB
+├ ƒ /api/appraisals                            0 B            95.2 kB
+├ ƒ /api/appraisals/[id]                       0 B            95.2 kB
+├ ƒ /api/appraisals/[id]/convert               0 B            95.2 kB
+├ ƒ /api/appraisals/[id]/share                 0 B            95.2 kB
+├ ƒ /api/appraisals/by-vrm                     0 B            95.2 kB
+├ ƒ /api/appraisals/issues                     0 B            95.2 kB
+├ ƒ /api/appraisals/issues/[id]                0 B            95.2 kB
+├ ƒ /api/appraisals/search-unconverted         0 B            95.2 kB
+├ ƒ /api/appraisals/share-links                0 B            95.2 kB
+├ ƒ /api/appraisals/share-links/[id]           0 B            95.2 kB
+├ ƒ /api/appraisals/share-links/submit         0 B            95.2 kB
+├ ƒ /api/appraisals/share-links/validate       0 B            95.2 kB
+├ ƒ /api/auth/[...nextauth]                    0 B            95.2 kB
+├ ƒ /api/auth/register                         0 B            95.2 kB
+├ ƒ /api/calendar                              0 B            95.2 kB
+├ ƒ /api/calendar/[id]                         0 B            95.2 kB
+├ ƒ /api/calendar/categories                   0 B            95.2 kB
+├ ƒ /api/contacts                              0 B            95.2 kB
+├ ƒ /api/customer-px                           0 B            95.2 kB
+├ ƒ /api/customer-px/[id]                      0 B            95.2 kB
+├ ƒ /api/customer-px/[id]/convert              0 B            95.2 kB
+├ ƒ /api/customer-px/issues                    0 B            95.2 kB
+├ ƒ /api/customer-px/issues/[id]               0 B            95.2 kB
+├ ƒ /api/dashboard/stats                       0 B            95.2 kB
+├ ƒ /api/dealer                                0 B            95.2 kB
+├ ƒ /api/dealer/logo                           0 B            95.2 kB
+├ ƒ /api/dealers/by-slug/[slug]                0 B            95.2 kB
+├ ƒ /api/dealers/memberships                   0 B            95.2 kB
+├ ƒ /api/debug/context                         0 B            95.2 kB
+├ ƒ /api/dev/set-password                      0 B            95.2 kB
+├ ƒ /api/documents/[documentId]                0 B            95.2 kB
+├ ƒ /api/dvla-lookup                           0 B            95.2 kB
+├ ƒ /api/dvla/vehicle-enquiry                  0 B            95.2 kB
+├ ƒ /api/fix-orphaned-vehicles                 0 B            95.2 kB
+├ ƒ /api/fix-pdi-fields                        0 B            95.2 kB
+├ ƒ /api/forms                                 0 B            95.2 kB
+├ ƒ /api/forms/[id]                            0 B            95.2 kB
+├ ƒ /api/forms/[id]/fields                     0 B            95.2 kB
+├ ƒ /api/forms/stats                           0 B            95.2 kB
+├ ƒ /api/forms/submissions                     0 B            95.2 kB
+├ ƒ /api/forms/submissions/[id]                0 B            95.2 kB
+├ ƒ /api/forms/submissions/clear-all           0 B            95.2 kB
+├ ƒ /api/forms/test-drive/extract-licence      0 B            95.2 kB
+├ ƒ /api/health/openai                         0 B            95.2 kB
+├ ƒ /api/holiday-requests                      0 B            95.2 kB
+├ ƒ /api/holiday-requests/[id]                 0 B            95.2 kB
+├ ƒ /api/holiday-requests/[id]/approve         0 B            95.2 kB
+├ ƒ /api/holiday-requests/[id]/reject          0 B            95.2 kB
+├ ƒ /api/issues/[issueId]                      0 B            95.2 kB
+├ ƒ /api/issues/[issueId]/attachments          0 B            95.2 kB

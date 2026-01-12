@@ -1,0 +1,404 @@
+  1870→      )}
+  1871→
+  1872→      {/* Case Detail Drawer */}
+  1873→      {selectedCase && (
+  1874→        <div className="fixed inset-0 z-50 flex justify-end">
+  1875→          <div className="bg-black/40 absolute inset-0 backdrop-blur-sm" onClick={() => setSelectedCase(null)}></div>
+  1876→          <div className="relative bg-white w-full max-w-xl h-full overflow-y-auto shadow-2xl">
+  1877→            {/* Modern Sticky Header */}
+  1878→            <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-4 z-10">
+  1879→              <div className="flex justify-between items-start gap-3">
+  1880→                {/* Back button on mobile */}
+  1881→                <button className="md:hidden p-2 -ml-2 rounded-lg hover:bg-slate-100 transition-colors" onClick={() => setSelectedCase(null)}>
+  1882→                  <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1883→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  1884→                  </svg>
+  1885→                </button>
+  1886→                <div className="flex-1 min-w-0">
+  1887→                  {/* VRM + Status Pills Row */}
+  1888→                  <div className="flex items-center gap-2 flex-wrap">
+  1889→                    <span className="inline-flex items-center bg-amber-100 border border-amber-300 rounded-lg px-3 py-1.5 font-mono font-bold text-slate-900 text-base tracking-wider uppercase shadow-sm">
+  1890→                      {selectedCase.regAtPurchase || selectedCase.details?.vehicleReg || "NO REG"}
+  1891→                    </span>
+  1892→                    {selectedCase.warrantyType && (
+  1893→                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+  1894→                        {selectedCase.warrantyType}
+  1895→                      </span>
+  1896→                    )}
+  1897→                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${PRIORITIES[selectedCase.priority]?.bg} ${PRIORITIES[selectedCase.priority]?.text} ${PRIORITIES[selectedCase.priority]?.border} border`}>
+  1898→                      {selectedCase.priority}
+  1899→                    </span>
+  1900→                  </div>
+  1901→                  <p className="text-sm text-slate-500 mt-1.5 truncate">
+  1902→                    {selectedCase.contactId?.name || "Unknown"} &middot; {daysSince(selectedCase.createdAt)}d open
+  1903→                  </p>
+  1904→                </div>
+  1905→                <div className="hidden md:flex items-center gap-1.5">
+  1906→                  <button
+  1907→                    onClick={handleGenerateJobSheet}
+  1908→                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+  1909→                    title="Share Job Sheet"
+  1910→                  >
+  1911→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1912→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+  1913→                    </svg>
+  1914→                    Share
+  1915→                  </button>
+  1916→                  <button
+  1917→                    className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+  1918→                    onClick={() => setSelectedCase(null)}
+  1919→                  >
+  1920→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1921→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1922→                    </svg>
+  1923→                  </button>
+  1924→                </div>
+  1925→              </div>
+  1926→
+  1927→              {/* Status Segmented Control */}
+  1928→              <div className="flex gap-2 mt-4">
+  1929→                <div className="flex-1 bg-slate-100 rounded-lg p-1 flex">
+  1930→                  {COLUMNS.map(c => (
+  1931→                    <button
+  1932→                      key={c.key}
+  1933→                      onClick={async () => {
+  1934→                        if (selectedCase.boardStatus !== c.key) {
+  1935→                          await updateCase(
+  1936→                            { boardStatus: c.key },
+  1937→                            `Moved to ${c.label}`
+  1938→                          );
+  1939→                        }
+  1940→                      }}
+  1941→                      className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+  1942→                        selectedCase.boardStatus === c.key
+  1943→                          ? "bg-white text-slate-900 shadow-sm"
+  1944→                          : "text-slate-500 hover:text-slate-700"
+  1945→                      }`}
+  1946→                    >
+  1947→                      {c.label}
+  1948→                    </button>
+  1949→                  ))}
+  1950→                </div>
+  1951→                <div className="bg-slate-100 rounded-lg p-1 flex">
+  1952→                  {["low", "normal", "high", "critical"].map(p => (
+  1953→                    <button
+  1954→                      key={p}
+  1955→                      onClick={async () => {
+  1956→                        if (selectedCase.priority !== p) {
+  1957→                          await updateCase({ priority: p }, "Priority updated");
+  1958→                        }
+  1959→                      }}
+  1960→                      className={`px-2 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
+  1961→                        selectedCase.priority === p
+  1962→                          ? `${PRIORITIES[p]?.bg} ${PRIORITIES[p]?.text} shadow-sm`
+  1963→                          : "text-slate-400 hover:text-slate-600"
+  1964→                      }`}
+  1965→                    >
+  1966→                      {p === "critical" ? "!" : p.charAt(0).toUpperCase()}
+  1967→                    </button>
+  1968→                  ))}
+  1969→                </div>
+  1970→              </div>
+  1971→            </div>
+  1972→
+  1973→            <div className="px-5 py-4 space-y-4">
+  1974→              {/* Customer & Vehicle Section */}
+  1975→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  1976→                <div className="px-4 py-3 border-b border-slate-100">
+  1977→                  <h3 className="text-sm font-semibold text-slate-900">Customer & Vehicle</h3>
+  1978→                </div>
+  1979→                <div className="p-4">
+  1980→                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+  1981→                    <div>
+  1982→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
+  1983→                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.name || "—"}</p>
+  1984→                    </div>
+  1985→                    <div>
+  1986→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</span>
+  1987→                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.phone || "—"}</p>
+  1988→                    </div>
+  1989→                    <div className="col-span-2">
+  1990→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>
+  1991→                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.email || "—"}</p>
+  1992→                    </div>
+  1993→                    <div>
+  1994→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Reg at Purchase</span>
+  1995→                      <p className="text-slate-900 mt-0.5">{selectedCase.regAtPurchase || "—"}</p>
+  1996→                    </div>
+  1997→                    <div>
+  1998→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Reg</span>
+  1999→                      <p className="text-slate-900 mt-0.5">{selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</p>
+  2000→                    </div>
+  2001→                    {selectedCase.vehicleId && (
+  2002→                      <>
+  2003→                        <div className="col-span-2">
+  2004→                          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Vehicle</span>
+  2005→                          <p className="text-slate-900 mt-0.5">
+  2006→                            {selectedCase.vehicleId.make} {selectedCase.vehicleId.model} {selectedCase.vehicleId.year}
+  2007→                          </p>
+  2008→                        </div>
+  2009→                        <div className="col-span-2 pt-1">
+  2010→                          <button
+  2011→                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#0066CC] bg-[#0066CC]/5 hover:bg-[#0066CC]/10 border border-[#0066CC]/20 rounded-lg transition-colors"
+  2012→                            onClick={() => {
+  2013→                              setSelectedVehicleId(selectedCase.vehicleId._id || selectedCase.vehicleId.id);
+  2014→                              setIsVehicleDrawerOpen(true);
+  2015→                            }}
+  2016→                          >
+  2017→                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2018→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  2019→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  2020→                            </svg>
+  2021→                            View Vehicle
+  2022→                          </button>
+  2023→                        </div>
+  2024→                      </>
+  2025→                    )}
+  2026→                  </div>
+  2027→                </div>
+  2028→              </div>
+  2029→
+  2030→              {/* Customer Contact Tracking Section */}
+  2031→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  2032→                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+  2033→                  <h3 className="text-sm font-semibold text-slate-900">Customer Contact</h3>
+  2034→                  {selectedCase.nextContactAt && new Date(selectedCase.nextContactAt) <= new Date() && (
+  2035→                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+  2036→                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2037→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2038→                      </svg>
+  2039→                      Contact Due
+  2040→                    </span>
+  2041→                  )}
+  2042→                </div>
+  2043→                <div className="p-4 space-y-4">
+  2044→                  {/* Last Contacted Info */}
+  2045→                  <div className="flex items-center justify-between">
+  2046→                    <div>
+  2047→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Last Contacted</span>
+  2048→                      <p className="text-sm text-slate-900 mt-0.5">
+  2049→                        {selectedCase.lastContactedAt ? (
+  2050→                          <>
+  2051→                            {new Date(selectedCase.lastContactedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+  2052→                            {selectedCase.lastContactedByName && (
+  2053→                              <span className="text-slate-500"> by {selectedCase.lastContactedByName}</span>
+  2054→                            )}
+  2055→                          </>
+  2056→                        ) : (
+  2057→                          <span className="text-slate-400">Not contacted yet</span>
+  2058→                        )}
+  2059→                      </p>
+  2060→                    </div>
+  2061→                    <button
+  2062→                      onClick={async () => {
+  2063→                        const note = window.prompt("Add a note about this contact (optional):");
+  2064→                        await updateCase({
+  2065→                          _eventType: "CUSTOMER_CONTACTED",
+  2066→                          _eventMetadata: { note: note || null }
+  2067→                        }, "Customer contacted");
+  2068→                      }}
+  2069→                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+  2070→                    >
+  2071→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2072→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  2073→                      </svg>
+  2074→                      Mark Contacted
+  2075→                    </button>
+  2076→                  </div>
+  2077→
+  2078→                  {/* Contact Reminder */}
+  2079→                  <div className="pt-3 border-t border-slate-100">
+  2080→                    <div className="flex items-center justify-between mb-2">
+  2081→                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Contact Reminder</span>
+  2082→                      {selectedCase.nextContactAt && (
+  2083→                        <button
+  2084→                          onClick={async () => {
+  2085→                            await updateCase({
+  2086→                              _eventType: "CONTACT_REMINDER_SET",
+  2087→                              _eventMetadata: { nextContactAt: null }
+  2088→                            }, "Contact reminder cleared");
+  2089→                          }}
+  2090→                          className="text-xs text-slate-400 hover:text-red-500 transition-colors"
+  2091→                        >
+  2092→                          Clear
+  2093→                        </button>
+  2094→                      )}
+  2095→                    </div>
+  2096→                    <div className="flex gap-2">
+  2097→                      <input
+  2098→                        type="datetime-local"
+  2099→                        className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+  2100→                        value={selectedCase.nextContactAt ? new Date(selectedCase.nextContactAt).toISOString().slice(0, 16) : ""}
+  2101→                        onChange={async (e) => {
+  2102→                          const newDate = e.target.value ? new Date(e.target.value).toISOString() : null;
+  2103→                          await updateCase({
+  2104→                            _eventType: "CONTACT_REMINDER_SET",
+  2105→                            _eventMetadata: { nextContactAt: newDate }
+  2106→                          }, newDate ? "Contact reminder set" : "Contact reminder cleared");
+  2107→                        }}
+  2108→                      />
+  2109→                    </div>
+  2110→                    {selectedCase.nextContactAt && (
+  2111→                      <p className="text-xs text-slate-500 mt-1.5">
+  2112→                        Reminder will show on dashboard and warranty board
+  2113→                      </p>
+  2114→                    )}
+  2115→                  </div>
+  2116→                </div>
+  2117→              </div>
+  2118→
+  2119→              {/* Repair Location Section */}
+  2120→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  2121→                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+  2122→                  <h3 className="text-sm font-semibold text-slate-900">Repair Location</h3>
+  2123→                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.bg} ${REPAIR_LOCATION_STYLES[selectedCase.repairLocationType || "WITH_CUSTOMER"]?.text}`}>
+  2124→                    {REPAIR_LOCATION_LABELS[selectedCase.repairLocationType || "WITH_CUSTOMER"]}
+  2125→                  </span>
+  2126→                </div>
+  2127→                <div className="p-4 space-y-4">
+  2128→                  {/* Location Type Segmented Control - Modern Pill Selector */}
+  2129→                  <div>
+  2130→                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">Location Type</label>
+  2131→                    <div className="flex flex-wrap gap-2">
+  2132→                      {[
+  2133→                        {
+  2134→                          key: "WITH_CUSTOMER",
+  2135→                          label: "With Customer",
+  2136→                          icon: (
+  2137→                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2138→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+  2139→                            </svg>
+  2140→                          ),
+  2141→                          selectedBg: "bg-slate-700",
+  2142→                          selectedText: "text-white",
+  2143→                          selectedBorder: "border-slate-700",
+  2144→                        },
+  2145→                        {
+  2146→                          key: "ON_SITE",
+  2147→                          label: "On-site",
+  2148→                          icon: (
+  2149→                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2150→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  2151→                            </svg>
+  2152→                          ),
+  2153→                          selectedBg: "bg-emerald-600",
+  2154→                          selectedText: "text-white",
+  2155→                          selectedBorder: "border-emerald-600",
+  2156→                        },
+  2157→                        {
+  2158→                          key: "THIRD_PARTY",
+  2159→                          label: "Third-party",
+  2160→                          icon: (
+  2161→                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2162→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  2163→                            </svg>
+  2164→                          ),
+  2165→                          selectedBg: "bg-teal-600",
+  2166→                          selectedText: "text-white",
+  2167→                          selectedBorder: "border-teal-600",
+  2168→                        },
+  2169→                      ].map(loc => {
+  2170→                        const isSelected = (selectedCase.repairLocationType || "WITH_CUSTOMER") === loc.key;
+  2171→                        return (
+  2172→                          <button
+  2173→                            key={loc.key}
+  2174→                            onClick={async () => {
+  2175→                              if (!isSelected) {
+  2176→                                // Optimistic update
+  2177→                                const oldValue = selectedCase.repairLocationType || "WITH_CUSTOMER";
+  2178→                                setSelectedCase(prev => ({ ...prev, repairLocationType: loc.key }));
+  2179→                                await updateCase({
+  2180→                                  repairLocationType: loc.key,
+  2181→                                  _eventType: "LOCATION_UPDATED",
+  2182→                                  _eventMetadata: { fromLocation: oldValue, toLocation: loc.key }
+  2183→                                }, "Location updated");
+  2184→                              }
+  2185→                            }}
+  2186→                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
+  2187→                              isSelected
+  2188→                                ? `${loc.selectedBg} ${loc.selectedText} ${loc.selectedBorder} shadow-md`
+  2189→                                : "bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+  2190→                            }`}
+  2191→                          >
+  2192→                            {loc.icon}
+  2193→                            <span>{loc.label}</span>
+  2194→                            {isSelected && (
+  2195→                              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2196→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  2197→                              </svg>
+  2198→                            )}
+  2199→                          </button>
+  2200→                        );
+  2201→                      })}
+  2202→                    </div>
+  2203→                  </div>
+  2204→
+  2205→                  {/* Show additional fields for third-party repairs */}
+  2206→                  {selectedCase.repairLocationType === "THIRD_PARTY" && (
+  2207→                    <div className="space-y-3 pt-2 border-t border-slate-100">
+  2208→                      <div>
+  2209→                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Garage Name</label>
+  2210→                        <input
+  2211→                          type="text"
+  2212→                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+  2213→                          value={selectedCase.repairLocationName || ""}
+  2214→                          placeholder="e.g., ABC Motors"
+  2215→                          onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationName: e.target.value })}
+  2216→                          onBlur={() => updateCase({ repairLocationName: selectedCase.repairLocationName })}
+  2217→                        />
+  2218→                      </div>
+  2219→
+  2220→                      <div>
+  2221→                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Notes</label>
+  2222→                        <textarea
+  2223→                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm resize-none"
+  2224→                          rows={2}
+  2225→                          value={selectedCase.repairLocationNotes || ""}
+  2226→                          placeholder="Any notes about the repair location..."
+  2227→                          onChange={(e) => setSelectedCase({ ...selectedCase, repairLocationNotes: e.target.value })}
+  2228→                          onBlur={() => updateCase({ repairLocationNotes: selectedCase.repairLocationNotes })}
+  2229→                        />
+  2230→                      </div>
+  2231→                    </div>
+  2232→                  )}
+  2233→                </div>
+  2234→              </div>
+  2235→
+  2236→              {/* Booking Section - Accent Styled */}
+  2237→              <div className={`rounded-xl border-2 shadow-sm overflow-hidden ${
+  2238→                selectedCase.bookedInAt
+  2239→                  ? "bg-emerald-50/50 border-emerald-200"
+  2240→                  : "bg-amber-50/50 border-amber-200"
+  2241→              }`}>
+  2242→                <div className={`px-4 py-3 flex items-center justify-between ${
+  2243→                  selectedCase.bookedInAt
+  2244→                    ? "bg-emerald-100/50 border-b border-emerald-200"
+  2245→                    : "bg-amber-100/50 border-b border-amber-200"
+  2246→                }`}>
+  2247→                  <div className="flex items-center gap-2">
+  2248→                    <span className="text-lg">{selectedCase.bookedInAt ? "📅" : "⏳"}</span>
+  2249→                    <h3 className="text-sm font-semibold text-slate-900">Booking</h3>
+  2250→                  </div>
+  2251→                  {selectedCase.bookedInAt ? (
+  2252→                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700 border border-emerald-200">
+  2253→                      {formatBookedDate(selectedCase.bookedInAt)}
+  2254→                    </span>
+  2255→                  ) : (
+  2256→                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+  2257→                      Not Booked
+  2258→                    </span>
+  2259→                  )}
+  2260→                </div>
+  2261→                <div className="p-4">
+  2262→                  <div>
+  2263→                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Booked Date & Time</label>
+  2264→                    <input
+  2265→                      type="datetime-local"
+  2266→                      className={`w-full px-3 py-2.5 rounded-lg text-slate-900 transition-all outline-none text-sm font-medium ${
+  2267→                        selectedCase.bookedInAt
+  2268→                          ? "bg-white border border-emerald-200 focus:ring-2 focus:ring-emerald-500"
+  2269→                          : "bg-white border border-amber-200 focus:ring-2 focus:ring-amber-500"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

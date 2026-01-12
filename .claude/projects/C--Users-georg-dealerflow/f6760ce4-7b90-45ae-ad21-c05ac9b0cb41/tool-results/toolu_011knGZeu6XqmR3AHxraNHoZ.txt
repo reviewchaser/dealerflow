@@ -1,0 +1,22 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   790→                      <item.Icon className="w-5 h-5" />
+   791→                    </div>
+   792→                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
+   793→                  </label>
+   794→                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+   795→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Management</li>
+   796→                    <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+   797→                    <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   798→                    <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   799→                    <div className="divider my-1 px-3"></div>
+   800→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
+   801→                    <li><Link href={getPath("/settings/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
+   802→                    <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
+   803→                    <div className="divider my-1 px-3"></div>
+   804→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
+   805→                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+   806→                  </ul>
+   807→                </div>
+   808→              );
+   809→            }
+   810→

@@ -1,0 +1,921 @@
+     1→import { useEffect, useState } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import Link from "next/link";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+     8→import { KeyValue, KeyValueGrid } from "@/components/ui/KeyValue";
+     9→import { Badge } from "@/components/ui/Badge";
+    10→import { PhotoGallery } from "@/components/ui/PhotoGallery";
+    11→
+    12→// Categories must match AppraisalIssue model schema (lowercase)
+    13→const ISSUE_CATEGORIES = ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"];
+    14→const ISSUE_SUBCATEGORIES = {
+    15→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    16→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    17→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    18→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    19→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    20→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    21→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    22→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    23→  other: ["General", "Misc"],
+    24→};
+    25→const CATEGORY_LABELS = {
+    26→  mechanical: "Mechanical",
+    27→  electrical: "Electrical",
+    28→  bodywork: "Bodywork",
+    29→  interior: "Interior",
+    30→  tyres: "Tyres",
+    31→  mot: "MOT",
+    32→  service: "Service",
+    33→  fault_codes: "Fault Codes",
+    34→  other: "Other",
+    35→};
+    36→
+    37→export default function AppraisalDetail() {
+    38→  const router = useRouter();
+    39→  const { id } = router.query;
+    40→  const [appraisal, setAppraisal] = useState(null);
+    41→  const [issues, setIssues] = useState([]);
+    42→  const [isLoading, setIsLoading] = useState(true);
+    43→  const [isConverting, setIsConverting] = useState(false);
+    44→
+    45→  // Issue modal state
+    46→  const [showIssueModal, setShowIssueModal] = useState(false);
+    47→  const [showShareModal, setShowShareModal] = useState(false);
+    48→  const [shareLink, setShareLink] = useState(null);
+    49→  const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+    50→  const [issueForm, setIssueForm] = useState({
+    51→    category: "mechanical",
+    52→    subcategory: "Engine",
+    53→    description: "",
+    54→    actionNeeded: "",
+    55→    estimatedCost: "",
+    56→    notes: "",
+    57→  });
+    58→  const [photoFiles, setPhotoFiles] = useState([]);
+    59→  const [photoPreviews, setPhotoPreviews] = useState([]);
+    60→  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+    61→  const [isAddingIssue, setIsAddingIssue] = useState(false);
+    62→
+    63→  useEffect(() => {
+    64→    if (id) {
+    65→      fetchAppraisal();
+    66→      fetchIssues();
+    67→    }
+    68→  }, [id]);
+    69→
+    70→  const fetchAppraisal = async () => {
+    71→    try {
+    72→      const res = await fetch(`/api/appraisals/${id}`);
+    73→      const data = await res.json();
+    74→      setAppraisal(data);
+    75→    } catch (error) {
+    76→      toast.error("Failed to load");
+    77→    } finally {
+    78→      setIsLoading(false);
+    79→    }
+    80→  };
+    81→
+    82→  const fetchIssues = async () => {
+    83→    try {
+    84→      const res = await fetch(`/api/appraisals/issues?appraisalId=${id}`);
+    85→      const data = await res.json();
+    86→      setIssues(Array.isArray(data) ? data : []);
+    87→    } catch (error) {
+    88→      console.error("Failed to load issues:", error);
+    89→      setIssues([]);
+    90→    }
+    91→  };
+    92→
+    93→  const handleDecision = async (decision) => {
+    94→    try {
+    95→      await fetch(`/api/appraisals/${id}`, {
+    96→        method: "PUT",
+    97→        headers: { "Content-Type": "application/json" },
+    98→        body: JSON.stringify({ decision }),
+    99→      });
+   100→      toast.success(`Marked as ${decision}`);
+   101→      fetchAppraisal();
+   102→    } catch (error) {
+   103→      toast.error("Failed to update");
+   104→    }
+   105→  };
+   106→
+   107→  const handleConvert = async () => {
+   108→    setIsConverting(true);
+   109→    try {
+   110→      const res = await fetch(`/api/appraisals/${id}/convert`, {
+   111→        method: "POST",
+   112→        headers: { "Content-Type": "application/json" },
+   113→        body: JSON.stringify({ initialStatus: "in_stock" }),
+   114→      });
+   115→      if (!res.ok) throw new Error("Failed to convert");
+   116→      toast.success("Vehicle created!");
+   117→      router.push("/sales-prep");
+   118→    } catch (error) {
+   119→      toast.error(error.message);
+   120→    } finally {
+   121→      setIsConverting(false);
+   122→    }
+   123→  };
+   124→
+   125→  const handlePhotoChange = (e) => {
+   126→    const files = Array.from(e.target.files);
+   127→    setPhotoFiles(prev => [...prev, ...files]);
+   128→
+   129→    files.forEach(file => {
+   130→      const reader = new FileReader();
+   131→      reader.onloadend = () => {
+   132→        setPhotoPreviews(prev => [...prev, reader.result]);
+   133→      };
+   134→      reader.readAsDataURL(file);
+   135→    });
+   136→  };
+   137→
+   138→  const removePhoto = (index) => {
+   139→    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+   140→    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+   141→  };
+   142→
+   143→  const uploadPhotos = async () => {
+   144→    const uploadedUrls = [];
+   145→    for (const file of photoFiles) {
+   146→      const formData = new FormData();
+   147→      formData.append("file", file);
+   148→      try {
+   149→        const res = await fetch("/api/vehicles/upload", {
+   150→          method: "POST",
+   151→          body: formData,
+   152→        });
+   153→        if (res.ok) {
+   154→          const data = await res.json();
+   155→          // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+   156→          uploadedUrls.push(data.key || data.url);
+   157→        }
+   158→      } catch (error) {
+   159→        console.error("Photo upload failed:", error);
+   160→      }
+   161→    }
+   162→    return uploadedUrls;
+   163→  };
+   164→
+   165→  const handleAddIssue = async () => {
+   166→    if (!issueForm.description.trim()) {
+   167→      toast.error("Description is required");
+   168→      return;
+   169→    }
+   170→
+   171→    setIsAddingIssue(true);
+   172→
+   173→    try {
+   174→      let photoUrls = [];
+   175→      if (photoFiles.length > 0) {
+   176→        setIsUploadingPhotos(true);
+   177→        photoUrls = await uploadPhotos();
+   178→        setIsUploadingPhotos(false);
+   179→      }
+   180→
+   181→      const res = await fetch("/api/appraisals/issues", {
+   182→        method: "POST",
+   183→        headers: { "Content-Type": "application/json" },
+   184→        body: JSON.stringify({
+   185→          appraisalId: id,
+   186→          ...issueForm,
+   187→          estimatedCost: issueForm.estimatedCost ? parseFloat(issueForm.estimatedCost) : undefined,
+   188→          photos: photoUrls,
+   189→        }),
+   190→      });
+   191→
+   192→      if (!res.ok) throw new Error("Failed to add issue");
+   193→
+   194→      toast.success("Issue added");
+   195→      setShowIssueModal(false);
+   196→      setIssueForm({
+   197→        category: "mechanical",
+   198→        subcategory: "Engine",
+   199→        description: "",
+   200→        actionNeeded: "",
+   201→        estimatedCost: "",
+   202→        notes: "",
+   203→      });
+   204→      setPhotoFiles([]);
+   205→      setPhotoPreviews([]);
+   206→      fetchIssues();
+   207→    } catch (error) {
+   208→      toast.error(error.message);
+   209→    } finally {
+   210→      setIsAddingIssue(false);
+   211→    }
+   212→  };
+   213→
+   214→  const handleDeleteIssue = async (issueId) => {
+   215→    if (!confirm("Delete this issue?")) return;
+   216→
+   217→    try {
+   218→      await fetch(`/api/appraisals/issues/${issueId}`, { method: "DELETE" });
+   219→      toast.success("Issue deleted");
+   220→      fetchIssues();
+   221→    } catch (error) {
+   222→      toast.error("Failed to delete");
+   223→    }
+   224→  };
+   225→
+   226→  const totalEstimatedCost = issues.reduce((sum, issue) => sum + (issue.estimatedCost || 0), 0);
+   227→
+   228→  const handleGenerateShareLink = async () => {
+   229→    setIsGeneratingShare(true);
+   230→    try {
+   231→      const res = await fetch(`/api/appraisals/${id}/share`, {
+   232→        method: "POST",
+   233→        headers: { "Content-Type": "application/json" },
+   234→        body: JSON.stringify({ expiresInDays: 60 }),
+   235→      });
+   236→      if (!res.ok) throw new Error("Failed to generate share link");
+   237→      const data = await res.json();
+   238→      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+   239→      setShareLink({
+   240→        url: fullUrl,
+   241→        expiresAt: data.expiresAt,
+   242→      });
+   243→    } catch (error) {
+   244→      toast.error(error.message);
+   245→    } finally {
+   246→      setIsGeneratingShare(false);
+   247→    }
+   248→  };
+   249→
+   250→  const handleRevokeShareLink = async () => {
+   251→    if (!confirm("Revoke this share link? Anyone with the link will no longer be able to view this appraisal.")) return;
+   252→    try {
+   253→      const res = await fetch(`/api/appraisals/${id}/share`, { method: "DELETE" });
+   254→      if (!res.ok) throw new Error("Failed to revoke");
+   255→      setShareLink(null);
+   256→      toast.success("Share link revoked");
+   257→    } catch (error) {
+   258→      toast.error(error.message);
+   259→    }
+   260→  };
+   261→
+   262→  const copyShareLink = () => {
+   263→    if (shareLink?.url) {
+   264→      navigator.clipboard.writeText(shareLink.url);
+   265→      toast.success("Link copied to clipboard!");
+   266→    }
+   267→  };
+   268→
+   269→  const handlePrint = () => {
+   270→    const printContent = `
+   271→<!DOCTYPE html>
+   272→<html>
+   273→<head>
+   274→  <title>Appraisal - ${appraisal.vehicleReg}</title>
+   275→  <style>
+   276→    * { margin: 0; padding: 0; box-sizing: border-box; }
+   277→    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+   278→    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+   279→    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+   280→    .reg { font-size: 24px; font-family: monospace; color: #1e293b; font-weight: bold; }
+   281→    .subtitle { font-size: 16px; color: #64748b; margin-top: 8px; }
+   282→    .section { margin-bottom: 30px; }
+   283→    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+   284→    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+   285→    .field { margin-bottom: 12px; }
+   286→    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+   287→    .field-value { font-size: 14px; color: #1e293b; }
+   288→    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+   289→    .badge-warning { background: #fef3c7; color: #92400e; }
+   290→    .badge-success { background: #dcfce7; color: #166534; }
+   291→    .badge-error { background: #fee2e2; color: #991b1b; }
+   292→    .notes { background: #f8fafc; padding: 16px; border-radius: 8px; white-space: pre-wrap; font-size: 14px; }
+   293→    .issue { background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #6366f1; }
+   294→    .issue-header { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+   295→    .issue-badge { background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+   296→    .issue-desc { font-size: 14px; margin-bottom: 4px; }
+   297→    .issue-cost { color: #dc2626; font-weight: 600; font-size: 13px; }
+   298→    .total-cost { font-size: 18px; color: #dc2626; font-weight: bold; margin-top: 16px; padding: 12px; background: #fef2f2; border-radius: 8px; }
+   299→    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+   300→    @media print { body { padding: 20px; } }
+   301→  </style>
+   302→</head>
+   303→<body>
+   304→  <div class="header">
+   305→    <p class="reg">${appraisal.vehicleReg}</p>
+   306→    <p class="subtitle">${appraisal.vehicleMake || ""} ${appraisal.vehicleModel || ""} ${appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}</p>
+   307→    <span class="badge ${appraisal.decision === "converted" ? "badge-success" : appraisal.decision === "declined" ? "badge-error" : "badge-warning"}" style="margin-top: 12px;">
+   308→      ${appraisal.decision === "pending" ? "New" : appraisal.decision === "reviewed" ? "Reviewed" : appraisal.decision === "converted" ? "Converted" : appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+   309→    </span>
+   310→  </div>
+   311→
+   312→  <div class="section">
+   313→    <h2 class="section-title">Vehicle Details</h2>
+   314→    <div class="grid">
+   315→      <div class="field"><div class="field-label">Make</div><div class="field-value">${appraisal.vehicleMake || "—"}</div></div>
+   316→      <div class="field"><div class="field-label">Model</div><div class="field-value">${appraisal.vehicleModel || "—"}</div></div>
+   317→      <div class="field"><div class="field-label">Year</div><div class="field-value">${appraisal.vehicleYear || "—"}</div></div>
+   318→      <div class="field"><div class="field-label">Mileage</div><div class="field-value">${appraisal.mileage ? appraisal.mileage.toLocaleString() : "—"}</div></div>
+   319→      <div class="field"><div class="field-label">Colour</div><div class="field-value">${appraisal.colour || "—"}</div></div>
+   320→      <div class="field"><div class="field-label">Fuel Type</div><div class="field-value">${appraisal.fuelType || "—"}</div></div>
+   321→      <div class="field"><div class="field-label">Proposed Price</div><div class="field-value" style="font-weight: bold; font-size: 18px;">${appraisal.proposedPurchasePrice ? "£" + appraisal.proposedPurchasePrice.toLocaleString() : "—"}</div></div>
+   322→    </div>
+   323→  </div>
+   324→
+   325→  ${appraisal.conditionNotes ? `
+   326→  <div class="section">
+   327→    <h2 class="section-title">Condition Notes</h2>
+   328→    <div class="notes">${appraisal.conditionNotes}</div>
+   329→  </div>
+   330→  ` : ""}
+   331→
+   332→  ${issues.length > 0 ? `
+   333→  <div class="section">
+   334→    <h2 class="section-title">Issues & Damage (${issues.length})</h2>
+   335→    ${issues.map(issue => `
+   336→      <div class="issue">
+   337→        <div class="issue-header">
+   338→          <span class="issue-badge">${CATEGORY_LABELS[issue.category] || issue.category}</span>
+   339→          <strong>${issue.subcategory}</strong>
+   340→        </div>
+   341→        <p class="issue-desc">${issue.description}</p>
+   342→        ${issue.actionNeeded ? `<p style="font-size: 12px; color: #64748b;">Action: ${issue.actionNeeded}</p>` : ""}
+   343→        ${issue.estimatedCost ? `<p class="issue-cost">Est. cost: £${issue.estimatedCost.toLocaleString()}</p>` : ""}
+   344→      </div>
+   345→    `).join("")}
+   346→    ${totalEstimatedCost > 0 ? `<div class="total-cost">Total Estimated Repairs: £${totalEstimatedCost.toLocaleString()}</div>` : ""}
+   347→  </div>
+   348→  ` : ""}
+   349→
+   350→  ${appraisal.contactId ? `
+   351→  <div class="section">
+   352→    <h2 class="section-title">Seller Information</h2>
+   353→    <div class="grid">
+   354→      <div class="field"><div class="field-label">Name</div><div class="field-value">${appraisal.contactId.name || "—"}</div></div>
+   355→      <div class="field"><div class="field-label">Phone</div><div class="field-value">${appraisal.contactId.phone || "—"}</div></div>
+   356→      <div class="field"><div class="field-label">Email</div><div class="field-value">${appraisal.contactId.email || "—"}</div></div>
+   357→    </div>
+   358→  </div>
+   359→  ` : ""}
+   360→
+   361→  <div class="footer">
+   362→    <p>Appraisal created: ${new Date(appraisal.createdAt).toLocaleDateString()} ${new Date(appraisal.createdAt).toLocaleTimeString()}</p>
+   363→    <p style="margin-top: 4px;">Printed from DealerFlow</p>
+   364→  </div>
+   365→</body>
+   366→</html>`;
+   367→
+   368→    const printWindow = window.open("", "_blank");
+   369→    printWindow.document.write(printContent);
+   370→    printWindow.document.close();
+   371→    printWindow.onload = function () {
+   372→      printWindow.print();
+   373→    };
+   374→  };
+   375→
+   376→  if (isLoading) {
+   377→    return (
+   378→      <DashboardLayout>
+   379→        <div className="flex justify-center py-20">
+   380→          <span className="loading loading-spinner loading-lg"></span>
+   381→        </div>
+   382→      </DashboardLayout>
+   383→    );
+   384→  }
+   385→
+   386→  if (!appraisal) {
+   387→    return (
+   388→      <DashboardLayout>
+   389→        <div className="alert alert-error">Appraisal not found</div>
+   390→      </DashboardLayout>
+   391→    );
+   392→  }
+   393→
+   394→  return (
+   395→    <DashboardLayout>
+   396→      <Head><title>Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+   397→
+   398→      <div className="mb-8">
+   399→        <div className="flex items-center gap-2 mb-4">
+   400→          <Link href="/appraisals" className="btn btn-ghost btn-sm">← Back</Link>
+   401→          <button className="btn btn-ghost btn-sm" onClick={handlePrint}>
+   402→            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   403→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+   404→            </svg>
+   405→            Print
+   406→          </button>
+   407→          <button className="btn btn-ghost btn-sm" onClick={() => setShowShareModal(true)}>
+   408→            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   409→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+   410→            </svg>
+   411→            Share
+   412→          </button>
+   413→        </div>
+   414→        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+   415→          <div>
+   416→            <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+   417→            <p className="text-base-content/60 mt-2">
+   418→              {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
+   419→            </p>
+   420→          </div>
+   421→          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${
+   422→            appraisal.decision === "converted" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+   423→            appraisal.decision === "declined" ? "bg-red-50 text-red-700 border-red-200" :
+   424→            appraisal.decision === "reviewed" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-700 border-amber-200"
+   425→          }`}>
+   426→            {appraisal.decision === "pending" ? "New" :
+   427→             appraisal.decision === "reviewed" ? "Reviewed" :
+   428→             appraisal.decision === "converted" ? "Converted" :
+   429→             appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+   430→          </span>
+   431→        </div>
+   432→      </div>
+   433→
+   434→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   435→        <div className="lg:col-span-2 space-y-6">
+   436→          {/* Vehicle Details */}
+   437→          <Card>
+   438→            <CardHeader title="Vehicle Details" icon="🚗" />
+   439→            <CardContent>
+   440→              <KeyValueGrid cols={2}>
+   441→                <KeyValue label="Make" value={appraisal.vehicleMake} />
+   442→                <KeyValue label="Model" value={appraisal.vehicleModel} />
+   443→                <KeyValue label="Year" value={appraisal.vehicleYear} />
+   444→                <KeyValue label="Mileage" value={appraisal.mileage?.toLocaleString()} />
+   445→              </KeyValueGrid>
+   446→              <div className="mt-4 pt-4 border-t border-slate-100">
+   447→                <KeyValue label="Proposed Price" value={appraisal.proposedPurchasePrice ? `£${appraisal.proposedPurchasePrice.toLocaleString()}` : null} size="lg" />
+   448→              </div>
+   449→            </CardContent>
+   450→          </Card>
+   451→
+   452→          {/* Condition Notes */}
+   453→          <Card>
+   454→            <CardHeader title="Condition Notes" icon="📝" />
+   455→            <CardContent>
+   456→              <p className="whitespace-pre-wrap text-slate-700">{appraisal.conditionNotes || "No notes recorded"}</p>
+   457→            </CardContent>
+   458→          </Card>
+   459→
+   460→          {/* Issues Section */}
+   461→          <Card>
+   462→            <CardHeader
+   463→              title="Issues & Damage"
+   464→              icon="⚠️"
+   465→              subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
+   466→              action={
+   467→                <button
+   468→                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
+   469→                  onClick={() => setShowIssueModal(true)}
+   470→                >
+   471→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   472→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   473→                  </svg>
+   474→                  Add Issue
+   475→                </button>
+   476→              }
+   477→            />
+   478→            <CardContent>
+   479→              {issues.length === 0 ? (
+   480→                <div className="text-center py-8">
+   481→                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+   482→                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   483→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   484→                    </svg>
+   485→                  </div>
+   486→                  <p className="text-slate-600 font-medium">No issues recorded</p>
+   487→                  <p className="text-sm text-slate-400 mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
+   488→                </div>
+   489→              ) : (
+   490→                <div className="space-y-3">
+   491→                  {issues.map((issue) => (
+   492→                    <div key={issue.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+   493→                      <div className="flex items-start justify-between gap-2 mb-2">
+   494→                        <div className="flex items-center gap-2 flex-wrap">
+   495→                          <Badge variant={
+   496→                            issue.category === 'mechanical' ? 'danger' :
+   497→                            issue.category === 'electrical' ? 'warning' :
+   498→                            issue.category === 'bodywork' ? 'info' :
+   499→                            issue.category === 'fault_codes' ? 'danger' :
+   500→                            issue.category === 'mot' ? 'secondary' : 'default'
+   501→                          }>
+   502→                            {CATEGORY_LABELS[issue.category] || issue.category}
+   503→                          </Badge>
+   504→                          <span className="font-semibold text-slate-800">{issue.subcategory}</span>
+   505→                        </div>
+   506→                        <button
+   507→                          className="text-xs text-red-500 hover:text-red-700 hover:underline transition-colors"
+   508→                          onClick={() => handleDeleteIssue(issue.id)}
+   509→                        >
+   510→                          Delete
+   511→                        </button>
+   512→                      </div>
+   513→                      <p className="text-sm text-slate-700 mb-2">{issue.description}</p>
+   514→                      {issue.actionNeeded && (
+   515→                        <p className="text-xs text-slate-500 mb-1">
+   516→                          <span className="font-medium text-slate-600">Action needed:</span> {issue.actionNeeded}
+   517→                        </p>
+   518→                      )}
+   519→                      {issue.estimatedCost > 0 && (
+   520→                        <p className="text-sm font-semibold text-red-600">
+   521→                          Est. cost: £{issue.estimatedCost.toLocaleString()}
+   522→                        </p>
+   523→                      )}
+   524→                      {issue.photos && issue.photos.length > 0 && (
+   525→                        <div className="mt-3 pt-3 border-t border-slate-200">
+   526→                          <PhotoGallery photos={issue.photos} thumbnailSize="sm" showCount={false} />
+   527→                        </div>
+   528→                      )}
+   529→                    </div>
+   530→                  ))}
+   531→                </div>
+   532→              )}
+   533→            </CardContent>
+   534→          </Card>
+   535→
+   536→          {/* Legacy Damage Photos - show if existing */}
+   537→          {appraisal.damagePhotos && appraisal.damagePhotos.length > 0 && (
+   538→            <Card>
+   539→              <CardHeader title="Legacy Damage Photos" icon="📷" subtitle="Consider creating issues for these photos" />
+   540→              <CardContent>
+   541→                <PhotoGallery photos={appraisal.damagePhotos} thumbnailSize="lg" />
+   542→              </CardContent>
+   543→            </Card>
+   544→          )}
+   545→
+   546→          {/* Fault Code Photos - show if existing */}
+   547→          {appraisal.faultCodePhotos && appraisal.faultCodePhotos.length > 0 && (
+   548→            <Card>
+   549→              <CardHeader title="Fault Code Photos" icon="🔧" />
+   550→              <CardContent>
+   551→                <PhotoGallery photos={appraisal.faultCodePhotos} thumbnailSize="lg" />
+   552→              </CardContent>
+   553→            </Card>
+   554→          )}
+   555→
+   556→          {/* AI Hints */}
+   557→          {appraisal.aiHintText && (
+   558→            <Card variant="accent">
+   559→              <CardHeader title="AI Suggestions" icon="🤖" />
+   560→              <CardContent>
+   561→                <p className="whitespace-pre-wrap text-sm text-slate-700">{appraisal.aiHintText}</p>
+   562→              </CardContent>
+   563→            </Card>
+   564→          )}
+   565→
+   566→          {/* Seller Info */}
+   567→          {appraisal.contactId && (
+   568→            <Card>
+   569→              <CardHeader title="Seller Information" icon="👤" />
+   570→              <CardContent>
+   571→                <KeyValueGrid cols={3}>
+   572→                  <KeyValue label="Name" value={appraisal.contactId?.name} />
+   573→                  <KeyValue label="Phone" value={appraisal.contactId?.phone} />
+   574→                  <KeyValue label="Email" value={appraisal.contactId?.email} />
+   575→                </KeyValueGrid>
+   576→              </CardContent>
+   577→            </Card>
+   578→          )}
+   579→        </div>
+   580→
+   581→        {/* Actions Sidebar */}
+   582→        <div className="lg:col-span-1">
+   583→          <Card className="sticky top-20">
+   584→            <CardHeader title="Actions" />
+   585→            <CardContent className="space-y-4">
+   586→              {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
+   587→                <div className="space-y-3">
+   588→                  <button
+   589→                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+   590→                    onClick={handleConvert}
+   591→                    disabled={isConverting}
+   592→                  >
+   593→                    {isConverting ? (
+   594→                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+   595→                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+   596→                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+   597→                      </svg>
+   598→                    ) : (
+   599→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   600→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   601→                      </svg>
+   602→                    )}
+   603→                    Convert to Stock
+   604→                  </button>
+   605→                  <button
+   606→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+   607→                    onClick={() => handleDecision("reviewed")}
+   608→                  >
+   609→                    Mark as Reviewed
+   610→                  </button>
+   611→                  <button
+   612→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+   613→                    onClick={() => handleDecision("declined")}
+   614→                  >
+   615→                    Decline
+   616→                  </button>
+   617→                  <p className="text-xs text-slate-500 text-center">Converting will create a vehicle and default prep tasks.</p>
+   618→                </div>
+   619→              )}
+   620→
+   621→              {appraisal.decision === "converted" || appraisal.vehicleId ? (
+   622→                <div className="space-y-3">
+   623→                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 text-center">
+   624→                    Vehicle added to stock
+   625→                  </div>
+   626→                  <Link
+   627→                    href="/sales-prep"
+   628→                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
+   629→                  >
+   630→                    View in Stock & Prep
+   631→                  </Link>
+   632→                </div>
+   633→              ) : null}
+   634→
+   635→              {appraisal.decision === "declined" && (
+   636→                <div className="space-y-3">
+   637→                  <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-600 text-center">
+   638→                    This appraisal was declined
+   639→                  </div>
+   640→                  <button
+   641→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+   642→                    onClick={() => handleDecision("pending")}
+   643→                  >
+   644→                    Re-open
+   645→                  </button>
+   646→                </div>
+   647→              )}
+   648→
+   649→              {/* Issues Summary */}
+   650→              {issues.length > 0 && (
+   651→                <div className="pt-4 border-t border-slate-200">
+   652→                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Issues Summary</p>
+   653→                  <p className="text-sm text-slate-700">{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+   654→                  {totalEstimatedCost > 0 && (
+   655→                    <p className="text-sm font-semibold text-red-600">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+   656→                  )}
+   657→                </div>
+   658→              )}
+   659→
+   660→              <div className="pt-4 border-t border-slate-200">
+   661→                <button
+   662→                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+   663→                  onClick={async () => {
+   664→                    if (confirm("Delete this appraisal?")) {
+   665→                      await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+   666→                      router.push("/appraisals");
+   667→                    }
+   668→                  }}
+   669→                >
+   670→                  Delete Appraisal
+   671→                </button>
+   672→              </div>
+   673→            </CardContent>
+   674→          </Card>
+   675→        </div>
+   676→      </div>
+   677→
+   678→      {/* Add Issue Modal */}
+   679→      {showIssueModal && (
+   680→        <div className="modal modal-open">
+   681→          <div className="modal-box max-w-lg">
+   682→            <h3 className="font-bold text-lg mb-4">Add Issue</h3>
+   683→
+   684→            <div className="space-y-4">
+   685→              <div className="grid grid-cols-2 gap-4">
+   686→                <div className="form-control">
+   687→                  <label className="label"><span className="label-text">Category</span></label>
+   688→                  <select
+   689→                    className="select select-bordered w-full"
+   690→                    value={issueForm.category}
+   691→                    onChange={(e) => {
+   692→                      const newCat = e.target.value;
+   693→                      setIssueForm({
+   694→                        ...issueForm,
+   695→                        category: newCat,
+   696→                        subcategory: ISSUE_SUBCATEGORIES[newCat][0],
+   697→                      });
+   698→                    }}
+   699→                  >
+   700→                    {ISSUE_CATEGORIES.map((cat) => (
+   701→                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+   702→                    ))}
+   703→                  </select>
+   704→                </div>
+   705→                <div className="form-control">
+   706→                  <label className="label"><span className="label-text">Subcategory</span></label>
+   707→                  <select
+   708→                    className="select select-bordered w-full"
+   709→                    value={issueForm.subcategory}
+   710→                    onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
+   711→                  >
+   712→                    {ISSUE_SUBCATEGORIES[issueForm.category].map((sub) => (
+   713→                      <option key={sub} value={sub}>{sub}</option>
+   714→                    ))}
+   715→                  </select>
+   716→                </div>
+   717→              </div>
+   718→
+   719→              <div className="form-control">
+   720→                <label className="label"><span className="label-text">Description *</span></label>
+   721→                <textarea
+   722→                  className="textarea textarea-bordered"
+   723→                  rows={3}
+   724→                  placeholder="Describe the issue..."
+   725→                  value={issueForm.description}
+   726→                  onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
+   727→                />
+   728→              </div>
+   729→
+   730→              <div className="form-control">
+   731→                <label className="label"><span className="label-text">Action Needed</span></label>
+   732→                <input
+   733→                  type="text"
+   734→                  className="input input-bordered"
+   735→                  placeholder="e.g., Replace bumper, repaint"
+   736→                  value={issueForm.actionNeeded}
+   737→                  onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
+   738→                />
+   739→              </div>
+   740→
+   741→              <div className="form-control">
+   742→                <label className="label"><span className="label-text">Estimated Repair Cost (£)</span></label>
+   743→                <input
+   744→                  type="number"
+   745→                  className="input input-bordered"
+   746→                  placeholder="0"
+   747→                  value={issueForm.estimatedCost}
+   748→                  onChange={(e) => setIssueForm({ ...issueForm, estimatedCost: e.target.value })}
+   749→                />
+   750→              </div>
+   751→
+   752→              {/* Photo Upload */}
+   753→              <div className="form-control">
+   754→                <label className="label"><span className="label-text">Photos</span></label>
+   755→                <input
+   756→                  type="file"
+   757→                  accept="image/*"
+   758→                  multiple
+   759→                  className="file-input file-input-bordered w-full"
+   760→                  onChange={handlePhotoChange}
+   761→                />
+   762→                {photoPreviews.length > 0 && (
+   763→                  <div className="flex flex-wrap gap-2 mt-2">
+   764→                    {photoPreviews.map((preview, idx) => (
+   765→                      <div key={idx} className="relative">
+   766→                        <img src={preview} alt={`Preview ${idx + 1}`} className="w-16 h-16 object-cover rounded-lg" />
+   767→                        <button
+   768→                          type="button"
+   769→                          className="absolute -top-1 -right-1 btn btn-circle btn-xs btn-error"
+   770→                          onClick={() => removePhoto(idx)}
+   771→                        >
+   772→                          ×
+   773→                        </button>
+   774→                      </div>
+   775→                    ))}
+   776→                  </div>
+   777→                )}
+   778→              </div>
+   779→            </div>
+   780→
+   781→            <div className="modal-action">
+   782→              <button
+   783→                className="btn btn-ghost"
+   784→                onClick={() => {
+   785→                  setShowIssueModal(false);
+   786→                  setPhotoFiles([]);
+   787→                  setPhotoPreviews([]);
+   788→                }}
+   789→              >
+   790→                Cancel
+   791→              </button>
+   792→              <button
+   793→                className="btn btn-primary"
+   794→                onClick={handleAddIssue}
+   795→                disabled={isAddingIssue}
+   796→              >
+   797→                {isAddingIssue ? (
+   798→                  <>
+   799→                    <span className="loading loading-spinner loading-sm"></span>
+   800→                    {isUploadingPhotos ? "Uploading..." : "Saving..."}
+   801→                  </>
+   802→                ) : (
+   803→                  "Add Issue"
+   804→                )}
+   805→              </button>
+   806→            </div>
+   807→          </div>
+   808→          <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+   809→        </div>
+   810→      )}
+   811→
+   812→      {/* Share Modal */}
+   813→      {showShareModal && (
+   814→        <div className="modal modal-open">
+   815→          <div className="modal-box max-w-md">
+   816→            <button
+   817→              className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
+   818→              onClick={() => setShowShareModal(false)}
+   819→            >
+   820→              ✕
+   821→            </button>
+   822→            <div className="text-center mb-6">
+   823→              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#14B8A6]/10 flex items-center justify-center">
+   824→                <svg className="w-6 h-6 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   825→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+   826→                </svg>
+   827→              </div>
+   828→              <h3 className="font-bold text-lg">Share Appraisal</h3>
+   829→              <p className="text-sm text-base-content/60 mt-1">
+   830→                Share a read-only view of this appraisal
+   831→              </p>
+   832→            </div>
+   833→
+   834→            {shareLink ? (
+   835→              <div className="space-y-4">
+   836→                <div className="bg-base-200 rounded-lg p-4">
+   837→                  <label className="text-xs text-base-content/60 uppercase tracking-wider">Public Link</label>
+   838→                  <div className="flex items-center gap-2 mt-2">
+   839→                    <input
+   840→                      type="text"
+   841→                      readOnly
+   842→                      value={shareLink.url}
+   843→                      className="input input-bordered input-sm flex-1 text-xs font-mono"
+   844→                    />
+   845→                    <button
+   846→                      className="btn btn-primary btn-sm"
+   847→                      onClick={copyShareLink}
+   848→                    >
+   849→                      Copy
+   850→                    </button>
+   851→                  </div>
+   852→                  <p className="text-xs text-base-content/60 mt-2">
+   853→                    Expires: {new Date(shareLink.expiresAt).toLocaleDateString()}
+   854→                  </p>
+   855→                </div>
+   856→
+   857→                <div className="grid grid-cols-2 gap-2">
+   858→                  <button
+   859→                    onClick={() => {
+   860→                      window.open(`mailto:?subject=Vehicle Appraisal - ${appraisal.vehicleReg}&body=View the appraisal here: ${shareLink.url}`, "_blank");
+   861→                    }}
+   862→                    className="btn btn-ghost btn-sm"
+   863→                  >
+   864→                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   865→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   866→                    </svg>
+   867→                    Email
+   868→                  </button>
+   869→                  <button
+   870→                    onClick={() => {
+   871→                      window.open(`https://wa.me/?text=View this vehicle appraisal: ${encodeURIComponent(shareLink.url)}`, "_blank");
+   872→                    }}
+   873→                    className="btn btn-ghost btn-sm"
+   874→                  >
+   875→                    <svg className="w-4 h-4 mr-1 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+   876→                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+   877→                    </svg>
+   878→                    WhatsApp
+   879→                  </button>
+   880→                </div>
+   881→
+   882→                <button
+   883→                  onClick={handleRevokeShareLink}
+   884→                  className="btn btn-ghost btn-sm text-error w-full"
+   885→                >
+   886→                  Revoke Link
+   887→                </button>
+   888→              </div>
+   889→            ) : (
+   890→              <div className="space-y-4">
+   891→                <p className="text-sm text-center text-base-content/60">
+   892→                  Generate a secure link that allows anyone to view this appraisal (read-only). The link will expire after 60 days.
+   893→                </p>
+   894→                <button
+   895→                  className="btn btn-primary w-full"
+   896→                  onClick={handleGenerateShareLink}
+   897→                  disabled={isGeneratingShare}
+   898→                >
+   899→                  {isGeneratingShare ? (
+   900→                    <>
+   901→                      <span className="loading loading-spinner loading-sm"></span>
+   902→                      Generating...
+   903→                    </>
+   904→                  ) : (
+   905→                    "Generate Share Link"
+   906→                  )}
+   907→                </button>
+   908→              </div>
+   909→            )}
+   910→          </div>
+   911→          <div className="modal-backdrop" onClick={() => setShowShareModal(false)}></div>
+   912→        </div>
+   913→      )}
+   914→    </DashboardLayout>
+   915→  );
+   916→}
+   917→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

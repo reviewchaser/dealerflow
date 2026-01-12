@@ -1,0 +1,1047 @@
+     1→import { useEffect, useState, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import { useSession } from "next-auth/react";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { MobileModal } from "@/components/ui/MobileModal";
+     6→import { toast } from "react-hot-toast";
+     7→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     8→
+     9→const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+    10→const DAY_LABELS = {
+    11→  MON: "Monday",
+    12→  TUE: "Tuesday",
+    13→  WED: "Wednesday",
+    14→  THU: "Thursday",
+    15→  FRI: "Friday",
+    16→  SAT: "Saturday",
+    17→  SUN: "Sunday",
+    18→};
+    19→
+    20→const STATUS_COLORS = {
+    21→  DRAFT: "bg-slate-100 text-slate-600",
+    22→  SUBMITTED: "bg-amber-100 text-amber-700",
+    23→  APPROVED: "bg-emerald-100 text-emerald-700",
+    24→  REJECTED: "bg-red-100 text-red-700",
+    25→};
+    26→
+    27→const STATUS_LABELS = {
+    28→  DRAFT: "Draft",
+    29→  SUBMITTED: "Pending Review",
+    30→  APPROVED: "Approved",
+    31→  REJECTED: "Rejected",
+    32→};
+    33→
+    34→// Get Monday of the current week
+    35→function getWeekStart(date = new Date()) {
+    36→  const d = new Date(date);
+    37→  const day = d.getDay();
+    38→  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    39→  return new Date(d.setDate(diff));
+    40→}
+    41→
+    42→// Format date as "Mon 6 Jan"
+    43→function formatShortDate(date) {
+    44→  return new Date(date).toLocaleDateString("en-GB", {
+    45→    weekday: "short",
+    46→    day: "numeric",
+    47→    month: "short",
+    48→  });
+    49→}
+    50→
+    51→// Format week range
+    52→function formatWeekRange(weekStart) {
+    53→  const start = new Date(weekStart);
+    54→  const end = new Date(start);
+    55→  end.setDate(end.getDate() + 6);
+    56→  return `${start.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${end.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+    57→}
+    58→
+    59→export default function OvertimePage() {
+    60→  const { data: session } = useSession();
+    61→  const { isRedirecting } = useDealerRedirect();
+    62→  const [submissions, setSubmissions] = useState([]);
+    63→  const [allSubmissions, setAllSubmissions] = useState([]); // For admin view
+    64→  const [isLoading, setIsLoading] = useState(true);
+    65→  const [userRole, setUserRole] = useState(null);
+    66→  const [showAddModal, setShowAddModal] = useState(false);
+    67→  const [editingSubmission, setEditingSubmission] = useState(null);
+    68→  const [selectedWeek, setSelectedWeek] = useState(getWeekStart());
+    69→  const [viewMode, setViewMode] = useState("my"); // "my" or "approvals" (admin only)
+    70→  const [statusFilter, setStatusFilter] = useState("");
+    71→  const [pendingCount, setPendingCount] = useState(0);
+    72→  const [viewingSubmission, setViewingSubmission] = useState(null); // For detail view
+    73→  const [showReviewModal, setShowReviewModal] = useState(false);
+    74→
+    75→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    76→
+    77→  // Fetch user role
+    78→  useEffect(() => {
+    79→    const fetchRole = async () => {
+    80→      try {
+    81→        const res = await fetch("/api/dealer");
+    82→        if (res.ok) {
+    83→          const data = await res.json();
+    84→          setUserRole(data.currentUserRole);
+    85→        }
+    86→      } catch (error) {
+    87→        console.error("Failed to fetch user role:", error);
+    88→      }
+    89→    };
+    90→    fetchRole();
+    91→  }, []);
+    92→
+    93→  // Fetch own submissions
+    94→  const fetchSubmissions = useCallback(async () => {
+    95→    try {
+    96→      const params = new URLSearchParams();
+    97→      if (statusFilter) params.append("status", statusFilter);
+    98→
+    99→      const res = await fetch(`/api/overtime?${params}`);
+   100→      if (!res.ok) throw new Error("Failed to fetch");
+   101→      const data = await res.json();
+   102→      setSubmissions(data.submissions || []);
+   103→    } catch (error) {
+   104→      console.error("Error fetching submissions:", error);
+   105→      toast.error("Failed to load overtime submissions");
+   106→    } finally {
+   107→      setIsLoading(false);
+   108→    }
+   109→  }, [statusFilter]);
+   110→
+   111→  // Fetch all submissions (admin)
+   112→  const fetchAllSubmissions = useCallback(async () => {
+   113→    if (!isAdmin) return;
+   114→    try {
+   115→      const params = new URLSearchParams();
+   116→      if (statusFilter) params.append("status", statusFilter);
+   117→
+   118→      const res = await fetch(`/api/admin/overtime?${params}`);
+   119→      if (!res.ok) throw new Error("Failed to fetch");
+   120→      const data = await res.json();
+   121→      setAllSubmissions(data.submissions || []);
+   122→      setPendingCount(data.stats?.pendingReview || 0);
+   123→    } catch (error) {
+   124→      console.error("Error fetching all submissions:", error);
+   125→    }
+   126→  }, [isAdmin, statusFilter]);
+   127→
+   128→  useEffect(() => {
+   129→    fetchSubmissions();
+   130→  }, [fetchSubmissions]);
+   131→
+   132→  useEffect(() => {
+   133→    if (isAdmin) {
+   134→      fetchAllSubmissions();
+   135→    }
+   136→  }, [isAdmin, fetchAllSubmissions]);
+   137→
+   138→  // Create new submission
+   139→  const handleCreate = async (weekStart) => {
+   140→    try {
+   141→      const res = await fetch("/api/overtime", {
+   142→        method: "POST",
+   143→        headers: { "Content-Type": "application/json" },
+   144→        body: JSON.stringify({ weekStartDate: weekStart.toISOString() }),
+   145→      });
+   146→
+   147→      const data = await res.json();
+   148→
+   149→      if (!res.ok) {
+   150→        if (res.status === 409 && data.existingId) {
+   151→          // Already exists - open for editing
+   152→          const existing = submissions.find((s) => s._id === data.existingId);
+   153→          if (existing) {
+   154→            setEditingSubmission(existing);
+   155→            setShowAddModal(true);
+   156→          } else {
+   157→            toast.error("A submission for this week already exists");
+   158→          }
+   159→          return;
+   160→        }
+   161→        throw new Error(data.error || "Failed to create");
+   162→      }
+   163→
+   164→      toast.success("Draft created");
+   165→      setEditingSubmission(data.submission);
+   166→      setShowAddModal(true);
+   167→      fetchSubmissions();
+   168→    } catch (error) {
+   169→      console.error("Error creating submission:", error);
+   170→      toast.error(error.message || "Failed to create submission");
+   171→    }
+   172→  };
+   173→
+   174→  // Update submission
+   175→  const handleUpdate = async (id, updates) => {
+   176→    try {
+   177→      const res = await fetch(`/api/overtime/${id}`, {
+   178→        method: "PATCH",
+   179→        headers: { "Content-Type": "application/json" },
+   180→        body: JSON.stringify(updates),
+   181→      });
+   182→
+   183→      if (!res.ok) {
+   184→        const data = await res.json();
+   185→        throw new Error(data.error || "Failed to update");
+   186→      }
+   187→
+   188→      const data = await res.json();
+   189→      setEditingSubmission(data.submission);
+   190→      fetchSubmissions();
+   191→      return data.submission;
+   192→    } catch (error) {
+   193→      console.error("Error updating submission:", error);
+   194→      toast.error(error.message || "Failed to update");
+   195→      throw error;
+   196→    }
+   197→  };
+   198→
+   199→  // Submit for review
+   200→  const handleSubmit = async (id) => {
+   201→    try {
+   202→      const res = await fetch(`/api/overtime/${id}/submit`, {
+   203→        method: "POST",
+   204→      });
+   205→
+   206→      if (!res.ok) {
+   207→        const data = await res.json();
+   208→        throw new Error(data.error || data.reason || "Failed to submit");
+   209→      }
+   210→
+   211→      toast.success("Submitted for review");
+   212→      setShowAddModal(false);
+   213→      setEditingSubmission(null);
+   214→      fetchSubmissions();
+   215→    } catch (error) {
+   216→      console.error("Error submitting:", error);
+   217→      toast.error(error.message || "Failed to submit");
+   218→    }
+   219→  };
+   220→
+   221→  // Delete draft
+   222→  const handleDelete = async (id) => {
+   223→    if (!confirm("Delete this draft?")) return;
+   224→
+   225→    try {
+   226→      const res = await fetch(`/api/overtime/${id}`, {
+   227→        method: "DELETE",
+   228→      });
+   229→
+   230→      if (!res.ok) {
+   231→        const data = await res.json();
+   232→        throw new Error(data.error || "Failed to delete");
+   233→      }
+   234→
+   235→      toast.success("Draft deleted");
+   236→      setShowAddModal(false);
+   237→      setEditingSubmission(null);
+   238→      fetchSubmissions();
+   239→    } catch (error) {
+   240→      console.error("Error deleting:", error);
+   241→      toast.error(error.message || "Failed to delete");
+   242→    }
+   243→  };
+   244→
+   245→  // Admin: Approve
+   246→  const handleApprove = async (id) => {
+   247→    try {
+   248→      const res = await fetch(`/api/admin/overtime/${id}/approve`, {
+   249→        method: "POST",
+   250→      });
+   251→
+   252→      if (!res.ok) {
+   253→        const data = await res.json();
+   254→        throw new Error(data.error || "Failed to approve");
+   255→      }
+   256→
+   257→      toast.success("Overtime approved");
+   258→      fetchSubmissions();
+   259→      fetchAllSubmissions();
+   260→    } catch (error) {
+   261→      console.error("Error approving:", error);
+   262→      toast.error(error.message || "Failed to approve");
+   263→    }
+   264→  };
+   265→
+   266→  // Admin: Reject
+   267→  const handleReject = async (id, reason) => {
+   268→    try {
+   269→      const res = await fetch(`/api/admin/overtime/${id}/reject`, {
+   270→        method: "POST",
+   271→        headers: { "Content-Type": "application/json" },
+   272→        body: JSON.stringify({ reason }),
+   273→      });
+   274→
+   275→      if (!res.ok) {
+   276→        const data = await res.json();
+   277→        throw new Error(data.error || "Failed to reject");
+   278→      }
+   279→
+   280→      toast.success("Overtime rejected");
+   281→      fetchSubmissions();
+   282→      fetchAllSubmissions();
+   283→    } catch (error) {
+   284→      console.error("Error rejecting:", error);
+   285→      toast.error(error.message || "Failed to reject");
+   286→    }
+   287→  };
+   288→
+   289→  const displaySubmissions = viewMode === "approvals" ? allSubmissions : submissions;
+   290→
+   291→  // Open review modal for a submission
+   292→  const handleViewForReview = (submission) => {
+   293→    setViewingSubmission(submission);
+   294→    setShowReviewModal(true);
+   295→  };
+   296→
+   297→  // Show loading while checking for dealer redirect
+   298→  if (isRedirecting) {
+   299→    return (
+   300→      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+   301→        <div className="flex flex-col items-center gap-4">
+   302→          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+   303→          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+   304→        </div>
+   305→      </div>
+   306→    );
+   307→  }
+   308→
+   309→  return (
+   310→    <DashboardLayout>
+   311→      <Head>
+   312→        <title>Overtime | DealerFlow</title>
+   313→      </Head>
+   314→
+   315→      <div className="max-w-6xl mx-auto">
+   316→        {/* Header */}
+   317→        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+   318→          <div>
+   319→            <h1 className="text-2xl font-bold text-slate-900">Overtime</h1>
+   320→            <p className="text-slate-500 text-sm mt-1">
+   321→              Track and submit your weekly overtime hours
+   322→            </p>
+   323→          </div>
+   324→          <button
+   325→            onClick={() => handleCreate(selectedWeek)}
+   326→            className="btn btn-primary gap-2"
+   327→          >
+   328→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   329→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   330→            </svg>
+   331→            Add Overtime
+   332→          </button>
+   333→        </div>
+   334→
+   335→        {/* Admin: View Toggle */}
+   336→        {isAdmin && (
+   337→          <div className="flex items-center gap-4 mb-6">
+   338→            <div className="flex bg-slate-100 rounded-xl p-1">
+   339→              <button
+   340→                onClick={() => {
+   341→                  setViewMode("my");
+   342→                  setStatusFilter("");
+   343→                }}
+   344→                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+   345→                  viewMode === "my"
+   346→                    ? "bg-white text-slate-900 shadow-sm"
+   347→                    : "text-slate-500 hover:text-slate-700"
+   348→                }`}
+   349→              >
+   350→                My Overtime
+   351→              </button>
+   352→              <button
+   353→                onClick={() => {
+   354→                  setViewMode("approvals");
+   355→                  setStatusFilter("SUBMITTED"); // Default to pending review
+   356→                }}
+   357→                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+   358→                  viewMode === "approvals"
+   359→                    ? "bg-white text-slate-900 shadow-sm"
+   360→                    : "text-slate-500 hover:text-slate-700"
+   361→                }`}
+   362→              >
+   363→                Team Approvals
+   364→                {pendingCount > 0 && (
+   365→                  <span className="bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full">
+   366→                    {pendingCount}
+   367→                  </span>
+   368→                )}
+   369→              </button>
+   370→            </div>
+   371→
+   372→            {viewMode === "approvals" && (
+   373→              <select
+   374→                value={statusFilter}
+   375→                onChange={(e) => setStatusFilter(e.target.value)}
+   376→                className="select select-bordered select-sm"
+   377→              >
+   378→                <option value="SUBMITTED">Pending Review</option>
+   379→                <option value="">All Status</option>
+   380→                <option value="APPROVED">Approved</option>
+   381→                <option value="REJECTED">Rejected</option>
+   382→              </select>
+   383→            )}
+   384→          </div>
+   385→        )}
+   386→
+   387→        {/* Week Selector */}
+   388→        <div className="flex items-center gap-3 mb-6">
+   389→          <button
+   390→            onClick={() => {
+   391→              const prev = new Date(selectedWeek);
+   392→              prev.setDate(prev.getDate() - 7);
+   393→              setSelectedWeek(prev);
+   394→            }}
+   395→            className="btn btn-ghost btn-sm btn-circle"
+   396→          >
+   397→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   398→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   399→            </svg>
+   400→          </button>
+   401→          <div className="text-center min-w-48">
+   402→            <div className="font-semibold text-slate-900">
+   403→              Week of {formatWeekRange(selectedWeek)}
+   404→            </div>
+   405→          </div>
+   406→          <button
+   407→            onClick={() => {
+   408→              const next = new Date(selectedWeek);
+   409→              next.setDate(next.getDate() + 7);
+   410→              setSelectedWeek(next);
+   411→            }}
+   412→            className="btn btn-ghost btn-sm btn-circle"
+   413→          >
+   414→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   415→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   416→            </svg>
+   417→          </button>
+   418→          <button
+   419→            onClick={() => setSelectedWeek(getWeekStart())}
+   420→            className="btn btn-ghost btn-sm"
+   421→          >
+   422→            Today
+   423→          </button>
+   424→        </div>
+   425→
+   426→        {/* Submissions List */}
+   427→        {isLoading ? (
+   428→          <div className="flex items-center justify-center py-12">
+   429→            <span className="loading loading-spinner loading-lg text-primary" />
+   430→          </div>
+   431→        ) : displaySubmissions.length === 0 ? (
+   432→          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+   433→            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+   434→              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   435→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+   436→              </svg>
+   437→            </div>
+   438→            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+   439→              {viewMode === "approvals" ? "No pending approvals" : "No overtime submissions"}
+   440→            </h3>
+   441→            <p className="text-slate-500 mb-6">
+   442→              {viewMode === "approvals"
+   443→                ? statusFilter === "SUBMITTED"
+   444→                  ? "All overtime submissions have been reviewed."
+   445→                  : "No overtime submissions match the filter."
+   446→                : "You haven't submitted any overtime yet."}
+   447→            </p>
+   448→            {viewMode === "my" && (
+   449→              <button
+   450→                onClick={() => handleCreate(selectedWeek)}
+   451→                className="btn btn-primary"
+   452→              >
+   453→                Add Your First Entry
+   454→              </button>
+   455→            )}
+   456→          </div>
+   457→        ) : (
+   458→          <div className="space-y-4">
+   459→            {displaySubmissions.map((submission) => (
+   460→              <SubmissionCard
+   461→                key={submission._id}
+   462→                submission={submission}
+   463→                isAdmin={isAdmin && viewMode === "approvals"}
+   464→                onEdit={() => {
+   465→                  setEditingSubmission(submission);
+   466→                  setShowAddModal(true);
+   467→                }}
+   468→                onView={() => handleViewForReview(submission)}
+   469→                onApprove={() => handleApprove(submission._id)}
+   470→                onReject={(reason) => handleReject(submission._id, reason)}
+   471→              />
+   472→            ))}
+   473→          </div>
+   474→        )}
+   475→      </div>
+   476→
+   477→      {/* Add/Edit Modal */}
+   478→      <MobileModal
+   479→        isOpen={showAddModal}
+   480→        onClose={() => {
+   481→          setShowAddModal(false);
+   482→          setEditingSubmission(null);
+   483→        }}
+   484→        title={editingSubmission ? "Edit Overtime" : "Add Overtime"}
+   485→        maxWidth="max-w-2xl"
+   486→      >
+   487→        {editingSubmission && (
+   488→          <OvertimeForm
+   489→            submission={editingSubmission}
+   490→            onUpdate={handleUpdate}
+   491→            onSubmit={handleSubmit}
+   492→            onDelete={handleDelete}
+   493→            onClose={() => {
+   494→              setShowAddModal(false);
+   495→              setEditingSubmission(null);
+   496→            }}
+   497→          />
+   498→        )}
+   499→        <MobileModal.Footer>
+   500→          <div className="flex justify-end gap-3">
+   501→            <button
+   502→              onClick={() => {
+   503→                setShowAddModal(false);
+   504→                setEditingSubmission(null);
+   505→              }}
+   506→              className="btn btn-ghost"
+   507→            >
+   508→              Cancel
+   509→            </button>
+   510→          </div>
+   511→        </MobileModal.Footer>
+   512→      </MobileModal>
+   513→
+   514→      {/* Admin Review Modal */}
+   515→      {showReviewModal && viewingSubmission && (
+   516→        <ReviewModal
+   517→          submission={viewingSubmission}
+   518→          onClose={() => {
+   519→            setShowReviewModal(false);
+   520→            setViewingSubmission(null);
+   521→          }}
+   522→          onApprove={async () => {
+   523→            await handleApprove(viewingSubmission._id);
+   524→            setShowReviewModal(false);
+   525→            setViewingSubmission(null);
+   526→          }}
+   527→          onReject={async (reason) => {
+   528→            await handleReject(viewingSubmission._id, reason);
+   529→            setShowReviewModal(false);
+   530→            setViewingSubmission(null);
+   531→          }}
+   532→        />
+   533→      )}
+   534→    </DashboardLayout>
+   535→  );
+   536→}
+   537→
+   538→// Admin Review Modal Component
+   539→function ReviewModal({ submission, onClose, onApprove, onReject }) {
+   540→  const [rejectReason, setRejectReason] = useState("");
+   541→  const [showRejectForm, setShowRejectForm] = useState(false);
+   542→  const [isProcessing, setIsProcessing] = useState(false);
+   543→
+   544→  const canReview = submission.status === "SUBMITTED";
+   545→
+   546→  const handleApprove = async () => {
+   547→    setIsProcessing(true);
+   548→    try {
+   549→      await onApprove();
+   550→    } finally {
+   551→      setIsProcessing(false);
+   552→    }
+   553→  };
+   554→
+   555→  const handleReject = async () => {
+   556→    if (!rejectReason.trim()) {
+   557→      toast.error("Please provide a reason for rejection");
+   558→      return;
+   559→    }
+   560→    setIsProcessing(true);
+   561→    try {
+   562→      await onReject(rejectReason);
+   563→    } finally {
+   564→      setIsProcessing(false);
+   565→    }
+   566→  };
+   567→
+   568→  // Get entries with dates
+   569→  const getEntriesWithDates = () => {
+   570→    const weekStart = new Date(submission.weekStartDate);
+   571→    return DAYS.map((day, index) => {
+   572→      const dayDate = new Date(weekStart);
+   573→      dayDate.setDate(dayDate.getDate() + index);
+   574→      const entry = submission.entries?.find((e) => e.day === day) || { day, overtimeHours: 0 };
+   575→      return { ...entry, date: dayDate };
+   576→    });
+   577→  };
+   578→
+   579→  const entriesWithDates = getEntriesWithDates();
+   580→  const totalHours = submission.totalOvertimeHours || 0;
+   581→
+   582→  return (
+   583→    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+   584→      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+   585→        {/* Header */}
+   586→        <div className="p-6 border-b border-slate-200">
+   587→          <div className="flex items-center justify-between">
+   588→            <div>
+   589→              <h2 className="text-xl font-bold text-slate-900">Review Overtime</h2>
+   590→              <p className="text-sm text-slate-500 mt-1">
+   591→                {submission.userDisplayNameSnapshot} &middot; Week of {formatWeekRange(submission.weekStartDate)}
+   592→              </p>
+   593→            </div>
+   594→            <button onClick={onClose} className="btn btn-ghost btn-sm btn-circle">
+   595→              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   596→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   597→              </svg>
+   598→            </button>
+   599→          </div>
+   600→        </div>
+   601→
+   602→        {/* Content */}
+   603→        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+   604→          {/* Summary */}
+   605→          <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-xl">
+   606→            <span className="font-medium">Total Overtime</span>
+   607→            <span className="text-2xl font-bold">{totalHours} hours</span>
+   608→          </div>
+   609→
+   610→          {/* Status Badge */}
+   611→          <div className="flex items-center gap-2">
+   612→            <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${STATUS_COLORS[submission.status]}`}>
+   613→              {STATUS_LABELS[submission.status]}
+   614→            </span>
+   615→            {submission.submittedAt && (
+   616→              <span className="text-sm text-slate-500">
+   617→                Submitted {new Date(submission.submittedAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+   618→              </span>
+   619→            )}
+   620→          </div>
+   621→
+   622→          {/* Day-by-day breakdown */}
+   623→          <div className="space-y-2">
+   624→            <h3 className="font-medium text-slate-900">Daily Breakdown</h3>
+   625→            <div className="bg-slate-50 rounded-xl overflow-hidden">
+   626→              {entriesWithDates.map((entry) => (
+   627→                <div
+   628→                  key={entry.day}
+   629→                  className={`flex items-center justify-between p-3 border-b border-slate-200 last:border-b-0 ${
+   630→                    entry.overtimeHours > 0 ? "bg-white" : ""
+   631→                  }`}
+   632→                >
+   633→                  <div className="flex items-center gap-3">
+   634→                    <div className="w-20">
+   635→                      <div className="font-medium text-slate-900">{DAY_LABELS[entry.day]}</div>
+   636→                      <div className="text-xs text-slate-400">
+   637→                        {entry.date.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+   638→                      </div>
+   639→                    </div>
+   640→                    {entry.startTime && entry.endTime && (
+   641→                      <span className="text-sm text-slate-500">
+   642→                        {entry.startTime} - {entry.endTime}
+   643→                      </span>
+   644→                    )}
+   645→                    {entry.location && (
+   646→                      <span className="text-sm text-slate-400">@ {entry.location}</span>
+   647→                    )}
+   648→                  </div>
+   649→                  <div className={`font-semibold ${entry.overtimeHours > 0 ? "text-slate-900" : "text-slate-300"}`}>
+   650→                    {entry.overtimeHours || 0}h
+   651→                  </div>
+   652→                </div>
+   653→              ))}
+   654→            </div>
+   655→          </div>
+   656→
+   657→          {/* Notes */}
+   658→          {submission.notes && (
+   659→            <div>
+   660→              <h3 className="font-medium text-slate-900 mb-2">Notes</h3>
+   661→              <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-4">{submission.notes}</p>
+   662→            </div>
+   663→          )}
+   664→
+   665→          {/* Rejection reason (for already rejected) */}
+   666→          {submission.status === "REJECTED" && submission.rejectedReason && (
+   667→            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+   668→              <div className="font-medium text-red-700 mb-1">Rejection Reason</div>
+   669→              <div className="text-sm text-red-600">{submission.rejectedReason}</div>
+   670→              {submission.rejectedByName && (
+   671→                <div className="text-xs text-red-500 mt-2">
+   672→                  Rejected by {submission.rejectedByName} on {new Date(submission.rejectedAt).toLocaleDateString("en-GB")}
+   673→                </div>
+   674→              )}
+   675→            </div>
+   676→          )}
+   677→
+   678→          {/* Approval info (for already approved) */}
+   679→          {submission.status === "APPROVED" && (
+   680→            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+   681→              <div className="font-medium text-emerald-700 mb-1">Approved</div>
+   682→              {submission.approvedByName && (
+   683→                <div className="text-sm text-emerald-600">
+   684→                  By {submission.approvedByName} on {new Date(submission.approvedAt).toLocaleDateString("en-GB")}
+   685→                </div>
+   686→              )}
+   687→            </div>
+   688→          )}
+   689→
+   690→          {/* Reject reason form */}
+   691→          {showRejectForm && canReview && (
+   692→            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+   693→              <label className="block text-sm font-medium text-red-700 mb-2">
+   694→                Reason for rejection <span className="text-red-500">*</span>
+   695→              </label>
+   696→              <textarea
+   697→                value={rejectReason}
+   698→                onChange={(e) => setRejectReason(e.target.value)}
+   699→                placeholder="Please provide a reason..."
+   700→                className="textarea textarea-bordered w-full bg-white"
+   701→                rows={3}
+   702→                autoFocus
+   703→              />
+   704→            </div>
+   705→          )}
+   706→        </div>
+   707→
+   708→        {/* Footer Actions */}
+   709→        {canReview && (
+   710→          <div className="p-6 border-t border-slate-200 bg-slate-50">
+   711→            {!showRejectForm ? (
+   712→              <div className="flex justify-end gap-3">
+   713→                <button
+   714→                  onClick={() => setShowRejectForm(true)}
+   715→                  className="btn btn-error btn-outline"
+   716→                  disabled={isProcessing}
+   717→                >
+   718→                  Reject
+   719→                </button>
+   720→                <button
+   721→                  onClick={handleApprove}
+   722→                  className="btn btn-success"
+   723→                  disabled={isProcessing}
+   724→                >
+   725→                  {isProcessing ? (
+   726→                    <span className="loading loading-spinner loading-sm" />
+   727→                  ) : (
+   728→                    <>
+   729→                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   730→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   731→                      </svg>
+   732→                      Approve
+   733→                    </>
+   734→                  )}
+   735→                </button>
+   736→              </div>
+   737→            ) : (
+   738→              <div className="flex justify-end gap-3">
+   739→                <button
+   740→                  onClick={() => {
+   741→                    setShowRejectForm(false);
+   742→                    setRejectReason("");
+   743→                  }}
+   744→                  className="btn btn-ghost"
+   745→                  disabled={isProcessing}
+   746→                >
+   747→                  Cancel
+   748→                </button>
+   749→                <button
+   750→                  onClick={handleReject}
+   751→                  className="btn btn-error"
+   752→                  disabled={isProcessing || !rejectReason.trim()}
+   753→                >
+   754→                  {isProcessing ? (
+   755→                    <span className="loading loading-spinner loading-sm" />
+   756→                  ) : (
+   757→                    "Confirm Rejection"
+   758→                  )}
+   759→                </button>
+   760→              </div>
+   761→            )}
+   762→          </div>
+   763→        )}
+   764→
+   765→        {/* Close button for non-reviewable */}
+   766→        {!canReview && (
+   767→          <div className="p-6 border-t border-slate-200">
+   768→            <div className="flex justify-end">
+   769→              <button onClick={onClose} className="btn btn-ghost">
+   770→                Close
+   771→              </button>
+   772→            </div>
+   773→          </div>
+   774→        )}
+   775→      </div>
+   776→    </div>
+   777→  );
+   778→}
+   779→
+   780→// Submission Card Component
+   781→function SubmissionCard({ submission, isAdmin, onEdit, onView, onApprove, onReject }) {
+   782→  const canEdit = submission.status === "DRAFT";
+   783→  const canReview = isAdmin && submission.status === "SUBMITTED";
+   784→
+   785→  return (
+   786→    <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 hover:border-slate-300 transition-colors">
+   787→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   788→        <div className="flex-1">
+   789→          <div className="flex items-center gap-3 mb-2">
+   790→            {isAdmin && (
+   791→              <span className="font-medium text-slate-900">
+   792→                {submission.userDisplayNameSnapshot}
+   793→              </span>
+   794→            )}
+   795→            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[submission.status]}`}>
+   796→              {STATUS_LABELS[submission.status]}
+   797→            </span>
+   798→          </div>
+   799→          <div className="text-sm text-slate-600">
+   800→            Week of {formatWeekRange(submission.weekStartDate)}
+   801→          </div>
+   802→          <div className="mt-2 flex items-center gap-4 text-sm">
+   803→            <span className="font-semibold text-slate-900">
+   804→              {submission.totalOvertimeHours || 0} hours
+   805→            </span>
+   806→            {submission.entries?.length > 0 && (
+   807→              <span className="text-slate-400">
+   808→                {submission.entries.length} day{submission.entries.length !== 1 ? "s" : ""} logged
+   809→              </span>
+   810→            )}
+   811→            {submission.submittedAt && (
+   812→              <span className="text-slate-400">
+   813→                Submitted {new Date(submission.submittedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+   814→              </span>
+   815→            )}
+   816→          </div>
+   817→          {submission.status === "REJECTED" && submission.rejectedReason && (
+   818→            <div className="mt-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">
+   819→              Rejected: {submission.rejectedReason}
+   820→            </div>
+   821→          )}
+   822→        </div>
+   823→
+   824→        <div className="flex items-center gap-2">
+   825→          {canEdit && (
+   826→            <button onClick={onEdit} className="btn btn-sm btn-ghost">
+   827→              Edit
+   828→            </button>
+   829→          )}
+   830→          {canReview && (
+   831→            <button onClick={onView} className="btn btn-sm btn-primary">
+   832→              Review
+   833→            </button>
+   834→          )}
+   835→          {!canEdit && !canReview && (
+   836→            <button onClick={isAdmin ? onView : onEdit} className="btn btn-sm btn-ghost">
+   837→              View
+   838→            </button>
+   839→          )}
+   840→        </div>
+   841→      </div>
+   842→    </div>
+   843→  );
+   844→}
+   845→
+   846→// Overtime Form Component
+   847→function OvertimeForm({ submission, onUpdate, onSubmit, onDelete, onClose }) {
+   848→  const [entries, setEntries] = useState(() => {
+   849→    // Initialize with existing entries or empty days
+   850→    const existing = {};
+   851→    (submission.entries || []).forEach((e) => {
+   852→      existing[e.day] = e;
+   853→    });
+   854→    return DAYS.map((day) => existing[day] || { day, overtimeHours: 0 });
+   855→  });
+   856→  const [notes, setNotes] = useState(submission.notes || "");
+   857→  const [saving, setSaving] = useState(false);
+   858→  const [submitting, setSubmitting] = useState(false);
+   859→
+   860→  const isReadOnly = submission.status !== "DRAFT";
+   861→  const totalHours = entries.reduce((sum, e) => sum + (parseFloat(e.overtimeHours) || 0), 0);
+   862→
+   863→  const handleEntryChange = (day, field, value) => {
+   864→    setEntries((prev) =>
+   865→      prev.map((e) => (e.day === day ? { ...e, [field]: value } : e))
+   866→    );
+   867→  };
+   868→
+   869→  const handleSave = async () => {
+   870→    setSaving(true);
+   871→    try {
+   872→      const validEntries = entries.filter((e) => e.overtimeHours > 0 || e.startTime || e.location);
+   873→      await onUpdate(submission._id, { entries: validEntries, notes });
+   874→      toast.success("Saved");
+   875→    } catch (error) {
+   876→      // Error handled in parent
+   877→    } finally {
+   878→      setSaving(false);
+   879→    }
+   880→  };
+   881→
+   882→  const handleSubmitForReview = async () => {
+   883→    setSubmitting(true);
+   884→    try {
+   885→      // Save first
+   886→      const validEntries = entries.filter((e) => e.overtimeHours > 0 || e.startTime || e.location);
+   887→      await onUpdate(submission._id, { entries: validEntries, notes });
+   888→      // Then submit
+   889→      await onSubmit(submission._id);
+   890→    } catch (error) {
+   891→      // Error handled in parent
+   892→    } finally {
+   893→      setSubmitting(false);
+   894→    }
+   895→  };
+   896→
+   897→  return (
+   898→    <div className="space-y-6">
+   899→      {/* Week Header */}
+   900→      <div className="bg-slate-50 rounded-xl p-4">
+   901→        <div className="text-sm text-slate-500">Week of</div>
+   902→        <div className="text-lg font-semibold text-slate-900">
+   903→          {formatWeekRange(submission.weekStartDate)}
+   904→        </div>
+   905→        <div className="mt-2">
+   906→          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[submission.status]}`}>
+   907→            {STATUS_LABELS[submission.status]}
+   908→          </span>
+   909→        </div>
+   910→      </div>
+   911→
+   912→      {/* Day Entries */}
+   913→      <div className="space-y-3">
+   914→        <h3 className="font-medium text-slate-900">Daily Hours</h3>
+   915→        {entries.map((entry) => {
+   916→          const weekStart = new Date(submission.weekStartDate);
+   917→          const dayIndex = DAYS.indexOf(entry.day);
+   918→          const dayDate = new Date(weekStart);
+   919→          dayDate.setDate(dayDate.getDate() + dayIndex);
+   920→
+   921→          return (
+   922→            <div
+   923→              key={entry.day}
+   924→              className="flex items-center gap-4 p-3 bg-white border border-slate-200 rounded-xl"
+   925→            >
+   926→              <div className="w-24 flex-shrink-0">
+   927→                <div className="font-medium text-slate-900">{DAY_LABELS[entry.day]}</div>
+   928→                <div className="text-xs text-slate-400">
+   929→                  {dayDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+   930→                </div>
+   931→              </div>
+   932→              <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+   933→                <div>
+   934→                  <label className="text-xs text-slate-500 block mb-1">Start</label>
+   935→                  <input
+   936→                    type="time"
+   937→                    value={entry.startTime || ""}
+   938→                    onChange={(e) => handleEntryChange(entry.day, "startTime", e.target.value)}
+   939→                    disabled={isReadOnly}
+   940→                    className="input input-bordered input-sm w-full"
+   941→                  />
+   942→                </div>
+   943→                <div>
+   944→                  <label className="text-xs text-slate-500 block mb-1">End</label>
+   945→                  <input
+   946→                    type="time"
+   947→                    value={entry.endTime || ""}
+   948→                    onChange={(e) => handleEntryChange(entry.day, "endTime", e.target.value)}
+   949→                    disabled={isReadOnly}
+   950→                    className="input input-bordered input-sm w-full"
+   951→                  />
+   952→                </div>
+   953→                <div>
+   954→                  <label className="text-xs text-slate-500 block mb-1">OT Hours</label>
+   955→                  <input
+   956→                    type="number"
+   957→                    step="0.5"
+   958→                    min="0"
+   959→                    max="24"
+   960→                    value={entry.overtimeHours || ""}
+   961→                    onChange={(e) => handleEntryChange(entry.day, "overtimeHours", parseFloat(e.target.value) || 0)}
+   962→                    disabled={isReadOnly}
+   963→                    className="input input-bordered input-sm w-full"
+   964→                    placeholder="0"
+   965→                  />
+   966→                </div>
+   967→                <div>
+   968→                  <label className="text-xs text-slate-500 block mb-1">Location</label>
+   969→                  <input
+   970→                    type="text"
+   971→                    value={entry.location || ""}
+   972→                    onChange={(e) => handleEntryChange(entry.day, "location", e.target.value)}
+   973→                    disabled={isReadOnly}
+   974→                    className="input input-bordered input-sm w-full"
+   975→                    placeholder="Optional"
+   976→                  />
+   977→                </div>
+   978→              </div>
+   979→            </div>
+   980→          );
+   981→        })}
+   982→      </div>
+   983→
+   984→      {/* Total */}
+   985→      <div className="flex items-center justify-between p-4 bg-slate-900 text-white rounded-xl">
+   986→        <span className="font-medium">Total Overtime</span>
+   987→        <span className="text-2xl font-bold">{totalHours} hours</span>
+   988→      </div>
+   989→
+   990→      {/* Notes */}
+   991→      <div>
+   992→        <label className="block text-sm font-medium text-slate-700 mb-2">
+   993→          Notes (optional)
+   994→        </label>
+   995→        <textarea
+   996→          value={notes}
+   997→          onChange={(e) => setNotes(e.target.value)}
+   998→          disabled={isReadOnly}
+   999→          className="textarea textarea-bordered w-full"
+  1000→          rows={2}
+  1001→          placeholder="Any additional notes..."
+  1002→        />
+  1003→      </div>
+  1004→
+  1005→      {/* Actions */}
+  1006→      {!isReadOnly && (
+  1007→        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t">
+  1008→          <button
+  1009→            onClick={() => onDelete(submission._id)}
+  1010→            className="btn btn-ghost btn-error btn-sm"
+  1011→          >
+  1012→            Delete Draft
+  1013→          </button>
+  1014→          <div className="flex gap-3">
+  1015→            <button
+  1016→              onClick={handleSave}
+  1017→              disabled={saving}
+  1018→              className="btn btn-ghost"
+  1019→            >
+  1020→              {saving ? "Saving..." : "Save Draft"}
+  1021→            </button>
+  1022→            <button
+  1023→              onClick={handleSubmitForReview}
+  1024→              disabled={submitting || totalHours === 0}
+  1025→              className="btn btn-primary"
+  1026→            >
+  1027→              {submitting ? "Submitting..." : "Submit for Review"}
+  1028→            </button>
+  1029→          </div>
+  1030→        </div>
+  1031→      )}
+  1032→
+  1033→      {/* Rejection reason */}
+  1034→      {submission.status === "REJECTED" && submission.rejectedReason && (
+  1035→        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+  1036→          <div className="font-medium text-red-700 mb-1">Rejection Reason</div>
+  1037→          <div className="text-sm text-red-600">{submission.rejectedReason}</div>
+  1038→        </div>
+  1039→      )}
+  1040→    </div>
+  1041→  );
+  1042→}
+  1043→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

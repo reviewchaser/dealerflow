@@ -1,0 +1,27 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    90→  // Manual share fallback modal
+    91→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+    92→  const [manualShareUrl, setManualShareUrl] = useState("");
+    93→
+    94→  // Issues state
+    95→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+    96→  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
+    97→  const [issueForm, setIssueForm] = useState({
+    98→    category: "",
+    99→    subcategory: "",
+   100→    description: "",
+   101→    actionNeeded: "",
+   102→    priority: "medium",
+   103→    location: "",
+   104→    status: "outstanding",
+   105→    notes: "",
+   106→    photos: [],
+   107→    partsRequired: false,
+   108→    partsDetails: "",
+   109→  });
+   110→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   111→  const [expandedIssues, setExpandedIssues] = useState({});
+   112→
+   113→  // Filters state - with localStorage persistence
+   114→  const [activeFilters, setActiveFilters] = useState([]);
+   115→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);

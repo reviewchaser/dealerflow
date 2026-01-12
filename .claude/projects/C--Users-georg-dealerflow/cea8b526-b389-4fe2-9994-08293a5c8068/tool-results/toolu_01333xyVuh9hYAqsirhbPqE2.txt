@@ -1,0 +1,18 @@
+The file C:\Users\georg\dealerflow\models\Appraisal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    51→  },
+    52→  { timestamps: true }
+    53→);
+    54→
+    55→appraisalSchema.plugin(toJSON);
+    56→
+    57→// Indexes for dashboard and common queries
+    58→appraisalSchema.index({ dealerId: 1, decision: 1 });
+    59→appraisalSchema.index({ dealerId: 1, createdAt: -1 });
+    60→
+    61→// Delete cached model to force schema update
+    62→if (mongoose.models.Appraisal) {
+    63→  delete mongoose.models.Appraisal;
+    64→}
+    65→
+    66→export default mongoose.model("Appraisal", appraisalSchema);
+    67→

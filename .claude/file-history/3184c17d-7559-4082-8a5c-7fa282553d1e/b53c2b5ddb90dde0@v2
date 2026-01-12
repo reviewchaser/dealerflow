@@ -1,0 +1,58 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import VehicleLabel from "@/models/VehicleLabel";
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+    const { id, labelId } = req.query;
+
+    if (req.method !== "POST") {
+      return res.status(405).json({ error: "Method not allowed" });
+    }
+
+    // Verify vehicle and label exist
+    const [vehicle, label] = await Promise.all([
+      Vehicle.findById(id),
+      VehicleLabel.findById(labelId),
+    ]);
+
+    if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+    if (!label) return res.status(404).json({ error: "Label not found" });
+
+    // Initialize labels array if it doesn't exist
+    if (!vehicle.labels) vehicle.labels = [];
+
+    // Toggle label - remove if exists, add if not
+    const labelIndex = vehicle.labels.findIndex(
+      (l) => l.toString() === labelId
+    );
+
+    if (labelIndex > -1) {
+      // Remove label
+      vehicle.labels.splice(labelIndex, 1);
+    } else {
+      // Add label
+      vehicle.labels.push(labelId);
+    }
+
+    await vehicle.save();
+
+    // Return updated vehicle with populated labels
+    const updatedVehicle = await Vehicle.findById(id).populate("labels").lean();
+
+    // Transform labels to have id instead of _id
+    const transformedLabels = (updatedVehicle.labels || []).map(l => ({
+      id: l._id.toString(),
+      name: l.name,
+      colour: l.colour,
+    }));
+
+    return res.status(200).json({
+      labels: transformedLabels,
+    });
+  } catch (error) {
+    console.error("Error toggling vehicle label:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

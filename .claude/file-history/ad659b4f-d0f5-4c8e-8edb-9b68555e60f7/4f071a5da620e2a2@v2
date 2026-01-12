@@ -1,0 +1,152 @@
+/**
+ * Team Invite Email Helper
+ *
+ * Uses the email provider module to send invite emails.
+ * Falls back to console logging in development if not configured.
+ *
+ * IMPORTANT: This module should ONLY be imported from API routes,
+ * never from React components.
+ */
+
+import config from "@/config";
+import { sendEmail, getEmailStatus } from "@/libs/mailgun";
+
+const APP_URL = process.env.NEXTAUTH_URL || process.env.APP_URL || `https://${config.domainName}`;
+
+/**
+ * Generate invite URL
+ * @param {string} rawToken - The raw (unhashed) invite token
+ * @returns {string} Full invite URL
+ */
+export function getInviteUrl(rawToken) {
+  return `${APP_URL}/invite/accept?token=${encodeURIComponent(rawToken)}`;
+}
+
+/**
+ * Generate HTML email content for team invitation
+ * @param {object} params
+ * @param {string} params.dealerName - Name of the dealership
+ * @param {string} params.inviterName - Name of person who sent invite
+ * @param {string} params.role - Role being offered
+ * @param {string} params.inviteUrl - Full invite URL
+ * @returns {string} HTML email content
+ */
+function generateInviteHtml({ dealerName, inviterName, role, inviteUrl }) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're invited to join ${dealerName}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
+  </div>
+
+  <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      <strong>${inviterName || 'A team member'}</strong> has invited you to join <strong>${dealerName}</strong> on DealerFlow as a <strong>${role}</strong>.
+    </p>
+
+    <p style="font-size: 14px; color: #666; margin-bottom: 25px;">
+      DealerFlow helps dealerships manage their vehicles, forms, and customer interactions in one place.
+    </p>
+
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${inviteUrl}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+        Accept Invitation
+      </a>
+    </div>
+
+    <p style="font-size: 12px; color: #999; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+      This invitation expires in 7 days. If you didn't expect this email, you can safely ignore it.
+    </p>
+
+    <p style="font-size: 12px; color: #999;">
+      If the button doesn't work, copy and paste this link into your browser:<br>
+      <a href="${inviteUrl}" style="color: #667eea; word-break: break-all;">${inviteUrl}</a>
+    </p>
+  </div>
+</body>
+</html>
+`;
+}
+
+/**
+ * Generate plain text email content for team invitation
+ * @param {object} params
+ * @returns {string} Plain text email content
+ */
+function generateInviteText({ dealerName, inviterName, role, inviteUrl }) {
+  return `
+You're Invited to Join ${dealerName}!
+
+${inviterName || 'A team member'} has invited you to join ${dealerName} on DealerFlow as a ${role}.
+
+Click the link below to accept your invitation:
+${inviteUrl}
+
+This invitation expires in 7 days.
+
+If you didn't expect this email, you can safely ignore it.
+
+---
+DealerFlow - Dealership Management Made Simple
+`.trim();
+}
+
+/**
+ * Send team invitation email
+ *
+ * @param {object} params
+ * @param {string} params.email - Recipient email
+ * @param {string} params.dealerName - Name of the dealership
+ * @param {string} params.inviterName - Name of person who sent invite
+ * @param {string} params.role - Role being offered
+ * @param {string} params.rawToken - The raw (unhashed) invite token
+ * @returns {Promise<{ success: boolean, inviteUrl: string }>}
+ */
+export async function sendInviteEmail({
+  email,
+  dealerName,
+  inviterName,
+  role,
+  rawToken,
+}) {
+  const inviteUrl = getInviteUrl(rawToken);
+  const subject = `You're invited to join ${dealerName} on DealerFlow`;
+
+  const html = generateInviteHtml({ dealerName, inviterName, role, inviteUrl });
+  const text = generateInviteText({ dealerName, inviterName, role, inviteUrl });
+
+  // Use the email module which handles all provider logic
+  const result = await sendEmail(email, subject, text, html);
+
+  console.log(`[InviteEmail] Email result for ${email}: provider=${result.provider}, success=${result.success}`);
+
+  // Always log the invite URL for safety
+  if (result.devMode || !result.success) {
+    console.log(`[InviteEmail] Invite URL: ${inviteUrl}`);
+  }
+
+  return {
+    success: true, // Invite record is still valid even if email fails
+    inviteUrl,
+    devMode: result.devMode,
+    emailFailed: !result.success,
+    provider: result.provider,
+    error: result.error,
+  };
+}
+
+/**
+ * Send invite resend email (same as invite, different subject)
+ */
+export async function resendInviteEmail(params) {
+  return sendInviteEmail({
+    ...params,
+    // Could customize subject/content for resend if desired
+  });
+}

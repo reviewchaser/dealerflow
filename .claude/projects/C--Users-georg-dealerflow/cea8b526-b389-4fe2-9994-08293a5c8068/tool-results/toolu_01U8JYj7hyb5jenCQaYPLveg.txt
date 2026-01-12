@@ -1,0 +1,387 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import AftercareCase from "@/models/AftercareCase";
+     3→import AftercareCaseComment from "@/models/AftercareCaseComment";
+     4→import FormSubmission from "@/models/FormSubmission";
+     5→import FormSubmissionFile from "@/models/FormSubmissionFile";
+     6→import CourtesyAllocation from "@/models/CourtesyAllocation";
+     7→import Vehicle from "@/models/Vehicle";
+     8→import User from "@/models/User";
+     9→import CalendarEvent from "@/models/CalendarEvent";
+    10→import CalendarCategory from "@/models/CalendarCategory";
+    11→import { withDealerContext } from "@/libs/authContext";
+    12→
+    13→// Human-readable board status labels
+    14→const BOARD_STATUS_LABELS = {
+    15→  not_booked_in: "Not Booked In",
+    16→  on_site: "On Site",
+    17→  work_complete: "Work Complete",
+    18→  collected: "Collected"
+    19→};
+    20→
+    21→async function handler(req, res, ctx) {
+    22→  await connectMongo();
+    23→  const { dealerId, userId } = ctx;
+    24→  const { id } = req.query;
+    25→
+    26→  if (req.method === "GET") {
+    27→    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+    28→      .populate("contactId")
+    29→      .populate("vehicleId")
+    30→      .populate("vehicleSaleId")
+    31→      .lean();
+    32→    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+    33→
+    34→    aftercareCase.comments = await AftercareCaseComment.find({ aftercareCaseId: id })
+    35→      .sort({ createdAt: 1 }).lean();
+    36→
+    37→    // Count submission attachments if linked
+    38→    let submissionAttachmentCount = 0;
+    39→    if (aftercareCase.linkedSubmissionIds?.length > 0) {
+    40→      submissionAttachmentCount = await FormSubmissionFile.countDocuments({
+    41→        formSubmissionId: { $in: aftercareCase.linkedSubmissionIds }
+    42→      });
+    43→    }
+    44→    aftercareCase.submissionAttachmentCount = submissionAttachmentCount;
+    45→
+    46→    // Count comment attachments
+    47→    let commentAttachmentCount = 0;
+    48→    aftercareCase.comments.forEach(c => {
+    49→      if (c.attachments?.length) commentAttachmentCount += c.attachments.length;
+    50→    });
+    51→    aftercareCase.commentAttachmentCount = commentAttachmentCount;
+    52→
+    53→    // Populate courtesy allocation with vehicle details
+    54→    if (aftercareCase.courtesyAllocationId) {
+    55→      const allocation = await CourtesyAllocation.findOne({
+    56→        _id: aftercareCase.courtesyAllocationId,
+    57→        dealerId
+    58→      }).lean();
+    59→      if (allocation) {
+    60→        // Populate the courtesy vehicle
+    61→        const courtesyVehicle = await Vehicle.findById(allocation.courtesyVehicleId).lean();
+    62→        aftercareCase.courtesyAllocation = {
+    63→          ...allocation,
+    64→          courtesyVehicle
+    65→        };
+    66→      }
+    67→    }
+    68→
+    69→    return res.status(200).json(aftercareCase);
+    70→  }
+    71→
+    72→  if (req.method === "PUT") {
+    73→    const { boardStatus, _eventType, _eventMetadata, ...otherUpdates } = req.body;
+    74→
+    75→    // Get user name for event tracking
+    76→    let userName = null;
+    77→    if (userId) {
+    78→      const user = await User.findById(userId).lean();
+    79→      userName = user?.name || null;
+    80→    }
+    81→
+    82→    // Build events array
+    83→    const events = [];
+    84→
+    85→    // Check if boardStatus is changing
+    86→    if (boardStatus) {
+    87→      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+    88→      if (currentCase && currentCase.boardStatus !== boardStatus) {
+    89→        events.push({
+    90→          type: "STATUS_CHANGED",
+    91→          createdAt: new Date(),
+    92→          createdByUserId: userId,
+    93→          createdByName: userName,
+    94→          summary: `Status changed from "${BOARD_STATUS_LABELS[currentCase.boardStatus] || currentCase.boardStatus}" to "${BOARD_STATUS_LABELS[boardStatus] || boardStatus}"`,
+    95→          metadata: {
+    96→            fromStatus: currentCase.boardStatus,
+    97→            toStatus: boardStatus
+    98→          }
+    99→        });
+   100→      }
+   101→    }
+   102→
+   103→    // Location type labels for event summaries
+   104→    const LOCATION_LABELS = {
+   105→      WITH_CUSTOMER: "With customer",
+   106→      ON_SITE: "On-site",
+   107→      THIRD_PARTY: "Third-party"
+   108→    };
+   109→
+   110→    // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED)
+   111→    // Note: BOOKING_UPDATED is now handled separately with auto-move logic below
+   112→    if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED"].includes(_eventType)) {
+   113→      let summary = "";
+   114→      switch (_eventType) {
+   115→        case "LOCATION_UPDATED":
+   116→          const fromLoc = _eventMetadata?.fromLocation || "WITH_CUSTOMER";
+   117→          const toLoc = _eventMetadata?.toLocation || "WITH_CUSTOMER";
+   118→          summary = `Repair location changed from "${LOCATION_LABELS[fromLoc] || fromLoc}" to "${LOCATION_LABELS[toLoc] || toLoc}"`;
+   119→          break;
+   120→        case "PARTS_UPDATED":
+   121→          if (_eventMetadata?.partsRequired !== undefined) {
+   122→            summary = _eventMetadata.partsRequired ? "Parts required marked" : "Parts no longer required";
+   123→          } else if (_eventMetadata?.partsNotes !== undefined) {
+   124→            summary = "Parts notes updated";
+   125→          }
+   126→          break;
+   127→        case "COURTESY_REQUIRED_TOGGLED":
+   128→          summary = _eventMetadata?.courtesyRequired ? "Courtesy car marked as required" : "Courtesy car no longer required";
+   129→          break;
+   130→      }
+   131→
+   132→      events.push({
+   133→        type: _eventType,
+   134→        createdAt: new Date(),
+   135→        createdByUserId: userId,
+   136→        createdByName: userName,
+   137→        summary,
+   138→        metadata: _eventMetadata || {}
+   139→      });
+   140→    }
+   141→
+   142→    // Build update object
+   143→    const updateObj = { ...otherUpdates };
+   144→    if (boardStatus) updateObj.boardStatus = boardStatus;
+   145→
+   146→    // If events exist, push them
+   147→    if (events.length > 0) {
+   148→      updateObj.$push = { events: { $each: events } };
+   149→    }
+   150→
+   151→    // ===== Calendar Event & Auto-Move Automation for Warranty Bookings =====
+   152→    // Stages in order: not_booked_in → on_site (Booked In) → work_complete → collected
+   153→    // Auto-move rules:
+   154→    // - When booking set: if in not_booked_in, move to on_site
+   155→    // - When booking cleared: if in on_site, move back to previous status
+   156→    // - Never move backwards from work_complete or collected
+   157→
+   158→    // Track if auto-move happened for UI feedback
+   159→    let autoMoved = false;
+   160→    let autoMovedFrom = null;
+   161→    let autoMovedTo = null;
+   162→
+   163→    if (_eventType === "BOOKING_UPDATED") {
+   164→      const currentCase = await AftercareCase.findOne({ _id: id, dealerId })
+   165→        .populate("contactId")
+   166→        .populate("vehicleId")
+   167→        .lean();
+   168→
+   169→      if (currentCase) {
+   170→        const oldBookedAt = currentCase.bookedInAt;
+   171→        const newBookedAt = _eventMetadata?.newBookedAt ? new Date(_eventMetadata.newBookedAt) : null;
+   172→        const currentStatus = currentCase.boardStatus;
+   173→
+   174→        // Define stage ordering for comparison
+   175→        const STAGE_ORDER = ["not_booked_in", "on_site", "work_complete", "collected"];
+   176→        const PRE_BOOKING_STAGES = ["not_booked_in"]; // Stages that can auto-move to on_site
+   177→        const POST_BOOKING_STAGES = ["work_complete", "collected"]; // Stages that should never move backwards
+   178→
+   179→        // Determine booking transition type
+   180→        const wasNull = !oldBookedAt;
+   181→        const isNull = !newBookedAt;
+   182→
+   183→        if (!isNull) {
+   184→          // Booking is being SET or UPDATED
+   185→
+   186→          if (wasNull) {
+   187→            // === CASE A: Booking SET (null → Date) ===
+   188→            // Add WARRANTY_BOOKED_IN event
+   189→            events.push({
+   190→              type: "WARRANTY_BOOKED_IN",
+   191→              createdAt: new Date(),
+   192→              createdByUserId: userId,
+   193→              createdByName: userName,
+   194→              summary: `Booking set: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+   195→              metadata: { bookingDateTime: newBookedAt }
+   196→            });
+   197→
+   198→            // Auto-move if in pre-booking stage and NOT in closed/later stages
+   199→            if (PRE_BOOKING_STAGES.includes(currentStatus) && !POST_BOOKING_STAGES.includes(currentStatus)) {
+   200→              // Store previous status for potential restore
+   201→              updateObj.previousBoardStatusBeforeBookedIn = currentStatus;
+   202→              updateObj.boardStatus = "on_site";
+   203→              autoMoved = true;
+   204→              autoMovedFrom = currentStatus;
+   205→              autoMovedTo = "on_site";
+   206→
+   207→              // Add auto-move timeline event
+   208→              events.push({
+   209→                type: "WARRANTY_STAGE_MOVED",
+   210→                createdAt: new Date(),
+   211→                createdByUserId: userId,
+   212→                createdByName: userName,
+   213→                summary: `Auto-moved from "${BOARD_STATUS_LABELS[currentStatus]}" to "Booked In" (booking set)`,
+   214→                metadata: {
+   215→                  fromStatus: currentStatus,
+   216→                  toStatus: "on_site",
+   217→                  source: "SYSTEM",
+   218→                  reason: "BOOKING_SET"
+   219→                }
+   220→              });
+   221→            }
+   222→          } else {
+   223→            // === CASE B: Booking CHANGED (Date → Date) ===
+   224→            // Just update, don't move
+   225→            events.push({
+   226→              type: "WARRANTY_BOOKING_UPDATED",
+   227→              createdAt: new Date(),
+   228→              createdByUserId: userId,
+   229→              createdByName: userName,
+   230→              summary: `Booking updated: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+   231→              metadata: {
+   232→                oldBookingDateTime: oldBookedAt,
+   233→                newBookingDateTime: newBookedAt
+   234→              }
+   235→            });
+   236→          }
+   237→
+   238→          // === Calendar event create/update ===
+   239→          let warrantyCategory = await CalendarCategory.findOne({
+   240→            dealerId,
+   241→            name: "Warranty",
+   242→          });
+   243→          if (!warrantyCategory) {
+   244→            warrantyCategory = await CalendarCategory.create({
+   245→              dealerId,
+   246→              name: "Warranty",
+   247→              colour: "#f59e0b", // Amber color
+   248→            });
+   249→          }
+   250→
+   251→          const vrm = currentCase.currentReg || currentCase.vehicleId?.vrm || currentCase.regAtPurchase || "Unknown";
+   252→          const customerName = currentCase.contactId?.name || "Customer";
+   253→          const title = `Warranty: ${vrm} – ${customerName}`;
+   254→
+   255→          const repairLocLabel = LOCATION_LABELS[currentCase.repairLocationType] || currentCase.repairLocationType;
+   256→          let description = `Repair location: ${repairLocLabel}`;
+   257→          if (currentCase.repairLocationName) {
+   258→            description += ` (${currentCase.repairLocationName})`;
+   259→          }
+   260→          if (currentCase.summary) {
+   261→            description += `\n\nIssue: ${currentCase.summary}`;
+   262→          }
+   263→
+   264→          const startDatetime = newBookedAt;
+   265→          const endDatetime = new Date(newBookedAt.getTime() + 2 * 60 * 60 * 1000);
+   266→
+   267→          if (currentCase.linkedCalendarEventId) {
+   268→            await CalendarEvent.findByIdAndUpdate(currentCase.linkedCalendarEventId, {
+   269→              title,
+   270→              description,
+   271→              categoryId: warrantyCategory._id,
+   272→              startDatetime,
+   273→              endDatetime,
+   274→            });
+   275→          } else {
+   276→            const calendarEvent = await CalendarEvent.create({
+   277→              dealerId,
+   278→              title,
+   279→              description,
+   280→              categoryId: warrantyCategory._id,
+   281→              startDatetime,
+   282→              endDatetime,
+   283→              createdByUserId: userId,
+   284→              linkedAftercareCaseId: id,
+   285→            });
+   286→            updateObj.linkedCalendarEventId = calendarEvent._id;
+   287→          }
+   288→        } else if (!wasNull && isNull) {
+   289→          // === CASE C: Booking CANCELLED (Date → null) ===
+   290→          events.push({
+   291→            type: "WARRANTY_BOOKING_CANCELLED",
+   292→            createdAt: new Date(),
+   293→            createdByUserId: userId,
+   294→            createdByName: userName,
+   295→            summary: "Booking cancelled",
+   296→            metadata: { previousBookingDateTime: oldBookedAt }
+   297→          });
+   298→
+   299→          // Auto-move back if currently in on_site (Booked In) stage
+   300→          if (currentStatus === "on_site") {
+   301→            const restoreStatus = currentCase.previousBoardStatusBeforeBookedIn || "not_booked_in";
+   302→            updateObj.boardStatus = restoreStatus;
+   303→            updateObj.previousBoardStatusBeforeBookedIn = null; // Clear the stored status
+   304→            autoMoved = true;
+   305→            autoMovedFrom = "on_site";
+   306→            autoMovedTo = restoreStatus;
+   307→
+   308→            events.push({
+   309→              type: "WARRANTY_STAGE_MOVED",
+   310→              createdAt: new Date(),
+   311→              createdByUserId: userId,
+   312→              createdByName: userName,
+   313→              summary: `Auto-moved from "Booked In" to "${BOARD_STATUS_LABELS[restoreStatus]}" (booking cancelled)`,
+   314→              metadata: {
+   315→                fromStatus: "on_site",
+   316→                toStatus: restoreStatus,
+   317→                source: "SYSTEM",
+   318→                reason: "BOOKING_CANCELLED"
+   319→              }
+   320→            });
+   321→          }
+   322→
+   323→          // Delete linked calendar event
+   324→          if (currentCase.linkedCalendarEventId) {
+   325→            await CalendarEvent.findByIdAndDelete(currentCase.linkedCalendarEventId);
+   326→            updateObj.linkedCalendarEventId = null;
+   327→          }
+   328→        }
+   329→      }
+   330→    }
+   331→
+   332→    // Re-apply events to updateObj if new events were added during booking logic
+   333→    if (events.length > 0) {
+   334→      updateObj.$push = { events: { $each: events } };
+   335→    }
+   336→
+   337→    // Use updateOne to get modifiedCount, then fetch the updated document
+   338→    const updateResult = await AftercareCase.updateOne(
+   339→      { _id: id, dealerId },
+   340→      updateObj
+   341→    );
+   342→
+   343→    // Check if document was found and updated
+   344→    if (updateResult.matchedCount === 0) {
+   345→      return res.status(404).json({ ok: false, error: "Case not found for dealer", modifiedCount: 0 });
+   346→    }
+   347→
+   348→    // Fetch the updated document
+   349→    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+   350→      .populate("contactId")
+   351→      .populate("vehicleId")
+   352→      .lean();
+   353→
+   354→    return res.status(200).json({
+   355→      ok: true,
+   356→      modifiedCount: updateResult.modifiedCount,
+   357→      case: aftercareCase,
+   358→      // Auto-move info for UI feedback
+   359→      autoMoved,
+   360→      autoMovedFrom,
+   361→      autoMovedTo
+   362→    });
+   363→  }
+   364→
+   365→  if (req.method === "DELETE") {
+   366→    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId });
+   367→    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+   368→
+   369→    // Delete linked calendar event if exists
+   370→    if (aftercareCase.linkedCalendarEventId) {
+   371→      await CalendarEvent.findByIdAndDelete(aftercareCase.linkedCalendarEventId);
+   372→    }
+   373→
+   374→    await AftercareCaseComment.deleteMany({ aftercareCaseId: id });
+   375→    await AftercareCase.findByIdAndDelete(id);
+   376→    return res.status(200).json({ message: "Deleted" });
+   377→  }
+   378→
+   379→  return res.status(405).json({ error: "Method not allowed" });
+   380→}
+   381→
+   382→export default withDealerContext(handler);
+   383→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

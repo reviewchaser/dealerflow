@@ -1,0 +1,84 @@
+  1945→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1946→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+  1947→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  1948→                  </svg>
+  1949→                )},
+  1950→                Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+  1951→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1952→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+  1953→                  </svg>
+  1954→                )},
+  1955→                Electrical: { bg: "bg-yellow-50", text: "text-yellow-800", border: "border-yellow-100", icon: (
+  1956→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1957→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  1958→                  </svg>
+  1959→                )},
+  1960→                Other: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-100", icon: (
+  1961→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1962→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1963→                  </svg>
+  1964→                )},
+  1965→              };
+  1966→
+  1967→              return (
+  1968→                <div key={col.key} className="space-y-3">
+  1969→                  {columnVehicles.map((vehicle) => {
+  1970→                    const tasks = vehicle.tasks || [];
+  1971→                    const completedTasks = tasks.filter(t => t.status === "done").length;
+  1972→                    const motStatus = getMOTStatus(vehicle.motExpiryDate);
+  1973→                    const issueCounts = getActiveIssuesByCategory(vehicle.issues);
+  1974→                    const duration = getVehicleDuration(vehicle);
+  1975→
+  1976→                    return (
+  1977→                      <div
+  1978→                        key={vehicle.id}
+  1979→                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100/50 overflow-hidden active:scale-[0.98]"
+  1980→                        onClick={() => openVehicleDrawer(vehicle)}
+  1981→                      >
+  1982→                        <div className="p-4">
+  1983→                          {/* Title with Registration Badge */}
+  1984→                          <div className="flex justify-between items-start mb-2">
+  1985→                            <div className="flex-1">
+  1986→                              <div className="flex items-center gap-2 flex-wrap mb-1">
+  1987→                                <p className="font-bold text-slate-900 text-base">
+  1988→                                  {vehicle.year || ""} {vehicle.make} {vehicle.model}
+  1989→                                </p>
+  1990→                                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+  1991→                                  {vehicle.regCurrent}
+  1992→                                </span>
+  1993→                              </div>
+  1994→                            </div>
+  1995→                            {/* Duration badge - Sold or In Stock */}
+  1996→                            <span className={`inline-flex items-center gap-1 text-xs ${
+  1997→                              duration.isSold ? "text-emerald-600" : duration.days > 30 ? "text-red-500" : "text-slate-400"
+  1998→                            }`}>
+  1999→                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2000→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2001→                              </svg>
+  2002→                              {duration.label}
+  2003→                            </span>
+  2004→                          </div>
+  2005→
+  2006→                          {/* Tags - Modern Pill Style */}
+  2007→                          <div className="flex gap-1.5 flex-wrap mb-3">
+  2008→                            {vehicle.locationId && (
+  2009→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+  2010→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2011→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+  2012→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  2013→                                </svg>
+  2014→                                {vehicle.locationId.name || "Offsite"}
+  2015→                              </span>
+  2016→                            )}
+  2017→                            {vehicle.saleType === "TRADE" && (
+  2018→                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
+  2019→                                Trade
+  2020→                              </span>
+  2021→                            )}
+  2022→                            {vehicle.type === "COURTESY" && (
+  2023→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-600 text-white uppercase">
+  2024→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

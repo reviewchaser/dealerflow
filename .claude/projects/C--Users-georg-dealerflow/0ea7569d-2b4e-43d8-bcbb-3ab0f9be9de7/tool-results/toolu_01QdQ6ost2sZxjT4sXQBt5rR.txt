@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   259→
+   260→      {/* Header */}
+   261→      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+   262→        <div>
+   263→          <h1 className="text-2xl font-bold text-slate-900">Appraisals</h1>
+   264→          <p className="text-slate-500 mt-1">Manage vehicle appraisals and part-exchange valuations</p>
+   265→          <div className="mt-2"><PageHint id="appraisals">Value trade-ins and part-exchanges. Share the appraisal link to let customers submit details directly.</PageHint></div>
+   266→        </div>
+   267→        <div className="flex items-center gap-3">
+   268→          {/* Share Links Button */}
+   269→          <button
+   270→            onClick={() => setShowShareModal(true)}

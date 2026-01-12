@@ -1,0 +1,204 @@
+  3050→                  style={{ fontSize: "16px" }}
+  3051→                >
+  3052→                  <option value="overview">Overview</option>
+  3053→                  <option value="checklist">
+  3054→                    Checklist {selectedVehicle.tasks?.length > 0 ? `(${selectedVehicle.tasks.length})` : ""}
+  3055→                  </option>
+  3056→                  <option value="issues">
+  3057→                    Issues {selectedVehicle.issues?.length > 0 ? `(${selectedVehicle.issues.length})` : ""}
+  3058→                  </option>
+  3059→                  <option value="documents">
+  3060→                    Documents {selectedVehicle.documents?.length > 0 ? `(${selectedVehicle.documents.length})` : ""}
+  3061→                  </option>
+  3062→                  <option value="activity">Activity</option>
+  3063→                </select>
+  3064→              </div>
+  3065→
+  3066→              {/* Desktop: Tab pills */}
+  3067→              <div className="hidden md:block px-4 py-2">
+  3068→                <div className="flex gap-1">
+  3069→                  {[
+  3070→                    { key: "overview", label: "Overview" },
+  3071→                    { key: "checklist", label: "Checklist", count: selectedVehicle.tasks?.length },
+  3072→                    { key: "issues", label: "Issues", count: selectedVehicle.issues?.length },
+  3073→                    { key: "documents", label: "Documents", count: selectedVehicle.documents?.length },
+  3074→                    { key: "activity", label: "Activity" },
+  3075→                  ].map((tab) => (
+  3076→                    <button
+  3077→                      key={tab.key}
+  3078→                      onClick={() => {
+  3079→                        setActiveTab(tab.key);
+  3080→                        if (tab.key === "activity" && selectedVehicle?.id) {
+  3081→                          fetchActivity(selectedVehicle.id);
+  3082→                        }
+  3083→                      }}
+  3084→                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+  3085→                        activeTab === tab.key
+  3086→                          ? "bg-blue-600 text-white"
+  3087→                          : "text-slate-600 hover:bg-slate-100"
+  3088→                      }`}
+  3089→                    >
+  3090→                      {tab.label}
+  3091→                      {tab.count > 0 && ` (${tab.count})`}
+  3092→                    </button>
+  3093→                  ))}
+  3094→                </div>
+  3095→              </div>
+  3096→            </div>
+  3097→
+  3098→            <div
+  3099→              className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6 overscroll-contain"
+  3100→              style={{
+  3101→                // Generous bottom padding for mobile bottom nav and safe area
+  3102→                paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
+  3103→                WebkitOverflowScrolling: "touch",
+  3104→              }}
+  3105→            >
+  3106→              {/* Overview Tab */}
+  3107→              {activeTab === "overview" && (
+  3108→                <div className="space-y-6">
+  3109→                  {/* Identity Section */}
+  3110→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3111→                    <h3 className="text-sm font-semibold text-slate-900 mb-4">Identity</h3>
+  3112→                    <div className="grid grid-cols-2 gap-4">
+  3113→                      <div className="form-control">
+  3114→                        <label className="text-xs font-medium text-slate-600 mb-1 block">Registration</label>
+  3115→                        <div className="flex gap-2">
+  3116→                          <input
+  3117→                            type="text"
+  3118→                            className="input input-sm bg-slate-50 border-slate-200 text-slate-900 flex-1 font-mono uppercase"
+  3119→                            value={selectedVehicle.regCurrent || ""}
+  3120→                            onChange={(e) => setSelectedVehicle({ ...selectedVehicle, regCurrent: e.target.value.toUpperCase() })}
+  3121→                            onBlur={async () => {
+  3122→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3123→                                method: "PUT",
+  3124→                                headers: { "Content-Type": "application/json" },
+  3125→                                body: JSON.stringify({ regCurrent: selectedVehicle.regCurrent }),
+  3126→                              });
+  3127→                              fetchVehicles();
+  3128→                            }}
+  3129→                          />
+  3130→                          <button
+  3131→                            type="button"
+  3132→                            className="btn btn-sm btn-primary"
+  3133→                            onClick={lookupVehicleDVLA}
+  3134→                            disabled={isLookingUpDrawer}
+  3135→                            title="Lookup DVLA data for this registration"
+  3136→                          >
+  3137→                            {isLookingUpDrawer ? (
+  3138→                              <span className="loading loading-spinner loading-xs"></span>
+  3139→                            ) : (
+  3140→                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3141→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  3142→                              </svg>
+  3143→                            )}
+  3144→                          </button>
+  3145→                        </div>
+  3146→                        <p className="text-xs text-slate-400 mt-1">Click lookup to refresh DVLA data</p>
+  3147→                      </div>
+  3148→                      <div className="form-control">
+  3149→                        <label className="text-xs font-medium text-slate-600 mb-1 block">VIN</label>
+  3150→                        <input
+  3151→                          type="text"
+  3152→                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900"
+  3153→                          value={selectedVehicle.vin || ""}
+  3154→                          onChange={(e) => setSelectedVehicle({ ...selectedVehicle, vin: e.target.value })}
+  3155→                          onBlur={async () => {
+  3156→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3157→                              method: "PUT",
+  3158→                              headers: { "Content-Type": "application/json" },
+  3159→                              body: JSON.stringify({ vin: selectedVehicle.vin }),
+  3160→                            });
+  3161→                            fetchVehicles();
+  3162→                          }}
+  3163→                        />
+  3164→                      </div>
+  3165→                    </div>
+  3166→                  </div>
+  3167→
+  3168→                  {/* Custom Labels Section */}
+  3169→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3170→                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Custom Labels</h3>
+  3171→
+  3172→                    {/* Applied Labels Display */}
+  3173→                    {selectedVehicle.labels?.length > 0 && (
+  3174→                      <div className="flex flex-wrap gap-2 mb-3">
+  3175→                        {selectedVehicle.labels.map((label) => (
+  3176→                          <span
+  3177→                            key={label.id}
+  3178→                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+  3179→                            style={{
+  3180→                              backgroundColor: `${label.colour}20`,
+  3181→                              color: label.colour,
+  3182→                            }}
+  3183→                          >
+  3184→                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+  3185→                            {label.name}
+  3186→                            <button
+  3187→                              type="button"
+  3188→                              onClick={() => toggleVehicleLabel(selectedVehicle.id, label.id)}
+  3189→                              className="ml-0.5 hover:opacity-70"
+  3190→                            >
+  3191→                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3192→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  3193→                              </svg>
+  3194→                            </button>
+  3195→                          </span>
+  3196→                        ))}
+  3197→                      </div>
+  3198→                    )}
+  3199→
+  3200→                    {/* Labels Dropdown */}
+  3201→                    <div className="relative">
+  3202→                      <button
+  3203→                        type="button"
+  3204→                        onClick={() => setShowLabelsDropdown(!showLabelsDropdown)}
+  3205→                        className="w-full flex items-center justify-between px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm hover:border-slate-400 transition-colors"
+  3206→                      >
+  3207→                        <span className="text-slate-600">
+  3208→                          {selectedVehicle.labels?.length > 0
+  3209→                            ? `${selectedVehicle.labels.length} label${selectedVehicle.labels.length > 1 ? 's' : ''} selected`
+  3210→                            : "Select labels..."
+  3211→                          }
+  3212→                        </span>
+  3213→                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${showLabelsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3214→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  3215→                        </svg>
+  3216→                      </button>
+  3217→
+  3218→                      {showLabelsDropdown && (
+  3219→                        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+  3220→                          {availableLabels.map((label) => {
+  3221→                            const isApplied = selectedVehicle.labels?.some(l => l.id === label.id);
+  3222→                            return (
+  3223→                              <button
+  3224→                                key={label.id}
+  3225→                                type="button"
+  3226→                                onClick={() => toggleVehicleLabel(selectedVehicle.id, label.id)}
+  3227→                                className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors text-left"
+  3228→                              >
+  3229→                                <span
+  3230→                                  className="w-3 h-3 rounded-full flex-shrink-0"
+  3231→                                  style={{ backgroundColor: label.colour }}
+  3232→                                ></span>
+  3233→                                <span className="flex-1 text-sm text-slate-700">{label.name}</span>
+  3234→                                {isApplied && (
+  3235→                                  <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+  3236→                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+  3237→                                  </svg>
+  3238→                                )}
+  3239→                              </button>
+  3240→                            );
+  3241→                          })}
+  3242→
+  3243→                          {/* Add New Label Option */}
+  3244→                          <div className="border-t border-slate-100">
+  3245→                            <button
+  3246→                              type="button"
+  3247→                              onClick={() => {
+  3248→                                setShowLabelsDropdown(false);
+  3249→                                setShowAddLabelModal(true);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

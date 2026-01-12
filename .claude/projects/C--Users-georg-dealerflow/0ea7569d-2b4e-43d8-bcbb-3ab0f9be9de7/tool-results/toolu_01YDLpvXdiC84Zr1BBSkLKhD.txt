@@ -1,0 +1,104 @@
+  1180→                              >
+  1181→                                {opt.label}
+  1182→                              </button>
+  1183→                            ))}
+  1184→                          </div>
+  1185→                        </div>
+  1186→
+  1187→                      </div>
+  1188→                    </div>
+  1189→                  )}
+  1190→
+  1191→                  {/* Vehicle Section */}
+  1192→                  {deal.vehicle && (
+  1193→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1194→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1195→                        <div className="flex items-center gap-2">
+  1196→                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+  1197→                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1198→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 5h8m-4-9a9 9 0 110 18 9 9 0 010-18z" />
+  1199→                            </svg>
+  1200→                          </div>
+  1201→                          <h3 className="text-sm font-bold text-slate-800">Vehicle</h3>
+  1202→                        </div>
+  1203→                      </div>
+  1204→                      <div className="p-4">
+  1205→                        <div className="flex items-start gap-4">
+  1206→                          {deal.vehicle.primaryImageUrl && (
+  1207→                            <img
+  1208→                              src={deal.vehicle.primaryImageUrl}
+  1209→                              alt={`${deal.vehicle.make} ${deal.vehicle.model}`}
+  1210→                              className="w-20 h-20 object-cover rounded-xl"
+  1211→                            />
+  1212→                          )}
+  1213→                          <div className="flex-1">
+  1214→                            <p className="font-semibold text-slate-900">
+  1215→                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+  1216→                            </p>
+  1217→                            <p className="text-sm text-slate-500 mt-1">
+  1218→                              {deal.vehicle.regCurrent}
+  1219→                            </p>
+  1220→                          </div>
+  1221→                        </div>
+  1222→                      </div>
+  1223→                    </div>
+  1224→                  )}
+  1225→
+  1226→                  {/* Next Actions */}
+  1227→                  {deal.status !== "COMPLETED" && deal.status !== "CANCELLED" && (
+  1228→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1229→                      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white border-b border-slate-100">
+  1230→                        <div className="flex items-center gap-2">
+  1231→                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+  1232→                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1233→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+  1234→                            </svg>
+  1235→                          </div>
+  1236→                          <h3 className="text-sm font-bold text-slate-800">Next Actions</h3>
+  1237→                        </div>
+  1238→                      </div>
+  1239→                      <div className="p-4 space-y-4">
+  1240→                        {/* Take Deposit - for Draft or Deposit_Taken status */}
+  1241→                        {(deal.status === "DRAFT" || deal.status === "DEPOSIT_TAKEN") && (() => {
+  1242→                          const { allowed, reasons } = canTakeDeposit();
+  1243→                          return (
+  1244→                            <div className="space-y-2">
+  1245→                              <div className="flex items-center justify-between">
+  1246→                                <span className="text-sm font-medium text-slate-700">Take Deposit</span>
+  1247→                                {deal.status === "DEPOSIT_TAKEN" && (
+  1248→                                  <span className="text-xs text-emerald-600 font-medium">Additional deposit</span>
+  1249→                                )}
+  1250→                              </div>
+  1251→                              {deal.status === "DRAFT" && !allowed && reasons.length > 0 && (
+  1252→                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+  1253→                                  <p className="text-xs font-medium text-amber-800 mb-1.5">Required:</p>
+  1254→                                  <ul className="space-y-1">
+  1255→                                    {reasons.map((r, i) => (
+  1256→                                      <li key={i} className="text-xs text-amber-700 flex items-center gap-1.5">
+  1257→                                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1258→                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1259→                                        </svg>
+  1260→                                        {r}
+  1261→                                      </li>
+  1262→                                    ))}
+  1263→                                  </ul>
+  1264→                                </div>
+  1265→                              )}
+  1266→                              <button
+  1267→                                onClick={() => (allowed || deal.status === "DEPOSIT_TAKEN") && setShowDepositModal(true)}
+  1268→                                disabled={actionLoading || (deal.status === "DRAFT" && !allowed)}
+  1269→                                className={`btn btn-sm w-full border-none ${
+  1270→                                  allowed || deal.status === "DEPOSIT_TAKEN"
+  1271→                                    ? "bg-amber-500 hover:bg-amber-600 text-white"
+  1272→                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+  1273→                                }`}
+  1274→                              >
+  1275→                                {actionLoading === "deposit" ? (
+  1276→                                  <span className="loading loading-spinner loading-xs"></span>
+  1277→                                ) : (
+  1278→                                  <>
+  1279→                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

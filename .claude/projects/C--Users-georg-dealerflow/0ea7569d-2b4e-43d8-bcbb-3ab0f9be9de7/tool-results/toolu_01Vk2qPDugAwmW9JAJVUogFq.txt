@@ -1,0 +1,50 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   119→    });
+   120→    setShowModal(true);
+   121→  };
+   122→
+   123→  // Open modal for editing
+   124→  const handleEditContact = (contact) => {
+   125→    setEditingContact(contact);
+   126→
+   127→    // Determine contact type and parse name
+   128→    const isCompany = contact.companyName && contact.displayName === contact.companyName;
+   129→    let firstName = "";
+   130→    let lastName = "";
+   131→
+   132→    if (!isCompany && contact.displayName) {
+   133→      // Try to split displayName into first/last
+   134→      const parts = contact.displayName.split(" ");
+   135→      if (parts.length >= 2) {
+   136→        firstName = parts[0];
+   137→        lastName = parts.slice(1).join(" ");
+   138→      } else {
+   139→        firstName = contact.displayName;
+   140→      }
+   141→    }
+   142→
+   143→    // Normalize typeTags to uppercase
+   144→    const normalizedTypeTags = (contact.typeTags || ["CUSTOMER"]).map(t => t.toUpperCase());
+   145→
+   146→    setFormData({
+   147→      contactType: isCompany ? "company" : "individual",
+   148→      firstName,
+   149→      lastName,
+   150→      companyName: contact.companyName || "",
+   151→      email: contact.email || "",
+   152→      phone: contact.phone || "",
+   153→      addressLine1: contact.address?.line1 || "",
+   154→      addressLine2: contact.address?.line2 || "",
+   155→      town: contact.address?.town || "",
+   156→      postcode: contact.address?.postcode || "",
+   157→      country: contact.address?.country || "United Kingdom",
+   158→      vatNumber: contact.vatNumber || "",
+   159→      notes: contact.notes || "",
+   160→      typeTags: normalizedTypeTags,
+   161→    });
+   162→    setShowModal(true);
+   163→  };
+   164→
+   165→  // Save contact
+   166→  const handleSaveContact = async (e) => {
+   167→    e.preventDefault();

@@ -1,0 +1,115 @@
+// Run with: node scripts/reseed-forms.js
+// This script force-reseeds all forms with the latest templates
+
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error("MONGODB_URI not found in .env.local");
+  process.exit(1);
+}
+
+// Import models
+import Form from "../models/Form.js";
+import FormField from "../models/FormField.js";
+import Dealer from "../models/Dealer.js";
+import { FORM_TEMPLATES, DEPRECATED_FORM_TYPES } from "../libs/formTemplates.js";
+
+async function reseedForms() {
+  try {
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(MONGODB_URI);
+    console.log("Connected!");
+
+    // Get the first dealer
+    const dealer = await Dealer.findOne().lean();
+    if (!dealer) {
+      console.error("No dealer found. Please set up a dealer first.");
+      process.exit(1);
+    }
+    console.log(`Found dealer: ${dealer.name}`);
+    const dealerId = dealer._id;
+
+    // Clean up deprecated form types
+    if (DEPRECATED_FORM_TYPES && DEPRECATED_FORM_TYPES.length > 0) {
+      console.log(`\nCleaning up deprecated form types: ${DEPRECATED_FORM_TYPES.join(", ")}`);
+      for (const deprecatedType of DEPRECATED_FORM_TYPES) {
+        const deprecatedForms = await Form.find({ dealerId, type: deprecatedType });
+        for (const form of deprecatedForms) {
+          await FormField.deleteMany({ formId: form._id });
+          await Form.findByIdAndDelete(form._id);
+          console.log(`  Deleted deprecated form: ${form.name}`);
+        }
+      }
+    }
+
+    console.log("\n=== RESEEDING FORMS ===\n");
+
+    for (const template of FORM_TEMPLATES) {
+      console.log(`Processing: ${template.name} (${template.type})`);
+
+      // Check if form already exists
+      let form = await Form.findOne({ dealerId, type: template.type });
+
+      if (form) {
+        // Delete ALL existing fields for this form
+        const deletedCount = await FormField.deleteMany({ formId: form._id });
+        console.log(`  Deleted ${deletedCount.deletedCount} existing fields`);
+      } else {
+        // Create new form
+        form = await Form.create({
+          dealerId,
+          name: template.name,
+          type: template.type,
+          isPublic: template.isPublic || false,
+          publicSlug: template.publicSlug,
+        });
+        console.log(`  Created new form`);
+      }
+
+      // Create all fields from template
+      let fieldCount = 0;
+      for (const field of template.fields) {
+        await FormField.create({
+          formId: form._id,
+          label: field.label,
+          fieldName: field.fieldName,
+          type: field.type,
+          required: field.required || false,
+          options: field.options,
+          order: field.order || fieldCount,
+          visible: true,
+          isDefault: true,
+          isCustom: false,
+          placeholder: field.placeholder,
+          helpText: field.helpText,
+          vrmLookup: field.vrmLookup || false,
+        });
+        fieldCount++;
+      }
+      console.log(`  Created ${fieldCount} fields\n`);
+    }
+
+    console.log("=== RESEED COMPLETE ===\n");
+
+    // Summary
+    const forms = await Form.find({ dealerId });
+    console.log("Current forms:");
+    for (const form of forms) {
+      const fieldCount = await FormField.countDocuments({ formId: form._id });
+      console.log(`  - ${form.name} (${form.type}): ${fieldCount} fields`);
+    }
+
+    await mongoose.disconnect();
+    console.log("\nDone!");
+  } catch (error) {
+    console.error("Error:", error);
+    process.exit(1);
+  }
+}
+
+reseedForms();

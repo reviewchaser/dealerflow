@@ -1,0 +1,217 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const STATUS_LABELS = {
+  pending: "New",
+  reviewed: "Reviewed",
+  converted: "Converted",
+  declined: "Declined",
+};
+
+const STATUS_COLORS = {
+  pending: "badge-warning",
+  reviewed: "badge-info",
+  converted: "badge-success",
+  declined: "badge-error",
+};
+
+export default function Appraisals() {
+  const router = useRouter();
+  const [appraisals, setAppraisals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [isConverting, setIsConverting] = useState(null); // Stores appraisal id being converted
+
+  useEffect(() => { fetchAppraisals(); }, [filter]);
+
+  const fetchAppraisals = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/appraisals?decision=${filter}`);
+      const data = await res.json();
+      setAppraisals(data);
+    } catch (error) {
+      toast.error("Failed to load appraisals");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this appraisal?")) return;
+    try {
+      await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+      toast.success("Deleted");
+      fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleConvertToStock = async (appraisal) => {
+    if (!confirm(`Convert "${appraisal.vehicleReg}" to stock? All issues and documents will be transferred.`)) return;
+
+    setIsConverting(appraisal.id || appraisal._id);
+    try {
+      const res = await fetch(`/api/appraisals/${appraisal.id || appraisal._id}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialStatus: "in_stock" }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to convert");
+      }
+
+      toast.success("Vehicle added to stock with all issues and documents!");
+      fetchAppraisals();
+
+      if (confirm("Vehicle created. View it on Sales & Prep board?")) {
+        router.push("/sales-prep");
+      }
+    } catch (error) {
+      console.error("Convert error:", error);
+      toast.error(error.message || "Failed to convert to stock");
+    } finally {
+      setIsConverting(null);
+    }
+  };
+
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      await fetch(`/api/appraisals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: status, decidedAt: new Date() }),
+      });
+      toast.success(`Marked as ${STATUS_LABELS[status]}`);
+      fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <Head><title>Appraisals | DealerFlow</title></Head>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Buying Appraisals</h1>
+          <p className="text-base-content/60 mt-2">Track vehicle purchase assessments</p>
+        </div>
+        <Link href="/appraisals/new" className="btn btn-primary">+ New Appraisal</Link>
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {["all", "pending", "reviewed", "converted", "declined"].map((status) => (
+          <button key={status} className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setFilter(status)}>
+            {status === "all" ? "All" : STATUS_LABELS[status] || status}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : appraisals.length === 0 ? (
+        <div className="card bg-base-200">
+          <div className="card-body text-center py-16">
+            <p className="text-lg text-base-content/60">No appraisals found</p>
+            <div className="mt-6">
+              <Link href="/appraisals/new" className="btn btn-primary">Create First Appraisal</Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Registration</th>
+                <th>Vehicle</th>
+                <th>Mileage</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appraisals.map((a) => (
+                <tr key={a.id} className="hover">
+                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
+                  <td><span className="font-mono font-semibold">{a.vehicleReg}</span></td>
+                  <td>
+                    {a.vehicleMake && a.vehicleModel ? (
+                      <span>{a.vehicleMake} {a.vehicleModel} {a.vehicleYear ? `(${a.vehicleYear})` : ""}</span>
+                    ) : "—"}
+                  </td>
+                  <td>{a.mileage?.toLocaleString() || "—"}</td>
+                  <td>
+                    <div className={`badge ${STATUS_COLORS[a.decision] || "badge-ghost"}`}>
+                      {STATUS_LABELS[a.decision] || a.decision}
+                    </div>
+                    {a.vehicleId && (
+                      <Link href="/sales-prep" className="badge badge-outline badge-sm ml-2">
+                        In Stock
+                      </Link>
+                    )}
+                  </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <Link href={`/appraisals/${a.id}`} className="btn btn-ghost btn-xs">View</Link>
+
+                      {a.decision === "pending" && (
+                        <>
+                          <button
+                            className="btn btn-success btn-xs"
+                            onClick={() => handleConvertToStock(a)}
+                            disabled={isConverting === (a.id || a._id)}
+                          >
+                            {isConverting === (a.id || a._id) ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : "Convert to Stock"}
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => handleUpdateStatus(a.id, "declined")}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+
+                      {a.decision === "reviewed" && !a.vehicleId && (
+                        <button
+                          className="btn btn-success btn-xs"
+                          onClick={() => handleConvertToStock(a)}
+                          disabled={isConverting === (a.id || a._id)}
+                        >
+                          {isConverting === (a.id || a._id) ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : "Convert to Stock"}
+                        </button>
+                      )}
+
+                      <button className="btn btn-ghost btn-xs text-error" onClick={() => handleDelete(a.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </DashboardLayout>
+  );
+}

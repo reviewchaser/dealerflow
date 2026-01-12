@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  4878→    </div>
+  4879→  );
+  4880→}
+  4881→
+  4882→function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
+  4883→  const [isLoading, setIsLoading] = useState(false);
+  4884→  const [photoFiles, setPhotoFiles] = useState([]);
+  4885→  const [photoPreviews, setPhotoPreviews] = useState([]);
+  4886→  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  4887→
+  4888→  const handlePhotoChange = (e) => {
+  4889→    const files = Array.from(e.target.files);
+  4890→    setPhotoFiles(prev => [...prev, ...files]);

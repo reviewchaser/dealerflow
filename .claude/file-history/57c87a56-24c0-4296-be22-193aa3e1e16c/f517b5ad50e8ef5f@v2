@@ -1,0 +1,46 @@
+// Step 1: Save dealership profile
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+  const { dealerId, dealer } = ctx;
+
+  const { name, logoUrl, timezone, primaryContactEmail, primaryContactPhone } = req.body;
+
+  // Validate required fields
+  if (!name?.trim()) {
+    return res.status(400).json({ error: "Dealership name is required" });
+  }
+
+  // Update the dealer from context
+  dealer.name = name.trim();
+  if (logoUrl !== undefined) dealer.logoUrl = logoUrl;
+  if (timezone) dealer.timezone = timezone;
+  if (primaryContactEmail !== undefined) dealer.primaryContactEmail = primaryContactEmail;
+  if (primaryContactPhone !== undefined) dealer.primaryContactPhone = primaryContactPhone;
+
+  // Also update company fields for forms
+  dealer.companyName = name.trim();
+  if (primaryContactEmail) dealer.companyEmail = primaryContactEmail;
+  if (primaryContactPhone) dealer.companyPhone = primaryContactPhone;
+
+  await dealer.save();
+
+  return res.status(200).json({
+    success: true,
+    dealer: {
+      id: dealer._id,
+      name: dealer.name,
+      logoUrl: dealer.logoUrl,
+      timezone: dealer.timezone,
+    },
+  });
+}
+
+export default withDealerContext(handler);

@@ -1,0 +1,34 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    27→async function handler(req, res, ctx) {
+    28→  await connectMongo();
+    29→  const { dealerId } = ctx;
+    30→
+    31→  if (req.method === "GET") {
+    32→    const { status, forSale } = req.query;
+    33→    let query = { dealerId };
+    34→
+    35→    // For sale filter: exclude sold vehicles and those already on a deal
+    36→    if (forSale === "true") {
+    37→      // Exclude sold/delivered/archived vehicles
+    38→      query.status = { $nin: ["sold", "delivered", "archived"] };
+    39→
+    40→      // Get vehicle IDs that already have active deals
+    41→      const activeDealVehicleIds = await Deal.distinct("vehicleId", {
+    42→        dealerId,
+    43→        status: { $nin: ["CANCELLED", "COMPLETED"] },
+    44→      });
+    45→
+    46→      if (activeDealVehicleIds.length > 0) {
+    47→        query._id = { $nin: activeDealVehicleIds };
+    48→      }
+    49→    } else if (status && status !== "all") {
+    50→      query.status = status;
+    51→    }
+    52→
+    53→    const vehicles = await Vehicle.find(query)
+    54→      .sort({ createdAt: -1 })
+    55→      .lean();
+    56→
+    57→    if (!vehicles || vehicles.length === 0) {
+    58→      return res.status(200).json([]);
+    59→    }

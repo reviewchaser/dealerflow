@@ -1,0 +1,104 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import VehicleTask from "@/models/VehicleTask";
+     4→import VehicleLabelAssignment from "@/models/VehicleLabelAssignment";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import VehicleDocument from "@/models/VehicleDocument";
+     7→import VehicleLocation from "@/models/VehicleLocation";
+     8→import VehicleActivity from "@/models/VehicleActivity";
+     9→import User from "@/models/User";
+    10→import { withDealerContext } from "@/libs/authContext";
+    11→
+    12→async function handler(req, res, ctx) {
+    13→  await connectMongo();
+    14→  const { dealerId } = ctx;
+    15→  const { id } = req.query;
+    16→
+    17→  if (req.method === "GET") {
+    18→    // Ensure vehicle belongs to this dealer
+    19→    const vehicle = await Vehicle.findOne({ _id: id, dealerId }).populate("locationId").lean();
+    20→    if (!vehicle) return res.status(404).json({ error: "Not found" });
+    21→
+    22→    // Transform _id to id for the main vehicle
+    23→    vehicle.id = vehicle._id.toString();
+    24→    delete vehicle._id;
+    25→
+    26→    // Get and transform related data
+    27→    const tasks = await VehicleTask.find({ vehicleId: id }).sort({ createdAt: 1 }).lean();
+    28→    const labels = await VehicleLabelAssignment.find({ vehicleId: id })
+    29→      .populate("vehicleLabelId").lean();
+    30→    const issues = await VehicleIssue.find({ vehicleId: id }).sort({ createdAt: -1 }).lean();
+    31→    const documents = await VehicleDocument.find({ vehicleId: id }).sort({ createdAt: -1 }).lean();
+    32→
+    33→    // Transform _id to id for all related items
+    34→    vehicle.tasks = tasks.map(t => ({ ...t, id: t._id.toString(), _id: undefined }));
+    35→    vehicle.labels = labels.map(l => ({ ...l, id: l._id.toString(), _id: undefined }));
+    36→    vehicle.issues = issues.map(i => ({ ...i, id: i._id.toString(), _id: undefined }));
+    37→    vehicle.documents = documents.map(d => ({ ...d, id: d._id.toString(), _id: undefined }));
+    38→
+    39→    return res.status(200).json(vehicle);
+    40→  }
+    41→
+    42→  if (req.method === "PUT") {
+    43→    const { userId, user } = ctx;
+    44→
+    45→    // Get existing vehicle for change detection
+    46→    const existingVehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    47→    if (!existingVehicle) return res.status(404).json({ error: "Not found" });
+    48→
+    49→    // Build update object
+    50→    const updateData = { ...req.body };
+    51→
+    52→    // If status is changing to "sold" or "live" (Sold In Progress), set soldAt timestamp
+    53→    if (updateData.status === "live" || updateData.status === "reserved" || updateData.status === "delivered") {
+    54→      if (!["live", "reserved", "delivered"].includes(existingVehicle.status) && !existingVehicle.soldAt) {
+    55→        updateData.soldAt = new Date();
+    56→      }
+    57→    }
+    58→    // If status changes away from sold statuses, clear soldAt
+    59→    if (updateData.status && !["live", "reserved", "delivered"].includes(updateData.status)) {
+    60→      updateData.soldAt = null;
+    61→    }
+    62→
+    63→    // Ensure vehicle belongs to this dealer
+    64→    const vehicle = await Vehicle.findOneAndUpdate(
+    65→      { _id: id, dealerId },
+    66→      updateData,
+    67→      { new: true }
+    68→    ).populate("locationId").lean();
+    69→    if (!vehicle) return res.status(404).json({ error: "Not found" });
+    70→
+    71→    // Get actor name for activity log
+    72→    const actor = await User.findById(userId).lean();
+    73→    const actorName = actor?.name || user?.name || user?.email || "System";
+    74→
+    75→    // Log activity for status changes
+    76→    if (updateData.status && updateData.status !== existingVehicle.status) {
+    77→      const statusLabels = {
+    78→        in_stock: "In Prep",
+    79→        in_prep: "Advertised",
+    80→        live: "Sold In Progress",
+    81→        reserved: "Completed",
+    82→        delivered: "Delivered",
+    83→      };
+    84→      const oldLabel = statusLabels[existingVehicle.status] || existingVehicle.status;
+    85→      const newLabel = statusLabels[updateData.status] || updateData.status;
+    86→
+    87→      await VehicleActivity.log({
+    88→        dealerId,
+    89→        vehicleId: id,
+    90→        actorId: userId,
+    91→        actorName,
+    92→        type: "STATUS_CHANGED",
+    93→        message: `Status changed from ${oldLabel} to ${newLabel}`,
+    94→        meta: { from: existingVehicle.status, to: updateData.status },
+    95→      });
+    96→    }
+    97→
+    98→    // Log activity for location changes
+    99→    if (updateData.locationId !== undefined) {
+   100→      const oldLocationId = existingVehicle.locationId?.toString() || existingVehicle.locationId;
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

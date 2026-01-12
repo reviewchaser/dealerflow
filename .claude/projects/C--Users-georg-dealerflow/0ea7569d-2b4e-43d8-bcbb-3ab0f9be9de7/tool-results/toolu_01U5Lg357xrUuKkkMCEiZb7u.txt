@@ -1,0 +1,1078 @@
+     1→import { useState, useEffect, useRef } from "react";
+     2→import Link from "next/link";
+     3→import { useRouter } from "next/router";
+     4→import { signOut } from "next-auth/react";
+     5→import { useDealer } from "@/contexts/DealerContext";
+     6→import { appPath } from "@/libs/appPath";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { Portal } from "@/components/ui/Portal";
+     9→
+    10→// Human-readable form type labels
+    11→const FORM_TYPE_LABELS = {
+    12→  PDI: "PDI",
+    13→  TEST_DRIVE: "Test Drive",
+    14→  WARRANTY_CLAIM: "Warranty",
+    15→  COURTESY_OUT: "Courtesy Out",
+    16→  COURTESY_IN: "Courtesy In",
+    17→  SERVICE_RECEIPT: "Service",
+    18→  REVIEW_FEEDBACK: "Feedback",
+    19→  OTHER: "Other",
+    20→};
+    21→
+    22→// Customer-facing forms that should NOT appear in internal quick add menus
+    23→const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
+    24→
+    25→// Purpose-led icons for each form type (rounded, modern, single-weight)
+    26→const FormTypeIcon = ({ type, className = "w-5 h-5" }) => {
+    27→  const icons = {
+    28→    PDI: (
+    29→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    30→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    31→      </svg>
+    32→    ),
+    33→    TEST_DRIVE: (
+    34→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    35→        <circle cx="12" cy="12" r="9" strokeWidth={1.5} />
+    36→        <circle cx="12" cy="12" r="3" strokeWidth={1.5} />
+    37→        <path strokeLinecap="round" strokeWidth={1.5} d="M12 3v6M12 15v6M3 12h6M15 12h6" />
+    38→      </svg>
+    39→    ),
+    40→    COURTESY_OUT: (
+    41→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    42→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+    43→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M17 6l3 3m0 0l-3 3m3-3H13" />
+    44→      </svg>
+    45→    ),
+    46→    COURTESY_IN: (
+    47→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    48→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 17a2 2 0 100-4 2 2 0 000 4zM16 17a2 2 0 100-4 2 2 0 000 4z" />
+    49→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 13V11a1 1 0 011-1h2l2-3h6l2 3h2a1 1 0 011 1v2M6 13h12M13 6l-3 3m0 0l3 3m-3-3h7" />
+    50→      </svg>
+    51→    ),
+    52→    SERVICE_RECEIPT: (
+    53→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    54→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    55→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    56→      </svg>
+    57→    ),
+    58→    REVIEW_FEEDBACK: (
+    59→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    60→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    61→      </svg>
+    62→    ),
+    63→    DELIVERY: (
+    64→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    65→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+    66→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+    67→      </svg>
+    68→    ),
+    69→    DEFAULT: (
+    70→      <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    71→        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+    72→      </svg>
+    73→    ),
+    74→  };
+    75→  return icons[type] || icons.DEFAULT;
+    76→};
+    77→
+    78→// Icon components (using inline SVG as heroicons alternative)
+    79→const ChartBarIcon = ({ className }) => (
+    80→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    81→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    82→  </svg>
+    83→);
+    84→
+    85→const TruckIcon = ({ className }) => (
+    86→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    87→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+    88→  </svg>
+    89→);
+    90→
+    91→const WrenchIcon = ({ className }) => (
+    92→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    93→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+    94→  </svg>
+    95→);
+    96→
+    97→const ClipboardIcon = ({ className }) => (
+    98→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    99→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+   100→  </svg>
+   101→);
+   102→
+   103→const DocumentTextIcon = ({ className }) => (
+   104→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   105→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+   106→  </svg>
+   107→);
+   108→
+   109→const StarIcon = ({ className }) => (
+   110→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   111→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+   112→  </svg>
+   113→);
+   114→
+   115→const CalendarIcon = ({ className }) => (
+   116→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   117→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+   118→  </svg>
+   119→);
+   120→
+   121→const ClockIcon = ({ className }) => (
+   122→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   123→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+   124→  </svg>
+   125→);
+   126→
+   127→const SunIcon = ({ className }) => (
+   128→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   129→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+   130→  </svg>
+   131→);
+   132→
+   133→const UsersIcon = ({ className }) => (
+   134→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   135→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+   136→  </svg>
+   137→);
+   138→
+   139→const CogIcon = ({ className }) => (
+   140→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   141→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+   142→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+   143→  </svg>
+   144→);
+   145→
+   146→const CurrencyPoundIcon = ({ className }) => (
+   147→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   148→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.121 7.629A3 3 0 009.017 9.43c0 1.886.784 3.451 1.66 4.692.877 1.242 1.866 2.217 2.477 2.825H6.75v2.304h10.5v-2.304H15m0-9a3 3 0 00-3-3m0 0V3m0 3v.75M6 12h6" />
+   149→  </svg>
+   150→);
+   151→
+   152→const ChevronDownIcon = ({ className }) => (
+   153→  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   154→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+   155→  </svg>
+   156→);
+   157→
+   158→// Navigation structure:
+   159→// - Main (0-3): Dashboard, Stock & Prep, Sales, Aftersales
+   160→// - Management (4-7): Appraisals, Submissions, Reviews, Calendar
+   161→// - HR (8-9): Holidays, Overtime
+   162→// - System (10): Settings
+   163→const navigation = [
+   164→  // Main
+   165→  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
+   166→  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
+   167→  { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon },
+   168→  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
+   169→  // Management
+   170→  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
+   171→  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+   172→  { name: "Reviews", href: "/reviews", Icon: StarIcon },
+   173→  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+   174→  // HR
+   175→  { name: "Holidays", href: "/holidays", Icon: SunIcon },
+   176→  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
+   177→  // System
+   178→  { name: "Settings", href: "/settings", Icon: CogIcon },
+   179→];
+   180→
+   181→// Cache key for logo URL in localStorage
+   182→const LOGO_CACHE_KEY = "dealerflow_logo_url";
+   183→const DEALER_NAME_CACHE_KEY = "dealerflow_dealer_name";
+   184→
+   185→export default function DashboardLayout({ children }) {
+   186→  const router = useRouter();
+   187→  const { dealerSlug } = useDealer(); // Get dealer slug from tenant context (null if legacy route)
+   188→  const getPath = (path) => appPath(dealerSlug, path); // Helper to generate tenant-aware paths
+   189→  const [sidebarOpen, setSidebarOpen] = useState(false);
+   190→  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+   191→  const [expandedMenus, setExpandedMenus] = useState({});
+   192→  const [forms, setForms] = useState([]);
+   193→  const [dealer, setDealer] = useState(null);
+   194→  const [dealerLoading, setDealerLoading] = useState(true);
+   195→  const [cachedLogo, setCachedLogo] = useState(null);
+   196→  const [cachedName, setCachedName] = useState(null);
+   197→  const [debugContext, setDebugContext] = useState(null);
+   198→  const [debugPanelOpen, setDebugPanelOpen] = useState(false);
+   199→  const [showMobileQuickAdd, setShowMobileQuickAdd] = useState(false);
+   200→  const [showDesktopQuickAdd, setShowDesktopQuickAdd] = useState(false);
+   201→  const [isMobile, setIsMobile] = useState(false);
+   202→  const quickAddButtonRef = useRef(null);
+   203→  const quickAddMenuRef = useRef(null);
+   204→
+   205→  // Load cached logo immediately on mount (before API call)
+   206→  useEffect(() => {
+   207→    try {
+   208→      const storedLogo = localStorage.getItem(LOGO_CACHE_KEY);
+   209→      const storedName = localStorage.getItem(DEALER_NAME_CACHE_KEY);
+   210→      if (storedLogo) setCachedLogo(storedLogo);
+   211→      if (storedName) setCachedName(storedName);
+   212→    } catch {
+   213→      // localStorage not available
+   214→    }
+   215→  }, []);
+   216→
+   217→  // Detect mobile viewport
+   218→  useEffect(() => {
+   219→    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+   220→    checkMobile();
+   221→    window.addEventListener("resize", checkMobile);
+   222→    return () => window.removeEventListener("resize", checkMobile);
+   223→  }, []);
+   224→
+   225→  // Click outside handler for desktop quick add dropdown
+   226→  useEffect(() => {
+   227→    if (!showDesktopQuickAdd) return;
+   228→
+   229→    const handleClickOutside = (e) => {
+   230→      if (
+   231→        quickAddButtonRef.current &&
+   232→        !quickAddButtonRef.current.contains(e.target) &&
+   233→        quickAddMenuRef.current &&
+   234→        !quickAddMenuRef.current.contains(e.target)
+   235→      ) {
+   236→        setShowDesktopQuickAdd(false);
+   237→      }
+   238→    };
+   239→
+   240→    const handleEscape = (e) => {
+   241→      if (e.key === "Escape") {
+   242→        setShowDesktopQuickAdd(false);
+   243→      }
+   244→    };
+   245→
+   246→    document.addEventListener("mousedown", handleClickOutside);
+   247→    document.addEventListener("keydown", handleEscape);
+   248→    return () => {
+   249→      document.removeEventListener("mousedown", handleClickOutside);
+   250→      document.removeEventListener("keydown", handleEscape);
+   251→    };
+   252→  }, [showDesktopQuickAdd]);
+   253→
+   254→  // Load sidebar collapsed state from localStorage
+   255→  useEffect(() => {
+   256→    const saved = localStorage.getItem("sidebarCollapsed");
+   257→    if (saved !== null) {
+   258→      setSidebarCollapsed(JSON.parse(saved));
+   259→    }
+   260→  }, []);
+   261→
+   262→  // Save sidebar collapsed state to localStorage
+   263→  const toggleSidebarCollapsed = () => {
+   264→    const newState = !sidebarCollapsed;
+   265→    setSidebarCollapsed(newState);
+   266→    localStorage.setItem("sidebarCollapsed", JSON.stringify(newState));
+   267→  };
+   268→
+   269→  // Keyboard shortcut: [ or Ctrl+B to toggle sidebar
+   270→  useEffect(() => {
+   271→    const handleKeyDown = (e) => {
+   272→      if (e.key === "[" || (e.ctrlKey && e.key === "b")) {
+   273→        e.preventDefault();
+   274→        toggleSidebarCollapsed();
+   275→      }
+   276→    };
+   277→    window.addEventListener("keydown", handleKeyDown);
+   278→    return () => window.removeEventListener("keydown", handleKeyDown);
+   279→  }, [sidebarCollapsed]);
+   280→
+   281→  // Dev-only: fetch debug context
+   282→  useEffect(() => {
+   283→    if (process.env.NODE_ENV === "development") {
+   284→      fetch("/api/debug/context")
+   285→        .then(res => {
+   286→          const contentType = res.headers.get("content-type") || "";
+   287→          if (!contentType.includes("application/json")) return null;
+   288→          return res.json();
+   289→        })
+   290→        .then(data => {
+   291→          if (data) setDebugContext(data);
+   292→        })
+   293→        .catch(() => {});
+   294→    }
+   295→  }, []);
+   296→
+   297→  useEffect(() => {
+   298→    // Load forms for the quick add dropdown
+   299→    fetch("/api/forms")
+   300→      .then(res => res.json())
+   301→      .then(data => {
+   302→        if (Array.isArray(data)) setForms(data);
+   303→      })
+   304→      .catch(() => {});
+   305→
+   306→    // Load dealer for logo and check onboarding status
+   307→    fetch("/api/dealer")
+   308→      .then(async (res) => {
+   309→        // 403 = no dealer membership - redirect to create dealer
+   310→        if (res.status === 403 && !router.pathname.startsWith("/onboarding")) {
+   311→          router.push(getPath("/onboarding/create-dealer"));
+   312→          return null;
+   313→        }
+   314→        if (!res.ok) return null;
+   315→        return res.json();
+   316→      })
+   317→      .then(async (data) => {
+   318→        setDealerLoading(false);
+   319→        if (!data) return;
+   320→
+   321→        // If dealer has a logo key, fetch a fresh signed URL (existing URL may be expired)
+   322→        if (data.logoKey) {
+   323→          try {
+   324→            const logoRes = await fetch("/api/dealer/logo");
+   325→            if (logoRes.ok) {
+   326→              const logoData = await logoRes.json();
+   327→              data.logoUrl = logoData.url; // Use fresh signed URL
+   328→            }
+   329→          } catch {
+   330→            // Keep existing logoUrl if refresh fails
+   331→          }
+   332→        }
+   333→
+   334→        setDealer(data);
+   335→
+   336→        // Cache logo URL for instant display on next load
+   337→        try {
+   338→          if (data.logoUrl) {
+   339→            localStorage.setItem(LOGO_CACHE_KEY, data.logoUrl);
+   340→          } else {
+   341→            localStorage.removeItem(LOGO_CACHE_KEY);
+   342→          }
+   343→          if (data.name) {
+   344→            localStorage.setItem(DEALER_NAME_CACHE_KEY, data.name);
+   345→          }
+   346→        } catch {
+   347→          // localStorage not available
+   348→        }
+   349→
+   350→        // Redirect to onboarding wizard if not completed (skip if already on onboarding page)
+   351→        if (data && !data.completedOnboarding && !router.pathname.startsWith("/onboarding")) {
+   352→          router.push(getPath("/onboarding"));
+   353→        }
+   354→      })
+   355→      .catch(() => {
+   356→        setDealerLoading(false);
+   357→      });
+   358→  }, [router]);
+   359→
+   360→  const handleFormClick = (form) => {
+   361→    if (form.isPublic && form.publicSlug) {
+   362→      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+   363→    } else {
+   364→      router.push(`/forms/fill/${form.id || form._id}`);
+   365→    }
+   366→  };
+   367→
+   368→  return (
+   369→    <div className="min-h-screen bg-[#f8fafc]">
+   370→      {sidebarOpen && (
+   371→        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
+   372→      )}
+   373→
+   374→      {/* Sidebar - Modern design with brand colors */}
+   375→      <aside
+   376→        className={`fixed top-0 left-0 z-50 bg-white border-r border-slate-100 shadow-sm transform transition-all duration-300 ease-in-out lg:translate-x-0 flex flex-col ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} ${sidebarCollapsed ? "lg:w-16" : "lg:w-64"} w-64`}
+   377→        style={{
+   378→          height: "100dvh",
+   379→          maxHeight: "100dvh",
+   380→        }}
+   381→      >
+   382→        {/* Mobile close button */}
+   383→        <div className="flex items-center justify-end h-12 px-4 lg:hidden">
+   384→          <button className="text-base-content/50 hover:text-base-content hover:bg-base-200 rounded-lg p-2 transition-colors" onClick={() => setSidebarOpen(false)}>
+   385→            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+   386→              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+   387→            </svg>
+   388→          </button>
+   389→        </div>
+   390→
+   391→        {/* Logo Area - Dealer's Logo takes prominence */}
+   392→        <div className={`flex flex-col items-center transition-all duration-300 ${sidebarCollapsed ? "p-3" : "p-6"}`}>
+   393→          <Link href={getPath("/dashboard")} className="block">
+   394→            {(() => {
+   395→              // Use dealer logo if loaded, otherwise use cached logo
+   396→              const logoUrl = dealer?.logoUrl || cachedLogo;
+   397→              const displayName = dealer?.name || cachedName;
+   398→
+   399→              if (logoUrl) {
+   400→                return (
+   401→                  <img
+   402→                    src={logoUrl}
+   403→                    alt={displayName || "Logo"}
+   404→                    className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"}`}
+   405→                  />
+   406→                );
+   407→              }
+   408→
+   409→              // Show loading placeholder while fetching dealer (only if no cached logo)
+   410→              if (dealerLoading && !cachedLogo) {
+   411→                return (
+   412→                  <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
+   413→                    <div className={`animate-pulse bg-slate-200 rounded-lg transition-all duration-300 ${sidebarCollapsed ? "w-8 h-8" : "w-8 h-8"}`} />
+   414→                    {!sidebarCollapsed && <div className="animate-pulse bg-slate-200 rounded h-6 w-24" />}
+   415→                  </div>
+   416→                );
+   417→              }
+   418→
+   419→              // No logo - show text fallback (only after loading complete)
+   420→              return (
+   421→                <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"}`}>
+   422→                  <TruckIcon className={`text-primary transition-all duration-300 ${sidebarCollapsed ? "w-6 h-6" : "w-8 h-8"}`} />
+   423→                  {!sidebarCollapsed && <span className="text-xl font-bold text-base-content">{displayName || "DealerHQ"}</span>}
+   424→                </div>
+   425→              );
+   426→            })()}
+   427→          </Link>
+   428→        </div>
+   429→
+   430→        {/* Navigation - Scrollable with proper mobile safari support */}
+   431→        <nav
+   432→          className={`flex-1 mt-2 ${sidebarCollapsed ? "px-2" : "px-3"} overflow-y-auto overflow-x-hidden overscroll-contain min-h-0`}
+   433→          style={{
+   434→            WebkitOverflowScrolling: "touch",
+   435→            paddingBottom: "env(safe-area-inset-bottom, 16px)",
+   436→          }}
+   437→        >
+   438→          {/* Main Section */}
+   439→          {!sidebarCollapsed && (
+   440→            <p className="px-3 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   441→              Main
+   442→            </p>
+   443→          )}
+   444→          <ul className="space-y-1">
+   445→            {navigation.slice(0, 3).map((item) => {
+   446→              const { Icon } = item;
+   447→              const itemPath = getPath(item.href);
+   448→              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+   449→              return (
+   450→                <li key={item.name} className="relative group">
+   451→                  <Link
+   452→                    href={itemPath}
+   453→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   454→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   455→                    } ${
+   456→                      isActive
+   457→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   458→                        : "hover:bg-slate-50"
+   459→                    }`}
+   460→                    title={sidebarCollapsed ? item.name : undefined}
+   461→                  >
+   462→                    {/* Active indicator bar */}
+   463→                    {isActive && !sidebarCollapsed && (
+   464→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   465→                    )}
+   466→                    {/* Icon with colored container */}
+   467→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   468→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   469→                    } ${
+   470→                      isActive
+   471→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   472→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   473→                    }`}>
+   474→                      <Icon className="w-[18px] h-[18px]" />
+   475→                    </div>
+   476→                    {!sidebarCollapsed && (
+   477→                      <span className={`text-sm transition-colors ${
+   478→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   479→                      }`}>{item.name}</span>
+   480→                    )}
+   481→                  </Link>
+   482→                  {/* Tooltip for collapsed state */}
+   483→                  {sidebarCollapsed && (
+   484→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   485→                      {item.name}
+   486→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   487→                    </div>
+   488→                  )}
+   489→                </li>
+   490→              );
+   491→            })}
+   492→          </ul>
+   493→
+   494→          {/* Management Section */}
+   495→          {!sidebarCollapsed && (
+   496→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   497→              Management
+   498→            </p>
+   499→          )}
+   500→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   501→          <ul className="space-y-1">
+   502→            {navigation.slice(3, 7).map((item) => {
+   503→              const { Icon } = item;
+   504→
+   505→              if (item.children) {
+   506→                const isExpanded = expandedMenus[item.name];
+   507→                const isActive = router.pathname.startsWith("/forms");
+   508→
+   509→                return (
+   510→                  <li key={item.name}>
+   511→                    <button
+   512→                      onClick={() => setExpandedMenus(prev => ({ ...prev, [item.name]: !prev[item.name] }))}
+   513→                      className={`flex items-center w-full rounded-xl transition-all duration-200 group ${
+   514→                        sidebarCollapsed ? "justify-center p-2" : "justify-between gap-3 px-3 py-2.5"
+   515→                      } ${
+   516→                        isActive
+   517→                          ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   518→                          : "hover:bg-slate-50"
+   519→                      }`}
+   520→                      title={sidebarCollapsed ? item.name : undefined}
+   521→                    >
+   522→                      <div className={`flex items-center ${sidebarCollapsed ? "" : "gap-3"}`}>
+   523→                        <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   524→                          sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   525→                        } ${
+   526→                          isActive
+   527→                            ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   528→                            : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   529→                        }`}>
+   530→                          <Icon className="w-[18px] h-[18px]" />
+   531→                        </div>
+   532→                        {!sidebarCollapsed && (
+   533→                          <span className={`text-sm transition-colors ${
+   534→                            isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   535→                          }`}>{item.name}</span>
+   536→                        )}
+   537→                      </div>
+   538→                      {!sidebarCollapsed && (
+   539→                        <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""} ${isActive ? "text-[#0066CC]" : "text-slate-400"}`} />
+   540→                      )}
+   541→                    </button>
+   542→                    {!sidebarCollapsed && isExpanded && (
+   543→                      <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
+   544→                        {item.children.map((child) => {
+   545→                          const childPath = getPath(child.href);
+   546→                          const isChildActive = router.pathname === child.href || router.asPath === child.href || router.asPath.includes(child.href);
+   547→                          return (
+   548→                            <li key={child.name}>
+   549→                              <Link
+   550→                                href={childPath}
+   551→                                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm ${
+   552→                                  isChildActive
+   553→                                    ? "bg-[#0066CC]/10 text-[#0066CC] font-semibold"
+   554→                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+   555→                                }`}
+   556→                              >
+   557→                                {isChildActive && <span className="w-1.5 h-1.5 rounded-full bg-[#0066CC]" />}
+   558→                                <span>{child.name}</span>
+   559→                              </Link>
+   560→                            </li>
+   561→                          );
+   562→                        })}
+   563→                      </ul>
+   564→                    )}
+   565→                  </li>
+   566→                );
+   567→              }
+   568→
+   569→              const itemPath = getPath(item.href);
+   570→              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+   571→              return (
+   572→                <li key={item.name} className="relative group">
+   573→                  <Link
+   574→                    href={itemPath}
+   575→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   576→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   577→                    } ${
+   578→                      isActive
+   579→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   580→                        : "hover:bg-slate-50"
+   581→                    }`}
+   582→                    title={sidebarCollapsed ? item.name : undefined}
+   583→                  >
+   584→                    {/* Active indicator bar */}
+   585→                    {isActive && !sidebarCollapsed && (
+   586→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   587→                    )}
+   588→                    {/* Icon with colored container */}
+   589→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   590→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   591→                    } ${
+   592→                      isActive
+   593→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   594→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   595→                    }`}>
+   596→                      <Icon className="w-[18px] h-[18px]" />
+   597→                    </div>
+   598→                    {!sidebarCollapsed && (
+   599→                      <span className={`text-sm transition-colors ${
+   600→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   601→                      }`}>{item.name}</span>
+   602→                    )}
+   603→                  </Link>
+   604→                  {/* Tooltip for collapsed state */}
+   605→                  {sidebarCollapsed && (
+   606→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   607→                      {item.name}
+   608→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   609→                    </div>
+   610→                  )}
+   611→                </li>
+   612→              );
+   613→            })}
+   614→          </ul>
+   615→
+   616→          {/* HR Section */}
+   617→          {!sidebarCollapsed && (
+   618→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   619→              HR
+   620→            </p>
+   621→          )}
+   622→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   623→          <ul className="space-y-1">
+   624→            {navigation.slice(7, 9).map((item) => {
+   625→              const { Icon } = item;
+   626→              const itemPath = getPath(item.href);
+   627→              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+   628→              return (
+   629→                <li key={item.name} className="relative group">
+   630→                  <Link
+   631→                    href={itemPath}
+   632→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   633→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   634→                    } ${
+   635→                      isActive
+   636→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   637→                        : "hover:bg-slate-50"
+   638→                    }`}
+   639→                    title={sidebarCollapsed ? item.name : undefined}
+   640→                  >
+   641→                    {isActive && !sidebarCollapsed && (
+   642→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   643→                    )}
+   644→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   645→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   646→                    } ${
+   647→                      isActive
+   648→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   649→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   650→                    }`}>
+   651→                      <Icon className="w-[18px] h-[18px]" />
+   652→                    </div>
+   653→                    {!sidebarCollapsed && (
+   654→                      <span className={`text-sm transition-colors ${
+   655→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   656→                      }`}>{item.name}</span>
+   657→                    )}
+   658→                  </Link>
+   659→                  {sidebarCollapsed && (
+   660→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   661→                      {item.name}
+   662→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   663→                    </div>
+   664→                  )}
+   665→                </li>
+   666→              );
+   667→            })}
+   668→          </ul>
+   669→
+   670→          {/* System Section */}
+   671→          {!sidebarCollapsed && (
+   672→            <p className="px-3 mt-6 mb-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+   673→              System
+   674→            </p>
+   675→          )}
+   676→          {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
+   677→          <ul className="space-y-1">
+   678→            {navigation.slice(9).map((item) => {
+   679→              const { Icon } = item;
+   680→              const itemPath = getPath(item.href);
+   681→              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+   682→              return (
+   683→                <li key={item.name} className="relative group">
+   684→                  <Link
+   685→                    href={itemPath}
+   686→                    className={`relative flex items-center rounded-xl transition-all duration-200 ${
+   687→                      sidebarCollapsed ? "justify-center p-2" : "gap-3 px-3 py-2.5"
+   688→                    } ${
+   689→                      isActive
+   690→                        ? "bg-gradient-to-r from-[#0066CC]/10 to-[#0066CC]/5"
+   691→                        : "hover:bg-slate-50"
+   692→                    }`}
+   693→                    title={sidebarCollapsed ? item.name : undefined}
+   694→                  >
+   695→                    {/* Active indicator bar */}
+   696→                    {isActive && !sidebarCollapsed && (
+   697→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-7 bg-gradient-to-b from-[#0066CC] to-[#0EA5E9] rounded-r-full" />
+   698→                    )}
+   699→                    {/* Icon with colored container */}
+   700→                    <div className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
+   701→                      sidebarCollapsed ? "w-9 h-9" : "w-8 h-8"
+   702→                    } ${
+   703→                      isActive
+   704→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   705→                        : "bg-slate-100 text-slate-500 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   706→                    }`}>
+   707→                      <Icon className="w-[18px] h-[18px]" />
+   708→                    </div>
+   709→                    {!sidebarCollapsed && (
+   710→                      <span className={`text-sm transition-colors ${
+   711→                        isActive ? "font-semibold text-[#0066CC]" : "text-slate-600 group-hover:text-slate-900"
+   712→                      }`}>{item.name}</span>
+   713→                    )}
+   714→                  </Link>
+   715→                  {/* Tooltip for collapsed state */}
+   716→                  {sidebarCollapsed && (
+   717→                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-slate-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap z-50 shadow-xl">
+   718→                      {item.name}
+   719→                      <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1 w-2 h-2 bg-slate-900 rotate-45" />
+   720→                    </div>
+   721→                  )}
+   722→                </li>
+   723→              );
+   724→            })}
+   725→          </ul>
+   726→        </nav>
+   727→
+   728→        {/* Footer - Collapse Toggle + SaaS Branding */}
+   729→        <div className={`shrink-0 mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+   730→          {/* Collapse Toggle Button */}
+   731→          <button
+   732→            onClick={toggleSidebarCollapsed}
+   733→            className={`hidden lg:flex items-center w-full rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all duration-200 ${
+   734→              sidebarCollapsed ? "justify-center p-2" : "gap-2 px-3 py-2"
+   735→            }`}
+   736→            title={sidebarCollapsed ? "Expand sidebar ([ or Ctrl+B)" : "Collapse sidebar ([ or Ctrl+B)"}
+   737→          >
+   738→            <svg className={`w-5 h-5 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   739→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+   740→            </svg>
+   741→            {!sidebarCollapsed && <span className="text-sm">Collapse</span>}
+   742→          </button>
+   743→          {!sidebarCollapsed && (
+   744→            <p className="text-[11px] text-slate-300 text-center mt-3">
+   745→              Powered by <span className="font-semibold text-slate-400">DealerHQ</span>
+   746→            </p>
+   747→          )}
+   748→        </div>
+   749→      </aside>
+   750→
+   751→      {/* Main content */}
+   752→      <div className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-16" : "lg:pl-64"}`}>
+   753→        <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-4 md:px-6 bg-white/95 backdrop-blur-md border-b border-slate-100">
+   754→          <button className="lg:hidden btn btn-ghost btn-sm" onClick={() => setSidebarOpen(true)}>
+   755→            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   756→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+   757→            </svg>
+   758→          </button>
+   759→          <div className="flex-1 lg:flex-none" />
+   760→          <div className="flex items-center gap-3">
+   761→            {/* Quick Add Button - Desktop Portal dropdown, Mobile bottom sheet */}
+   762→            <button
+   763→              ref={quickAddButtonRef}
+   764→              onClick={() => isMobile ? setShowMobileQuickAdd(true) : setShowDesktopQuickAdd(!showDesktopQuickAdd)}
+   765→              className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#0066CC] hover:bg-[#0055AA] text-white cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md"
+   766→            >
+   767→              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   768→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   769→              </svg>
+   770→            </button>
+   771→
+   772→            {/* User Menu */}
+   773→            <div className="dropdown dropdown-end">
+   774→              <label tabIndex={0} className="btn btn-ghost btn-circle avatar placeholder cursor-pointer">
+   775→                <div className="bg-neutral text-neutral-content rounded-full w-8">
+   776→                  <span className="text-xs">U</span>
+   777→                </div>
+   778→              </label>
+   779→              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-52">
+   780→                <li>
+   781→                  <Link href={getPath("/settings")} className="text-sm">
+   782→                    <CogIcon className="w-4 h-4" />
+   783→                    Settings
+   784→                  </Link>
+   785→                </li>
+   786→                <div className="divider my-1"></div>
+   787→                <li>
+   788→                  <button
+   789→                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+   790→                    className="text-sm text-error"
+   791→                  >
+   792→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   793→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+   794→                    </svg>
+   795→                    Sign out
+   796→                  </button>
+   797→                </li>
+   798→              </ul>
+   799→            </div>
+   800→          </div>
+   801→        </header>
+   802→        <main className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">{children}</main>
+   803→      </div>
+   804→
+   805→      {/* Mobile Bottom Navigation - Safe area aware with modern styling */}
+   806→      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-100 md:hidden shadow-lg shadow-slate-200/50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+   807→        <div className="flex items-center justify-around h-16">
+   808→          {[
+   809→            { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
+   810→            { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
+   811→            { name: "Aftersales", href: "/warranty", Icon: WrenchIcon },
+   812→            { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
+   813→            { name: "More", href: null, Icon: CogIcon, isMore: true },
+   814→          ].map((item) => {
+   815→            const itemPath = item.href ? getPath(item.href) : null;
+   816→            const isActive = item.href && (router.pathname.startsWith(item.href) || router.asPath.includes(item.href));
+   817→
+   818→            if (item.isMore) {
+   819→              return (
+   820→                <div key={item.name} className="dropdown dropdown-top dropdown-end">
+   821→                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-2 py-1.5 cursor-pointer group">
+   822→                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC] transition-all">
+   823→                      <item.Icon className="w-5 h-5" />
+   824→                    </div>
+   825→                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
+   826→                  </label>
+   827→                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+   828→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Management</li>
+   829→                    <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+   830→                    <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   831→                    <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   832→                    <div className="divider my-1 px-3"></div>
+   833→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
+   834→                    <li><Link href={getPath("/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
+   835→                    <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
+   836→                    <div className="divider my-1 px-3"></div>
+   837→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
+   838→                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+   839→                  </ul>
+   840→                </div>
+   841→              );
+   842→            }
+   843→
+   844→            return (
+   845→              <Link
+   846→                key={item.name}
+   847→                href={itemPath}
+   848→                className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
+   849→              >
+   850→                <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+   851→                  isActive
+   852→                    ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/30"
+   853→                    : "bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   854→                }`}>
+   855→                  <item.Icon className="w-5 h-5" />
+   856→                </div>
+   857→                <span className={`text-[10px] mt-0.5 transition-colors ${
+   858→                  isActive ? "font-semibold text-[#0066CC]" : "text-slate-400 group-hover:text-[#0066CC]"
+   859→                }`}>{item.name}</span>
+   860→              </Link>
+   861→            );
+   862→          })}
+   863→        </div>
+   864→      </nav>
+   865→
+   866→      {/* Dev-only Tenant Debug Panel */}
+   867→      {process.env.NODE_ENV === "development" && debugContext && (
+   868→        <div className="fixed bottom-20 md:bottom-4 right-4 z-[60]">
+   869→          <button
+   870→            onClick={() => setDebugPanelOpen(!debugPanelOpen)}
+   871→            className="btn btn-xs btn-warning shadow-lg"
+   872→            title="Toggle debug panel"
+   873→          >
+   874→            {debugPanelOpen ? "Hide Debug" : "Debug"}
+   875→          </button>
+   876→          {debugPanelOpen && (
+   877→            <div className="absolute bottom-8 right-0 bg-warning/10 border border-warning rounded-lg p-3 shadow-xl min-w-64 text-xs font-mono">
+   878→              <div className="font-bold text-warning mb-2 text-sm">Tenant Context</div>
+   879→              <div className="space-y-1 text-base-content">
+   880→                <div className="flex justify-between gap-4">
+   881→                  <span className="text-base-content/60">Auth:</span>
+   882→                  <span className={debugContext.authenticated ? "text-success" : "text-error"}>
+   883→                    {debugContext.authenticated ? "Yes" : "No"}
+   884→                  </span>
+   885→                </div>
+   886→                <div className="flex justify-between gap-4">
+   887→                  <span className="text-base-content/60">User ID:</span>
+   888→                  <span className="truncate max-w-32" title={debugContext.userId}>
+   889→                    {debugContext.userId || "-"}
+   890→                  </span>
+   891→                </div>
+   892→                <div className="flex justify-between gap-4">
+   893→                  <span className="text-base-content/60">Email:</span>
+   894→                  <span className="truncate max-w-32" title={debugContext.userEmail}>
+   895→                    {debugContext.userEmail || "-"}
+   896→                  </span>
+   897→                </div>
+   898→                <div className="flex justify-between gap-4">
+   899→                  <span className="text-base-content/60">User Role:</span>
+   900→                  <span>{debugContext.userRole || "-"}</span>
+   901→                </div>
+   902→                <hr className="border-base-300 my-1" />
+   903→                <div className="flex justify-between gap-4">
+   904→                  <span className="text-base-content/60">Dealer ID:</span>
+   905→                  <span className="truncate max-w-32" title={debugContext.dealerId}>
+   906→                    {debugContext.dealerId || "-"}
+   907→                  </span>
+   908→                </div>
+   909→                <div className="flex justify-between gap-4">
+   910→                  <span className="text-base-content/60">Dealer:</span>
+   911→                  <span className="truncate max-w-32" title={debugContext.dealerName}>
+   912→                    {debugContext.dealerName || "-"}
+   913→                  </span>
+   914→                </div>
+   915→                <div className="flex justify-between gap-4">
+   916→                  <span className="text-base-content/60">Membership:</span>
+   917→                  <span>{debugContext.membershipRole || "-"}</span>
+   918→                </div>
+   919→              </div>
+   920→            </div>
+   921→          )}
+   922→        </div>
+   923→      )}
+   924→
+   925→      {/* Mobile Quick Add Bottom Sheet */}
+   926→      <BottomSheet
+   927→        isOpen={showMobileQuickAdd}
+   928→        onClose={() => setShowMobileQuickAdd(false)}
+   929→        title="Quick Actions"
+   930→        maxHeight="80dvh"
+   931→      >
+   932→        <div className="space-y-1 overflow-y-auto">
+   933→          {/* Quick Actions Section */}
+   934→          <div className="px-2 pb-2">
+   935→            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Quick Actions</p>
+   936→            <Link
+   937→              href={getPath("/appraisals/new")}
+   938→              onClick={() => setShowMobileQuickAdd(false)}
+   939→              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+   940→            >
+   941→              <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 flex items-center justify-center">
+   942→                <ClipboardIcon className="w-5 h-5 text-[#0066CC]" />
+   943→              </div>
+   944→              <span className="font-medium text-slate-900">New Appraisal</span>
+   945→            </Link>
+   946→            <Link
+   947→              href={getPath("/sales-prep?addVehicle=1")}
+   948→              onClick={() => setShowMobileQuickAdd(false)}
+   949→              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+   950→            >
+   951→              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+   952→                <TruckIcon className="w-5 h-5 text-emerald-600" />
+   953→              </div>
+   954→              <span className="font-medium text-slate-900">Add Vehicle</span>
+   955→            </Link>
+   956→            <Link
+   957→              href={getPath("/warranty?addCase=1")}
+   958→              onClick={() => setShowMobileQuickAdd(false)}
+   959→              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+   960→            >
+   961→              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+   962→                <WrenchIcon className="w-5 h-5 text-orange-600" />
+   963→              </div>
+   964→              <span className="font-medium text-slate-900">New Aftersales Case</span>
+   965→            </Link>
+   966→          </div>
+   967→
+   968→          {/* Forms Section - excluding customer-facing forms */}
+   969→          {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).length > 0 && (
+   970→            <div className="px-2 pb-4 border-t border-slate-100 pt-2">
+   971→              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Forms</p>
+   972→              <div className="space-y-0.5">
+   973→                {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).map((form) => (
+   974→                  <button
+   975→                    key={form.id || form._id}
+   976→                    onClick={() => {
+   977→                      handleFormClick(form);
+   978→                      setShowMobileQuickAdd(false);
+   979→                    }}
+   980→                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left"
+   981→                  >
+   982→                    <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 flex items-center justify-center text-[#0066CC]">
+   983→                      <FormTypeIcon type={form.type} className="w-5 h-5" />
+   984→                    </div>
+   985→                    <span className="font-medium text-slate-900 truncate">{form.name}</span>
+   986→                  </button>
+   987→                ))}
+   988→              </div>
+   989→            </div>
+   990→          )}
+   991→        </div>
+   992→      </BottomSheet>
+   993→
+   994→      {/* Desktop Quick Add Portal Dropdown */}
+   995→      {showDesktopQuickAdd && !isMobile && (
+   996→        <Portal>
+   997→          <div
+   998→            ref={quickAddMenuRef}
+   999→            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 w-64 max-h-[70vh] overflow-y-auto"
+  1000→            style={{
+  1001→              top: quickAddButtonRef.current
+  1002→                ? quickAddButtonRef.current.getBoundingClientRect().bottom + 8
+  1003→                : 72,
+  1004→              right: 16,
+  1005→              zIndex: 99999,
+  1006→            }}
+  1007→          >
+  1008→            {/* Quick Actions Section */}
+  1009→            <div className="p-3 border-b border-slate-100">
+  1010→              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Quick Actions</p>
+  1011→              <div className="space-y-1">
+  1012→                <Link
+  1013→                  href={getPath("/appraisals/new")}
+  1014→                  onClick={() => setShowDesktopQuickAdd(false)}
+  1015→                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+  1016→                >
+  1017→                  <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1018→                    <ClipboardIcon className="w-4 h-4 text-[#0066CC]" />
+  1019→                  </div>
+  1020→                  <span className="text-sm font-medium text-slate-900">New Appraisal</span>
+  1021→                </Link>
+  1022→                <Link
+  1023→                  href={getPath("/sales-prep?addVehicle=1")}
+  1024→                  onClick={() => setShowDesktopQuickAdd(false)}
+  1025→                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+  1026→                >
+  1027→                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+  1028→                    <TruckIcon className="w-4 h-4 text-emerald-600" />
+  1029→                  </div>
+  1030→                  <span className="text-sm font-medium text-slate-900">Add Vehicle</span>
+  1031→                </Link>
+  1032→                <Link
+  1033→                  href={getPath("/warranty?addCase=1")}
+  1034→                  onClick={() => setShowDesktopQuickAdd(false)}
+  1035→                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+  1036→                >
+  1037→                  <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+  1038→                    <WrenchIcon className="w-4 h-4 text-orange-600" />
+  1039→                  </div>
+  1040→                  <span className="text-sm font-medium text-slate-900">New Aftersales Case</span>
+  1041→                </Link>
+  1042→              </div>
+  1043→            </div>
+  1044→
+  1045→            {/* Forms Section - excluding customer-facing forms */}
+  1046→            {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).length > 0 && (
+  1047→              <div className="p-3">
+  1048→                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-1 mb-2">Forms</p>
+  1049→                <div className="space-y-1">
+  1050→                  {forms.filter(f => !CUSTOMER_FACING_FORM_TYPES.includes(f.type)).map((form) => (
+  1051→                    <button
+  1052→                      key={form.id || form._id}
+  1053→                      onClick={() => {
+  1054→                        handleFormClick(form);
+  1055→                        setShowDesktopQuickAdd(false);
+  1056→                      }}
+  1057→                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left"
+  1058→                    >
+  1059→                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center text-[#0066CC]">
+  1060→                        <FormTypeIcon type={form.type} className="w-4 h-4" />
+  1061→                      </div>
+  1062→                      <span className="text-sm font-medium text-slate-900 truncate">{form.name}</span>
+  1063→                    </button>
+  1064→                  ))}
+  1065→                </div>
+  1066→              </div>
+  1067→            )}
+  1068→          </div>
+  1069→        </Portal>
+  1070→      )}
+  1071→    </div>
+  1072→  );
+  1073→}
+  1074→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

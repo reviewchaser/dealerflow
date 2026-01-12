@@ -1,0 +1,71 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Dealer from "@/models/Dealer";
+     3→import { withDealerContext } from "@/libs/authContext";
+     4→
+     5→async function handler(req, res, ctx) {
+     6→  await connectMongo();
+     7→  const { dealerId, dealer, role, userId } = ctx;
+     8→
+     9→  if (req.method === "GET") {
+    10→    // Return the current dealer from context, including user's role
+    11→    const dealerData = dealer.toJSON ? dealer.toJSON() : dealer;
+    12→    return res.status(200).json({
+    13→      ...dealerData,
+    14→      // Include current user's context
+    15→      currentUserRole: role,
+    16→      currentUserId: userId,
+    17→    });
+    18→  }
+    19→
+    20→  if (req.method === "PUT") {
+    21→    const {
+    22→      name, email, phone, address, websiteUrl, googleReviewUrl, logoUrl, settings,
+    23→      companyName, companyAddress, companyPhone, companyEmail, slug, formCustomText,
+    24→      // Onboarding fields
+    25→      completedOnboarding, timezone, primaryContactEmail, primaryContactPhone,
+    26→      boardConfig, taskAutoComplete, defaultTaskTemplateGroupId
+    27→    } = req.body;
+    28→
+    29→    // Update the current dealer
+    30→    const updateFields = {};
+    31→    if (name !== undefined) updateFields.name = name;
+    32→    if (companyName !== undefined) updateFields.companyName = companyName;
+    33→    if (companyAddress !== undefined) updateFields.companyAddress = companyAddress;
+    34→    if (companyPhone !== undefined) updateFields.companyPhone = companyPhone;
+    35→    if (companyEmail !== undefined) updateFields.companyEmail = companyEmail;
+    36→    if (email !== undefined) updateFields.email = email;
+    37→    if (phone !== undefined) updateFields.phone = phone;
+    38→    if (address !== undefined) updateFields.address = address;
+    39→    if (websiteUrl !== undefined) updateFields.websiteUrl = websiteUrl;
+    40→    if (googleReviewUrl !== undefined) updateFields.googleReviewUrl = googleReviewUrl;
+    41→    if (logoUrl !== undefined) updateFields.logoUrl = logoUrl;
+    42→    if (slug !== undefined) updateFields.slug = slug;
+    43→    if (settings !== undefined) updateFields.settings = settings;
+    44→    if (formCustomText !== undefined) updateFields.formCustomText = formCustomText;
+    45→    // Onboarding fields
+    46→    if (completedOnboarding !== undefined) updateFields.completedOnboarding = completedOnboarding;
+    47→    if (timezone !== undefined) updateFields.timezone = timezone;
+    48→    if (primaryContactEmail !== undefined) updateFields.primaryContactEmail = primaryContactEmail;
+    49→    if (primaryContactPhone !== undefined) updateFields.primaryContactPhone = primaryContactPhone;
+    50→    if (boardConfig !== undefined) updateFields.boardConfig = boardConfig;
+    51→    if (taskAutoComplete !== undefined) updateFields.taskAutoComplete = taskAutoComplete;
+    52→    if (defaultTaskTemplateGroupId !== undefined) updateFields.defaultTaskTemplateGroupId = defaultTaskTemplateGroupId;
+    53→
+    54→    const updatedDealer = await Dealer.findByIdAndUpdate(
+    55→      dealerId,
+    56→      { $set: updateFields },
+    57→      { new: true, runValidators: true }
+    58→    );
+    59→
+    60→    return res.status(200).json(updatedDealer.toJSON());
+    61→  }
+    62→
+    63→  return res.status(405).json({ error: "Method not allowed" });
+    64→}
+    65→
+    66→export default withDealerContext(handler);
+    67→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

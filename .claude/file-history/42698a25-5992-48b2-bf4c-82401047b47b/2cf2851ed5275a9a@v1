@@ -1,0 +1,137 @@
+import crypto from "crypto";
+import connectMongo from "@/libs/mongoose";
+import JobSheetShareLink from "@/models/JobSheetShareLink";
+import Vehicle from "@/models/Vehicle";
+import VehicleIssue from "@/models/VehicleIssue";
+import AftercareCase from "@/models/AftercareCase";
+import Contact from "@/models/Contact"; // Required for populate
+import Dealer from "@/models/Dealer";
+import { refreshDealerLogoUrl } from "@/libs/r2Client";
+
+// Hash token with SHA256
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+// This endpoint is PUBLIC - no auth required
+export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+
+    // Hash the provided token to find the share link
+    const tokenHash = hashToken(token);
+    const link = await JobSheetShareLink.findOne({ tokenHash });
+
+    if (!link) {
+      return res.status(404).json({ error: "Invalid or expired link" });
+    }
+
+    // Check if link is active
+    if (!link.isActive) {
+      return res.status(403).json({ error: "This link has been deactivated" });
+    }
+
+    // Check if link has expired
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      return res.status(403).json({ error: "This link has expired" });
+    }
+
+    // Get dealer info for branding
+    const dealer = await Dealer.findById(link.dealerId).lean();
+    const dealerInfo = dealer ? {
+      name: dealer.name,
+      logo: dealer.logoUrl,
+      phone: dealer.phone,
+      email: dealer.email,
+      address: dealer.address,
+    } : null;
+
+    let jobSheet = null;
+
+    if (link.type === "STOCK") {
+      // Get vehicle and issues
+      const vehicle = await Vehicle.findById(link.vehicleId).lean();
+      if (!vehicle) {
+        return res.status(404).json({ error: "Vehicle not found" });
+      }
+
+      const issues = await VehicleIssue.find({ vehicleId: link.vehicleId }).sort({ createdAt: -1 }).lean();
+
+      jobSheet = {
+        type: "STOCK",
+        vehicle: {
+          vrm: vehicle.regCurrent,
+          make: vehicle.make,
+          model: vehicle.model,
+          year: vehicle.yearManufacture,
+          colour: vehicle.colour,
+          fuelType: vehicle.fuelType,
+          mileage: vehicle.mileage,
+        },
+        issues: issues.map(i => ({
+          category: i.category,
+          subcategory: i.subcategory,
+          description: i.description,
+          actionNeeded: i.actionNeeded,
+          notes: i.notes,
+          status: i.status,
+          partsRequired: i.partsRequired,
+          partsDetails: i.partsDetails,
+        })),
+        bookingDate: vehicle.bookingDate,
+      };
+    } else if (link.type === "WARRANTY") {
+      // Get warranty case
+      const aftercareCase = await AftercareCase.findById(link.aftercareCaseId)
+        .populate("contactId")
+        .populate("vehicleId")
+        .lean();
+
+      if (!aftercareCase) {
+        return res.status(404).json({ error: "Warranty case not found" });
+      }
+
+      jobSheet = {
+        type: "WARRANTY",
+        vehicle: {
+          vrm: aftercareCase.currentReg || aftercareCase.vehicleId?.regCurrent || aftercareCase.regAtPurchase,
+          make: aftercareCase.vehicleId?.make,
+          model: aftercareCase.vehicleId?.model,
+          year: aftercareCase.vehicleId?.yearManufacture,
+        },
+        warrantyType: aftercareCase.warrantyType,
+        repairLocationType: aftercareCase.repairLocationType,
+        repairLocationName: aftercareCase.repairLocationName,
+        summary: aftercareCase.summary,
+        partsRequired: aftercareCase.partsRequired,
+        partsNotes: aftercareCase.partsNotes,
+        bookingDate: aftercareCase.bookedInAt,
+        customerName: aftercareCase.contactId?.name,
+      };
+    }
+
+    // Update view count
+    await JobSheetShareLink.updateOne(
+      { _id: link._id },
+      { $inc: { viewCount: 1 }, $set: { lastViewedAt: new Date() } }
+    );
+
+    return res.status(200).json({
+      jobSheet,
+      dealer: dealerInfo,
+    });
+  } catch (error) {
+    console.error("Error fetching public job sheet:", error);
+    return res.status(500).json({ error: "Failed to load job sheet" });
+  }
+}

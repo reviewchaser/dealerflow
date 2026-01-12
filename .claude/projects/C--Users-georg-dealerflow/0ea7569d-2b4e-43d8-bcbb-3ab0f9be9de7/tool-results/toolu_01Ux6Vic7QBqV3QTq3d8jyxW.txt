@@ -1,0 +1,156 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Deal from "@/models/Deal";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import { withDealerContext } from "@/libs/authContext";
+     5→
+     6→/**
+     7→ * Individual Deal API
+     8→ * GET /api/deals/[id] - Get single deal with full details
+     9→ * PUT /api/deals/[id] - Update deal
+    10→ * DELETE /api/deals/[id] - Cancel deal (soft delete)
+    11→ */
+    12→async function handler(req, res, ctx) {
+    13→  await connectMongo();
+    14→  const { dealerId, userId } = ctx;
+    15→  const { id } = req.query;
+    16→
+    17→  // Validate ID format
+    18→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    19→    return res.status(400).json({ error: "Invalid deal ID" });
+    20→  }
+    21→
+    22→  if (req.method === "GET") {
+    23→    const deal = await Deal.findOne({ _id: id, dealerId })
+    24→      .populate("vehicleId")
+    25→      .populate("soldToContactId")
+    26→      .populate("invoiceToContactId")
+    27→      .populate("salesPersonId", "name email")
+    28→      .populate("partExchangeId")
+    29→      .populate("linkedSubmissionIds")
+    30→      .lean();
+    31→
+    32→    if (!deal) {
+    33→      return res.status(404).json({ error: "Deal not found" });
+    34→    }
+    35→
+    36→    return res.status(200).json({
+    37→      ...deal,
+    38→      id: deal._id.toString(),
+    39→      vehicle: deal.vehicleId,
+    40→      customer: deal.soldToContactId,
+    41→      invoiceTo: deal.invoiceToContactId,
+    42→      salesPerson: deal.salesPersonId,
+    43→      partExchange: deal.partExchangeId,
+    44→      linkedSubmissions: deal.linkedSubmissionIds,
+    45→      _id: undefined,
+    46→      __v: undefined,
+    47→    });
+    48→  }
+    49→
+    50→  if (req.method === "PUT") {
+    51→    const deal = await Deal.findOne({ _id: id, dealerId });
+    52→    if (!deal) {
+    53→      return res.status(404).json({ error: "Deal not found" });
+    54→    }
+    55→
+    56→    // Don't allow editing completed or cancelled deals
+    57→    if (deal.status === "COMPLETED" || deal.status === "CANCELLED") {
+    58→      return res.status(400).json({ error: "Cannot edit a completed or cancelled deal" });
+    59→    }
+    60→
+    61→    const {
+    62→      soldToContactId,
+    63→      invoiceToContactId,
+    64→      buyerType,
+    65→      saleChannel,
+    66→      saleType,
+    67→      vatScheme,
+    68→      vehiclePriceNet,
+    69→      vehicleVatAmount,
+    70→      vehiclePriceGross,
+    71→      partExchangeAllowance,
+    72→      partExchangeSettlement,
+    73→      addOns,
+    74→      requests,
+    75→      notes,
+    76→      internalNotes,
+    77→      warrantyMonths,
+    78→      deliveryAddress,
+    79→      termsKey,
+    80→      termsSnapshotText,
+    81→    } = req.body;
+    82→
+    83→    // Build update object
+    84→    const updateData = { updatedByUserId: userId };
+    85→
+    86→    if (soldToContactId !== undefined) updateData.soldToContactId = soldToContactId;
+    87→    if (invoiceToContactId !== undefined) updateData.invoiceToContactId = invoiceToContactId;
+    88→    if (buyerType !== undefined) updateData.buyerType = buyerType;
+    89→    if (saleChannel !== undefined) updateData.saleChannel = saleChannel;
+    90→    if (saleType !== undefined) updateData.saleType = saleType;
+    91→    if (vatScheme !== undefined) updateData.vatScheme = vatScheme;
+    92→    if (vehiclePriceNet !== undefined) updateData.vehiclePriceNet = vehiclePriceNet;
+    93→    if (vehicleVatAmount !== undefined) updateData.vehicleVatAmount = vehicleVatAmount;
+    94→    if (vehiclePriceGross !== undefined) updateData.vehiclePriceGross = vehiclePriceGross;
+    95→    if (partExchangeAllowance !== undefined) updateData.partExchangeAllowance = partExchangeAllowance;
+    96→    if (partExchangeSettlement !== undefined) updateData.partExchangeSettlement = partExchangeSettlement;
+    97→    if (addOns !== undefined) updateData.addOns = addOns;
+    98→    if (requests !== undefined) updateData.requests = requests;
+    99→    if (notes !== undefined) updateData.notes = notes;
+   100→    if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
+   101→    if (warrantyMonths !== undefined) updateData.warrantyMonths = warrantyMonths;
+   102→    if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
+   103→    if (termsKey !== undefined) updateData.termsKey = termsKey;
+   104→    if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
+   105→
+   106→    const updatedDeal = await Deal.findByIdAndUpdate(
+   107→      id,
+   108→      { $set: updateData },
+   109→      { new: true, runValidators: true }
+   110→    )
+   111→      .populate("vehicleId", "regCurrent make model year")
+   112→      .populate("soldToContactId", "displayName email phone")
+   113→      .lean();
+   114→
+   115→    return res.status(200).json({
+   116→      ...updatedDeal,
+   117→      id: updatedDeal._id.toString(),
+   118→      _id: undefined,
+   119→      __v: undefined,
+   120→    });
+   121→  }
+   122→
+   123→  if (req.method === "DELETE") {
+   124→    const deal = await Deal.findOne({ _id: id, dealerId });
+   125→    if (!deal) {
+   126→      return res.status(404).json({ error: "Deal not found" });
+   127→    }
+   128→
+   129→    // Cancel the deal instead of hard delete
+   130→    deal.status = "CANCELLED";
+   131→    deal.cancelledAt = new Date();
+   132→    deal.cancelReason = req.body?.cancelReason || "Cancelled by user";
+   133→    deal.updatedByUserId = userId;
+   134→    await deal.save();
+   135→
+   136→    // Release the vehicle back to available
+   137→    await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+   138→      salesStatus: "AVAILABLE",
+   139→    });
+   140→
+   141→    return res.status(200).json({
+   142→      success: true,
+   143→      message: "Deal cancelled",
+   144→      dealId: id,
+   145→    });
+   146→  }
+   147→
+   148→  return res.status(405).json({ error: "Method not allowed" });
+   149→}
+   150→
+   151→export default withDealerContext(handler);
+   152→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

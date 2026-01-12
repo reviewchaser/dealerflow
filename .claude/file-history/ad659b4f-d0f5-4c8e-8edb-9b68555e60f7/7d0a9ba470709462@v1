@@ -1,0 +1,82 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import VehicleLabelAssignment from "@/models/VehicleLabelAssignment";
+import VehicleIssue from "@/models/VehicleIssue";
+import VehicleDocument from "@/models/VehicleDocument";
+import VehicleLocation from "@/models/VehicleLocation";
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId } = ctx;
+  const { id } = req.query;
+
+  if (req.method === "GET") {
+    // Ensure vehicle belongs to this dealer
+    const vehicle = await Vehicle.findOne({ _id: id, dealerId }).populate("locationId").lean();
+    if (!vehicle) return res.status(404).json({ error: "Not found" });
+
+    // Transform _id to id for the main vehicle
+    vehicle.id = vehicle._id.toString();
+    delete vehicle._id;
+
+    // Get and transform related data
+    const tasks = await VehicleTask.find({ vehicleId: id }).sort({ createdAt: 1 }).lean();
+    const labels = await VehicleLabelAssignment.find({ vehicleId: id })
+      .populate("vehicleLabelId").lean();
+    const issues = await VehicleIssue.find({ vehicleId: id }).sort({ createdAt: -1 }).lean();
+    const documents = await VehicleDocument.find({ vehicleId: id }).sort({ createdAt: -1 }).lean();
+
+    // Transform _id to id for all related items
+    vehicle.tasks = tasks.map(t => ({ ...t, id: t._id.toString(), _id: undefined }));
+    vehicle.labels = labels.map(l => ({ ...l, id: l._id.toString(), _id: undefined }));
+    vehicle.issues = issues.map(i => ({ ...i, id: i._id.toString(), _id: undefined }));
+    vehicle.documents = documents.map(d => ({ ...d, id: d._id.toString(), _id: undefined }));
+
+    return res.status(200).json(vehicle);
+  }
+
+  if (req.method === "PUT") {
+    // Build update object
+    const updateData = { ...req.body };
+
+    // If status is changing to "sold", set soldAt timestamp
+    if (updateData.status === "sold") {
+      const existingVehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+      if (existingVehicle && existingVehicle.status !== "sold" && !existingVehicle.soldAt) {
+        updateData.soldAt = new Date();
+      }
+    }
+    // If status changes away from "sold", clear soldAt
+    if (updateData.status && updateData.status !== "sold" && updateData.status !== "delivered") {
+      updateData.soldAt = null;
+    }
+
+    // Ensure vehicle belongs to this dealer
+    const vehicle = await Vehicle.findOneAndUpdate(
+      { _id: id, dealerId },
+      updateData,
+      { new: true }
+    ).lean();
+    if (!vehicle) return res.status(404).json({ error: "Not found" });
+    return res.status(200).json(vehicle);
+  }
+
+  if (req.method === "DELETE") {
+    // Ensure vehicle belongs to this dealer
+    const vehicle = await Vehicle.findOne({ _id: id, dealerId });
+    if (!vehicle) return res.status(404).json({ error: "Not found" });
+
+    await VehicleTask.deleteMany({ vehicleId: id });
+    await VehicleLabelAssignment.deleteMany({ vehicleId: id });
+    await VehicleIssue.deleteMany({ vehicleId: id });
+    await VehicleDocument.deleteMany({ vehicleId: id });
+    await Vehicle.findByIdAndDelete(id);
+    return res.status(200).json({ message: "Deleted" });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

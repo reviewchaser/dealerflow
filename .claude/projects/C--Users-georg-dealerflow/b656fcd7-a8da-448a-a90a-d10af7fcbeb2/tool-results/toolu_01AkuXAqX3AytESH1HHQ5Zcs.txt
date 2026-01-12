@@ -1,0 +1,3 @@
+C:\Users\georg\dealerflow\pages\api\auth\[...nextauth].js
+C:\Users\georg\dealerflow\pages\api\auth\register.js
+C:\Users\georg\dealerflow\.next\server\pages\api\auth\[...nextauth].js

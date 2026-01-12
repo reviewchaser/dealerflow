@@ -1,0 +1,404 @@
+  4425→    }
+  4426→    setIsCheckingAppraisal(true);
+  4427→    try {
+  4428→      const res = await fetch(`/api/appraisals/by-vrm?vrm=${encodeURIComponent(vrm)}`);
+  4429→      if (res.ok) {
+  4430→        const appraisal = await res.json();
+  4431→        setMatchedAppraisal(appraisal);
+  4432→        setAppraisalDismissed(false);
+  4433→      } else {
+  4434→        setMatchedAppraisal(null);
+  4435→      }
+  4436→    } catch (error) {
+  4437→      setMatchedAppraisal(null);
+  4438→    } finally {
+  4439→      setIsCheckingAppraisal(false);
+  4440→    }
+  4441→  };
+  4442→
+  4443→  // Import data from matched appraisal
+  4444→  const importFromAppraisal = () => {
+  4445→    if (!matchedAppraisal) return;
+  4446→    setFormData(prev => ({
+  4447→      ...prev,
+  4448→      regCurrent: matchedAppraisal.vehicleReg || prev.regCurrent,
+  4449→      make: matchedAppraisal.vehicleMake || prev.make,
+  4450→      model: matchedAppraisal.vehicleModel || prev.model,
+  4451→      year: matchedAppraisal.vehicleYear || prev.year,
+  4452→      mileageCurrent: matchedAppraisal.mileage || prev.mileageCurrent,
+  4453→      notes: matchedAppraisal.conditionNotes || prev.notes,
+  4454→    }));
+  4455→    setAppraisalDismissed(true);
+  4456→    toast.success("Imported data from appraisal");
+  4457→  };
+  4458→
+  4459→  // Convert appraisal directly to stock (uses the convert API)
+  4460→  const convertAppraisalToStock = async () => {
+  4461→    if (!matchedAppraisal) return;
+  4462→    setIsLoading(true);
+  4463→    try {
+  4464→      // Determine the API endpoint based on appraisal type
+  4465→      const endpoint = matchedAppraisal.type === "customer_px"
+  4466→        ? `/api/customer-px/${matchedAppraisal.id}/convert`
+  4467→        : `/api/appraisals/${matchedAppraisal.id}/convert`;
+  4468→
+  4469→      const res = await fetch(endpoint, {
+  4470→        method: "POST",
+  4471→        headers: { "Content-Type": "application/json" },
+  4472→        body: JSON.stringify({ initialStatus: "in_stock" }),
+  4473→      });
+  4474→
+  4475→      if (!res.ok) {
+  4476→        const error = await res.json();
+  4477→        throw new Error(error.error || "Failed to convert appraisal");
+  4478→      }
+  4479→
+  4480→      toast.success("Appraisal converted to stock!");
+  4481→      onSuccess();
+  4482→    } catch (error) {
+  4483→      toast.error(error.message);
+  4484→    } finally {
+  4485→      setIsLoading(false);
+  4486→    }
+  4487→  };
+  4488→
+  4489→  const handleLookup = async () => {
+  4490→    if (!formData.regCurrent) return toast.error("Enter registration first");
+  4491→    setIsLookingUp(true);
+  4492→    try {
+  4493→      const res = await fetch("/api/dvla-lookup", {
+  4494→        method: "POST",
+  4495→        headers: { "Content-Type": "application/json" },
+  4496→        body: JSON.stringify({ vehicleReg: formData.regCurrent }),
+  4497→      });
+  4498→      const data = await res.json();
+  4499→
+  4500→      // Check for error response
+  4501→      if (!res.ok || data.error) {
+  4502→        toast.error(data.message || data.error || "Vehicle not found");
+  4503→        return;
+  4504→      }
+  4505→
+  4506→      if (data.isDummy) showDummyNotification("DVLA API");
+  4507→
+  4508→      // Update form with DVLA data
+  4509→      setFormData(prev => ({
+  4510→        ...prev,
+  4511→        make: data.make || prev.make,
+  4512→        model: data.model || prev.model,
+  4513→        year: data.yearOfManufacture || data.year || prev.year,
+  4514→        colour: data.colour || prev.colour,
+  4515→        fuelType: data.fuelType || prev.fuelType,
+  4516→        transmission: data.transmission || prev.transmission,
+  4517→        motExpiryDate: data.motExpiryDate || prev.motExpiryDate,
+  4518→        // Engine capacity from DVLA (in cc)
+  4519→        engineCapacity: data.engineCapacity || data.dvlaDetails?.engineCapacity || prev.engineCapacity,
+  4520→        // Store full DVLA details for API persistence
+  4521→        dvlaDetails: data.dvlaDetails || null,
+  4522→        lastDvlaFetchAt: data.lastDvlaFetchAt || null,
+  4523→      }));
+  4524→
+  4525→      toast.success(`Found: ${data.make} ${data.model || ""} (${data.yearOfManufacture || ""})`);
+  4526→    } catch (error) {
+  4527→      toast.error("Lookup failed - please try again");
+  4528→    } finally {
+  4529→      setIsLookingUp(false);
+  4530→    }
+  4531→  };
+  4532→
+  4533→  const uploadFile = async (file) => {
+  4534→    if (!file) return null;
+  4535→    const formData = new FormData();
+  4536→    formData.append("file", file);
+  4537→    const res = await fetch("/api/vehicles/upload", {
+  4538→      method: "POST",
+  4539→      body: formData,
+  4540→    });
+  4541→    if (!res.ok) throw new Error("Upload failed");
+  4542→    const data = await res.json();
+  4543→    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+  4544→    return data.key || data.url;
+  4545→  };
+  4546→
+  4547→  const handleSubmit = async (e) => {
+  4548→    e.preventDefault();
+  4549→    if (!formData.regCurrent || !formData.make || !formData.model) {
+  4550→      return toast.error("Reg, make and model are required");
+  4551→    }
+  4552→    setIsLoading(true);
+  4553→    try {
+  4554→      // Create vehicle first
+  4555→      // If "None" is selected, skip default tasks
+  4556→      // If "default" is selected, create default tasks (don't skip)
+  4557→      const skipDefault = selectedTemplate === "";
+  4558→      const vehicleRes = await fetch("/api/vehicles", {
+  4559→        method: "POST",
+  4560→        headers: { "Content-Type": "application/json" },
+  4561→        body: JSON.stringify({ ...formData, skipDefaultTasks: skipDefault }),
+  4562→      });
+  4563→      if (!vehicleRes.ok) {
+  4564→        const errorData = await vehicleRes.json();
+  4565→        throw new Error(errorData.error || "Failed to create vehicle");
+  4566→      }
+  4567→      const vehicle = await vehicleRes.json();
+  4568→
+  4569→      // Upload documents
+  4570→      if (v5File) {
+  4571→        const v5Url = await uploadFile(v5File);
+  4572→        await fetch(`/api/vehicles/${vehicle.id}`, {
+  4573→          method: "PUT",
+  4574→          headers: { "Content-Type": "application/json" },
+  4575→          body: JSON.stringify({ v5Url }),
+  4576→        });
+  4577→      }
+  4578→
+  4579→      if (serviceHistoryFile) {
+  4580→        const url = await uploadFile(serviceHistoryFile);
+  4581→        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4582→          method: "POST",
+  4583→          headers: { "Content-Type": "application/json" },
+  4584→          body: JSON.stringify({ name: "Service History", type: "service_history", url }),
+  4585→        });
+  4586→      }
+  4587→
+  4588→      if (faultCodesFile) {
+  4589→        const url = await uploadFile(faultCodesFile);
+  4590→        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4591→          method: "POST",
+  4592→          headers: { "Content-Type": "application/json" },
+  4593→          body: JSON.stringify({ name: "Fault Codes", type: "fault_codes", url }),
+  4594→        });
+  4595→      }
+  4596→
+  4597→      // Upload other documents
+  4598→      for (const doc of otherDocuments) {
+  4599→        if (doc.file) {
+  4600→          const url = await uploadFile(doc.file);
+  4601→          await fetch(`/api/vehicles/${vehicle.id}/documents`, {
+  4602→            method: "POST",
+  4603→            headers: { "Content-Type": "application/json" },
+  4604→            body: JSON.stringify({ name: doc.name || "Document", type: "other", url }),
+  4605→          });
+  4606→        }
+  4607→      }
+  4608→
+  4609→      // Create initial issues from the array
+  4610→      for (const issue of initialIssues) {
+  4611→        await fetch(`/api/vehicles/${vehicle.id}/issues`, {
+  4612→          method: "POST",
+  4613→          headers: { "Content-Type": "application/json" },
+  4614→          body: JSON.stringify({
+  4615→            category: issue.category,
+  4616→            subcategory: issue.subcategory,
+  4617→            description: issue.description,
+  4618→            actionNeeded: issue.actionNeeded,
+  4619→            status: issue.status || "Outstanding",
+  4620→            notes: issue.notes,
+  4621→          }),
+  4622→        });
+  4623→      }
+  4624→
+  4625→      // Create prep tasks based on template
+  4626→      // Only create from prepTemplates if a custom template is selected (not "default" which is handled by API)
+  4627→      if (selectedTemplate && selectedTemplate !== "default" && prepTemplates.length > 0) {
+  4628→        for (const template of prepTemplates) {
+  4629→          await fetch(`/api/vehicles/${vehicle.id}/tasks`, {
+  4630→            method: "POST",
+  4631→            headers: { "Content-Type": "application/json" },
+  4632→            body: JSON.stringify({ name: template.name }),
+  4633→          });
+  4634→        }
+  4635→      }
+  4636→
+  4637→      // Link appraisal to vehicle if one was matched
+  4638→      if (matchedAppraisal && matchedAppraisal.id) {
+  4639→        await fetch(`/api/appraisals/${matchedAppraisal.id}`, {
+  4640→          method: "PATCH",
+  4641→          headers: { "Content-Type": "application/json" },
+  4642→          body: JSON.stringify({
+  4643→            decision: "converted",
+  4644→            vehicleId: vehicle.id,
+  4645→            decidedAt: new Date(),
+  4646→          }),
+  4647→        });
+  4648→      }
+  4649→
+  4650→      toast.success("Vehicle added!");
+  4651→      onSuccess();
+  4652→    } catch (error) {
+  4653→      console.error("Error:", error);
+  4654→      toast.error(error.message);
+  4655→    } finally {
+  4656→      setIsLoading(false);
+  4657→    }
+  4658→  };
+  4659→
+  4660→  return (
+  4661→    <div className="modal modal-open">
+  4662→      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+  4663→        <div className="flex items-center justify-between mb-6">
+  4664→          <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
+  4665→          <button
+  4666→            type="button"
+  4667→            onClick={onClose}
+  4668→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  4669→          >
+  4670→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  4671→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  4672→            </svg>
+  4673→          </button>
+  4674→        </div>
+  4675→        <form onSubmit={handleSubmit}>
+  4676→          {/* Vehicle Details Section */}
+  4677→          <div className="mb-6 pb-6 border-b border-slate-100">
+  4678→            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
+  4679→            <div className="relative flex gap-2 mb-4">
+  4680→              <div className="relative flex-1">
+  4681→                <input
+  4682→                  type="text"
+  4683→                  placeholder="Registration"
+  4684→                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg uppercase font-mono text-slate-900 placeholder-slate-400 focus:bg-white focus:border-transparent focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
+  4685→                  value={formData.regCurrent}
+  4686→                  onChange={(e) => {
+  4687→                    const newValue = e.target.value.toUpperCase();
+  4688→                    setFormData({ ...formData, regCurrent: newValue });
+  4689→                    searchAppraisals(newValue);
+  4690→                  }}
+  4691→                  onFocus={() => {
+  4692→                    if (appraisalSuggestions.length > 0) setShowAppraisalDropdown(true);
+  4693→                  }}
+  4694→                  onBlur={(e) => {
+  4695→                    // Delay hiding dropdown so click on suggestion can register
+  4696→                    setTimeout(() => setShowAppraisalDropdown(false), 200);
+  4697→                    checkForAppraisal(e.target.value);
+  4698→                  }}
+  4699→                />
+  4700→                {isSearchingAppraisals && (
+  4701→                  <span className="absolute right-3 top-1/2 -translate-y-1/2 loading loading-spinner loading-sm"></span>
+  4702→                )}
+  4703→                {/* Appraisal Suggestions Dropdown */}
+  4704→                {showAppraisalDropdown && appraisalSuggestions.length > 0 && (
+  4705→                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+  4706→                    <div className="px-3 py-2 text-xs text-base-content/60 border-b border-base-200 bg-base-200/50">
+  4707→                      Unconverted Appraisals
+  4708→                    </div>
+  4709→                    {appraisalSuggestions.map((appraisal) => (
+  4710→                      <button
+  4711→                        key={appraisal.id}
+  4712→                        type="button"
+  4713→                        className="w-full px-3 py-2 text-left hover:bg-base-200 border-b border-base-200 last:border-b-0 flex items-center gap-3"
+  4714→                        onClick={() => handleSelectAppraisalSuggestion(appraisal)}
+  4715→                      >
+  4716→                        <div className="flex-1">
+  4717→                          <div className="font-mono font-bold">{appraisal.vehicleReg}</div>
+  4718→                          <div className="text-sm text-base-content/70">
+  4719→                            {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
+  4720→                          </div>
+  4721→                        </div>
+  4722→                        <span className={`badge badge-sm ${appraisal.type === "dealer" ? "badge-primary" : "badge-secondary"}`}>
+  4723→                          {appraisal.type === "dealer" ? "Dealer" : "Customer PX"}
+  4724→                        </span>
+  4725→                      </button>
+  4726→                    ))}
+  4727→                  </div>
+  4728→                )}
+  4729→              </div>
+  4730→              <button
+  4731→                type="button"
+  4732→                className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
+  4733→                onClick={handleLookup}
+  4734→                disabled={isLookingUp}
+  4735→              >
+  4736→                {isLookingUp ? <span className="loading loading-spinner loading-sm"></span> : <><span>🔍</span><span>Lookup</span></>}
+  4737→              </button>
+  4738→            </div>
+  4739→
+  4740→            {/* Appraisal Match Alert */}
+  4741→            {isCheckingAppraisal && (
+  4742→              <div className="alert mb-4">
+  4743→                <span className="loading loading-spinner loading-sm"></span>
+  4744→                <span>Checking for existing appraisals...</span>
+  4745→              </div>
+  4746→            )}
+  4747→            {matchedAppraisal && !appraisalDismissed && (
+  4748→              <div className="alert alert-success mb-4">
+  4749→                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  4750→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  4751→                </svg>
+  4752→                <div className="flex-1">
+  4753→                  <p className="font-semibold">
+  4754→                    {matchedAppraisal.type === "customer_px" ? "Customer PX" : "Dealer"} Appraisal Found: {matchedAppraisal.vehicleReg}
+  4755→                  </p>
+  4756→                  <p className="text-sm opacity-80">
+  4757→                    {matchedAppraisal.vehicleMake} {matchedAppraisal.vehicleModel} {matchedAppraisal.vehicleYear ? `(${matchedAppraisal.vehicleYear})` : ""}
+  4758→                    {matchedAppraisal.mileage ? ` • ${matchedAppraisal.mileage.toLocaleString()} miles` : ""}
+  4759→                  </p>
+  4760→                </div>
+  4761→                <div className="flex flex-col sm:flex-row gap-2">
+  4762→                  <button type="button" className="btn btn-sm btn-primary" onClick={convertAppraisalToStock} disabled={isLoading}>
+  4763→                    {isLoading ? <span className="loading loading-spinner loading-sm"></span> : "Convert to Stock"}
+  4764→                  </button>
+  4765→                  <button type="button" className="btn btn-sm btn-ghost" onClick={importFromAppraisal}>
+  4766→                    Import Data Only
+  4767→                  </button>
+  4768→                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAppraisalDismissed(true)}>
+  4769→                    Dismiss
+  4770→                  </button>
+  4771→                </div>
+  4772→              </div>
+  4773→            )}
+  4774→
+  4775→            <div className="grid grid-cols-2 gap-4">
+  4776→              <div className="form-control">
+  4777→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Make *</label>
+  4778→                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.make}
+  4779→                  onChange={(e) => setFormData({ ...formData, make: e.target.value })} required />
+  4780→              </div>
+  4781→              <div className="form-control">
+  4782→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Model *</label>
+  4783→                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.model}
+  4784→                  onChange={(e) => setFormData({ ...formData, model: e.target.value })} required />
+  4785→              </div>
+  4786→              <div className="form-control">
+  4787→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Year</label>
+  4788→                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.year}
+  4789→                  onChange={(e) => setFormData({ ...formData, year: e.target.value })} />
+  4790→              </div>
+  4791→              <div className="form-control">
+  4792→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mileage</label>
+  4793→                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.mileageCurrent}
+  4794→                  onChange={(e) => setFormData({ ...formData, mileageCurrent: e.target.value })} />
+  4795→              </div>
+  4796→              <div className="form-control">
+  4797→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Colour</label>
+  4798→                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.colour}
+  4799→                  onChange={(e) => setFormData({ ...formData, colour: e.target.value })} />
+  4800→              </div>
+  4801→              <div className="form-control">
+  4802→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fuel Type</label>
+  4803→                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType?.toUpperCase() || ""}
+  4804→                  onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}>
+  4805→                  <option value="">Select...</option>
+  4806→                  <option value="PETROL">Petrol</option>
+  4807→                  <option value="DIESEL">Diesel</option>
+  4808→                  <option value="HYBRID">Hybrid</option>
+  4809→                  <option value="ELECTRIC">Electric</option>
+  4810→                  <option value="LPG">LPG</option>
+  4811→                  <option value="CNG">CNG</option>
+  4812→                </select>
+  4813→              </div>
+  4814→              <div className="form-control">
+  4815→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MOT Expiry Date</label>
+  4816→                <input
+  4817→                  type="date"
+  4818→                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
+  4819→                  value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
+  4820→                  onChange={(e) => setFormData({ ...formData, motExpiryDate: e.target.value })}
+  4821→                />
+  4822→                <p className="text-xs text-slate-400 mt-1.5">
+  4823→                  {formData.motExpiryDate ? "" : "Auto-filled by VRM lookup or enter manually"}
+  4824→                </p>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

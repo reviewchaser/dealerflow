@@ -1,0 +1,73 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\[id]\submissions.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import FormSubmission from "@/models/FormSubmission";
+     4→import Form from "@/models/Form";
+     5→import { withDealerContext } from "@/libs/authContext";
+     6→
+     7→/**
+     8→ * Vehicle Submissions API
+     9→ * GET /api/vehicles/[id]/submissions
+    10→ *
+    11→ * Returns all form submissions linked to a vehicle.
+    12→ * Links can be:
+    13→ * - Direct linkedVehicleId reference
+    14→ * - VRM match in rawAnswers.vrm field
+    15→ */
+    16→async function handler(req, res, ctx) {
+    17→  await connectMongo();
+    18→  const { dealerId } = ctx;
+    19→  const { id } = req.query;
+    20→
+    21→  if (req.method !== "GET") {
+    22→    return res.status(405).json({ error: "Method not allowed" });
+    23→  }
+    24→
+    25→  // Validate ID format
+    26→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    27→    return res.status(400).json({ error: "Invalid vehicle ID" });
+    28→  }
+    29→
+    30→  // Verify vehicle belongs to dealer
+    31→  const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    32→  if (!vehicle) {
+    33→    return res.status(404).json({ error: "Vehicle not found" });
+    34→  }
+    35→
+    36→  // Normalize VRM for matching (uppercase, no spaces)
+    37→  const normalizedVrm = vehicle.regCurrent?.toUpperCase().replace(/\s/g, "");
+    38→
+    39→  // Fetch submissions that are linked to this vehicle
+    40→  // They could be linked via linkedVehicleId or via rawAnswers.vrm matching
+    41→  const submissions = await FormSubmission.find({
+    42→    dealerId,
+    43→    $or: [
+    44→      { linkedVehicleId: id },
+    45→      ...(normalizedVrm ? [
+    46→        { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
+    47→        { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm.replace(/(.{2,4})$/, " $1")}$`, "i") } }, // With space variant
+    48→      ] : []),
+    49→    ],
+    50→    status: { $ne: "DELETED" },
+    51→  })
+    52→    .populate("formId", "name type")
+    53→    .sort({ createdAt: -1 })
+    54→    .lean();
+    55→
+    56→  // Format response with form type from populated formId
+    57→  const formattedSubmissions = submissions.map((sub) => ({
+    58→    id: sub._id.toString(),
+    59→    formType: sub.formId?.type || null,
+    60→    formName: sub.formId?.name || null,
+    61→    status: sub.status,
+    62→    createdAt: sub.createdAt,
+    63→    submittedAt: sub.submittedAt,
+    64→  }));
+    65→
+    66→  return res.status(200).json({
+    67→    submissions: formattedSubmissions,
+    68→  });
+    69→}
+    70→
+    71→export default withDealerContext(handler);
+    72→

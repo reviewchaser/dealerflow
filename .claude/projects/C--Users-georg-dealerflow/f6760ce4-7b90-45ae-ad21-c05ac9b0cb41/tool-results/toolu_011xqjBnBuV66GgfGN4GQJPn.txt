@@ -1,0 +1,19 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\px\[id].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    41→  const [issues, setIssues] = useState([]);
+    42→  const [isLoading, setIsLoading] = useState(true);
+    43→  const [isConverting, setIsConverting] = useState(false);
+    44→
+    45→  // Email share modal state
+    46→  const [showEmailModal, setShowEmailModal] = useState(false);
+    47→  const [emailTo, setEmailTo] = useState("");
+    48→  const [emailMessage, setEmailMessage] = useState("");
+    49→  const [includeValuation, setIncludeValuation] = useState(true);
+    50→  const [isSendingEmail, setIsSendingEmail] = useState(false);
+    51→
+    52→  // Issue modal state
+    53→  const [showIssueModal, setShowIssueModal] = useState(false);
+    54→  const [issueForm, setIssueForm] = useState({
+    55→    category: "mechanical",
+    56→    subcategory: "Engine",
+    57→    description: "",
+    58→    actionNeeded: "",

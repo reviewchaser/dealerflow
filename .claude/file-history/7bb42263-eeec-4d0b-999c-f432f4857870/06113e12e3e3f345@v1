@@ -1,0 +1,70 @@
+import "@/styles/globals.css";
+import { useEffect } from "react";
+import { Toaster } from "react-hot-toast";
+import { SessionProvider } from "next-auth/react";
+
+export default function App({ Component, pageProps: { session, ...pageProps } }) {
+  // Apply saved theme on initial load
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme") || "system";
+    const root = document.documentElement;
+
+    if (savedTheme === "system") {
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+      root.classList.toggle("dark", prefersDark);
+    } else {
+      root.setAttribute("data-theme", savedTheme);
+      root.classList.toggle("dark", savedTheme === "dark");
+    }
+
+    // Listen for system theme changes
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (e) => {
+      if (localStorage.getItem("theme") === "system") {
+        root.setAttribute("data-theme", e.matches ? "dark" : "light");
+        root.classList.toggle("dark", e.matches);
+      }
+    };
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
+
+  return (
+    <SessionProvider session={session}>
+      <Toaster
+        position="bottom-center"
+        containerStyle={{
+          bottom: 'calc(80px + env(safe-area-inset-bottom, 0px))', // Above mobile nav
+          zIndex: 9999,
+        }}
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1e293b', // Solid slate-800
+            color: '#f8fafc', // slate-50
+            borderRadius: '0.75rem',
+            padding: '12px 16px',
+            fontSize: '14px',
+            fontWeight: '500',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.15)',
+            maxWidth: '90vw',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981', // emerald-500
+              secondary: '#f8fafc',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444', // red-500
+              secondary: '#f8fafc',
+            },
+          },
+        }}
+      />
+      <Component {...pageProps} />
+    </SessionProvider>
+  );
+}

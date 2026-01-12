@@ -1,0 +1,21 @@
+The file C:\Users\georg\dealerflow\pages\dashboard.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   421→                  </div>
+   422→                  <span className="font-semibold text-slate-700">View Submissions</span>
+   423→                </Link>
+   424→
+   425→                {/* Invite Team Card - Brand Style */}
+   426→                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-[#0066CC]/5 to-[#14B8A6]/5 border-2 border-[#0066CC]/20 rounded-2xl shadow-sm hover:shadow-md hover:border-[#0066CC]/40 hover:scale-[1.02] transition-all">
+   427→                  <div className="bg-gradient-to-br from-[#0066CC] to-[#14B8A6] text-white p-2 rounded-lg shadow">
+   428→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   429→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+   430→                    </svg>
+   431→                  </div>
+   432→                  <div>
+   433→                    <span className="font-semibold text-[#0066CC] block">Invite Team</span>
+   434→                    <span className="text-xs text-[#0066CC]/70">Add staff members</span>
+   435→                  </div>
+   436→                </Link>
+   437→              </div>
+   438→            </div>
+   439→          </div>
+   440→

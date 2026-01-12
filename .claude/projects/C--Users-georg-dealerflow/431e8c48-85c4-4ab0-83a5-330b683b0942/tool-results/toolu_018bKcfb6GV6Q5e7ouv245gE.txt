@@ -1,0 +1,28 @@
+The file C:\Users\georg\dealerflow\libs\openai.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     9→
+    10→// Singleton client - created once and reused
+    11→let _client = null;
+    12→
+    13→/**
+    14→ * Get or create the OpenAI client singleton
+    15→ * Always call this function - don't use a top-level export
+    16→ * because env vars may not be available at module load time.
+    17→ * @returns {OpenAI | null}
+    18→ */
+    19→export function getOpenAIClient() {
+    20→  const apiKey = process.env.OPENAI_API_KEY;
+    21→  if (!apiKey) {
+    22→    console.warn("[OpenAI] OPENAI_API_KEY not set - AI features disabled");
+    23→    return null;
+    24→  }
+    25→  if (!_client) {
+    26→    _client = new OpenAI({
+    27→      apiKey: apiKey,
+    28→    });
+    29→  }
+    30→  return _client;
+    31→}
+    32→
+    33→/**
+    34→ * Get the OpenAI API key from environment
+    35→ * @returns {{ apiKey: string | null, isConfigured: boolean }}

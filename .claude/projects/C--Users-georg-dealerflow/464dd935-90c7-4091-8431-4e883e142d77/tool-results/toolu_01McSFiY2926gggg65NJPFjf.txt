@@ -1,0 +1,52 @@
+C:\Users\georg\dealerflow\pages\appraisals\new.js:106:          case "NOT_CONFIGURED":
+C:\Users\georg\dealerflow\pages\appraisals\new.js:109:            toast.error("DVLA integration not configured");
+C:\Users\georg\dealerflow\pages\appraisals\new.js:694:                      ⚠️ Demo mode – AI not configured
+C:\Users\georg\dealerflow\pages\sales\index.js:103:    toast("📧 Review request would be sent here - Email service not configured");
+C:\Users\georg\dealerflow\pages\settings.js:709:                  <span className="badge badge-warning">Not configured</span>
+C:\Users\georg\dealerflow\pages\settings.js:719:                  <span className="badge badge-warning">Not configured</span>
+C:\Users\georg\dealerflow\pages\settings.js:729:                  <span className="badge badge-warning">Not configured</span>
+C:\Users\georg\dealerflow\pages\settings.js:739:                  <span className="badge badge-warning">Not configured</span>
+C:\Users\georg\dealerflow\pages\api\ai-hints.js:65:      isDummy: !process.env.OPENAI_API_KEY,
+C:\Users\georg\dealerflow\pages\vehicles\new.js:136:          case "NOT_CONFIGURED":
+C:\Users\georg\dealerflow\pages\vehicles\new.js:137:            toast.error("DVLA integration not configured");
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:604:                        Demo mode - AI not configured
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:91:      message: result.error || "AI not configured - showing placeholder",
+C:\Users\georg\dealerflow\pages\api\ai\warranty-summary.js:12:  if (!process.env.OPENAI_API_KEY) {
+C:\Users\georg\dealerflow\pages\api\ai\warranty-summary.js:14:      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+C:\Users\georg\dealerflow\pages\api\ai\health.js:15:  const apiKey = process.env.OPENAI_API_KEY;
+C:\Users\georg\dealerflow\pages\api\ai\health.js:20:      error: "missing OPENAI_API_KEY",
+C:\Users\georg\dealerflow\pages\api\ai\health.js:21:      message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
+C:\Users\georg\dealerflow\pages\api\ai\health.js:29:      error: "invalid OPENAI_API_KEY format",
+C:\Users\georg\dealerflow\pages\api\ai\health.js:30:      message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:86:      message: result.error || "AI not configured - showing placeholder",
+C:\Users\georg\dealerflow\pages\api\ai\case-review.js:23:  if (!process.env.OPENAI_API_KEY) {
+C:\Users\georg\dealerflow\pages\api\ai\case-review.js:25:      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+C:\Users\georg\dealerflow\pages\api\auth\register.js:43:        : "Database not configured"
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:39:      console.warn("[DVLA] API key not configured - returning dummy data");
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:44:      error: "DVLA integration not configured",
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:45:      errorCode: "NOT_CONFIGURED",
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:91:          error: "DVLA integration not configured",
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:99:          error: "DVLA integration not configured",
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:174: * Generate dummy data for development when API key is not configured
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:238:    message: "DVLA API not configured - showing demo data",
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:13:  if (!process.env.OPENAI_API_KEY) {
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:15:      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:93:    throw new Error("S3 not configured");
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:132:        error: "File storage not configured. Please configure S3.",
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:133:        code: "STORAGE_NOT_CONFIGURED",
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:277:  if (dealer.logoKey && isS3Configured()) {
+C:\Users\georg\dealerflow\pages\api\mot.js:133:    // Add API key header if configured
+C:\Users\georg\dealerflow\pages\api\photos\signed-url.js:11: * IMPORTANT: In local dev without S3 configured, returns 400 with code "S3_NOT_CONFIGURED"
+C:\Users\georg\dealerflow\pages\api\photos\signed-url.js:36:  // Fast check: If S3 is not configured, return immediately
+C:\Users\georg\dealerflow\pages\api\photos\signed-url.js:40:      error: "S3 not configured",
+C:\Users\georg\dealerflow\pages\api\photos\signed-url.js:41:      code: "S3_NOT_CONFIGURED",
+C:\Users\georg\dealerflow\pages\api\health\openai.js:6: * Returns whether the OpenAI API key is configured.
+C:\Users\georg\dealerflow\pages\api\health\openai.js:15:  const apiKey = process.env.OPENAI_API_KEY;
+C:\Users\georg\dealerflow\pages\api\health\openai.js:21:    keyPrefix: isConfigured ? apiKey.substring(0, 7) + "..." : null,
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js:104:    throw new Error("S3 not configured");
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:90:      console.warn("[DVLA] API key not configured - returning dummy data");
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:99:      code: "NOT_CONFIGURED",
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:100:      message: "DVLA integration not configured",
+C:\Users\georg\dealerflow\pages\api\forms\submissions\[id].js:65:        // Auth not configured, continue without session
+C:\Users\georg\dealerflow\pages\api\forms\submissions\[id].js:127:        // Auth not configured, continue without session
+C:\Users\georg\dealerflow\pages\settings\team.js:260:          {/* Email Not Configured Banner */}

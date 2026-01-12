@@ -1,0 +1,213 @@
+/**
+ * Tenant Dashboard - /app/[dealerSlug]/dashboard
+ */
+
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+import StatsCard from "@/components/StatsCard";
+
+const FORM_TYPE_LABELS = {
+  PDI: "PDI",
+  TEST_DRIVE: "Test Drive",
+  WARRANTY_CLAIM: "Warranty Claim",
+  COURTESY_OUT: "Courtesy Out",
+  COURTESY_IN: "Courtesy In",
+  SERVICE_RECEIPT: "Service",
+  REVIEW_FEEDBACK: "Feedback",
+  OTHER: "Other",
+};
+
+const NEEDS_ATTENTION_ITEMS = [
+  { key: "soldInProgress", label: "Sold in progress", path: "stock", color: "warning", description: "vehicles awaiting delivery" },
+  { key: "warrantyNotBookedIn", label: "Warranty not booked in", path: "warranty", color: "danger", description: "cases need scheduling" },
+  { key: "eventsToday", label: "Events today", path: "calendar", color: "info", description: "on your calendar" },
+  { key: "courtesyDueBack", label: "Courtesy due back", path: "warranty", color: "warning", description: "vehicles due today or overdue" },
+  { key: "motExpiringSoon", label: "MOT expiring soon", path: "stock", color: "danger", description: "within 14 days" }
+];
+
+const ATTENTION_COLORS = {
+  warning: { bg: "bg-gradient-to-br from-amber-50 to-orange-50", border: "border-amber-200", icon: "bg-amber-100 text-amber-600", badge: "bg-amber-500 text-white", text: "text-amber-900" },
+  danger: { bg: "bg-gradient-to-br from-red-50 to-rose-50", border: "border-red-200", icon: "bg-red-100 text-red-600", badge: "bg-red-500 text-white", text: "text-red-900" },
+  info: { bg: "bg-gradient-to-br from-blue-50 to-cyan-50", border: "border-blue-200", icon: "bg-blue-100 text-blue-600", badge: "bg-blue-500 text-white", text: "text-blue-900" }
+};
+
+const defaultStats = {
+  appraisals: { total: 0, pending: 0 },
+  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+  reviews: { count: 0, avgRating: "N/A" },
+  recent: { appraisals: [], vehicles: [] },
+};
+
+// Inner component that uses context
+function DashboardContent({ dealer }) {
+  const { tenantPath, fetchWithTenant } = useDealer();
+  const [stats, setStats] = useState(null);
+  const [forms, setForms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWithTenant("/api/dashboard/stats")
+      .then(res => res.ok ? res.json() : defaultStats)
+      .then(data => {
+        setStats(data || defaultStats);
+        setForms(Array.isArray(data?.formsList) ? data.formsList : []);
+      })
+      .catch(() => setStats(defaultStats))
+      .finally(() => setIsLoading(false));
+  }, [fetchWithTenant]);
+
+  const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item => stats?.needsAttention?.[item.key] > 0);
+  const hasTodayData = stats?.today && (stats.today.events > 0 || stats.today.deliveries > 0 || stats.today.testDrives > 0 || stats.today.courtesyDueBack > 0);
+
+  return (
+    <>
+      <Head><title>Dashboard | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      {/* Hero Header */}
+      <div className="relative -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 pt-8 pb-10 mb-8 hero-gradient border-b border-slate-200/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+              </h1>
+              <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+            </div>
+            <div className="hidden md:flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-bold text-slate-800">{new Date().toLocaleDateString('en-GB', { weekday: 'long' })}</p>
+                <p className="text-xs text-slate-500">{new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+            </div>
+          </div>
+
+          {hasTodayData && (
+            <div className="mt-6 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today</span>
+              <div className="h-4 w-px bg-slate-300" />
+              <div className="flex items-center gap-2 flex-wrap">
+                {stats.today.events > 0 && (
+                  <Link href={tenantPath("calendar")} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#0066CC]/20 text-[#0066CC] rounded-xl text-sm font-semibold hover:bg-[#0066CC]/5 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066CC] animate-pulse" />
+                    {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
+                  </Link>
+                )}
+                {stats.today.deliveries > 0 && (
+                  <Link href={tenantPath("calendar")} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl text-sm font-semibold hover:bg-emerald-50 transition-all shadow-sm">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-8">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <StatsCard title="Pending Appraisals" value={stats?.appraisals?.pending ?? 0} icon="clipboard" color="primary" variant="gradient" />
+            <StatsCard title="Total Stock" value={(stats?.vehicles?.inStock ?? 0) + (stats?.vehicles?.inPrep ?? 0)} icon="truck" color="secondary" variant="gradient" />
+            <StatsCard title="Vehicles Sold" value={stats?.vehicles?.live ?? 0} icon="check" color="success" variant="outlined" />
+            <StatsCard title="Avg Rating" value={stats?.reviews?.avgRating ?? "N/A"} icon="star" color="warning" variant="outlined" />
+          </div>
+
+          {/* Needs Attention + Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+                <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-red-50/50 to-amber-50/50">
+                  <h2 className="text-lg font-bold text-slate-900">Needs Attention</h2>
+                </div>
+                {activeNeedsAttention.length > 0 ? (
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {activeNeedsAttention.map((item) => {
+                      const colors = ATTENTION_COLORS[item.color];
+                      return (
+                        <Link key={item.key} href={tenantPath(item.path)} className={`${colors.bg} ${colors.border} border rounded-xl p-4 hover:shadow-md transition-all group`}>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`${colors.badge} px-2 py-0.5 rounded-full text-xs font-bold`}>
+                                  {stats?.needsAttention?.[item.key] ?? 0}
+                                </span>
+                                <span className={`text-sm font-bold ${colors.text}`}>{item.label}</span>
+                              </div>
+                              <p className="text-xs text-slate-600">{item.description}</p>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-8 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-emerald-700">All clear!</p>
+                      <p className="text-sm text-emerald-600/70 mt-1">Nothing needs attention right now</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-5">Quick Actions</h2>
+              <div className="space-y-3">
+                <Link href={tenantPath("stock")} className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">Add Vehicle</span>
+                    <span className="text-xs text-slate-500">Add to stock</span>
+                  </div>
+                </Link>
+                <Link href={tenantPath("appraisals/new")} className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">New Appraisal</span>
+                    <span className="text-xs text-slate-500">Value a vehicle</span>
+                  </div>
+                </Link>
+                <Link href={tenantPath("submissions")} className="action-card">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-bold text-slate-800 block">View Submissions</span>
+                    <span className="text-xs text-slate-500">Review form data</span>
+                  </div>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function TenantDashboard({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <DashboardContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

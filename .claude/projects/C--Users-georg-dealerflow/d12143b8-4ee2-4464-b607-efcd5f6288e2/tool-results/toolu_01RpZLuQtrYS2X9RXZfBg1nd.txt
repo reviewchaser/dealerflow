@@ -1,0 +1,23 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1749→                  placeholder="Search VRM..."
+  1750→                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
+  1751→                  value={vrmSearch}
+  1752→                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+  1753→                  onFocus={() => {
+  1754→                    if (vrmSearch.length >= 2) {
+  1755→                      setShowVrmDropdown(true);
+  1756→                      if (vrmSearchResults.length === 0) {
+  1757→                        // Try client-side search first
+  1758→                        if (vehicles.length > 0) {
+  1759→                          const clientResults = searchVehiclesClientSide(vrmSearch);
+  1760→                          setVrmSearchResults(clientResults);
+  1761→                        } else {
+  1762→                          searchVehiclesApi(vrmSearch);
+  1763→                        }
+  1764→                      }
+  1765→                    }
+  1766→                  }}
+  1767→                  onKeyDown={(e) => {
+  1768→                    if (e.key === "Escape") {
+  1769→                      setShowVrmDropdown(false);
+  1770→                      e.target.blur();

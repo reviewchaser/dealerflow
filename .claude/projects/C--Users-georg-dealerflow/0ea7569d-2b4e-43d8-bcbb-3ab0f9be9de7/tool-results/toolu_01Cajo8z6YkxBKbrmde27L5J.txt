@@ -1,0 +1,204 @@
+  3250→                              }}
+  3251→                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors text-left text-[#0066CC]"
+  3252→                            >
+  3253→                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3254→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  3255→                              </svg>
+  3256→                              <span className="text-sm font-medium">Add new label</span>
+  3257→                            </button>
+  3258→                          </div>
+  3259→                        </div>
+  3260→                      )}
+  3261→                    </div>
+  3262→
+  3263→                    {availableLabels.length === 0 && (
+  3264→                      <button
+  3265→                        type="button"
+  3266→                        onClick={() => setShowAddLabelModal(true)}
+  3267→                        className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-slate-300 rounded-lg text-sm text-slate-500 hover:border-slate-400 hover:text-slate-600 transition-colors"
+  3268→                      >
+  3269→                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  3270→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  3271→                        </svg>
+  3272→                        Create your first label
+  3273→                      </button>
+  3274→                    )}
+  3275→                  </div>
+  3276→
+  3277→                  {/* Status & Location Section - Now below Identity */}
+  3278→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3279→                    <h3 className="text-sm font-semibold text-slate-900 mb-4">Status & Location</h3>
+  3280→                    <div className="grid grid-cols-2 gap-4">
+  3281→                      <div className="form-control">
+  3282→                        <label className="text-xs font-medium text-slate-600 mb-1 block">Vehicle Type</label>
+  3283→                        <select
+  3284→                          className="select select-sm select-bordered w-full"
+  3285→                          value={selectedVehicle.type || "STOCK"}
+  3286→                          onChange={async (e) => {
+  3287→                            const newType = e.target.value;
+  3288→                            const updates = { type: newType };
+  3289→                            // Clear saleType if not Stock
+  3290→                            if (newType !== "STOCK") {
+  3291→                              updates.saleType = null;
+  3292→                            }
+  3293→                            setSelectedVehicle({ ...selectedVehicle, ...updates });
+  3294→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3295→                              method: "PUT",
+  3296→                              headers: { "Content-Type": "application/json" },
+  3297→                              body: JSON.stringify(updates),
+  3298→                            });
+  3299→                            fetchVehicles();
+  3300→                            toast.success("Vehicle type updated");
+  3301→                          }}
+  3302→                        >
+  3303→                          <option value="STOCK">Stock</option>
+  3304→                          <option value="COURTESY">Courtesy</option>
+  3305→                          <option value="FLEET_OTHER">Fleet</option>
+  3306→                        </select>
+  3307→                      </div>
+  3308→                      {/* Sale Type - Only show for Stock vehicles */}
+  3309→                      {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
+  3310→                        <div className="form-control">
+  3311→                          <label className="text-xs font-medium text-slate-600 mb-1 block">Sale Type</label>
+  3312→                          <select
+  3313→                            className="select select-sm select-bordered w-full"
+  3314→                            value={selectedVehicle.saleType || "RETAIL"}
+  3315→                            onChange={async (e) => {
+  3316→                              const newSaleType = e.target.value;
+  3317→                              setSelectedVehicle({ ...selectedVehicle, saleType: newSaleType });
+  3318→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3319→                                method: "PUT",
+  3320→                                headers: { "Content-Type": "application/json" },
+  3321→                                body: JSON.stringify({ saleType: newSaleType }),
+  3322→                              });
+  3323→                              fetchVehicles();
+  3324→                              toast.success("Sale type updated");
+  3325→                            }}
+  3326→                          >
+  3327→                            <option value="RETAIL">Retail</option>
+  3328→                            <option value="TRADE">Trade</option>
+  3329→                          </select>
+  3330→                        </div>
+  3331→                      )}
+  3332→                      <div className="form-control">
+  3333→                        <label className="text-xs font-medium text-slate-600 mb-1 block">Status</label>
+  3334→                        <select
+  3335→                          className="select select-sm select-bordered w-full"
+  3336→                          value={selectedVehicle.status || "in_stock"}
+  3337→                          onChange={async (e) => {
+  3338→                            const newStatus = e.target.value;
+  3339→                            setSelectedVehicle({ ...selectedVehicle, status: newStatus });
+  3340→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3341→                              method: "PUT",
+  3342→                              headers: { "Content-Type": "application/json" },
+  3343→                              body: JSON.stringify({ status: newStatus }),
+  3344→                            });
+  3345→                            fetchVehicles();
+  3346→                            toast.success(`Status updated to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`);
+  3347→                          }}
+  3348→                        >
+  3349→                          {COLUMNS.map(col => (
+  3350→                            <option key={col.key} value={col.key}>{col.label}</option>
+  3351→                          ))}
+  3352→                        </select>
+  3353→                      </div>
+  3354→                      <div className="form-control">
+  3355→                        <label className="text-xs font-medium text-slate-600 mb-1 block">Location</label>
+  3356→                        <select
+  3357→                          className="select select-sm select-bordered w-full"
+  3358→                          value={selectedVehicle.locationId?.id || selectedVehicle.locationId?._id || selectedVehicle.locationId || ""}
+  3359→                          onChange={async (e) => {
+  3360→                            const value = e.target.value;
+  3361→                            if (value === "__add_new__") {
+  3362→                              setShowAddLocationModal(true);
+  3363→                              return;
+  3364→                            }
+  3365→                            const locationId = value || null;
+  3366→                            setSelectedVehicle({ ...selectedVehicle, locationId: locationId });
+  3367→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3368→                              method: "PUT",
+  3369→                              headers: { "Content-Type": "application/json" },
+  3370→                              body: JSON.stringify({ locationId }),
+  3371→                            });
+  3372→                            const updated = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+  3373→                            setSelectedVehicle(updated);
+  3374→                            fetchVehicles();
+  3375→                            toast.success("Location updated");
+  3376→                          }}
+  3377→                        >
+  3378→                          <option value="">On Site</option>
+  3379→                          {locations.map(loc => (
+  3380→                            <option key={loc.id || loc._id} value={loc.id || loc._id}>{loc.name}</option>
+  3381→                          ))}
+  3382→                          <option value="__add_new__">+ Add Location</option>
+  3383→                        </select>
+  3384→                      </div>
+  3385→                    </div>
+  3386→                  </div>
+  3387→
+  3388→                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3389→                      <h3 className="text-sm font-semibold text-slate-900 mb-4">Specs</h3>
+  3390→                      <div className="space-y-3">
+  3391→                        <div className="grid grid-cols-2 gap-3">
+  3392→                          <div className="form-control">
+  3393→                            <label className="label label-text text-xs">Make</label>
+  3394→                            <input
+  3395→                              type="text"
+  3396→                              className="input input-sm input-bordered"
+  3397→                              value={selectedVehicle.make || ""}
+  3398→                              onChange={(e) => setSelectedVehicle({ ...selectedVehicle, make: e.target.value })}
+  3399→                              onBlur={async () => {
+  3400→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3401→                                  method: "PUT",
+  3402→                                  headers: { "Content-Type": "application/json" },
+  3403→                                  body: JSON.stringify({ make: selectedVehicle.make }),
+  3404→                                });
+  3405→                                fetchVehicles();
+  3406→                              }}
+  3407→                            />
+  3408→                          </div>
+  3409→
+  3410→                          <div className="form-control">
+  3411→                            <label className="label label-text text-xs">Model</label>
+  3412→                            <input
+  3413→                              type="text"
+  3414→                              className="input input-sm input-bordered"
+  3415→                              value={selectedVehicle.model || ""}
+  3416→                              onChange={(e) => setSelectedVehicle({ ...selectedVehicle, model: e.target.value })}
+  3417→                              onBlur={async () => {
+  3418→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3419→                                  method: "PUT",
+  3420→                                  headers: { "Content-Type": "application/json" },
+  3421→                                  body: JSON.stringify({ model: selectedVehicle.model }),
+  3422→                                });
+  3423→                                fetchVehicles();
+  3424→                              }}
+  3425→                            />
+  3426→                          </div>
+  3427→                        </div>
+  3428→
+  3429→                        <div className="grid grid-cols-2 gap-3">
+  3430→                          <div className="form-control">
+  3431→                            <label className="label label-text text-xs">Year</label>
+  3432→                            <input
+  3433→                              type="number"
+  3434→                              className="input input-sm input-bordered"
+  3435→                              value={selectedVehicle.year || ""}
+  3436→                              onChange={(e) => setSelectedVehicle({ ...selectedVehicle, year: e.target.value })}
+  3437→                              onBlur={async () => {
+  3438→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3439→                                  method: "PUT",
+  3440→                                  headers: { "Content-Type": "application/json" },
+  3441→                                  body: JSON.stringify({ year: selectedVehicle.year }),
+  3442→                                });
+  3443→                                fetchVehicles();
+  3444→                              }}
+  3445→                            />
+  3446→                          </div>
+  3447→
+  3448→                          <div className="form-control">
+  3449→                            <label className="label label-text text-xs">Mileage</label>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

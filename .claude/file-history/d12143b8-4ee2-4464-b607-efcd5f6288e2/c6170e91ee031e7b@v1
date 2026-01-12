@@ -1,0 +1,1104 @@
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "react-hot-toast";
+import VehicleImageUploader from "@/components/VehicleImageUploader";
+import VehicleImageGallery from "@/components/VehicleImageGallery";
+
+// Helper to get viewable URL (handles signed URL fallback for private buckets)
+const getViewableUrl = async (urlOrKey) => {
+  if (!urlOrKey) return null;
+
+  // If it's a data URL or local path, return as-is
+  if (urlOrKey.startsWith("data:") || urlOrKey.startsWith("/")) {
+    return urlOrKey;
+  }
+
+  // If it looks like an S3 key (no protocol), get signed URL
+  if (!urlOrKey.startsWith("http")) {
+    try {
+      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(urlOrKey)}`);
+      if (res.ok) {
+        const { signedUrl } = await res.json();
+        return signedUrl;
+      }
+    } catch (err) {
+      console.error("[VehicleDrawer] Failed to get signed URL:", err);
+    }
+  }
+
+  // Return the original URL (may be public or already signed)
+  return urlOrKey;
+};
+
+// Helper to open file with signed URL fallback
+const openFileWithFallback = async (urlOrKey, e) => {
+  if (e) e.preventDefault();
+
+  try {
+    const viewableUrl = await getViewableUrl(urlOrKey);
+    if (viewableUrl) {
+      window.open(viewableUrl, "_blank");
+    } else {
+      toast.error("Could not open file");
+    }
+  } catch (err) {
+    console.error("[VehicleDrawer] Error opening file:", err);
+    toast.error("Failed to open file");
+  }
+};
+
+// Helper for relative time display
+const relativeTime = (date) => {
+  if (!date) return "";
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) {
+    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    if (hours === 0) {
+      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    }
+    return `${hours}h ago`;
+  }
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+};
+
+// Format date helper
+const formatDate = (date) => {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+// DVLA Details formatting helpers
+const formatMonthYear = (monthStr) => {
+  // Format YYYY-MM to "Dec 2004"
+  if (!monthStr) return null;
+  try {
+    const [year, month] = monthStr.split("-");
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  } catch {
+    return monthStr;
+  }
+};
+
+const formatEngineCapacity = (cc) => {
+  if (!cc) return null;
+  return `${cc.toLocaleString()} cc`;
+};
+
+const formatCo2 = (g) => {
+  if (!g) return null;
+  return `${g} g/km`;
+};
+
+const formatWeight = (kg) => {
+  if (!kg) return null;
+  return `${kg.toLocaleString()} kg`;
+};
+
+const STATUS_LABELS = {
+  in_stock: "In Prep",
+  in_prep: "Advertised",
+  live: "Sold In Progress",
+  reserved: "Completed",
+  delivered: "Delivered",
+};
+
+/**
+ * VehicleDrawer - A reusable component to display vehicle details in a drawer/modal
+ *
+ * Props:
+ * - vehicleId: The ID of the vehicle to display
+ * - isOpen: Whether the drawer is open
+ * - onClose: Function to call when closing the drawer
+ * - isStacked: If true, renders as a stacked drawer (overlays another drawer)
+ * - readOnly: If true, hides editing controls (default: true for warranty context)
+ */
+export default function VehicleDrawer({
+  vehicleId,
+  isOpen,
+  onClose,
+  isStacked = false,
+  readOnly = true,
+}) {
+  const [vehicle, setVehicle] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [expandedIssues, setExpandedIssues] = useState({});
+
+  // Lock body scroll and prevent horizontal pan when drawer is open
+  useEffect(() => {
+    if (isOpen) {
+      const scrollY = window.scrollY;
+      const html = document.documentElement;
+
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = "0";
+      document.body.style.right = "0";
+      document.body.style.width = "100%";
+      document.body.style.overflow = "hidden";
+      document.body.style.overflowX = "hidden";
+      document.body.style.touchAction = "none";
+
+      html.style.overflow = "hidden";
+      html.style.overflowX = "hidden";
+
+      document.body.classList.add("modal-open");
+
+      return () => {
+        document.body.style.position = "";
+        document.body.style.top = "";
+        document.body.style.left = "";
+        document.body.style.right = "";
+        document.body.style.width = "";
+        document.body.style.overflow = "";
+        document.body.style.overflowX = "";
+        document.body.style.touchAction = "";
+
+        html.style.overflow = "";
+        html.style.overflowX = "";
+
+        document.body.classList.remove("modal-open");
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && vehicleId) {
+      fetchVehicle();
+    }
+  }, [isOpen, vehicleId]);
+
+  const fetchVehicle = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`);
+      if (!res.ok) throw new Error("Failed to load vehicle");
+      const data = await res.json();
+      setVehicle(data);
+    } catch (error) {
+      toast.error("Failed to load vehicle details");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
+      style={{
+        touchAction: "none",
+        overscrollBehavior: "none",
+        WebkitOverflowScrolling: "touch",
+      }}
+    >
+      {/* Backdrop with blur - captures all pointer/touch events outside drawer */}
+      <div
+        className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
+        onClick={onClose}
+        onTouchMove={(e) => e.preventDefault()}
+        style={{ touchAction: "none" }}
+      />
+
+      {/* Drawer - Uses 100dvh for proper mobile Safari height, locked horizontal scroll */}
+      <div
+        className={`relative bg-[#f8fafc] flex flex-col ${
+          isStacked ? "w-full max-w-2xl" : "w-full max-w-3xl"
+        } min-w-0 translate-x-0 overflow-x-hidden shadow-2xl`}
+        style={{
+          height: "100dvh",
+          maxHeight: "100dvh",
+          touchAction: "pan-y",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "none",
+          overscrollBehaviorY: "contain",
+        }}
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <span className="loading loading-spinner loading-lg"></span>
+          </div>
+        ) : !vehicle ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-base-content/60">Vehicle not found</p>
+            <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Header - Modern gradient design */}
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+                    onClick={onClose}
+                    title="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <div>
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+                      {vehicle.year || ""} {vehicle.make} {vehicle.model}
+                    </h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+                        {vehicle.regCurrent}
+                      </span>
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                        vehicle.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
+                        vehicle.status === "live" ? "bg-blue-100 text-blue-700" :
+                        vehicle.status === "in_prep" ? "bg-amber-100 text-amber-700" :
+                        vehicle.status === "reserved" ? "bg-pink-100 text-pink-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {STATUS_LABELS[vehicle.status] || vehicle.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+                  onClick={onClose}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Tabs - Dropdown on mobile, pills on desktop */}
+            <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
+              {/* Mobile: Dropdown selector */}
+              <div className="md:hidden">
+                <select
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="select select-bordered w-full font-medium"
+                >
+                  {[
+                    { id: "overview", label: "Overview" },
+                    { id: "checklist", label: `Checklist${vehicle.tasks?.length ? ` (${vehicle.tasks.length})` : ""}` },
+                    { id: "issues", label: `Issues${vehicle.issues?.length ? ` (${vehicle.issues.length})` : ""}` },
+                    { id: "documents", label: `Documents${vehicle.documents?.length ? ` (${vehicle.documents.length})` : ""}` },
+                    { id: "images", label: `Images${vehicle.images?.length ? ` (${vehicle.images.length})` : ""}` },
+                  ].map((tab) => (
+                    <option key={tab.id} value={tab.id}>
+                      {tab.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Desktop: Pill tabs */}
+              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+                {[
+                  { id: "overview", label: "Overview", icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  )},
+                  { id: "checklist", label: "Checklist", count: vehicle.tasks?.length, icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                  )},
+                  { id: "issues", label: "Issues", count: vehicle.issues?.length, icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  )},
+                  { id: "documents", label: "Documents", count: vehicle.documents?.length, icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                  )},
+                  { id: "images", label: "Images", count: vehicle.images?.length, icon: (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  )},
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                      activeTab === tab.id
+                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+                        activeTab === tab.id
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 text-slate-600"
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Content - Scrollable region with safe area padding for mobile bottom nav */}
+            <div
+              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
+              style={{
+                // Mobile: 80px for bottom nav (64px) + extra padding; Desktop: 2rem
+                // Safe area inset is added on top for devices with home bar
+                paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+                touchAction: "pan-y",
+                WebkitOverflowScrolling: "touch",
+              }}
+            >
+              {/* Overview Tab */}
+              {activeTab === "overview" && (
+                <div className="space-y-4">
+                  {/* Identity Section */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Identity</h3>
+                      </div>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Registration</span>
+                        <p className="font-mono font-bold text-slate-900 mt-0.5">{vehicle.regCurrent || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">VIN</span>
+                        <p className="font-mono text-xs text-slate-700 mt-0.5 break-all">{vehicle.vin || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats Row */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+                      <p className="text-2xl font-bold text-slate-900">{vehicle.year || "—"}</p>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Year</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+                      <p className="text-lg font-bold text-slate-900">{vehicle.mileageCurrent ? `${(vehicle.mileageCurrent / 1000).toFixed(0)}k` : "—"}</p>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Miles</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+                      <p className="text-lg font-bold text-slate-900">{vehicle.fuelType ? vehicle.fuelType.charAt(0).toUpperCase() : "—"}</p>
+                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Fuel</p>
+                    </div>
+                  </div>
+
+                  {/* Labels */}
+                  {vehicle.labels?.length > 0 && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Labels</h3>
+                        </div>
+                      </div>
+                      <div className="p-4 flex flex-wrap gap-2">
+                        {vehicle.labels.map((label) => (
+                          <span
+                            key={label.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm"
+                            style={{
+                              backgroundColor: `${label.colour}15`,
+                              color: label.colour,
+                              border: `1px solid ${label.colour}30`,
+                            }}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Specifications Section */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Specifications</h3>
+                      </div>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Make</span>
+                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.make || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Model</span>
+                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.model || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Colour</span>
+                        <p className="text-slate-700 mt-0.5">{vehicle.colour || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+                        <p className="text-slate-700 mt-0.5">{vehicle.fuelType || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Location</span>
+                        <p className="text-slate-700 mt-0.5">{vehicle.locationId?.name || "On Site"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Type</span>
+                        <p className="text-slate-700 mt-0.5">{vehicle.type || "Stock"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Expiry</span>
+                        <p className={`font-medium mt-0.5 ${
+                          vehicle.motExpiryDate && new Date(vehicle.motExpiryDate) < new Date()
+                            ? "text-red-600"
+                            : "text-slate-700"
+                        }`}>
+                          {vehicle.motExpiryDate ? formatDate(vehicle.motExpiryDate) : "—"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* DVLA Details Section */}
+                  {vehicle.dvlaDetails && Object.values(vehicle.dvlaDetails).some(v => v != null) && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">DVLA Details</h3>
+                          {vehicle.lastDvlaFetchAt && (
+                            <span className="text-[10px] text-slate-400 ml-auto">
+                              Last updated: {formatDate(vehicle.lastDvlaFetchAt)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+                        {vehicle.dvlaDetails.monthOfFirstRegistration && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">First Registered</span>
+                            <p className="text-slate-700 mt-0.5">{formatMonthYear(vehicle.dvlaDetails.monthOfFirstRegistration)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.engineCapacity && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Engine Capacity</span>
+                            <p className="text-slate-700 mt-0.5">{formatEngineCapacity(vehicle.dvlaDetails.engineCapacity)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.fuelType && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.fuelType}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.co2Emissions && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">CO2 Emissions</span>
+                            <p className="text-slate-700 mt-0.5">{formatCo2(vehicle.dvlaDetails.co2Emissions)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.euroStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Euro Status</span>
+                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.euroStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.revenueWeight && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Revenue Weight</span>
+                            <p className="text-slate-700 mt-0.5">{formatWeight(vehicle.dvlaDetails.revenueWeight)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.taxStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Status</span>
+                            <p className={`mt-0.5 ${
+                              vehicle.dvlaDetails.taxStatus === "Taxed" ? "text-emerald-600 font-medium" :
+                              vehicle.dvlaDetails.taxStatus === "SORN" ? "text-amber-600 font-medium" :
+                              "text-red-600 font-medium"
+                            }`}>{vehicle.dvlaDetails.taxStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.taxDueDate && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Due Date</span>
+                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.taxDueDate)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.motStatus && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Status (DVLA)</span>
+                            <p className={`mt-0.5 ${
+                              vehicle.dvlaDetails.motStatus === "Valid" ? "text-emerald-600 font-medium" :
+                              vehicle.dvlaDetails.motStatus === "No details held by DVLA" ? "text-slate-400" :
+                              "text-red-600 font-medium"
+                            }`}>{vehicle.dvlaDetails.motStatus}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.dateOfLastV5CIssued && (
+                          <div>
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">V5C Issued</span>
+                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.dateOfLastV5CIssued)}</p>
+                          </div>
+                        )}
+                        {vehicle.dvlaDetails.markedForExport && (
+                          <div className="col-span-2">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold">
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                              </svg>
+                              Marked for Export
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Safety Recalls Check */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Safety Recalls</h3>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <p className="text-xs text-slate-500 mb-3">Check for outstanding manufacturer safety recalls on this vehicle via the official DVSA service.</p>
+                      <a
+                        href="https://www.check-vehicle-recall.service.gov.uk/start"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-xl transition-colors border border-amber-200"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Check for Recalls
+                      </a>
+                      <p className="text-xs text-slate-400 mt-2 text-center">VRM: <span className="font-mono font-medium text-slate-600">{vehicle.regCurrent || vehicle.vrm}</span></p>
+                    </div>
+                  </div>
+
+                  {/* V5 Document */}
+                  {vehicle.v5Url && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">V5 Document</h3>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <a
+                          href={vehicle.v5Url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#0066CC]/10 hover:bg-[#0066CC]/20 text-[#0066CC] font-medium rounded-xl transition-colors"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          View V5 Document
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {vehicle.notes && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-sm whitespace-pre-wrap text-slate-600 leading-relaxed">{vehicle.notes}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Checklist Tab */}
+              {activeTab === "checklist" && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Prep Checklist</h3>
+                      </div>
+                      {vehicle.tasks?.length > 0 && (
+                        <span className="text-xs font-medium text-slate-500">
+                          {vehicle.tasks.filter(t => t.status === "done").length}/{vehicle.tasks.length} Complete
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    {vehicle.tasks?.length > 0 ? (
+                      <div className="space-y-2">
+                        {vehicle.tasks.map((task) => (
+                          <div
+                            key={task.id}
+                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                              task.status === "done"
+                                ? "bg-emerald-50/50 border-emerald-100"
+                                : task.status === "in_progress"
+                                ? "bg-amber-50/50 border-amber-100"
+                                : "bg-white border-slate-100"
+                            }`}
+                          >
+                            {/* Status Icon */}
+                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                              task.status === "done"
+                                ? "bg-emerald-500 text-white"
+                                : task.status === "in_progress"
+                                ? "bg-amber-500 text-white"
+                                : task.status === "not_required"
+                                ? "bg-slate-200 text-slate-400"
+                                : "bg-slate-100 text-slate-400"
+                            }`}>
+                              {task.status === "done" ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : task.status === "in_progress" ? (
+                                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                              ) : task.status === "not_required" ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                </svg>
+                              ) : (
+                                <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                              )}
+                            </div>
+                            {/* Task Name */}
+                            <span className={`flex-1 text-sm font-medium ${
+                              task.status === "done" ? "line-through text-slate-400" : "text-slate-700"
+                            }`}>
+                              {task.name}
+                            </span>
+                            {/* Completion Date */}
+                            {task.completedAt && (
+                              <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-2 py-1 rounded-lg">
+                                {formatDate(task.completedAt)}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">No tasks</p>
+                        <p className="text-xs text-slate-400 mt-1">This vehicle has no prep tasks</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Issues Tab */}
+              {activeTab === "issues" && (
+                <div className="space-y-4">
+                  {vehicle.issues?.length > 0 ? (
+                    vehicle.issues.map((issue) => (
+                      <div
+                        key={issue.id}
+                        className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+                      >
+                        {/* Issue Card Header */}
+                        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100">
+                          <div className="flex items-center justify-between gap-3">
+                            {/* Category & Subcategory Badges */}
+                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+                                {issue.category}
+                              </span>
+                              {issue.subcategory && (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                  {issue.subcategory}
+                                </span>
+                              )}
+                            </div>
+                            {/* Status Badge */}
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+                                issue.status === "Complete"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : issue.status === "In Progress"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : issue.status === "Ordered"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-red-100 text-red-700"
+                              }`}
+                            >
+                              {issue.status || "Outstanding"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Issue Card Body */}
+                        <div className="p-4 space-y-3">
+                          {/* Description */}
+                          <p className="text-sm font-medium text-slate-900">{issue.description}</p>
+
+                          {/* Details Grid */}
+                          <div className="space-y-2">
+                            {issue.actionNeeded && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+                                  Action
+                                </span>
+                                <p className="text-sm text-slate-600">{issue.actionNeeded}</p>
+                              </div>
+                            )}
+                            {issue.priority && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                  Priority
+                                </span>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                  issue.priority === "high" ? "bg-red-50 text-red-700" :
+                                  issue.priority === "medium" ? "bg-amber-50 text-amber-700" :
+                                  "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {issue.priority}
+                                </span>
+                              </div>
+                            )}
+                            {issue.location && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                  Location
+                                </span>
+                                <p className="text-sm text-slate-600">{issue.location}</p>
+                              </div>
+                            )}
+                            {issue.partsRequired && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+                                  Parts Details
+                                </span>
+                                <div>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC] mb-1">
+                                    Required
+                                  </span>
+                                  {issue.partsDetails && (
+                                    <p className="text-sm text-slate-600">{issue.partsDetails}</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {issue.notes && (
+                              <div className="flex items-start gap-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+                                  Notes
+                                </span>
+                                <p className="text-sm text-slate-600">{issue.notes}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Photos */}
+                          {issue.photos?.length > 0 && (
+                            <div className="pt-2">
+                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                Photos ({issue.photos.length})
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {issue.photos.map((photo, idx) => (
+                                  <a
+                                    key={idx}
+                                    href={photo}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block"
+                                  >
+                                    <img
+                                      src={photo}
+                                      alt={`Issue photo ${idx + 1}`}
+                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-90 hover:scale-105 transition-all border-2 border-slate-200 hover:border-[#0066CC]"
+                                    />
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Attachments (new format - objects with key/url) */}
+                          {issue.attachments?.length > 0 && (
+                            <div className="pt-2">
+                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                                Attachments ({issue.attachments.length})
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {issue.attachments.map((attachment, idx) => {
+                                  // Handle both object format {key, url} and legacy string format
+                                  const attachmentKey = typeof attachment === "object" ? (attachment.key || attachment.url) : attachment;
+                                  const fileName = typeof attachment === "object" ? (attachment.fileName || attachment.caption || `File ${idx + 1}`) : `File ${idx + 1}`;
+                                  const isImage = typeof attachment === "object" && attachment.contentType?.startsWith("image/");
+
+                                  return (
+                                    <button
+                                      key={idx}
+                                      onClick={(e) => openFileWithFallback(attachmentKey, e)}
+                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+                                    >
+                                      {isImage ? (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                      ) : (
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                        </svg>
+                                      )}
+                                      {fileName}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Updates Accordion */}
+                        {issue.updates?.length > 0 && (
+                          <div className="border-t border-slate-100">
+                            <button
+                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                              onClick={() =>
+                                setExpandedIssues((prev) => ({
+                                  ...prev,
+                                  [issue.id]: !prev[issue.id],
+                                }))
+                              }
+                            >
+                              <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                                </svg>
+                                {issue.updates.length} Update{issue.updates.length !== 1 ? "s" : ""}
+                              </span>
+                              <svg
+                                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                                  expandedIssues[issue.id] ? "rotate-180" : ""
+                                }`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+
+                            {expandedIssues[issue.id] && (
+                              <div className="px-4 pb-4 space-y-3 bg-slate-50/50">
+                                {issue.updates.map((update, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="pl-4 border-l-2 border-[#0066CC]/30"
+                                  >
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="text-sm font-semibold text-slate-700">
+                                        {update.userName || "User"}
+                                      </p>
+                                      <span className="text-xs text-slate-400">
+                                        {formatDate(update.createdAt)}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-slate-600">{update.content}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-sm font-medium text-slate-600">No issues recorded</p>
+                      <p className="text-xs text-slate-400 mt-1">This vehicle has no reported issues</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Documents Tab */}
+              {activeTab === "documents" && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-800">Documents</h3>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    {vehicle.documents?.length > 0 ? (
+                      <div className="space-y-2">
+                        {vehicle.documents.map((doc) => (
+                          <button
+                            key={doc.id}
+                            onClick={(e) => openFileWithFallback(doc.key || doc.url, e)}
+                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group text-left cursor-pointer"
+                          >
+                            {/* Document Icon */}
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-[#0066CC]/10 flex items-center justify-center shrink-0 transition-colors">
+                              <svg className="w-5 h-5 text-slate-400 group-hover:text-[#0066CC] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            {/* Document Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+                              <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                                doc.type === "v5" ? "bg-amber-100 text-amber-700" :
+                                doc.type === "service_history" ? "bg-[#14B8A6]/10 text-[#14B8A6]" :
+                                doc.type === "fault_codes" ? "bg-red-100 text-red-600" :
+                                "bg-slate-100 text-slate-600"
+                              }`}>
+                                {doc.type === "v5" && "V5"}
+                                {doc.type === "service_history" && "Service History"}
+                                {doc.type === "fault_codes" && "Fault Codes"}
+                                {doc.type === "other" && "Other"}
+                              </span>
+                            </div>
+                            {/* View Arrow */}
+                            <svg className="w-5 h-5 text-slate-300 group-hover:text-[#0066CC] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <p className="text-sm font-medium text-slate-600">No documents</p>
+                        <p className="text-xs text-slate-400 mt-1">No documents have been uploaded</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Images Tab */}
+              {activeTab === "images" && (
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+                          <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">Vehicle Images</h3>
+                      </div>
+                      {!readOnly && (
+                        <VehicleImageUploader
+                          vehicleId={vehicle.id}
+                          onUploadComplete={(updatedVehicle) => setVehicle(updatedVehicle)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <VehicleImageGallery
+                      vehicleId={vehicle.id}
+                      images={vehicle.images || []}
+                      primaryImageUrl={vehicle.primaryImageUrl}
+                      onUpdate={(updatedVehicle) => setVehicle(updatedVehicle)}
+                      editable={!readOnly}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

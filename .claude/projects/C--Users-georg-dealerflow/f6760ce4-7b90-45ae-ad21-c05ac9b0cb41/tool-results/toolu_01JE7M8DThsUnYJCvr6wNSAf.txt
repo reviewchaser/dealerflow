@@ -1,0 +1,9 @@
+The file C:\Users\georg\dealerflow\components\ui\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     6→export { KeyValue, KeyValueGrid } from "./KeyValue";
+     7→export { Badge, StatusBadge } from "./Badge";
+     8→export { PhotoGallery } from "./PhotoGallery";
+     9→export { SectionTitle } from "./SectionTitle";
+    10→export { BottomSheet } from "./BottomSheet";
+    11→export { MobileModal } from "./MobileModal";
+    12→export { PageShell, PageSection, MobileStageSelector } from "./PageShell";
+    13→

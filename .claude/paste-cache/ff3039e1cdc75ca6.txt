@@ -1,0 +1,78 @@
+Instruction for Claude Code — Fix VRM search suggestions UI (desktop + mobile)
+Problem
+
+The VRM search field now returns results, but the suggestions/results panel is rendering in the wrong place on desktop and mobile (overlapping content / floating in an odd position). It needs to be anchored to the search input, sized correctly, and behave like a proper combobox/autocomplete dropdown.
+
+Requirements (must meet all)
+
+Anchor correctly
+
+The suggestions panel must be positioned relative to the search input container.
+
+It should appear directly under the input, aligned left edges, with the same width as the input (or its container).
+
+Correct layering
+
+Ensure it appears above the board columns/cards (z-index).
+
+It must not be hidden behind other containers (watch for overflow: hidden on parents).
+
+Responsive behavior
+
+Desktop: dropdown width matches the search input; max-height with scroll if many results.
+
+Mobile: dropdown should not overflow off-screen horizontally.
+
+If space is tight, allow the dropdown to expand to full available width of the search bar container.
+
+Ensure padding/margins keep it readable and not clipped by viewport edges.
+
+Interaction
+
+Clicking a suggestion filters/sets VRM properly and closes the dropdown.
+
+Clicking outside closes the dropdown.
+
+Pressing Esc closes the dropdown.
+
+Keyboard navigation (up/down + enter) should work if already implemented—if not, add it if feasible, but positioning is priority.
+
+No visual glitches
+
+Remove any transform/translate that is causing it to “float” mid-screen.
+
+Ensure it doesn’t render partially off-screen or under the “Debug/+” floating button on mobile.
+
+Debug checklist Claude should follow
+
+Find the component that renders the VRM search input + suggestions (Stock board toolbar).
+
+Identify how the suggestions panel is currently positioned:
+
+If using position: fixed → change to position: absolute inside a relative wrapper.
+
+If using a portal/popover library (Radix/Headless UI/etc.) → configure anchor/sideOffset/collisionPadding properly.
+
+Wrap the search input in a container like:
+
+div.relative.w-full (or appropriate width)
+
+dropdown div.absolute.left-0.top-full.mt-2.w-full ...
+
+Ensure parents of the dropdown do not clip it:
+
+remove/adjust overflow-hidden where required, or render dropdown in a portal but still anchored properly.
+
+Add z-[9999] (or consistent app layering token) to dropdown.
+
+Test:
+
+Desktop Chrome (normal)
+
+Mobile Safari / Chrome device emulation
+
+With the board scrolled horizontally and vertically
+
+Expected outcome
+
+Typing “X5” shows a dropdown directly beneath the search field, same width as the input, readable and clickable, no weird floating placement, and looks consistent across mobile + desktop.

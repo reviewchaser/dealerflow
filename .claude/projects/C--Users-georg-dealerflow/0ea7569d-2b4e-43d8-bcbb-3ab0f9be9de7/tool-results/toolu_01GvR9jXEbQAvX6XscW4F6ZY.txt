@@ -1,0 +1,21 @@
+370-                    completedAt: new Date(),
+371-                    notes: deliveryTask.notes ? `${deliveryTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+372-                  });
+373-                }
+374-              } catch (taskError) {
+375-                console.error("Error completing Delivery task:", taskError);
+376-              }
+377-              break;
+378-          }
+379-
+380:          if (Object.keys(updates).length > 0) {
+381-            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+382-          }
+383-        }
+384-      }
+385-
+386-      // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
+387-      if (form.type === "WARRANTY_CLAIM") {
+388-        try {
+389-          const customerEmail = rawAnswers.email?.toLowerCase().trim();
+390-          const customerName = rawAnswers.customer_name?.trim();

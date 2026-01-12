@@ -1,0 +1,9 @@
+C:\Users\georg\dealerflow\components\ui\KeyValue.js
+C:\Users\georg\dealerflow\components\ui\SectionTitle.js
+C:\Users\georg\dealerflow\components\ui\PageShell.js
+C:\Users\georg\dealerflow\components\ui\index.js
+C:\Users\georg\dealerflow\components\ui\Portal.js
+C:\Users\georg\dealerflow\components\ui\BottomSheet.js
+C:\Users\georg\dealerflow\components\ui\Card.js
+C:\Users\georg\dealerflow\components\ui\Badge.js
+C:\Users\georg\dealerflow\components\ui\PhotoGallery.js

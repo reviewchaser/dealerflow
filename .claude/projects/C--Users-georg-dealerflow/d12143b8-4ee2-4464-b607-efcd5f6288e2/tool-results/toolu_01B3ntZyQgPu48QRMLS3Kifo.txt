@@ -1,0 +1,20 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   358→                ))}
+   359→              </div>
+   360→            </div>
+   361→
+   362→            {/* Content - Scrollable region with safe area padding for mobile bottom nav */}
+   363→            <div
+   364→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
+   365→              style={{
+   366→                // Mobile: 80px for bottom nav (64px) + extra padding; Desktop: 2rem
+   367→                // Safe area inset is added on top for devices with home bar
+   368→                paddingBottom: "calc(80px + env(safe-area-inset-bottom, 0px))",
+   369→                touchAction: "pan-y",
+   370→                WebkitOverflowScrolling: "touch",
+   371→              }}
+   372→            >
+   373→              {/* Overview Tab */}
+   374→              {activeTab === "overview" && (
+   375→                <div className="space-y-4">
+   376→                  {/* Identity Section */}

@@ -1,0 +1,404 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import { showDummyNotification } from "@/utils/notifications";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→
+     9→const COLUMNS = [
+    10→  { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    11→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    12→  { key: "live", label: "Sold In Progress", gradient: "from-purple-100/60", accent: "border-l-purple-400", accentBg: "bg-purple-400" },
+    13→  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+    14→  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+    15→];
+    16→
+    17→const ISSUE_SUBCATEGORIES = {
+    18→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    19→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    20→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    21→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    22→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    23→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    24→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    25→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    26→  other: ["General", "Misc"],
+    27→};
+    28→
+    29→// Sold statuses - these show "Sold X days" instead of "In stock X days"
+    30→const SOLD_STATUSES = ["live", "reserved", "delivered"];
+    31→
+    32→// Helper to compute duration label based on status
+    33→const getVehicleDuration = (vehicle) => {
+    34→  const isSold = SOLD_STATUSES.includes(vehicle.status);
+    35→
+    36→  if (isSold) {
+    37→    if (vehicle.soldAt) {
+    38→      const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
+    39→      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+    40→    }
+    41→    // Legacy sold vehicle without soldAt - just show "Sold"
+    42→    return { days: 0, label: "Sold", isSold: true };
+    43→  }
+    44→
+    45→  const daysInStock = vehicle.createdAt
+    46→    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    47→    : 0;
+    48→  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+    49→};
+    50→
+    51→export default function SalesPrep() {
+    52→  const [vehicles, setVehicles] = useState([]);
+    53→  const [isLoading, setIsLoading] = useState(true);
+    54→  const [selectedVehicle, setSelectedVehicle] = useState(null);
+    55→  const [showAddModal, setShowAddModal] = useState(false);
+    56→  const [draggedCard, setDraggedCard] = useState(null);
+    57→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+    58→  const [newTaskName, setNewTaskName] = useState("");
+    59→  const [activeTab, setActiveTab] = useState("overview");
+    60→  const [editingTaskId, setEditingTaskId] = useState(null);
+    61→  const [editingTaskName, setEditingTaskName] = useState("");
+    62→
+    63→  // Parts ordering state
+    64→  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+    65→  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+    66→  const [partsOrderForm, setPartsOrderForm] = useState({
+    67→    supplierType: "EURO_CAR_PARTS",
+    68→    supplierName: "",
+    69→    orderRef: "",
+    70→    expectedAt: "",
+    71→    notes: "",
+    72→  });
+    73→  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+    74→
+    75→  // Column sorting state
+    76→  const [columnSortOptions, setColumnSortOptions] = useState({});
+    77→
+    78→  // Job sheet share state
+    79→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+    80→  const [jobSheetLink, setJobSheetLink] = useState(null);
+    81→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+    82→
+    83→  // Prep summary share state
+    84→  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+    85→  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+    86→  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+    87→
+    88→  // Manual share fallback modal
+    89→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+    90→  const [manualShareUrl, setManualShareUrl] = useState("");
+    91→
+    92→  // Issues state
+    93→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+    94→  const [issueForm, setIssueForm] = useState({
+    95→    category: "",
+    96→    subcategory: "",
+    97→    description: "",
+    98→    actionNeeded: "",
+    99→    status: "outstanding",
+   100→    notes: "",
+   101→    photos: [],
+   102→  });
+   103→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   104→  const [expandedIssues, setExpandedIssues] = useState({});
+   105→
+   106→  // Filters state - with localStorage persistence
+   107→  const [activeFilters, setActiveFilters] = useState([]);
+   108→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   109→
+   110→  // Load filters from localStorage on mount
+   111→  useEffect(() => {
+   112→    try {
+   113→      const savedFilters = localStorage.getItem("salesPrepFilters");
+   114→      if (savedFilters) {
+   115→        setActiveFilters(JSON.parse(savedFilters));
+   116→      }
+   117→    } catch (e) {
+   118→      console.warn("Failed to load saved filters:", e);
+   119→    }
+   120→  }, []);
+   121→
+   122→  // Save filters to localStorage when they change
+   123→  useEffect(() => {
+   124→    try {
+   125→      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+   126→    } catch (e) {
+   127→      console.warn("Failed to save filters:", e);
+   128→    }
+   129→  }, [activeFilters]);
+   130→
+   131→  // Documents state
+   132→  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+   133→  const [documentForm, setDocumentForm] = useState({
+   134→    name: "",
+   135→    type: "other",
+   136→    file: null,
+   137→  });
+   138→
+   139→  // Location state
+   140→  const [locations, setLocations] = useState([]);
+   141→  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+   142→
+   143→  // Vehicle Labels state
+   144→  const [availableLabels, setAvailableLabels] = useState([]);
+   145→  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+   146→  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+   147→  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+   148→
+   149→  // Activity log state
+   150→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   151→  const [activityLoading, setActivityLoading] = useState(false);
+   152→
+   153→  // VRM Search state
+   154→  const [vrmSearch, setVrmSearch] = useState("");
+   155→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   156→
+   157→  // Mobile state
+   158→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   159→
+   160→  useEffect(() => {
+   161→    fetchVehicles();
+   162→    fetchLocations();
+   163→    fetchLabels();
+   164→  }, []);
+   165→
+   166→  const fetchVehicles = async () => {
+   167→    try {
+   168→      const res = await fetch("/api/vehicles");
+   169→      if (!res.ok) {
+   170→        throw new Error(`API error: ${res.status}`);
+   171→      }
+   172→      const data = await res.json();
+   173→      setVehicles(Array.isArray(data) ? data : []);
+   174→    } catch (error) {
+   175→      console.error("Failed to load vehicles:", error);
+   176→      toast.error("Failed to load vehicles");
+   177→      setVehicles([]);
+   178→    } finally {
+   179→      setIsLoading(false);
+   180→    }
+   181→  };
+   182→
+   183→  const fetchLocations = async () => {
+   184→    try {
+   185→      const res = await fetch("/api/locations");
+   186→      const data = await res.json();
+   187→      setLocations(data);
+   188→    } catch (error) {
+   189→      console.error("Failed to load locations:", error);
+   190→    }
+   191→  };
+   192→
+   193→  const fetchLabels = async () => {
+   194→    try {
+   195→      const res = await fetch("/api/labels");
+   196→      const data = await res.json();
+   197→      setAvailableLabels(Array.isArray(data) ? data : []);
+   198→    } catch (error) {
+   199→      console.error("Failed to load labels:", error);
+   200→    }
+   201→  };
+   202→
+   203→  // Fetch vehicle activity log
+   204→  const fetchActivity = async (vehicleId, loadMore = false) => {
+   205→    if (!vehicleId) return;
+   206→    setActivityLoading(true);
+   207→    try {
+   208→      const offset = loadMore ? activityData.activities.length : 0;
+   209→      const res = await fetch(`/api/vehicles/${vehicleId}/activity?limit=25&offset=${offset}`);
+   210→      const data = await res.json();
+   211→      if (loadMore) {
+   212→        setActivityData(prev => ({
+   213→          activities: [...prev.activities, ...data.activities],
+   214→          total: data.total,
+   215→          hasMore: data.hasMore,
+   216→        }));
+   217→      } else {
+   218→        setActivityData(data);
+   219→      }
+   220→    } catch (error) {
+   221→      console.error("Failed to load activity:", error);
+   222→    } finally {
+   223→      setActivityLoading(false);
+   224→    }
+   225→  };
+   226→
+   227→  // Format relative time for activity log
+   228→  const formatRelativeTime = (dateStr) => {
+   229→    const date = new Date(dateStr);
+   230→    const now = new Date();
+   231→    const diffMs = now - date;
+   232→    const diffMins = Math.floor(diffMs / 60000);
+   233→    const diffHours = Math.floor(diffMs / 3600000);
+   234→    const diffDays = Math.floor(diffMs / 86400000);
+   235→
+   236→    if (diffMins < 1) return "just now";
+   237→    if (diffMins < 60) return `${diffMins}m ago`;
+   238→    if (diffHours < 24) return `${diffHours}h ago`;
+   239→    if (diffDays < 7) return `${diffDays}d ago`;
+   240→    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+   241→  };
+   242→
+   243→  // Toggle a label on/off for a vehicle
+   244→  const toggleVehicleLabel = async (vehicleId, labelId) => {
+   245→    try {
+   246→      const res = await fetch(`/api/vehicles/${vehicleId}/labels/${labelId}`, {
+   247→        method: "POST",
+   248→      });
+   249→      if (res.ok) {
+   250→        const updatedData = await res.json();
+   251→        // Update selected vehicle if it's the same one
+   252→        if (selectedVehicle?.id === vehicleId) {
+   253→          setSelectedVehicle(prev => ({
+   254→            ...prev,
+   255→            labels: updatedData.labels || [],
+   256→          }));
+   257→        }
+   258→        fetchVehicles();
+   259→      }
+   260→    } catch (error) {
+   261→      toast.error("Failed to update label");
+   262→    }
+   263→  };
+   264→
+   265→  // Create a new label
+   266→  const createLabel = async () => {
+   267→    if (!newLabelForm.name.trim()) {
+   268→      toast.error("Label name is required");
+   269→      return;
+   270→    }
+   271→    try {
+   272→      const res = await fetch("/api/labels", {
+   273→        method: "POST",
+   274→        headers: { "Content-Type": "application/json" },
+   275→        body: JSON.stringify(newLabelForm),
+   276→      });
+   277→      if (res.ok) {
+   278→        const newLabel = await res.json();
+   279→        setAvailableLabels(prev => [...prev, newLabel]);
+   280→        setNewLabelForm({ name: "", colour: "#6366f1" });
+   281→        setShowAddLabelModal(false);
+   282→        toast.success("Label created");
+   283→      }
+   284→    } catch (error) {
+   285→      toast.error("Failed to create label");
+   286→    }
+   287→  };
+   288→
+   289→  // Open vehicle drawer - vehicle from grid already has tasks, issues, documents
+   290→  const openVehicleDrawer = (vehicle) => {
+   291→    setSelectedVehicle({ ...vehicle, id: vehicle.id || vehicle._id });
+   292→    setActiveTab("overview");
+   293→    setShowLabelsDropdown(false); // Close labels dropdown when opening new vehicle
+   294→    setActivityData({ activities: [], total: 0, hasMore: false }); // Reset activity when opening new vehicle
+   295→  };
+   296→
+   297→  const updateVehicleStatus = async (vehicleId, newStatus) => {
+   298→    try {
+   299→      await fetch(`/api/vehicles/${vehicleId}`, {
+   300→        method: "PUT",
+   301→        headers: { "Content-Type": "application/json" },
+   302→        body: JSON.stringify({ status: newStatus }),
+   303→      });
+   304→      fetchVehicles();
+   305→      toast.success(`Moved to ${newStatus.replace("_", " ")}`);
+   306→    } catch (error) {
+   307→      toast.error("Failed to update");
+   308→    }
+   309→  };
+   310→
+   311→  const updateTaskStatus = async (taskId, newStatus) => {
+   312→    try {
+   313→      const payload = { status: newStatus };
+   314→      if (newStatus === "done") {
+   315→        payload.completedAt = new Date().toISOString();
+   316→      }
+   317→      // Clear progress when changing status (optional: keep if staying in_progress)
+   318→      if (newStatus !== "in_progress") {
+   319→        payload.progress = "NONE";
+   320→        payload.progressNote = "";
+   321→      }
+   322→      await fetch(`/api/tasks/${taskId}`, {
+   323→        method: "PUT",
+   324→        headers: { "Content-Type": "application/json" },
+   325→        body: JSON.stringify(payload),
+   326→      });
+   327→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   328→      const data = await res.json();
+   329→      setSelectedVehicle(data);
+   330→      fetchVehicles();
+   331→    } catch (error) {
+   332→      toast.error("Failed to update task");
+   333→    }
+   334→  };
+   335→
+   336→  // Update task progress sub-status (for parts ordering, booking, etc.)
+   337→  const updateTaskProgress = async (taskId, progress, progressNote = null) => {
+   338→    try {
+   339→      const payload = { progress };
+   340→      if (progressNote !== null) {
+   341→        payload.progressNote = progressNote;
+   342→      }
+   343→      await fetch(`/api/tasks/${taskId}`, {
+   344→        method: "PUT",
+   345→        headers: { "Content-Type": "application/json" },
+   346→        body: JSON.stringify(payload),
+   347→      });
+   348→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   349→      const data = await res.json();
+   350→      setSelectedVehicle(data);
+   351→      fetchVehicles();
+   352→    } catch (error) {
+   353→      toast.error("Failed to update task progress");
+   354→    }
+   355→  };
+   356→
+   357→  // Parts order management functions
+   358→  const openPartsOrderModal = (taskId, existingOrder = null) => {
+   359→    setPartsOrderTaskId(taskId);
+   360→    if (existingOrder) {
+   361→      setEditingPartsOrderId(existingOrder._id || existingOrder.id);
+   362→      setPartsOrderForm({
+   363→        supplierType: existingOrder.supplierType || "EURO_CAR_PARTS",
+   364→        supplierName: existingOrder.supplierName || "",
+   365→        orderRef: existingOrder.orderRef || "",
+   366→        expectedAt: existingOrder.expectedAt ? existingOrder.expectedAt.split("T")[0] : "",
+   367→        notes: existingOrder.notes || "",
+   368→      });
+   369→    } else {
+   370→      setEditingPartsOrderId(null);
+   371→      setPartsOrderForm({
+   372→        supplierType: "EURO_CAR_PARTS",
+   373→        supplierName: "",
+   374→        orderRef: "",
+   375→        expectedAt: "",
+   376→        notes: "",
+   377→      });
+   378→    }
+   379→    setShowPartsOrderModal(true);
+   380→  };
+   381→
+   382→  const closePartsOrderModal = () => {
+   383→    setShowPartsOrderModal(false);
+   384→    setPartsOrderTaskId(null);
+   385→    setEditingPartsOrderId(null);
+   386→    setPartsOrderForm({
+   387→      supplierType: "EURO_CAR_PARTS",
+   388→      supplierName: "",
+   389→      orderRef: "",
+   390→      expectedAt: "",
+   391→      notes: "",
+   392→    });
+   393→  };
+   394→
+   395→  const addPartsOrder = async () => {
+   396→    if (!partsOrderTaskId) return;
+   397→    try {
+   398→      const orderData = {
+   399→        supplierType: partsOrderForm.supplierType,
+   400→        ...(partsOrderForm.supplierType === "OTHER" && partsOrderForm.supplierName && { supplierName: partsOrderForm.supplierName }),
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

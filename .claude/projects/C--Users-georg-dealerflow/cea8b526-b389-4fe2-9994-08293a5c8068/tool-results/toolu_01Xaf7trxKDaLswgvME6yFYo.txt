@@ -1,0 +1,80 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→/**
+     5→ * Vehicle Model
+     6→ *
+     7→ * SERVERLESS-SAFE PATTERN:
+     8→ * The export uses `mongoose.models.Vehicle || mongoose.model(...)` to prevent
+     9→ * OverwriteModelError during Vercel/serverless hot reloads and cold starts.
+    10→ *
+    11→ * IMPORTANT FOR POPULATE:
+    12→ * Any file that uses .populate("vehicleId") must import this model, even if
+    13→ * it doesn't use Vehicle directly. Mongoose needs the model registered before
+    14→ * it can resolve the "Vehicle" ref during populate operations.
+    15→ */
+    16→const vehicleSchema = new mongoose.Schema(
+    17→  {
+    18→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    19→    type: {
+    20→      type: String,
+    21→      enum: ["STOCK", "COURTESY", "FLEET_OTHER"],
+    22→      default: "STOCK"
+    23→    },
+    24→    saleType: {
+    25→      type: String,
+    26→      enum: ["RETAIL", "TRADE"],
+    27→      default: "RETAIL"
+    28→    },
+    29→    regCurrent: { type: String, required: true, uppercase: true },
+    30→    vin: { type: String },
+    31→    make: { type: String, required: true },
+    32→    model: { type: String, required: true },
+    33→    derivative: { type: String },
+    34→    year: { type: Number },
+    35→    mileageCurrent: { type: Number },
+    36→    bodyType: { type: String },
+    37→    fuelType: { type: String },
+    38→    transmission: { type: String },
+    39→    colour: { type: String },
+    40→    status: {
+    41→      type: String,
+    42→      enum: ["appraised", "in_stock", "in_prep", "live", "reserved", "sold", "delivered", "archived"],
+    43→      default: "in_stock"
+    44→    },
+    45→    locationId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleLocation" },
+    46→    motExpiryDate: { type: Date },
+    47→    motStatus: {
+    48→      type: String,
+    49→      enum: ["unknown", "valid", "expired", "due_soon", "not_required"],
+    50→      default: "unknown"
+    51→    },
+    52→    taxExpiryDate: { type: Date },
+    53→    serviceDueDate: { type: Date },
+    54→    v5Url: { type: String },
+    55→    serviceHistoryUrl: { type: String },
+    56→    faultCodesUrl: { type: String },
+    57→    websiteUrl: { type: String },
+    58→    notes: { type: String },
+    59→    labels: [{ type: mongoose.Schema.Types.ObjectId, ref: "VehicleLabel" }],
+    60→    // Form integrations
+    61→    testDriveCount: { type: Number, default: 0 },
+    62→    pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+    63→    pdiCompletedAt: { type: Date },
+    64→    deliverySubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+    65→    // Sale tracking
+    66→    soldAt: { type: Date },
+    67→    // Audit fields
+    68→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    69→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    70→  },
+    71→  { timestamps: true }
+    72→);
+    73→
+    74→vehicleSchema.plugin(toJSON);
+    75→export default mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);
+    76→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

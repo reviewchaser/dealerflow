@@ -1,0 +1,107 @@
+import connectMongo from "@/libs/mongoose";
+import { withSuperAdmin } from "@/libs/authContext";
+import Dealer, { DEALER_STATUS } from "@/models/Dealer";
+import DealerMembership from "@/models/DealerMembership";
+import Vehicle from "@/models/Vehicle";
+import User from "@/models/User";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+
+  // GET - List all dealers with stats
+  if (req.method === "GET") {
+    try {
+      const dealers = await Dealer.find()
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Enrich with counts and owner info
+      const enrichedDealers = await Promise.all(
+        dealers.map(async (dealer) => {
+          const [usersCount, vehiclesCount, ownerMembership] = await Promise.all([
+            DealerMembership.countDocuments({ dealerId: dealer._id, status: "ACTIVE" }),
+            Vehicle.countDocuments({ dealerId: dealer._id }),
+            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", status: "ACTIVE" })
+              .populate("userId", "email fullName name")
+              .lean(),
+          ]);
+
+          // Get last activity for this dealer
+          const lastActivity = await DealerMembership.findOne({ dealerId: dealer._id })
+            .sort({ lastActiveAt: -1 })
+            .select("lastActiveAt")
+            .lean();
+
+          return {
+            id: dealer._id.toString(),
+            name: dealer.name,
+            status: dealer.status || DEALER_STATUS.ACTIVE,
+            createdAt: dealer.createdAt,
+            completedOnboarding: dealer.completedOnboarding || false,
+            enabledModules: dealer.onboarding?.enabledModules || {},
+            usersCount,
+            vehiclesCount,
+            ownerEmail: ownerMembership?.userId?.email || "—",
+            ownerName: ownerMembership?.userId?.fullName || ownerMembership?.userId?.name || "—",
+            lastActivityAt: lastActivity?.lastActiveAt || null,
+          };
+        })
+      );
+
+      return res.status(200).json(enrichedDealers);
+    } catch (error) {
+      console.error("[Admin Dealers GET]", error);
+      return res.status(500).json({ error: "Failed to fetch dealers" });
+    }
+  }
+
+  // PATCH - Update dealer status (disable/enable)
+  if (req.method === "PATCH") {
+    try {
+      const { dealerId, status } = req.body;
+
+      if (!dealerId) {
+        return res.status(400).json({ error: "dealerId is required" });
+      }
+
+      if (!Object.values(DEALER_STATUS).includes(status)) {
+        return res.status(400).json({ error: "Invalid status value" });
+      }
+
+      const dealer = await Dealer.findByIdAndUpdate(
+        dealerId,
+        { status },
+        { new: true }
+      ).lean();
+
+      if (!dealer) {
+        return res.status(404).json({ error: "Dealer not found" });
+      }
+
+      // Log the activity
+      const activityType = status === DEALER_STATUS.DISABLED
+        ? ACTIVITY_TYPES.DEALER_DISABLED
+        : ACTIVITY_TYPES.DEALER_ENABLED;
+
+      await PlatformActivity.log(activityType, {
+        actorUserId: ctx.userId,
+        dealerId: dealer._id,
+        metadata: { dealerName: dealer.name },
+      });
+
+      return res.status(200).json({
+        id: dealer._id.toString(),
+        name: dealer.name,
+        status: dealer.status,
+      });
+    } catch (error) {
+      console.error("[Admin Dealers PATCH]", error);
+      return res.status(500).json({ error: "Failed to update dealer" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withSuperAdmin(handler);

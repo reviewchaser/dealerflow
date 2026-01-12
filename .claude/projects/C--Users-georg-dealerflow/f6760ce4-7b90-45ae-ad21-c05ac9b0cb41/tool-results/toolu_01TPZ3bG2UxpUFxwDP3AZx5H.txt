@@ -1,0 +1,70 @@
+     1→/**
+     2→ * AI Health Check Endpoint
+     3→ *
+     4→ * GET /api/ai/health
+     5→ *
+     6→ * Returns the status of the OpenAI configuration.
+     7→ * Used for diagnostics and debugging.
+     8→ * Protected by dealer context authentication.
+     9→ *
+    10→ * Response:
+    11→ * - ok: boolean - whether AI is configured and ready
+    12→ * - provider: "openai" - the AI provider (always OpenAI)
+    13→ * - model: string - the default model used
+    14→ * - hasKey: boolean - whether the key is present
+    15→ * - keyPrefix: string - first 7 chars of the key for verification
+    16→ * - message: string - human-readable status message
+    17→ * - error: string - error code if not ok
+    18→ */
+    19→
+    20→import { withDealerContext } from "@/libs/authContext";
+    21→
+    22→async function handler(req, res, ctx) {
+    23→  if (req.method !== "GET") {
+    24→    return res.status(405).json({ error: "Method not allowed" });
+    25→  }
+    26→
+    27→  const apiKey = process.env.OPENAI_API_KEY;
+    28→  const model = process.env.AI_MODEL || "gpt-4o-mini";
+    29→
+    30→  if (!apiKey) {
+    31→    return res.status(200).json({
+    32→      ok: false,
+    33→      provider: "openai",
+    34→      model: model,
+    35→      hasKey: false,
+    36→      keyPrefix: null,
+    37→      error: "MISSING_KEY",
+    38→      message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
+    39→    });
+    40→  }
+    41→
+    42→  // Check key format (should start with sk-)
+    43→  if (!apiKey.startsWith("sk-")) {
+    44→    return res.status(200).json({
+    45→      ok: false,
+    46→      provider: "openai",
+    47→      model: model,
+    48→      hasKey: true,
+    49→      keyPrefix: apiKey.slice(0, 7) + "...",
+    50→      error: "INVALID_KEY_FORMAT",
+    51→      message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
+    52→    });
+    53→  }
+    54→
+    55→  return res.status(200).json({
+    56→    ok: true,
+    57→    provider: "openai",
+    58→    model: model,
+    59→    hasKey: true,
+    60→    keyPrefix: apiKey.slice(0, 7) + "...",
+    61→    message: "OpenAI is configured and ready",
+    62→  });
+    63→}
+    64→
+    65→export default withDealerContext(handler);
+    66→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

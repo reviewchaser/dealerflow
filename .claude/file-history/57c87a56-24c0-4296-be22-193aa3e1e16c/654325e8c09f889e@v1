@@ -1,0 +1,115 @@
+import connectMongo from "@/libs/mongoose";
+import CalendarEvent from "@/models/CalendarEvent";
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId } = ctx;
+  const { id } = req.query;
+
+  if (!id) {
+    return res.status(400).json({ error: "Event ID is required" });
+  }
+
+  if (req.method === "GET") {
+    const event = await CalendarEvent.findOne({ _id: id, dealerId })
+      .populate("categoryId")
+      .populate("linkedContactId")
+      .populate("linkedVehicleId")
+      .lean();
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    return res.status(200).json({
+      id: event._id.toString(),
+      title: event.title,
+      description: event.description,
+      categoryId: event.categoryId ? {
+        id: event.categoryId._id?.toString(),
+        name: event.categoryId.name,
+        colour: event.categoryId.colour,
+      } : null,
+      startDatetime: event.startDatetime,
+      endDatetime: event.endDatetime,
+      linkedContactId: event.linkedContactId,
+      linkedVehicleId: event.linkedVehicleId,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    });
+  }
+
+  if (req.method === "PUT") {
+    const {
+      title, description, categoryId,
+      startDatetime, endDatetime,
+      linkedContactId, linkedVehicleId
+    } = req.body;
+
+    if (!title || !startDatetime || !endDatetime) {
+      return res.status(400).json({ error: "Title, start and end time required" });
+    }
+
+    const updateData = {
+      title,
+      description: description || "",
+      startDatetime: new Date(startDatetime),
+      endDatetime: new Date(endDatetime),
+    };
+
+    // Handle categoryId - set to null if empty, otherwise use the value
+    if (categoryId && categoryId !== "") {
+      updateData.categoryId = categoryId;
+    } else {
+      updateData.categoryId = null;
+    }
+
+    // Only update linked IDs if they exist in request
+    if (linkedContactId !== undefined) {
+      updateData.linkedContactId = linkedContactId || null;
+    }
+    if (linkedVehicleId !== undefined) {
+      updateData.linkedVehicleId = linkedVehicleId || null;
+    }
+
+    const event = await CalendarEvent.findOneAndUpdate(
+      { _id: id, dealerId },
+      updateData,
+      { new: true, runValidators: true }
+    ).populate("categoryId").lean();
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    return res.status(200).json({
+      id: event._id.toString(),
+      title: event.title,
+      description: event.description,
+      categoryId: event.categoryId ? {
+        id: event.categoryId._id?.toString(),
+        name: event.categoryId.name,
+        colour: event.categoryId.colour,
+      } : null,
+      startDatetime: event.startDatetime,
+      endDatetime: event.endDatetime,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+    });
+  }
+
+  if (req.method === "DELETE") {
+    const event = await CalendarEvent.findOneAndDelete({ _id: id, dealerId });
+
+    if (!event) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    return res.status(200).json({ success: true, message: "Event deleted" });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

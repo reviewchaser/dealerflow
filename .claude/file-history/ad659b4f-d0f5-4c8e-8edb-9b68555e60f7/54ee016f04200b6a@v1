@@ -1,0 +1,45 @@
+import connectMongo from "@/libs/mongoose";
+import Form from "@/models/Form";
+import FormField from "@/models/FormField";
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    // Find PDI form
+    const pdiForm = await Form.findOne({ type: "PDI" });
+    if (!pdiForm) {
+      return res.status(404).json({ error: "PDI form not found" });
+    }
+
+    // Get all fields for this form
+    const fields = await FormField.find({ formId: pdiForm._id }).sort({ order: 1 }).lean();
+
+    // Find the pdi_issues field specifically
+    const pdiIssuesField = fields.find(f => f.fieldName === "pdi_issues");
+    const issuesSectionField = fields.find(f => f.fieldName === "_section_issues");
+    const issuesHelpField = fields.find(f => f.fieldName === "_issues_help");
+
+    // Get last 10 fields by order
+    const lastFields = fields.slice(-15);
+
+    return res.status(200).json({
+      formId: pdiForm._id,
+      formName: pdiForm.name,
+      totalFields: fields.length,
+      pdiIssuesField: pdiIssuesField || "NOT FOUND",
+      issuesSectionField: issuesSectionField || "NOT FOUND",
+      issuesHelpField: issuesHelpField || "NOT FOUND",
+      lastFields: lastFields.map(f => ({
+        fieldName: f.fieldName,
+        label: f.label,
+        type: f.type,
+        order: f.order,
+        visible: f.visible,
+      })),
+    });
+  } catch (error) {
+    console.error("Debug error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

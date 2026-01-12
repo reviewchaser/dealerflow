@@ -1,0 +1,91 @@
+import connectMongo from "@/libs/mongoose";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
+import AftercareCase from "@/models/AftercareCase";
+import User from "@/models/User";
+import { withDealerContext } from "@/libs/authContext";
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+
+  // Verify case belongs to dealer
+  const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+  if (!aftercareCase) {
+    return res.status(404).json({ error: "Case not found" });
+  }
+
+  if (req.method === "GET") {
+    const comments = await AftercareCaseComment.find({ aftercareCaseId: id })
+      .sort({ createdAt: 1 }).lean();
+    return res.status(200).json(comments);
+  }
+
+  if (req.method === "POST") {
+    const { content, authorType = "staff", attachments = [] } = req.body;
+    if (!content) return res.status(400).json({ error: "Content required" });
+
+    // Get user name for event tracking
+    let userName = null;
+    if (userId) {
+      const user = await User.findById(userId).lean();
+      userName = user?.name || null;
+    }
+
+    const comment = await AftercareCaseComment.create({
+      aftercareCaseId: id,
+      content,
+      authorType,
+      authorUserId: authorType === "staff" ? userId : undefined,
+      attachments,
+    });
+
+    // Build timeline events
+    const events = [];
+
+    // Add COMMENT_ADDED event
+    events.push({
+      type: "COMMENT_ADDED",
+      createdAt: new Date(),
+      createdByUserId: userId,
+      createdByName: userName,
+      summary: `Comment added${attachments.length > 0 ? ` with ${attachments.length} attachment(s)` : ""}`,
+      metadata: { commentId: comment._id, content: content.substring(0, 100) }
+    });
+
+    // Add ATTACHMENT_ADDED events for each attachment
+    if (attachments.length > 0) {
+      attachments.forEach(att => {
+        events.push({
+          type: "ATTACHMENT_ADDED",
+          createdAt: new Date(),
+          createdByUserId: userId,
+          createdByName: userName,
+          summary: `Attachment added: ${att.filename || att.url || "file"}`,
+          metadata: { url: att.url || att, filename: att.filename }
+        });
+      });
+    }
+
+    // Push all events to the case - dealer-scoped atomic update
+    const eventUpdateResult = await AftercareCase.updateOne(
+      { _id: id, dealerId }, // Ensure dealer-scoped
+      { $push: { events: { $each: events } } }
+    );
+
+    if (eventUpdateResult.matchedCount === 0) {
+      // This shouldn't happen since we verified above, but safety check
+      return res.status(404).json({ ok: false, error: "Case not found or access denied" });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      comment: comment,
+      eventsAdded: events.length
+    });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

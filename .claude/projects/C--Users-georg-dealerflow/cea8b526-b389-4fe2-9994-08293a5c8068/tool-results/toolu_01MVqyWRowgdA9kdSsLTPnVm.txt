@@ -1,0 +1,4 @@
+190:  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+862:                      mobileActiveColumn === col.key
+869:                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
+881:            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {

@@ -1,0 +1,102 @@
+import connectMongo from "@/libs/mongoose";
+import mongoose from "mongoose";
+import Form from "@/models/Form";
+import FormField from "@/models/FormField";
+import Dealer from "@/models/Dealer";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]";
+import { DEPRECATED_FORM_TYPES } from "@/libs/formTemplates";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  if (req.method === "GET") {
+    try {
+      let { dealerId } = req.query;
+
+      // If no valid dealerId provided, get the first dealer
+      if (!dealerId || dealerId === "000000000000000000000000") {
+        const firstDealer = await Dealer.findOne().lean();
+        if (firstDealer) {
+          dealerId = firstDealer._id;
+        } else {
+          return res.status(400).json({ error: "No dealer found. Please set up a dealer first." });
+        }
+      } else {
+        // Convert string to ObjectId if needed
+        dealerId = new mongoose.Types.ObjectId(dealerId);
+      }
+
+      // Clean up deprecated forms automatically
+      for (const deprecatedType of DEPRECATED_FORM_TYPES) {
+        const deprecatedForms = await Form.find({ dealerId, type: deprecatedType });
+        for (const form of deprecatedForms) {
+          await FormField.deleteMany({ formId: form._id });
+          await Form.findByIdAndDelete(form._id);
+        }
+      }
+
+      // Exclude deprecated form types from query
+      const forms = await Form.find({
+        dealerId,
+        type: { $nin: DEPRECATED_FORM_TYPES }
+      }).sort({ type: 1, createdAt: -1 }).lean();
+
+      // Get field counts for each form
+      const formsWithCounts = await Promise.all(
+        forms.map(async (form) => {
+          const fieldCount = await FormField.countDocuments({ formId: form._id });
+          const visibleCount = await FormField.countDocuments({ formId: form._id, visible: true });
+          return { ...form, fieldCount, visibleCount };
+        })
+      );
+
+      return res.status(200).json(formsWithCounts);
+    } catch (error) {
+      console.error("Error fetching forms:", error);
+      return res.status(500).json({ error: "Failed to fetch forms" });
+    }
+  }
+
+  if (req.method === "POST") {
+    try {
+      const session = await getServerSession(req, res, authOptions);
+      if (!session?.user) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const { dealerId, name, type, isPublic, publicSlug, fields } = req.body;
+
+      if (!dealerId || !name || !type) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const form = await Form.create({
+        dealerId,
+        name,
+        type,
+        isPublic,
+        publicSlug,
+        createdByUserId: session.user.id,
+      });
+
+      // Create associated fields if provided
+      if (fields && Array.isArray(fields)) {
+        const fieldPromises = fields.map((field) =>
+          FormField.create({
+            formId: form._id,
+            ...field,
+          })
+        );
+        await Promise.all(fieldPromises);
+      }
+
+      return res.status(201).json(form);
+    } catch (error) {
+      console.error("Error creating form:", error);
+      return res.status(500).json({ error: "Failed to create form" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

@@ -1,0 +1,139 @@
+C:\Users\georg\dealerflow\pages\admin-setup.js:111:                className="btn btn-primary btn-lg"
+C:\Users\georg\dealerflow\pages\admin-setup.js:176:                    <a href="/forms" className="link link-primary">
+C:\Users\georg\dealerflow\pages\admin-setup.js:192:                    className="link link-primary block"
+C:\Users\georg\dealerflow\pages\admin-setup.js:199:                    className="link link-primary block"
+C:\Users\georg\dealerflow\pages\admin-setup.js:206:                    className="link link-primary block"
+C:\Users\georg\dealerflow\pages\forms.js:976:                              className="flex-1 btn btn-sm btn-outline btn-primary"
+C:\Users\georg\dealerflow\pages\forms.js:1002:                            className="flex-1 btn btn-sm btn-primary"
+C:\Users\georg\dealerflow\pages\forms.js:1169:                  className="btn btn-primary flex-1"
+C:\Users\georg\dealerflow\pages\forms.js:1615:                                    className="checkbox checkbox-primary"
+C:\Users\georg\dealerflow\pages\index.js:15:            <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\index.js:32:              <Link href="/dashboard" className="btn btn-primary btn-sm">
+C:\Users\georg\dealerflow\pages\index.js:40:                <Link href="/auth/signup" className="btn btn-primary btn-sm">
+C:\Users\georg\dealerflow\pages\index.js:75:                <Link href="/dashboard" className="btn btn-primary btn-sm">Dashboard</Link>
+C:\Users\georg\dealerflow\pages\index.js:79:                  <Link href="/auth/signup" className="btn btn-primary btn-sm">Get Started</Link>
+C:\Users\georg\dealerflow\pages\index.js:93:    <section className="min-h-[85vh] flex items-center bg-gradient-to-br from-primary/5 via-base-100 to-secondary/5">
+C:\Users\georg\dealerflow\pages\index.js:97:          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
+C:\Users\georg\dealerflow\pages\index.js:116:            <Link href="/auth/signup" className="btn btn-primary btn-lg px-8">
+C:\Users\georg\dealerflow\pages\index.js:152:              <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\index.js:249:                <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+C:\Users\georg\dealerflow\pages\index.js:305:              <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+C:\Users\georg\dealerflow\pages\index.js:357:              <div className="w-16 h-16 rounded-full bg-primary text-primary-content text-2xl font-bold flex items-center justify-center mx-auto mb-4">
+C:\Users\georg\dealerflow\pages\index.js:364:                  <svg className="w-full h-4 text-primary/30" viewBox="0 0 100 10">
+C:\Users\georg\dealerflow\pages\index.js:395:                <div className="text-5xl font-bold text-primary mt-2">
+C:\Users\georg\dealerflow\pages\index.js:416:              <Link href="/auth/signup" className="btn btn-primary btn-lg">
+C:\Users\georg\dealerflow\pages\index.js:498:    <section className="py-20 bg-primary text-primary-content">
+C:\Users\georg\dealerflow\pages\index.js:524:            <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\index.js:552:        <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\calendar.js:428:                            className="checkbox checkbox-sm checkbox-primary"
+C:\Users\georg\dealerflow\pages\auth\signup.js:130:                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\auth\signup.js:147:                        <Link href="/auth/signin" className="link link-primary">
+C:\Users\georg\dealerflow\pages\auth\signup.js:151:                        <Link href="/auth/forgot-password" className="link link-primary">
+C:\Users\georg\dealerflow\pages\auth\signup.js:228:                className="btn btn-primary btn-block"
+C:\Users\georg\dealerflow\pages\auth\signup.js:266:                <Link href="/auth/signin" className="text-primary hover:underline font-medium">
+C:\Users\georg\dealerflow\pages\dashboard.js:237:              color="primary"
+C:\Users\georg\dealerflow\pages\dashboard.js:389:                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\dashboard.js:425:                {/* Invite Team Card - Distinct Purple Style */}
+C:\Users\georg\dealerflow\pages\dashboard.js:426:                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-2 border-violet-200 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 hover:scale-[1.02] transition-all">
+C:\Users\georg\dealerflow\pages\dashboard.js:427:                  <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white p-2 rounded-lg shadow">
+C:\Users\georg\dealerflow\pages\dashboard.js:433:                    <span className="font-semibold text-violet-700 block">Invite Team</span>
+C:\Users\georg\dealerflow\pages\dashboard.js:434:                    <span className="text-xs text-violet-500">Add staff members</span>
+C:\Users\georg\dealerflow\pages\auth\signin.js:64:                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\auth\signin.js:130:                className="btn btn-primary btn-block"
+C:\Users\georg\dealerflow\pages\auth\signin.js:164:                <Link href="/auth/signup" className="text-primary hover:underline font-medium">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:267:              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-indigo-700 transition-all"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:302:                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:303:                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:478:                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-medium shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:544:                    type === "px" ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:590:                          ? "bg-indigo-600 shadow-indigo-200 hover:shadow-indigo-300 hover:bg-indigo-700"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:676:              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:677:                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\contacts\index.js:86:        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+C:\Users\georg\dealerflow\pages\contacts\index.js:132:              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+C:\Users\georg\dealerflow\pages\contacts\index.js:167:                      contact.type === "buyer" ? "badge-primary" :
+C:\Users\georg\dealerflow\pages\contacts\index.js:256:                <button type="submit" className="btn btn-primary">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:521:                    className="btn btn-sm btn-primary"
+C:\Users\georg\dealerflow\pages\appraisals\new.js:644:                            <span className="text-primary">✓</span>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:662:                className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\appraisals\new.js:1040:              className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:468:                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:628:                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:793:                className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:823:              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 flex items-center justify-center">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:824:                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:846:                      className="btn btn-primary btn-sm"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:895:                  className="btn btn-primary w-full"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:488:                  className="w-full px-3 py-2 text-left hover:bg-primary/10 border-b border-base-200 last:border-0"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:643:                    className="radio radio-primary"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:662:                className="checkbox checkbox-primary"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:873:              className="btn btn-outline btn-primary w-full"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:927:                  className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:962:            <Link href="/forms" className="hover:text-primary">Forms</Link>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:985:            <Link href="/forms" className="hover:text-primary">Forms</Link>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:1040:                          <h3 className={`text-lg font-bold text-primary mb-4 ${field.uppercase ? "uppercase" : ""}`}>{field.label}</h3>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:1050:                      <h3 className={`text-lg font-bold text-primary ${field.uppercase ? "uppercase" : ""}`}>{field.label}</h3>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:1113:                className="btn btn-primary btn-lg"
+C:\Users\georg\dealerflow\pages\onboarding\create-dealer.js:148:        <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\onboarding\create-dealer.js:157:        <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\onboarding\create-dealer.js:174:                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\onboarding\create-dealer.js:230:                className="btn btn-primary btn-block"
+C:\Users\georg\dealerflow\pages\reviews.js:53:                <p className="text-4xl font-bold text-primary">{avgRating}</p>
+C:\Users\georg\dealerflow\pages\onboarding.js:16:                ? "bg-primary text-primary-content"
+C:\Users\georg\dealerflow\pages\onboarding.js:169:            <span className="label-text font-medium">Primary Contact Email</span>
+C:\Users\georg\dealerflow\pages\onboarding.js:175:            value={data.primaryContactEmail || ""}
+C:\Users\georg\dealerflow\pages\onboarding.js:176:            onChange={(e) => onChange({ ...data, primaryContactEmail: e.target.value })}
+C:\Users\georg\dealerflow\pages\onboarding.js:182:            <span className="label-text font-medium">Primary Contact Phone</span>
+C:\Users\georg\dealerflow\pages\onboarding.js:188:            value={data.primaryContactPhone || ""}
+C:\Users\georg\dealerflow\pages\onboarding.js:189:            onChange={(e) => onChange({ ...data, primaryContactPhone: e.target.value })}
+C:\Users\georg\dealerflow\pages\onboarding.js:199:          className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\onboarding.js:296:                ? "border-primary bg-primary/5"
+C:\Users\georg\dealerflow\pages\onboarding.js:302:                <div className={`p-2 rounded-lg ${enabledModules[module.key] ? "bg-primary/10 text-primary" : "bg-base-200 text-base-content/50"}`}>
+C:\Users\georg\dealerflow\pages\onboarding.js:309:                      <span className="badge badge-primary badge-xs">Recommended</span>
+C:\Users\georg\dealerflow\pages\onboarding.js:323:                    ? "border-primary bg-primary"
+C:\Users\georg\dealerflow\pages\onboarding.js:327:                    <svg className="w-4 h-4 text-primary-content" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\onboarding.js:350:          <button className="btn btn-primary" onClick={handleNext}>
+C:\Users\georg\dealerflow\pages\onboarding.js:372:          className="card bg-base-100 border-2 border-primary shadow-lg hover:shadow-xl transition-all text-left"
+C:\Users\georg\dealerflow\pages\onboarding.js:376:              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+C:\Users\georg\dealerflow\pages\onboarding.js:377:                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\onboarding.js:384:                  <span className="badge badge-primary badge-sm">Recommended</span>
+C:\Users\georg\dealerflow\pages\onboarding.js:390:              <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\onboarding.js:534:              <button className="btn btn-primary btn-sm" onClick={addTask} disabled={!newTask.trim()}>
+C:\Users\georg\dealerflow\pages\onboarding.js:553:                className="toggle toggle-primary"
+C:\Users\georg\dealerflow\pages\onboarding.js:593:          <button className="btn btn-primary" onClick={handleNext}>
+C:\Users\georg\dealerflow\pages\onboarding.js:755:              className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\onboarding.js:869:            className="btn btn-primary btn-block mt-4"
+C:\Users\georg\dealerflow\pages\onboarding.js:950:            primaryContactEmail: data?.primaryContactEmail || data?.email || "",
+C:\Users\georg\dealerflow\pages\onboarding.js:951:            primaryContactPhone: data?.primaryContactPhone || data?.phone || "",
+C:\Users\georg\dealerflow\pages\onboarding.js:1053:        <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\onboarding.js:1062:        <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\onboarding.js:1078:              <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\onboarding.js:1093:                  <span className="loading loading-spinner loading-lg text-primary"></span>
+C:\Users\georg\dealerflow\pages\settings.js:388:                  className={`btn btn-sm flex-1 ${theme === "light" ? "btn-primary" : "btn-outline"}`}
+C:\Users\georg\dealerflow\pages\settings.js:397:                  className={`btn btn-sm flex-1 ${theme === "dark" ? "btn-primary" : "btn-outline"}`}
+C:\Users\georg\dealerflow\pages\settings.js:406:                  className={`btn btn-sm flex-1 ${theme === "system" ? "btn-primary" : "btn-outline"}`}
+C:\Users\georg\dealerflow\pages\settings.js:428:              <Link href="/settings/forms" className="btn btn-primary">
+C:\Users\georg\dealerflow\pages\settings.js:441:              <Link href="/settings/team" className="btn btn-primary">
+C:\Users\georg\dealerflow\pages\settings.js:454:              <Link href="/settings/holidays" className="btn btn-primary">
+C:\Users\georg\dealerflow\pages\settings.js:625:              <button type="submit" className="btn btn-primary mt-6" disabled={isSavingDealer}>
+C:\Users\georg\dealerflow\pages\settings.js:662:              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+C:\Users\georg\dealerflow\pages\settings.js:691:              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+C:\Users\georg\dealerflow\pages\settings.js:778:              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+C:\Users\georg\dealerflow\pages\settings.js:842:              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+C:\Users\georg\dealerflow\pages\appraisals\px\[id].js:356:                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\px\[id].js:548:                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\px\[id].js:713:                className="btn btn-primary"
+C:\Users\georg\dealerflow\pages\px\[dealerSlug].js:763:            className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold text-lg shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 transition-all"
+C:\Users\georg\dealerflow\pages\sales-prep.js:14:  { key: "live", label: "Sold In Progress", gradient: "from-purple-100/60", accent: "border-l-purple-400", accentBg: "bg-purple-400" },
+C:\Users\georg\dealerflow\pages\sales-prep.js:1380:        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+C:\Users\georg\dealerflow\pages\sales-prep.js:1468:              className={`btn btn-sm ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+C:\Users\georg\dealerflow\pages\sales-prep.js:1950:                Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+C:\Users\georg\dealerflow\pages\sales-prep.js:2009:                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+C:\Users\georg\dealerflow\pages\sales-prep.js:2031:                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+C:\Users\georg\dealerflow\pages\sales-prep.js:2205:                      Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+C:\Users\georg\dealerflow\pages\sales-prep.js:2265:                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-600 text-white uppercase">
+C:\Users\georg\dealerflow\pages\sales-prep.js:2307:                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+C:\Users\georg\dealerflow\pages\sales-prep.js:2629:                              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-slate-50 transition-colors text-left text-indigo-600"
+C:\Users\georg\dealerf
+
+... [152 lines truncated] ...

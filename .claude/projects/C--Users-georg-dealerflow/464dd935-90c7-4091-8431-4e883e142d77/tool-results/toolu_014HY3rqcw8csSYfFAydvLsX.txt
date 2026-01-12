@@ -1,0 +1,1 @@
+{"ok":true,"message":"OpenAI is configured and ready","keyPrefix":"sk-proj..."}

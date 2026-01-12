@@ -1,0 +1,11 @@
+3069-                    </div>
+3070-                  </div>
+3071-                </div>
+3072-              )}
+3073-
+3074:              {/* Issues Tab */}
+3075-              {activeTab === "issues" && (
+3076-                <div className="space-y-4">
+3077-                  <button
+3078-                    className="btn btn-primary btn-sm w-full"
+3079-                    onClick={() => setShowAddIssueModal(true)}

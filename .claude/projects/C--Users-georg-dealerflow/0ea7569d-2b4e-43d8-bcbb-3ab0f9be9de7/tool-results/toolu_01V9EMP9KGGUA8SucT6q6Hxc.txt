@@ -1,0 +1,12 @@
+57:      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus")
+58:      .populate("soldToContactId", "displayName email phone companyName")
+59:      .populate("invoiceToContactId", "displayName companyName")
+60:      .populate("salesPersonId", "name email")
+61:      .populate("partExchangeId")
+97:      // Clean up populated refs
+213:    // Re-fetch with populated fields
+214:    const populatedDeal = await Deal.findById(deal._id)
+215:      .populate("vehicleId", "regCurrent make model year primaryImageUrl")
+216:      .populate("soldToContactId", "displayName email phone")
+220:      ...populatedDeal,
+221:      id: populatedDeal._id.toString(),

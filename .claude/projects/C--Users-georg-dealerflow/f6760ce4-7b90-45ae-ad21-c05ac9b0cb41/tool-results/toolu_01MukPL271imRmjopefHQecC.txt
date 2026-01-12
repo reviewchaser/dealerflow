@@ -1,0 +1,176 @@
+     1→import { S3Client, GetObjectCommand, DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+     2→import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+     3→
+     4→/**
+     5→ * Cloudflare R2 client using AWS S3 SDK
+     6→ * Uses environment variables for configuration (no secrets in code)
+     7→ *
+     8→ * CORS CONFIGURATION REQUIRED IN CLOUDFLARE R2:
+     9→ * If browser PUT uploads fail with CORS errors, apply this policy in Cloudflare R2 bucket settings:
+    10→ *
+    11→ * [
+    12→ *   {
+    13→ *     "AllowedOrigins": ["https://dealerflow-george-arnold.vercel.app", "http://localhost:3000"],
+    14→ *     "AllowedMethods": ["PUT", "GET", "HEAD"],
+    15→ *     "AllowedHeaders": ["*"],
+    16→ *     "ExposeHeaders": ["ETag"],
+    17→ *     "MaxAgeSeconds": 3000
+    18→ *   }
+    19→ * ]
+    20→ *
+    21→ * For testing, use AllowedOrigins: ["*"] to confirm CORS is the blocker.
+    22→ */
+    23→
+    24→// Validate required environment variables
+    25→const requiredEnvVars = ["S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_ENDPOINT", "S3_BUCKET"];
+    26→
+    27→export function validateR2Config() {
+    28→  const missing = requiredEnvVars.filter((key) => !process.env[key]);
+    29→  if (missing.length > 0) {
+    30→    throw new Error(`Missing required R2 environment variables: ${missing.join(", ")}`);
+    31→  }
+    32→
+    33→  // Validate endpoint format
+    34→  const endpoint = process.env.S3_ENDPOINT;
+    35→  if (!endpoint.startsWith("https://")) {
+    36→    console.warn("[R2] Warning: S3_ENDPOINT should start with https://");
+    37→  }
+    38→}
+    39→
+    40→// Get endpoint hostname for logging (safe, no secrets)
+    41→export function getEndpointHostname() {
+    42→  try {
+    43→    const endpoint = process.env.S3_ENDPOINT || "";
+    44→    const url = new URL(endpoint);
+    45→    return url.hostname;
+    46→  } catch {
+    47→    return "invalid-endpoint";
+    48→  }
+    49→}
+    50→
+    51→// Create and export the S3 client for R2
+    52→let r2Client = null;
+    53→
+    54→export function getR2Client() {
+    55→  if (r2Client) return r2Client;
+    56→
+    57→  validateR2Config();
+    58→
+    59→  const endpoint = process.env.S3_ENDPOINT;
+    60→
+    61→  r2Client = new S3Client({
+    62→    region: process.env.S3_REGION || "auto",
+    63→    endpoint: endpoint,
+    64→    credentials: {
+    65→      accessKeyId: process.env.S3_ACCESS_KEY,
+    66→      secretAccessKey: process.env.S3_SECRET_KEY,
+    67→    },
+    68→    // forcePathStyle is NOT needed for R2 - R2 uses virtual-hosted style by default
+    69→    // Only enable if you have issues with bucket URL resolution
+    70→  });
+    71→
+    72→  console.log(`[R2] Client initialized for endpoint hostname: ${getEndpointHostname()}`);
+    73→
+    74→  return r2Client;
+    75→}
+    76→
+    77→// Get the bucket name
+    78→export function getBucket() {
+    79→  return process.env.S3_BUCKET;
+    80→}
+    81→
+    82→// Generate a public URL for an object (only works if bucket is public)
+    83→export function getPublicUrl(key) {
+    84→  const endpoint = process.env.S3_ENDPOINT;
+    85→  const bucket = process.env.S3_BUCKET;
+    86→
+    87→  // R2 public URL format: https://<account-id>.r2.cloudflarestorage.com/<bucket>/<key>
+    88→  // Note: This only works if the bucket has public access enabled
+    89→  // If bucket is private, use getSignedGetUrl() instead
+    90→  return `${endpoint}/${bucket}/${key}`;
+    91→}
+    92→
+    93→// Generate a signed GET URL for viewing private objects
+    94→export async function getSignedGetUrl(key, expiresIn = 3600) {
+    95→  const r2Client = getR2Client();
+    96→  const bucket = getBucket();
+    97→
+    98→  const command = new GetObjectCommand({
+    99→    Bucket: bucket,
+   100→    Key: key,
+   101→  });
+   102→
+   103→  return await getSignedUrl(r2Client, command, { expiresIn });
+   104→}
+   105→
+   106→// Upload a file directly from server (fallback for CORS issues)
+   107→export async function uploadToR2(key, body, contentType) {
+   108→  const r2Client = getR2Client();
+   109→  const bucket = getBucket();
+   110→
+   111→  const command = new PutObjectCommand({
+   112→    Bucket: bucket,
+   113→    Key: key,
+   114→    Body: body,
+   115→    ContentType: contentType,
+   116→  });
+   117→
+   118→  return await r2Client.send(command);
+   119→}
+   120→
+   121→// Delete an object from R2
+   122→export async function deleteFromR2(key) {
+   123→  const r2Client = getR2Client();
+   124→  const bucket = getBucket();
+   125→
+   126→  const command = new DeleteObjectCommand({
+   127→    Bucket: bucket,
+   128→    Key: key,
+   129→  });
+   130→
+   131→  return await r2Client.send(command);
+   132→}
+   133→
+   134→// Allowed image content types
+   135→export const ALLOWED_IMAGE_TYPES = [
+   136→  "image/jpeg",
+   137→  "image/png",
+   138→  "image/webp",
+   139→  "image/gif",
+   140→];
+   141→
+   142→// Max file size (10MB)
+   143→export const MAX_FILE_SIZE = 10 * 1024 * 1024;
+   144→
+   145→// Validate content type
+   146→export function isAllowedImageType(contentType) {
+   147→  return ALLOWED_IMAGE_TYPES.includes(contentType);
+   148→}
+   149→
+   150→// Get file extension from content type
+   151→export function getExtensionFromContentType(contentType) {
+   152→  const map = {
+   153→    "image/jpeg": "jpg",
+   154→    "image/png": "png",
+   155→    "image/webp": "webp",
+   156→    "image/gif": "gif",
+   157→  };
+   158→  return map[contentType] || "jpg";
+   159→}
+   160→
+   161→// Sanitize filename (remove special characters, keep extension)
+   162→export function sanitizeFileName(fileName) {
+   163→  // Remove path separators and special characters
+   164→  const sanitized = fileName
+   165→    .replace(/[\/\\:*?"<>|]/g, "")
+   166→    .replace(/\s+/g, "-")
+   167→    .toLowerCase();
+   168→  return sanitized;
+   169→}
+   170→
+   171→export default getR2Client;
+   172→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

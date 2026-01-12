@@ -1,0 +1,44 @@
+   245→      return;
+   246→    }
+   247→
+   248→    try {
+   249→      const res = await fetch("/api/holiday-requests", {
+   250→        method: "POST",
+   251→        headers: { "Content-Type": "application/json" },
+   252→        body: JSON.stringify({
+   253→          startDate: newRequest.startDate,
+   254→          endDate: newRequest.endDate || newRequest.startDate, // Default to start date
+   255→          startSession: newRequest.startSession,
+   256→          endSession: newRequest.endSession,
+   257→          type: newRequest.type,
+   258→          notes: newRequest.notes,
+   259→          requestForUserId: newRequest.requestForUserId,
+   260→        }),
+   261→      });
+   262→      if (!res.ok) {
+   263→        const data = await res.json();
+   264→        throw new Error(data.error || "Failed to create");
+   265→      }
+   266→      toast.success("Holiday request created");
+   267→      setShowCreateModal(false);
+   268→      setNewRequest({ startDate: "", endDate: "", startSession: "AM", endSession: "PM", type: "Holiday", notes: "", requestForUserId: "" });
+   269→      fetchRequests();
+   270→    } catch (error) {
+   271→      toast.error(error.message || "Failed to create request");
+   272→    }
+   273→  };
+   274→
+   275→  const calculateDays = (startDate, endDate) => {
+   276→    const start = new Date(startDate);
+   277→    const end = new Date(endDate);
+   278→    const diffTime = Math.abs(end - start);
+   279→    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+   280→    return diffDays;
+   281→  };
+   282→
+   283→  const formatDate = (dateStr) => {
+   284→    return new Date(dateStr).toLocaleDateString("en-GB", {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

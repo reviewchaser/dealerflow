@@ -1,0 +1,99 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import AftercareCase from "@/models/AftercareCase";
+     3→import AftercareCaseComment from "@/models/AftercareCaseComment";
+     4→import Contact from "@/models/Contact";
+     5→import Vehicle from "@/models/Vehicle"; // Required for populate
+     6→import VehicleSale from "@/models/VehicleSale"; // Required for populate
+     7→import { withDealerContext } from "@/libs/authContext";
+     8→
+     9→async function handler(req, res, ctx) {
+    10→  await connectMongo();
+    11→  const { dealerId } = ctx;
+    12→
+    13→  if (req.method === "GET") {
+    14→    const { boardStatus, status } = req.query;
+    15→    let query = { dealerId };
+    16→    if (boardStatus && boardStatus !== "all") query.boardStatus = boardStatus;
+    17→    if (status && status !== "all") query.status = status;
+    18→
+    19→    const cases = await AftercareCase.find(query)
+    20→      .populate("contactId")
+    21→      .populate("vehicleId")
+    22→      .populate("vehicleSaleId")
+    23→      .sort({ createdAt: -1 })
+    24→      .lean();
+    25→
+    26→    return res.status(200).json(cases);
+    27→  }
+    28→
+    29→  if (req.method === "POST") {
+    30→    const {
+    31→      customerName, customerEmail, customerPhone,
+    32→      vehicleReg, regAtPurchase, summary, details, source = "manual",
+    33→      priority = "normal", warrantyType
+    34→    } = req.body;
+    35→
+    36→    if (!customerName) {
+    37→      return res.status(400).json({ error: "Customer name required" });
+    38→    }
+    39→
+    40→    // Create or find contact - scoped by dealer
+    41→    let contact = null;
+    42→    if (customerEmail || customerPhone) {
+    43→      const conditions = [];
+    44→      if (customerEmail) conditions.push({ email: customerEmail });
+    45→      if (customerPhone) conditions.push({ phone: customerPhone });
+    46→      contact = await Contact.findOne({ dealerId, $or: conditions });
+    47→    }
+    48→
+    49→    if (!contact) {
+    50→      contact = await Contact.create({
+    51→        dealerId,
+    52→        name: customerName,
+    53→        email: customerEmail || undefined,
+    54→        phone: customerPhone || undefined,
+    55→      });
+    56→    }
+    57→
+    58→    // Create case with CASE_CREATED event
+    59→    const aftercareCase = await AftercareCase.create({
+    60→      dealerId,
+    61→      contactId: contact._id,
+    62→      summary,
+    63→      details: { ...details, vehicleReg, regAtPurchase },
+    64→      source,
+    65→      priority,
+    66→      regAtPurchase,
+    67→      warrantyType: warrantyType || undefined,
+    68→      boardStatus: "not_booked_in",
+    69→      status: "new",
+    70→      events: [{
+    71→        type: "CASE_CREATED",
+    72→        createdAt: new Date(),
+    73→        summary: "Case created"
+    74→      }]
+    75→    });
+    76→
+    77→    // Create initial comment with claim details
+    78→    if (summary || details) {
+    79→      await AftercareCaseComment.create({
+    80→        aftercareCaseId: aftercareCase._id,
+    81→        authorType: source === "warranty_claim_form" ? "customer" : "staff",
+    82→        content: summary || "Case created",
+    83→      });
+    84→    }
+    85→
+    86→    const populated = await AftercareCase.findById(aftercareCase._id)
+    87→      .populate("contactId").lean();
+    88→    return res.status(201).json(populated);
+    89→  }
+    90→
+    91→  return res.status(405).json({ error: "Method not allowed" });
+    92→}
+    93→
+    94→export default withDealerContext(handler);
+    95→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

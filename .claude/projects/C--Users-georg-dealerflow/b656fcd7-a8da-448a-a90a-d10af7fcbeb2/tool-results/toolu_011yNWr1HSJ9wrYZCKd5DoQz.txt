@@ -1,0 +1,101 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import User from "@/models/User";
+     3→
+     4→export default async function handler(req, res) {
+     5→  // Always return JSON, never redirect
+     6→  res.setHeader("Content-Type", "application/json");
+     7→
+     8→  if (req.method !== "POST") {
+     9→    return res.status(405).json({ error: "Method not allowed" });
+    10→  }
+    11→
+    12→  const { name, email, password } = req.body;
+    13→
+    14→  // Validate required fields
+    15→  if (!name || !email || !password) {
+    16→    return res.status(400).json({ error: "Name, email, and password are required" });
+    17→  }
+    18→
+    19→  // Normalize email
+    20→  const normalizedEmail = email.trim().toLowerCase();
+    21→
+    22→  // Validate email format
+    23→  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    24→  if (!emailRegex.test(normalizedEmail)) {
+    25→    return res.status(400).json({ error: "Invalid email format" });
+    26→  }
+    27→
+    28→  // Validate password strength
+    29→  if (password.length < 6) {
+    30→    return res.status(400).json({ error: "Password must be at least 6 characters" });
+    31→  }
+    32→
+    33→  try {
+    34→    // Connect to MongoDB using shared connection util
+    35→    await connectMongo();
+    36→  } catch (dbError) {
+    37→    if (process.env.NODE_ENV !== "production") {
+    38→      console.error("[Register] Database connection error:", dbError.message, dbError.stack);
+    39→    }
+    40→    return res.status(500).json({
+    41→      error: process.env.MONGODB_URI
+    42→        ? "Database connection failed"
+    43→        : "Database not configured"
+    44→    });
+    45→  }
+    46→
+    47→  try {
+    48→    // Check if user already exists (include passwordHash to check if set)
+    49→    const existingUser = await User.findOne({ email: normalizedEmail }).select("+passwordHash");
+    50→    if (existingUser) {
+    51→      // If user exists but has no password (OAuth or invited user)
+    52→      if (!existingUser.passwordHash) {
+    53→        return res.status(409).json({
+    54→          error: "Account exists but has no password set. Use forgot password to set one.",
+    55→          code: "NO_PASSWORD_SET",
+    56→        });
+    57→      }
+    58→      // User exists with password
+    59→      return res.status(409).json({
+    60→        error: "An account with this email already exists. Please sign in instead.",
+    61→        code: "EMAIL_EXISTS",
+    62→      });
+    63→    }
+    64→
+    65→    // Hash password
+    66→    const passwordHash = await User.hashPassword(password);
+    67→
+    68→    // Create user
+    69→    const user = await User.create({
+    70→      name: name.trim(),
+    71→      fullName: name.trim(),
+    72→      email: normalizedEmail,
+    73→      passwordHash,
+    74→    });
+    75→
+    76→    return res.status(201).json({
+    77→      success: true,
+    78→      userId: user._id.toString(),
+    79→    });
+    80→  } catch (error) {
+    81→    // Log full error in development
+    82→    if (process.env.NODE_ENV !== "production") {
+    83→      console.error("[Register] Error:", error.message, error.stack);
+    84→    } else {
+    85→      console.error("[Register] Error:", error.message);
+    86→    }
+    87→
+    88→    // Handle MongoDB duplicate key error (in case of race condition)
+    89→    if (error.code === 11000) {
+    90→      return res.status(409).json({ error: "Email already exists" });
+    91→    }
+    92→
+    93→    // Return sanitized error message
+    94→    return res.status(500).json({ error: "Failed to create account. Please try again." });
+    95→  }
+    96→}
+    97→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

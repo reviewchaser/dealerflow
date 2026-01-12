@@ -1,0 +1,476 @@
+     1→// Default form templates for new dealers
+     2→// Note: Appraisal forms are handled separately in the Appraisals section
+     3→
+     4→// Field types available:
+     5→// TEXT, TEXTAREA, NUMBER, DATE, TIME, DATETIME, BOOLEAN, DROPDOWN, RADIO, FILE, SIGNATURE, RATING
+     6→// SECTION_HEADER (display only), PARAGRAPH (display only), CHECKLIST (multiple checkboxes)
+     7→
+     8→export const FORM_TEMPLATES = [
+     9→  // ═══════════════════════════════════════════════════════════════════════════════
+    10→  // PDI (Pre-Delivery Inspection) - Comprehensive 8-section form
+    11→  // ═══════════════════════════════════════════════════════════════════════════════
+    12→  {
+    13→    name: "PDI (Pre-Delivery Inspection)",
+    14→    type: "PDI",
+    15→    visibility: "SHARE_LINK", // Accessible via share link for 3rd parties (workshops, MOT centres)
+    16→    isPublic: false, // Deprecated - kept for backward compat
+    17→    publicSlug: "pdi",
+    18→    introText: "Complete all sections of this Pre-Delivery Inspection before vehicle handover.",
+    19→    vrmLookup: { enabled: true, statuses: ["IN_PREP", "ADVERTISED"] },
+    20→    fields: [
+    21→      // Section 1: Vehicle Info
+    22→      { label: "Vehicle Information", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 1 },
+    23→      { label: "Vehicle Registration", fieldName: "vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
+    24→      { label: "Make", fieldName: "make", type: "TEXT", required: true, order: 3 },
+    25→      { label: "Model", fieldName: "model", type: "TEXT", required: true, order: 4 },
+    26→      { label: "Mileage", fieldName: "mileage", type: "NUMBER", required: true, order: 5 },
+    27→      { label: "Colour", fieldName: "colour", type: "TEXT", required: true, order: 6 },
+    28→      { label: "Number of Keys", fieldName: "num_keys", type: "RADIO", required: true, order: 7, options: { choices: ["1", "2", "3+"] } },
+    29→
+    30→      // Section 2: Interior Checks
+    31→      { label: "Interior Checks", fieldName: "_section_interior", type: "SECTION_HEADER", order: 10 },
+    32→      { label: "Seat Adjustment", fieldName: "seat_adjustment", type: "RADIO", required: true, order: 11, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    33→      { label: "Seat Belts", fieldName: "seat_belts", type: "RADIO", required: true, order: 12, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    34→      { label: "Sun Visor/Sunroof", fieldName: "sun_visor", type: "RADIO", required: true, order: 13, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    35→      { label: "Glove Box", fieldName: "glove_box", type: "RADIO", required: true, order: 14, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    36→      { label: "Windows Front/Rear", fieldName: "windows", type: "RADIO", required: true, order: 15, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    37→      { label: "Wipers", fieldName: "wipers", type: "RADIO", required: true, order: 16, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    38→      { label: "Washer System", fieldName: "washer", type: "RADIO", required: true, order: 17, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    39→      { label: "Sat Nav", fieldName: "sat_nav", type: "RADIO", required: true, order: 18, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    40→      { label: "Horn", fieldName: "horn", type: "RADIO", required: true, order: 19, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    41→      { label: "Fuel Gauge", fieldName: "fuel_gauge", type: "RADIO", required: true, order: 20, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    42→      { label: "Temp Gauge", fieldName: "temp_gauge", type: "RADIO", required: true, order: 21, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    43→      { label: "Dash Lights", fieldName: "dash_lights", type: "RADIO", required: true, order: 22, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    44→      { label: "Audio System", fieldName: "audio_system", type: "RADIO", required: true, order: 23, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    45→      { label: "Steering Wheel Controls", fieldName: "steering_controls", type: "RADIO", required: true, order: 24, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    46→      { label: "Rear Camera", fieldName: "rear_camera", type: "RADIO", required: true, order: 25, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    47→      { label: "Parking Sensors Front", fieldName: "parking_sensors_front", type: "RADIO", required: true, order: 26, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    48→      { label: "Parking Sensors Rear", fieldName: "parking_sensors_rear", type: "RADIO", required: true, order: 27, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    49→      { label: "Clock", fieldName: "clock", type: "RADIO", required: true, order: 28, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    50→      { label: "Steering Tilt/Lock", fieldName: "steering_tilt", type: "RADIO", required: true, order: 29, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    51→      { label: "12V Outlet", fieldName: "outlet_12v", type: "RADIO", required: true, order: 30, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    52→      { label: "Mirrors", fieldName: "mirrors", type: "RADIO", required: true, order: 31, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    53→      { label: "Heated Seats", fieldName: "heated_seats", type: "RADIO", required: true, order: 32, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    54→      { label: "Air Conditioning", fieldName: "air_con", type: "RADIO", required: true, order: 33, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    55→      { label: "Key Fobs Working", fieldName: "key_fobs", type: "RADIO", required: true, order: 34, options: { choices: ["Okay", "Repair/Replace", "N/A"] } },
+    56→
+    57→      // Section 3: Equipment
+    58→      { label: "Equipment Checks", fieldName: "_section_equipment", type: "SECTION_HEADER", order: 40 },
+    59→      { label: "Jack & Wrench", fieldName: "jack_wrench", type: "RADIO", required: true, order: 41, options: { choices: ["Present", "Missing", "N/A"] } },
+    60→      { label: "Locking Wheel Nut Location", fieldName: "locking_nut_location", type: "TEXT", required: false, order: 42 },
+    61→      { label: "Parcel Shelf", fieldName: "parcel_shelf", type: "RADIO", required: true, order: 43, options: { choices: ["Present", "Missing", "N/A"] } },
+    62→
+    63→      // Section 4: Exterior
+    64→      { label: "Exterior Checks", fieldName: "_section_exterior", type: "SECTION_HEADER", order: 50 },
+    65→      { label: "Wiper Blades", fieldName: "wiper_blades", type: "RADIO", required: true, order: 51, options: { choices: ["Okay", "Replace", "N/A"] } },
+    66→      { label: "Bonnet", fieldName: "bonnet", type: "RADIO", required: true, order: 52, options: { choices: ["Okay", "Repair", "N/A"] } },
+    67→      { label: "Boot", fieldName: "boot", type: "RADIO", required: true, order: 53, options: { choices: ["Okay", "Repair", "N/A"] } },
+    68→      { label: "Door Locks", fieldName: "door_locks", type: "RADIO", required: true, order: 54, options: { choices: ["Okay", "Repair", "N/A"] } },
+    69→      { label: "Central Locking", fieldName: "central_locking", type: "RADIO", required: true, order: 55, options: { choices: ["Okay", "Repair", "N/A"] } },
+    70→      { label: "Exhaust", fieldName: "exhaust", type: "RADIO", required: true, order: 56, options: { choices: ["Okay", "Repair", "N/A"] } },
+    71→      { label: "Fuel Cap", fieldName: "fuel_cap", type: "RADIO", required: true, order: 57, options: { choices: ["Okay", "Repair", "N/A"] } },
+    72→      { label: "Aerial", fieldName: "aerial", type: "RADIO", required: true, order: 58, options: { choices: ["Okay", "Repair", "N/A"] } },
+    73→      { label: "Wing Mirrors", fieldName: "wing_mirrors", type: "RADIO", required: true, order: 59, options: { choices: ["Okay", "Repair", "N/A"] } },
+    74→      { label: "Windscreen Condition", fieldName: "windscreen", type: "RADIO", required: true, order: 60, options: { choices: ["Okay", "Chip", "Crack", "Replace"] } },
+    75→
+    76→      // Tyres
+    77→      { label: "Tyres & Wheels", fieldName: "_section_tyres", type: "SECTION_HEADER", order: 70 },
+    78→      { label: "Tyre Size Front", fieldName: "tyre_size_front", type: "TEXT", required: true, order: 71 },
+    79→      { label: "Tyre Size Rear", fieldName: "tyre_size_rear", type: "TEXT", required: true, order: 72 },
+    80→      { label: "Runflat Tyres", fieldName: "runflat", type: "RADIO", required: true, order: 73, options: { choices: ["Yes", "No"] } },
+    81→      { label: "Tyre Depth - Front Left (mm)", fieldName: "tyre_depth_fl", type: "NUMBER", required: true, order: 74 },
+    82→      { label: "Tyre Depth - Front Right (mm)", fieldName: "tyre_depth_fr", type: "NUMBER", required: true, order: 75 },
+    83→      { label: "Tyre Depth - Rear Left (mm)", fieldName: "tyre_depth_rl", type: "NUMBER", required: true, order: 76 },
+    84→      { label: "Tyre Depth - Rear Right (mm)", fieldName: "tyre_depth_rr", type: "NUMBER", required: true, order: 77 },
+    85→      { label: "Brake Pad Depth - Front Left (mm)", fieldName: "brake_pad_fl", type: "NUMBER", required: true, order: 78 },
+    86→      { label: "Brake Pad Depth - Front Right (mm)", fieldName: "brake_pad_fr", type: "NUMBER", required: true, order: 79 },
+    87→      { label: "Brake Pad Depth - Rear Left (mm)", fieldName: "brake_pad_rl", type: "NUMBER", required: true, order: 80 },
+    88→      { label: "Brake Pad Depth - Rear Right (mm)", fieldName: "brake_pad_rr", type: "NUMBER", required: true, order: 81 },
+    89→      { label: "Wheels Condition", fieldName: "wheels_condition", type: "RADIO", required: true, order: 82, options: { choices: ["Good", "Minor Damage", "Needs Refurb"] } },
+    90→      { label: "Tyre Pressure/Valves", fieldName: "tyre_pressure", type: "RADIO", required: true, order: 83, options: { choices: ["Okay", "Adjusted", "Issue"] } },
+    91→      { label: "Brake Discs", fieldName: "brake_discs", type: "RADIO", required: true, order: 84, options: { choices: ["Okay", "Worn", "Replace"] } },
+    92→
+    93→      // Section 5: Lights
+    94→      { label: "Light Checks", fieldName: "_section_lights", type: "SECTION_HEADER", order: 90 },
+    95→      { label: "Headlights", fieldName: "headlights", type: "RADIO", required: true, order: 91, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+    96→      { label: "Brake Lights", fieldName: "brake_lights", type: "RADIO", required: true, order: 92, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+    97→      { label: "Fog Lights", fieldName: "fog_lights", type: "RADIO", required: true, order: 93, options: { choices: ["Okay", "Replace Bulb", "N/A"] } },
+    98→      { label: "Reverse Lights", fieldName: "reverse_lights", type: "RADIO", required: true, order: 94, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+    99→      { label: "Indicators", fieldName: "indicators", type: "RADIO", required: true, order: 95, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+   100→      { label: "Number Plate Lights", fieldName: "number_plate_lights", type: "RADIO", required: true, order: 96, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+   101→      { label: "Hazard Lights", fieldName: "hazard_lights", type: "RADIO", required: true, order: 97, options: { choices: ["Okay", "Repair"] } },
+   102→      { label: "Interior Lights", fieldName: "interior_lights", type: "RADIO", required: true, order: 98, options: { choices: ["Okay", "Replace Bulb", "Repair"] } },
+   103→
+   104→      // Section 6: Road Test
+   105→      { label: "Road Test", fieldName: "_section_road_test", type: "SECTION_HEADER", order: 100 },
+   106→      { label: "Parking Brake", fieldName: "parking_brake", type: "RADIO", required: true, order: 101, options: { choices: ["Okay", "Adjust", "Repair"] } },
+   107→      { label: "Steering Effort", fieldName: "steering_effort", type: "RADIO", required: true, order: 102, options: { choices: ["Normal", "Heavy", "Light"] } },
+   108→      { label: "Tracking", fieldName: "tracking", type: "RADIO", required: true, order: 103, options: { choices: ["Okay", "Needs Alignment"] } },
+   109→      { label: "Cruise Control", fieldName: "cruise_control", type: "RADIO", required: true, order: 104, options: { choices: ["Okay", "Not Working", "N/A"] } },
+   110→      { label: "Odometer Matches", fieldName: "odometer_matches", type: "RADIO", required: true, order: 105, options: { choices: ["Yes", "No"] } },
+   111→      { label: "Heaters Working", fieldName: "heaters", type: "RADIO", required: true, order: 106, options: { choices: ["Okay", "Not Working"] } },
+   112→      { label: "Steering Vibration", fieldName: "steering_vibration", type: "RADIO", required: true, order: 107, options: { choices: ["None", "Minor", "Significant"] } },
+   113→      { label: "Brake Wobble", fieldName: "brake_wobble", type: "RADIO", required: true, order: 108, options: { choices: ["None", "Minor", "Significant"] } },
+   114→      { label: "Suspension", fieldName: "suspension", type: "RADIO", required: true, order: 109, options: { choices: ["Okay", "Noisy", "Repair"] } },
+   115→      { label: "CV Joints", fieldName: "cv_joints", type: "RADIO", required: true, order: 110, options: { choices: ["Okay", "Clicking", "Replace"] } },
+   116→      { label: "Clutch", fieldName: "clutch", type: "RADIO", required: true, order: 111, options: { choices: ["Okay", "Slipping", "N/A (Auto)"] } },
+   117→      { label: "Gear Change", fieldName: "gear_change", type: "RADIO", required: true, order: 112, options: { choices: ["OK", "Repair"] } },
+   118→
+   119→      // Section 7: Engine
+   120→      { label: "Engine Checks", fieldName: "_section_engine", type: "SECTION_HEADER", order: 120 },
+   121→      { label: "Oil Level", fieldName: "oil_level", type: "RADIO", required: true, order: 121, options: { choices: ["Okay", "Low", "Topped Up"] } },
+   122→      { label: "Brake Fluid", fieldName: "brake_fluid", type: "RADIO", required: true, order: 122, options: { choices: ["Okay", "Low", "Topped Up"] } },
+   123→      { label: "Screen Wash", fieldName: "screen_wash", type: "RADIO", required: true, order: 123, options: { choices: ["Okay", "Low", "Topped Up"] } },
+   124→      { label: "Coolant Level", fieldName: "coolant_level", type: "RADIO", required: true, order: 124, options: { choices: ["Okay", "Low", "Topped Up"] } },
+   125→      { label: "Power Steering Fluid", fieldName: "power_steering", type: "RADIO", required: true, order: 125, options: { choices: ["Okay", "Low", "N/A (Electric)"] } },
+   126→      { label: "Battery Condition", fieldName: "battery", type: "RADIO", required: true, order: 126, options: { choices: ["Good", "Weak", "Replace"] } },
+   127→      { label: "Ignition", fieldName: "ignition", type: "RADIO", required: true, order: 127, options: { choices: ["Okay", "Issue"] } },
+   128→      { label: "Fuel System", fieldName: "fuel_system", type: "RADIO", required: true, order: 128, options: { choices: ["Okay", "Leak", "Issue"] } },
+   129→      { label: "Radiator", fieldName: "radiator", type: "RADIO", required: true, order: 129, options: { choices: ["Okay", "Leak", "Damage"] } },
+   130→      { label: "Cooling Fan", fieldName: "cooling_fan", type: "RADIO", required: true, order: 130, options: { choices: ["Working", "Not Working"] } },
+   131→      { label: "DPF Soot Level", fieldName: "dpf_soot", type: "RADIO", required: false, order: 131, options: { choices: ["OK", "Repair/Replace"] } },
+   132→
+   133→      // Section 8: Issues Found (structured for automation)
+   134→      { label: "Issues Found", fieldName: "_section_issues", type: "SECTION_HEADER", order: 133 },
+   135→      { label: "Add issues that need attention. These will be automatically added to the vehicle's issue list.", fieldName: "_issues_help", type: "PARAGRAPH", order: 134 },
+   136→      { label: "Issues", fieldName: "pdi_issues", type: "PDI_ISSUES", required: false, order: 135 },
+   137→
+   138→      // Section 9: Sign-off
+   139→      { label: "Sign-off", fieldName: "_section_signoff", type: "SECTION_HEADER", order: 140 },
+   140→      { label: "Notes / Recommendations", fieldName: "notes", type: "TEXTAREA", required: false, order: 141 },
+   141→      { label: "Photos", fieldName: "photos", type: "FILE", required: false, order: 142 },
+   142→      { label: "PDI Carried Out By", fieldName: "inspector_name", type: "TEXT", required: true, order: 143 },
+   143→      { label: "Date", fieldName: "pdi_date", type: "DATE", required: true, order: 144 },
+   144→      { label: "Inspector Signature", fieldName: "inspector_signature", type: "SIGNATURE", required: true, order: 145 },
+   145→    ],
+   146→  },
+   147→
+   148→  // ═══════════════════════════════════════════════════════════════════════════════
+   149→  // Test Drive Request
+   150→  // ═══════════════════════════════════════════════════════════════════════════════
+   151→  {
+   152→    name: "Test Drive Request",
+   153→    type: "TEST_DRIVE",
+   154→    visibility: "PUBLIC", // Fully public - customers can access
+   155→    isPublic: true, // Deprecated - kept for backward compat
+   156→    publicSlug: "test-drive",
+   157→    introText: "Please complete this form to book a test drive. You must bring your valid driving licence on the day.",
+   158→    vrmLookup: { enabled: true, statuses: ["IN_PREP", "ADVERTISED", "LIVE"] },
+   159→    termsText: `By signing this form, I confirm that:
+   160→- I hold a valid UK driving licence
+   161→- I am covered by {dealer.companyName}'s insurance for the duration of the test drive
+   162→- I will follow all road traffic laws
+   163→- I am responsible for any parking or speeding fines incurred during the test drive
+   164→- I will not allow any other person to drive the vehicle`,
+   165→    fields: [
+   166→      // Test Drive Details - date defaults to today, time defaults to current time (handled in frontend)
+   167→      { label: "Date of Test Drive", fieldName: "date", type: "DATE", required: true, order: 1 },
+   168→      { label: "Time", fieldName: "time", type: "TIME", required: true, order: 2 },
+   169→      { label: "Your Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 5 },
+   170→      { label: "First Name", fieldName: "first_name", type: "TEXT", required: true, order: 6 },
+   171→      { label: "Last Name", fieldName: "last_name", type: "TEXT", required: true, order: 7 },
+   172→      { label: "Email", fieldName: "email", type: "TEXT", required: true, order: 8 },
+   173→      { label: "Contact Number", fieldName: "phone", type: "TEXT", required: true, order: 9 },
+   174→      { label: "Driving Licence", fieldName: "_section_licence", type: "SECTION_HEADER", order: 15 },
+   175→      { label: "Upload Driving Licence (Front)", fieldName: "licence_photo", type: "FILE", required: true, order: 16 },
+   176→      { label: "Address (if different from licence)", fieldName: "_section_address", type: "SECTION_HEADER", order: 20 },
+   177→      { label: "Street Address", fieldName: "address_street", type: "TEXT", required: false, order: 21 },
+   178→      { label: "Address Line 2", fieldName: "address_line2", type: "TEXT", required: false, order: 22 },
+   179→      { label: "City", fieldName: "address_city", type: "TEXT", required: false, order: 23 },
+   180→      { label: "Post Code", fieldName: "address_postcode", type: "TEXT", required: false, order: 24 },
+   181→      { label: "Vehicle Details", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 30 },
+   182→      { label: "Vehicle Registration", fieldName: "vrm", type: "TEXT", required: true, order: 31, vrmLookup: true },
+   183→      // Make and Model are hidden when vehicle is selected from stock (handled in frontend)
+   184→      { label: "Vehicle Make", fieldName: "vehicle_make", type: "TEXT", required: false, order: 32, hiddenWhenStockSelected: true },
+   185→      { label: "Vehicle Model", fieldName: "vehicle_model", type: "TEXT", required: false, order: 33, hiddenWhenStockSelected: true },
+   186→      { label: "Where did you find this vehicle?", fieldName: "source", type: "DROPDOWN", required: true, order: 35, options: { choices: ["AutoTrader", "eBay", "Facebook", "Google", "Referral", "Walk-in", "Other"] } },
+   187→      { label: "Terms & Conditions", fieldName: "_section_terms", type: "SECTION_HEADER", order: 40 },
+   188→      { label: "I agree to the Terms & Conditions", fieldName: "agree_terms", type: "BOOLEAN", required: true, order: 41 },
+   189→      { label: "Signature", fieldName: "signature", type: "SIGNATURE", required: true, order: 42 },
+   190→    ],
+   191→  },
+   192→
+   193→  // ═══════════════════════════════════════════════════════════════════════════════
+   194→  // Courtesy Car Out
+   195→  // ═══════════════════════════════════════════════════════════════════════════════
+   196→  {
+   197→    name: "Courtesy Car Out",
+   198→    type: "COURTESY_OUT",
+   199→    visibility: "INTERNAL", // Staff only - requires login
+   200→    isPublic: false, // Deprecated - kept for backward compat
+   201→    publicSlug: "courtesy-out",
+   202→    introText: "Complete this form when issuing a courtesy vehicle to a customer.",
+   203→    vrmLookup: { enabled: true, statuses: ["COURTESY"], vehicleType: "COURTESY" },
+   204→    termsText: `TERMS OF USE - COURTESY VEHICLE
+   205→
+   206→1. The vehicle must be returned with the same fuel level as when collected.
+   207→2. The driver is responsible for any parking fines, speeding tickets, or congestion charges.
+   208→3. The vehicle must not be driven outside the UK.
+   209→4. Only named drivers on this form may drive the vehicle.
+   210→5. Any damage must be reported immediately to {dealer.companyName}.
+   211→6. The vehicle is covered by our insurance policy. Excess of £500 applies for any claims.
+   212→7. The vehicle must be returned on the agreed date unless prior arrangement is made.
+   213→
+   214→For emergencies, contact: {dealer.companyPhone}`,
+   215→    fields: [
+   216→      { label: "Vehicle Details", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 1 },
+   217→      { label: "Courtesy Vehicle Registration", fieldName: "courtesy_vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
+   218→      { label: "Current Mileage", fieldName: "mileage_out", type: "NUMBER", required: true, order: 3 },
+   219→      { label: "Date/Time Out", fieldName: "datetime_out", type: "DATETIME", required: true, order: 4 },
+   220→      { label: "Expected Return Date", fieldName: "date_due_back", type: "DATE", required: true, order: 5 },
+   221→      { label: "Fuel Level", fieldName: "fuel_out", type: "RADIO", required: true, order: 6, options: { choices: ["Empty", "1/4", "1/2", "3/4", "Full"] } },
+   222→      { label: "Customer Vehicle Registration", fieldName: "customer_vehicle_reg", type: "TEXT", required: false, order: 7, placeholder: "Customer's vehicle being repaired (if applicable)" },
+   223→
+   224→      { label: "Driver Information", fieldName: "_section_driver", type: "SECTION_HEADER", order: 10 },
+   225→      { label: "First Name", fieldName: "driver_first_name", type: "TEXT", required: true, order: 11 },
+   226→      { label: "Last Name", fieldName: "driver_last_name", type: "TEXT", required: true, order: 12 },
+   227→      { label: "Mobile Number", fieldName: "driver_phone", type: "TEXT", required: true, order: 13 },
+   228→      { label: "Date of Birth", fieldName: "driver_dob", type: "DATE", required: true, order: 14 },
+   229→      { label: "Street Address", fieldName: "driver_address_street", type: "TEXT", required: true, order: 15 },
+   230→      { label: "City", fieldName: "driver_address_city", type: "TEXT", required: true, order: 16 },
+   231→      { label: "County", fieldName: "driver_address_county", type: "TEXT", required: false, order: 17 },
+   232→      { label: "Post Code", fieldName: "driver_address_postcode", type: "TEXT", required: true, order: 18 },
+   233→
+   234→      { label: "Additional Driver (Optional)", fieldName: "_section_additional", type: "SECTION_HEADER", order: 25 },
+   235→      { label: "Additional Driver Name", fieldName: "additional_driver_name", type: "TEXT", required: false, order: 26 },
+   236→      { label: "Additional Driver Mobile", fieldName: "additional_driver_phone", type: "TEXT", required: false, order: 27 },
+   237→      { label: "Additional Driver DOB", fieldName: "additional_driver_dob", type: "DATE", required: false, order: 28 },
+   238→
+   239→      { label: "Documents", fieldName: "_section_docs", type: "SECTION_HEADER", order: 35 },
+   240→      { label: "Upload Driving Licence (Front & Back)", fieldName: "licence_photos", type: "FILE", required: true, order: 36 },
+   241→
+   242→      { label: "Condition Report", fieldName: "_section_condition", type: "SECTION_HEADER", order: 40 },
+   243→      { label: "Existing Damage Notes", fieldName: "existing_damage", type: "TEXTAREA", required: false, order: 41, placeholder: "Note any existing scratches, dents, etc." },
+   244→      { label: "Condition Photos", fieldName: "condition_photos", type: "FILE", required: false, order: 42 },
+   245→
+   246→      { label: "Agreement", fieldName: "_section_agreement", type: "SECTION_HEADER", order: 50 },
+   247→      { label: "I have read and agree to the terms of use", fieldName: "terms_accepted", type: "BOOLEAN", required: true, order: 51 },
+   248→      { label: "I confirm the fuel level and mileage are correct", fieldName: "confirm_details", type: "BOOLEAN", required: true, order: 52 },
+   249→      { label: "Driver Signature", fieldName: "signature", type: "SIGNATURE", required: true, order: 53 },
+   250→    ],
+   251→  },
+   252→
+   253→  // ═══════════════════════════════════════════════════════════════════════════════
+   254→  // Courtesy Car Return
+   255→  // ═══════════════════════════════════════════════════════════════════════════════
+   256→  {
+   257→    name: "Courtesy Car Return",
+   258→    type: "COURTESY_IN",
+   259→    visibility: "INTERNAL", // Staff only - requires login
+   260→    isPublic: false, // Deprecated - kept for backward compat
+   261→    publicSlug: "courtesy-in",
+   262→    introText: "Complete this form when a courtesy vehicle is returned.",
+   263→    vrmLookup: { enabled: true, statuses: ["COURTESY"], vehicleType: "COURTESY" },
+   264→    fields: [
+   265→      { label: "Vehicle Details", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 1 },
+   266→      { label: "Courtesy Vehicle Registration", fieldName: "courtesy_vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
+   267→      { label: "Date/Time Returned", fieldName: "datetime_returned", type: "DATETIME", required: true, order: 3 },
+   268→      { label: "Mileage In", fieldName: "mileage_in", type: "NUMBER", required: true, order: 4 },
+   269→      { label: "Fuel Level", fieldName: "fuel_in", type: "RADIO", required: true, order: 5, options: { choices: ["Empty", "1/4", "1/2", "3/4", "Full"] } },
+   270→      { label: "Customer Vehicle Registration", fieldName: "customer_vehicle_reg", type: "TEXT", required: false, order: 6, placeholder: "Customer's vehicle being repaired (if applicable)" },
+   271→
+   272→      { label: "Driver Information", fieldName: "_section_driver", type: "SECTION_HEADER", order: 10 },
+   273→      { label: "Driver Name", fieldName: "driver_name", type: "TEXT", required: true, order: 11 },
+   274→
+   275→      { label: "Return Condition", fieldName: "_section_condition", type: "SECTION_HEADER", order: 20 },
+   276→      { label: "Vehicle returned clean", fieldName: "returned_clean", type: "BOOLEAN", required: true, order: 21 },
+   277→      { label: "No new damage", fieldName: "no_new_damage", type: "BOOLEAN", required: true, order: 22 },
+   278→      { label: "All belongings removed", fieldName: "belongings_removed", type: "BOOLEAN", required: true, order: 23 },
+   279→      { label: "Fuel level acceptable", fieldName: "fuel_acceptable", type: "BOOLEAN", required: true, order: 24 },
+   280→
+   281→      { label: "Issues / Disclosure", fieldName: "_section_issues", type: "SECTION_HEADER", order: 30 },
+   282→      { label: "Any damage or issues to report?", fieldName: "issues_notes", type: "TEXTAREA", required: false, order: 31 },
+   283→      { label: "Damage Photos", fieldName: "damage_photos", type: "FILE", required: false, order: 32 },
+   284→
+   285→      { label: "Sign-off", fieldName: "_section_signoff", type: "SECTION_HEADER", order: 40 },
+   286→      { label: "Driver Signature", fieldName: "signature", type: "SIGNATURE", required: true, order: 41 },
+   287→      { label: "Staff Member Name", fieldName: "staff_name", type: "TEXT", required: true, order: 42 },
+   288→    ],
+   289→  },
+   290→
+   291→  // ═══════════════════════════════════════════════════════════════════════════════
+   292→  // Delivery Form
+   293→  // ═══════════════════════════════════════════════════════════════════════════════
+   294→  {
+   295→    name: "Vehicle Delivery",
+   296→    type: "DELIVERY",
+   297→    visibility: "SHARE_LINK", // Accessible via share link for 3rd parties (delivery drivers)
+   298→    isPublic: false, // Deprecated - kept for backward compat
+   299→    publicSlug: "delivery",
+   300→    introText: "Complete this form when handing over a vehicle to the customer.",
+   301→    vrmLookup: { enabled: true, statuses: ["SOLD", "ADVERTISED"] },
+   302→    autoStatusChange: { newStatus: "DELIVERED" },
+   303→    fields: [
+   304→      { label: "Vehicle Details", fieldName: "_section_vehicle", type: "SECTION_HEADER", order: 1 },
+   305→      { label: "Vehicle Registration", fieldName: "vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
+   306→      { label: "Date", fieldName: "delivery_date", type: "DATE", required: true, order: 3 },
+   307→      { label: "Time", fieldName: "delivery_time", type: "TIME", required: true, order: 4 },
+   308→
+   309→      { label: "Customer Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 10 },
+   310→      { label: "Customer First Name", fieldName: "customer_first_name", type: "TEXT", required: true, order: 11 },
+   311→      { label: "Customer Last Name", fieldName: "customer_last_name", type: "TEXT", required: true, order: 12 },
+   312→
+   313→      { label: "Documentation", fieldName: "_section_docs", type: "SECTION_HEADER", order: 20 },
+   314→      { label: "Photo of Invoice with ID", fieldName: "invoice_id_photo", type: "FILE", required: true, order: 21 },
+   315→      { label: "Photo of Customer with Vehicle", fieldName: "customer_vehicle_photo", type: "FILE", required: true, order: 22 },
+   316→
+   317→      { label: "Consent", fieldName: "_section_consent", type: "SECTION_HEADER", order: 30 },
+   318→      { label: "Do you consent for the delivery photo to be used on our website/social media?", fieldName: "photo_consent", type: "RADIO", required: true, order: 31, options: { choices: ["Yes", "No"] } },
+   319→
+   320→      { label: "Sign-off", fieldName: "_section_signoff", type: "SECTION_HEADER", order: 40 },
+   321→      { label: "Customer Signature", fieldName: "customer_signature", type: "SIGNATURE", required: true, order: 41 },
+   322→      { label: "Staff Member Name", fieldName: "staff_name", type: "TEXT", required: true, order: 42 },
+   323→    ],
+   324→  },
+   325→
+   326→  // ═══════════════════════════════════════════════════════════════════════════════
+   327→  // Service Receipt - Simplified layout matching PDF
+   328→  // ═══════════════════════════════════════════════════════════════════════════════
+   329→  {
+   330→    name: "Service Receipt",
+   331→    type: "SERVICE_RECEIPT",
+   332→    visibility: "INTERNAL", // Staff only - requires login
+   333→    isPublic: false, // Deprecated - kept for backward compat
+   334→    publicSlug: "service-receipt",
+   335→    introText: null, // No intro text - clean header with dealer info
+   336→    showDealerHeader: true, // Show dealer logo + address/phone in header
+   337→    vrmLookup: { enabled: true, statuses: ["IN_PREP", "ADVERTISED", "SOLD", "DELIVERED"] },
+   338→    fields: [
+   339→      // Row 1: Registration and Mileage side by side
+   340→      { label: "REGISTRATION", fieldName: "vrm", type: "TEXT", required: true, order: 1, vrmLookup: true, gridGroup: "row1", uppercase: true },
+   341→      { label: "MILEAGE", fieldName: "mileage", type: "NUMBER", required: true, order: 2, gridGroup: "row1", uppercase: true },
+   342→
+   343→      // Row 2: Make and Model side by side (auto-fill from VRM lookup)
+   344→      { label: "MAKE", fieldName: "make", type: "TEXT", required: false, order: 3, gridGroup: "row2", uppercase: true },
+   345→      { label: "MODEL", fieldName: "model", type: "TEXT", required: false, order: 4, gridGroup: "row2", uppercase: true },
+   346→
+   347→      // Work Carried Out section with checkboxes
+   348→      { label: "WORK CARRIED OUT", fieldName: "_section_work", type: "SECTION_HEADER", order: 10, uppercase: true },
+   349→      { label: "OIL FILTER", fieldName: "oil_filter", type: "BOOLEAN", required: false, order: 11, uppercase: true },
+   350→      { label: "AIR FILTER", fieldName: "air_filter", type: "BOOLEAN", required: false, order: 12, uppercase: true },
+   351→      { label: "CABIN FILTER", fieldName: "cabin_filter", type: "BOOLEAN", required: false, order: 13, uppercase: true },
+   352→      { label: "SPARK PLUGS", fieldName: "spark_plugs", type: "BOOLEAN", required: false, order: 14, uppercase: true },
+   353→      { label: "PRE-DELIVERY INSPECTION", fieldName: "pdi_done", type: "BOOLEAN", required: false, order: 15, uppercase: true },
+   354→
+   355→      // Additional Works section
+   356→      { label: "ADDITIONAL WORKS", fieldName: "_section_additional", type: "SECTION_HEADER", order: 20, uppercase: true },
+   357→      { label: "ADDITIONAL WORKS", fieldName: "additional_works", type: "TEXTAREA", required: false, order: 21, uppercase: true },
+   358→
+   359→      // Date Carried Out at the end
+   360→      { label: "DATE CARRIED OUT", fieldName: "service_date", type: "DATE", required: true, order: 30, uppercase: true },
+   361→    ],
+   362→  },
+   363→
+   364→  // ═══════════════════════════════════════════════════════════════════════════════
+   365→  // Warranty Claim
+   366→  // ═══════════════════════════════════════════════════════════════════════════════
+   367→  {
+   368→    name: "Warranty Claim",
+   369→    type: "WARRANTY_CLAIM",
+   370→    visibility: "PUBLIC", // Fully public - customers can access
+   371→    isPublic: true, // Deprecated - kept for backward compat
+   372→    publicSlug: "warranty-claim",
+   373→    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to page 5 of your warranty booklet.
+   374→
+   375→We will only accept one claim per submission, submitting more than once may delay your claim being processed.
+   376→
+   377→Please allow up to 48 hours for a response.
+   378→
+   379→PLEASE NOTE: ONLY THE PURCHASER OF THE VEHICLE CAN SUBMIT A CLAIM AND MUST HAVE REGISTERED THEIR WARRANTY.`,
+   380→    vrmLookup: { enabled: true, statuses: ["SOLD", "DELIVERED"] },
+   381→    termsText: `• I understand that I can use this form to report an issue however, it may not be a claimable issue.
+   382→• I understand it may take up to 48 hours to receive a response to this claim form, and not to report the issue again as this may delay the claim further.
+   383→• I understand that if I go ahead and undertake work without authorisation I am liable for the costs.`,
+   384→    fields: [
+   385→      // Section: Purchase Information
+   386→      { label: "Purchase Information", fieldName: "_section_purchase", type: "SECTION_HEADER", order: 1 },
+   387→      { label: "Registration at time of purchase", fieldName: "vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
+   388→      { label: "Purchase Date", fieldName: "purchase_date", type: "DATE", required: true, order: 3 },
+   389→      { label: "Vehicle Make and Model", fieldName: "vehicle_make_model", type: "TEXT", required: false, order: 4 },
+   390→      { label: "Exact Mileage", fieldName: "exact_mileage", type: "TEXT", required: true, order: 5, placeholder: "e.g. 23456" },
+   391→
+   392→      // Section: Customer Details
+   393→      { label: "Customer Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 10 },
+   394→      { label: "Customer Name", fieldName: "customer_name", type: "TEXT", required: true, order: 11 },
+   395→      { label: "Email", fieldName: "email", type: "TEXT", required: true, order: 12 },
+   396→      { label: "Phone Number", fieldName: "phone", type: "TEXT", required: true, order: 13, helpText: "Please enter a valid phone number" },
+   397→      { label: "Street Address", fieldName: "address_street", type: "TEXT", required: true, order: 14 },
+   398→      { label: "Address Line 2", fieldName: "address_line2", type: "TEXT", required: false, order: 15 },
+   399→      { label: "City", fieldName: "address_city", type: "TEXT", required: true, order: 16 },
+   400→      { label: "County / State", fieldName: "address_county", type: "TEXT", required: false, order: 17 },
+   401→      { label: "Postcode", fieldName: "address_postcode", type: "TEXT", required: true, order: 18 },
+   402→
+   403→      // Section: Issue Description
+   404→      { label: "Issue Description", fieldName: "_section_issue", type: "SECTION_HEADER", order: 20 },
+   405→      { label: "Please describe the issue in as much detail as possible", fieldName: "issue_description", type: "TEXTAREA", required: true, order: 21, helpText: "Include any warning lights on the dashboard, noises, symptoms, when the issue occurs, etc." },
+   406→      { label: "Upload Pictures / Videos", fieldName: "issue_media", type: "FILE", required: false, order: 22, helpText: "You can upload multiple files. Drag and drop or click to select." },
+   407→
+   408→      // Section: Warranty Type
+   409→      { label: "Warranty Information", fieldName: "_section_warranty", type: "SECTION_HEADER", order: 30 },
+   410→      { label: "Warranty Type", fieldName: "warranty_type", type: "DROPDOWN", required: true, order: 31, options: { choices: ["Dealer Warranty", "External Warranty"] }, placeholder: "Please Select" },
+   411→
+   412→      // Section: Terms & Conditions
+   413→      { label: "Terms & Conditions", fieldName: "_section_terms", type: "SECTION_HEADER", order: 40 },
+   414→      { label: "I agree and I have read the terms and condition details above.", fieldName: "agree_terms", type: "BOOLEAN", required: true, order: 41 },
+   415→    ],
+   416→  },
+   417→
+   418→  // ═══════════════════════════════════════════════════════════════════════════════
+   419→  // Review & Feedback
+   420→  // ═══════════════════════════════════════════════════════════════════════════════
+   421→  {
+   422→    name: "Review & Feedback",
+   423→    type: "REVIEW_FEEDBACK",
+   424→    visibility: "PUBLIC", // Fully public - customers can access
+   425→    isPublic: true, // Deprecated - kept for backward compat
+   426→    publicSlug: "review",
+   427→    introText: "We'd love to hear about your experience! Your feedback helps us improve our service.",
+   428→    fields: [
+   429→      { label: "Your Name", fieldName: "name", type: "TEXT", required: true, order: 1 },
+   430→      { label: "Email (optional)", fieldName: "email", type: "TEXT", required: false, order: 2 },
+   431→      { label: "Overall Rating", fieldName: "rating", type: "RATING", required: true, order: 3 },
+   432→      { label: "What did we do well?", fieldName: "positive_feedback", type: "TEXTAREA", required: false, order: 4 },
+   433→      { label: "What could we improve?", fieldName: "improvement_feedback", type: "TEXTAREA", required: false, order: 5 },
+   434→      { label: "Would you recommend us to friends and family?", fieldName: "would_recommend", type: "RADIO", required: true, order: 6, options: { choices: ["Definitely", "Probably", "Not Sure", "Probably Not", "Definitely Not"] } },
+   435→    ],
+   436→  },
+   437→];
+   438→
+   439→// List of form types that have been deprecated and should be removed
+   440→export const DEPRECATED_FORM_TYPES = ["CAR_PREP", "BUYING_APPRAISAL", "CUSTOMER_PX_APPRAISAL"];
+   441→
+   442→// Valid form types (for model enum)
+   443→export const VALID_FORM_TYPES = ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTESY_OUT", "COURTESY_IN", "DELIVERY", "SERVICE_RECEIPT", "REVIEW_FEEDBACK", "OTHER"];
+   444→
+   445→// Default intro/terms text that can be customized per dealer
+   446→export const DEFAULT_FORM_TEXT = {
+   447→  WARRANTY_CLAIM: {
+   448→    introText: `Please fill out the form below in as much detail as possible. We will only accept one claim per submission, submitting more than once may delay your claim being processed.
+   449→
+   450→Please allow up to 48 hours for a response.`,
+   451→  },
+   452→  TEST_DRIVE: {
+   453→    termsText: `By signing this form, I confirm that:
+   454→- I hold a valid UK driving licence
+   455→- I am covered by {dealer.companyName}'s insurance for the duration of the test drive
+   456→- I will follow all road traffic laws
+   457→- I am responsible for any parking or speeding fines incurred during the test drive
+   458→- I will not allow any other person to drive the vehicle`,
+   459→  },
+   460→  COURTESY_OUT: {
+   461→    termsText: `TERMS OF USE - COURTESY VEHICLE
+   462→
+   463→1. The vehicle must be returned with the same fuel level as when collected.
+   464→2. The driver is responsible for any parking fines, speeding tickets, or congestion charges.
+   465→3. The vehicle must not be driven outside the UK.
+   466→4. Only named drivers on this form may drive the vehicle.
+   467→5. Any damage must be reported immediately.
+   468→6. The vehicle is covered by our insurance policy. Excess of £500 applies for any claims.
+   469→7. The vehicle must be returned on the agreed date unless prior arrangement is made.`,
+   470→  },
+   471→};
+   472→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

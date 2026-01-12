@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import VehicleTask from "@/models/VehicleTask";
+     4→import VehicleLabel from "@/models/VehicleLabel";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import VehicleLocation from "@/models/VehicleLocation";
+     7→import VehicleDocument from "@/models/VehicleDocument";
+     8→import VehicleActivity from "@/models/VehicleActivity";
+     9→import Deal from "@/models/Deal";
+    10→import User from "@/models/User";
+    11→import { withDealerContext } from "@/libs/authContext";
+    12→
+    13→const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+    14→
+    15→// Helper to safely transform MongoDB _id to id

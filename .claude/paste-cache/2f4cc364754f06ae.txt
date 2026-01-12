@@ -1,0 +1,212 @@
+1) Sales drawer opens then immediately closes (and create-sale vehicle selection “reverts”)
+What’s almost certainly happening
+
+One of these patterns is causing the “open → close” flash:
+
+The drawer open state is derived from a route/query param (e.g. saleId) that gets cleared by a subsequent navigation or state reset.
+
+A useEffect is auto-closing the drawer when a fetch returns null/error/loading (common pattern: if (!sale) closeDrawer()).
+
+router.replace() or a redirect is firing after click/create.
+
+The list page is remounting (keyed by search params / filters), which resets local state.
+
+Fix strategy (make drawer state URL-driven, and never auto-close on transient states)
+
+Rule: The drawer should stay open if the URL says it’s open. Errors should show an error state in the drawer, not close it.
+
+A) Use a stable URL contract for drawer open
+
+On click of a sale card row:
+
+Push to:
+/app/[dealerSlug]/sales?saleId=<id>
+(or /sales/<id> if you prefer nested routing, but query-param is simplest with an overlay drawer)
+
+Then the drawer open state is:
+
+const saleId = useSearchParams().get("saleId")
+
+isOpen = !!saleId
+
+Close drawer by removing query param:
+
+router.replace("/app/[dealerSlug]/sales", { scroll: false })
+
+B) Remove any “auto-close drawer” effects
+
+Search for patterns like:
+
+useEffect(() => { if (!sale) setOpen(false) }, [sale])
+
+if (!saleId) return null (fine) but not “close”
+
+Close on fetch error, 404, etc.
+
+Replace with:
+
+Drawer stays open
+
+Inside drawer body:
+
+loading skeleton while fetching
+
+error panel if fetch fails
+
+“Sale not found” empty state if 404
+
+C) Ensure create-sale flow sets the URL immediately after create
+
+Right now you’re seeing: select vehicle → it “reverts” back to list.
+
+That usually means:
+
+sale is created but you never route to it (or you route, then something replaces the URL back)
+
+After create:
+
+Create sale (POST) returns sale._id
+
+Immediately do:
+
+router.push(/sales?saleId=<newId>)
+
+Also update list state (or let SWR/react-query revalidate)
+
+Important: don’t do a second navigation right after (like “go back to /sales”); you’re already there.
+
+D) If the list component remounts, prevent state loss
+
+Common cause: key={JSON.stringify(searchParams)} or using searchParams as a key.
+
+The list can rerender, but shouldn’t remount in a way that wipes drawer state.
+
+If you must key list by filters, keep drawer state derived from URL so it survives.
+
+E) Add logging to catch the exact close trigger
+
+Temporarily add:
+
+On drawer mount/unmount: console.log("DealDrawer mount/unmount")
+
+When saleId changes: console.log("saleId", saleId)
+
+When any onOpenChange(false) fires: console.trace("drawer closed")
+
+That will instantly show whether it’s:
+
+route param being removed
+
+effect calling close
+
+component unmount
+
+2) Purchase info (SIV/figures) fields missing from vehicle add/edit + drawer
+
+Your screenshot shows the Vehicle Drawer “Overview” has Identity / Labels / Status & Location, but no Purchase section at all.
+
+What to implement (minimal, matches your agreed design)
+
+Add a Purchase Info section to:
+
+Add Vehicle form (optional fields)
+
+Vehicle Drawer → Overview (editable fields)
+
+Later: badges/filters/KPIs
+
+A) Data model (Mongo)
+
+Add a purchase object on Vehicle:
+
+purchase.price (number) — the SIV
+
+purchase.vatScheme (enum: none | vat_qualifying | margin)
+
+purchase.supplierContactId (optional contact ref)
+
+purchase.date (date)
+
+purchase.reference (string)
+
+purchase.notes (string)
+
+Do not default missing price to 0. Store null/undefined.
+
+B) UI placement (exactly where it should go)
+
+In Vehicle Drawer Overview tab, add a new card below “Status & Location”:
+
+Purchase info
+
+Purchase price (SIV) (£)
+
+VAT scheme (dropdown)
+
+Purchased from (ContactPicker)
+
+Purchase date
+
+Reference / notes
+
+All optional. Save inline like the other sections.
+
+C) Add Vehicle flow
+
+In the “Add stock” modal/page:
+
+include the same Purchase section, but collapsed by default (“Purchase info (optional)”).
+
+user can leave it blank.
+
+D) Required-before-invoice logic (warn, don’t block stock creation)
+
+You already decided:
+
+Optional at stock creation
+
+Strong warning / block only when generating invoice OR completing sale (depending how strict you want)
+
+So add checks in Sales:
+
+If vehicle.purchase.price missing:
+
+show warning banner in deal drawer:
+
+“Purchase price (SIV) missing — profit & VAT will be excluded until added.”
+
+disable “Complete sale” OR allow but force acknowledgement (your choice)
+
+KPIs exclude it and show coverage count
+
+E) Badge + filter (fast win)
+
+On vehicle cards:
+
+If missing purchase.price → badge “Missing SIV”
+
+Add filter: “Missing purchase info”
+
+This is a small change but immediately solves your “no way to tell what’s missing” concern.
+
+What I’d have Claude do next (in this exact order)
+
+Fix Sales drawer close bug
+
+Move open state to URL query param (saleId)
+
+Remove any auto-close effects
+
+Ensure create-sale routes to saleId immediately
+
+Implement purchase fields
+
+Vehicle schema + API update
+
+Add Vehicle form section (optional)
+
+Vehicle drawer “Purchase info” section (editable)
+
+Add “Missing SIV” badge + filter
+
+Only then continue Sales KPIs / invoice rules

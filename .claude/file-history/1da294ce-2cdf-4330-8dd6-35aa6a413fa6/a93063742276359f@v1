@@ -1,0 +1,230 @@
+import connectMongo from "@/libs/mongoose";
+import mongoose from "mongoose";
+import Appraisal from "@/models/Appraisal";
+import Vehicle from "@/models/Vehicle";
+import AftercareCase from "@/models/AftercareCase";
+import ReviewResponse from "@/models/ReviewResponse";
+import Form from "@/models/Form";
+import FormSubmission from "@/models/FormSubmission";
+import CalendarEvent from "@/models/CalendarEvent";
+import CourtesyAllocation from "@/models/CourtesyAllocation";
+import Contact from "@/models/Contact"; // Required for populate
+import { requireDealerContext } from "@/libs/authContext";
+
+// Default empty stats object for safe responses
+const DEFAULT_STATS = {
+  appraisals: { total: 0, pending: 0 },
+  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+  aftercare: { total: 0, open: 0 },
+  reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+  forms: { total: 0, submissions: 0 },
+  recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+  topForms: [],
+  oldestAppraisalDays: null,
+};
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  // Try to get dealer context - if it fails, return safe defaults
+  let ctx;
+  try {
+    ctx = await requireDealerContext(req, res);
+  } catch (error) {
+    // No dealer context - return safe defaults instead of 403
+    console.log("[Dashboard Stats] No dealer context, returning defaults");
+    return res.status(200).json(DEFAULT_STATS);
+  }
+
+  return handleStats(req, res, ctx);
+}
+
+async function handleStats(req, res, ctx) {
+  await connectMongo();
+  const { dealerId } = ctx;
+
+  // Date helpers for today queries
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  // MOT due within 14 days
+  const motDueSoon = new Date();
+  motDueSoon.setDate(motDueSoon.getDate() + 14);
+
+  const [
+    totalAppraisals, pendingAppraisals,
+    totalVehicles, inStockVehicles, inPrepVehicles, liveVehicles, deliveredVehicles,
+    totalCases, openCases,
+    reviews,
+    totalForms, totalSubmissions,
+    // Needs Attention counts
+    soldInProgress,
+    warrantyNotBookedIn,
+    eventsToday,
+    courtesyDueBack,
+    motExpiringSoon,
+    // Additional data
+    oldestPendingAppraisal,
+    lastReview
+  ] = await Promise.all([
+    Appraisal.countDocuments({ dealerId }),
+    Appraisal.countDocuments({ dealerId, decision: "pending" }),
+    Vehicle.countDocuments({ dealerId }),
+    Vehicle.countDocuments({ dealerId, status: "in_stock" }),
+    Vehicle.countDocuments({ dealerId, status: "in_prep" }),
+    Vehicle.countDocuments({ dealerId, status: "live" }),
+    Vehicle.countDocuments({ dealerId, status: "delivered" }),
+    AftercareCase.countDocuments({ dealerId }),
+    AftercareCase.countDocuments({ dealerId, status: { $in: ["new", "in_progress"] } }),
+    ReviewResponse.find({ dealerId }).lean(),
+    Form.countDocuments({ dealerId }),
+    FormSubmission.countDocuments({ dealerId }),
+    // Needs Attention: Sold in progress (status="live" maps to "Sold In Progress" column)
+    Vehicle.countDocuments({ dealerId, status: "live" }),
+    // Needs Attention: Warranty not booked in
+    AftercareCase.countDocuments({ dealerId, boardStatus: "not_booked_in" }),
+    // Needs Attention: Events today
+    CalendarEvent.countDocuments({
+      dealerId,
+      startDatetime: { $gte: startOfToday, $lt: endOfToday }
+    }),
+    // Needs Attention: Courtesy due back today or overdue
+    CourtesyAllocation.countDocuments({
+      dealerId,
+      dateDueBack: { $lte: endOfToday },
+      dateReturned: null
+    }),
+    // Needs Attention: MOT expiring soon (only if motExpiryDate exists)
+    Vehicle.countDocuments({
+      dealerId,
+      motExpiryDate: { $exists: true, $ne: null, $lte: motDueSoon },
+      status: { $nin: ["delivered", "archived"] }
+    }),
+    // Oldest pending appraisal (sort ascending to get oldest)
+    Appraisal.findOne({ dealerId, decision: "pending" })
+      .sort({ createdAt: 1 })
+      .select("createdAt")
+      .lean(),
+    // Most recent review
+    ReviewResponse.findOne({ dealerId })
+      .sort({ createdAt: -1 })
+      .select("createdAt")
+      .lean()
+  ]);
+
+  // Top 3 forms by submission count
+  const dealerObjectId = new mongoose.Types.ObjectId(dealerId);
+  const topFormsAgg = await FormSubmission.aggregate([
+    { $match: { dealerId: dealerObjectId } },
+    { $group: { _id: "$formId", count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 3 },
+    { $lookup: { from: "forms", localField: "_id", foreignField: "_id", as: "form" } },
+    { $unwind: { path: "$form", preserveNullAndEmptyArrays: false } },
+    { $project: { formId: "$_id", count: 1, name: "$form.name", type: "$form.type" } }
+  ]);
+
+  // Today counts by calendar category (for Today strip)
+  const todayCategoryCounts = await CalendarEvent.aggregate([
+    { $match: {
+      dealerId: dealerObjectId,
+      startDatetime: { $gte: startOfToday, $lt: endOfToday }
+    }},
+    { $lookup: { from: "calendarcategories", localField: "categoryId", foreignField: "_id", as: "category" }},
+    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
+    { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
+  ]);
+
+  // Extract category counts
+  const deliveriesToday = todayCategoryCounts.find(c =>
+    c._id?.includes("handover") || c._id?.includes("delivery")
+  )?.count || 0;
+  const testDrivesToday = todayCategoryCounts.find(c =>
+    c._id?.includes("test drive") || c._id?.includes("testdrive")
+  )?.count || 0;
+
+  // Calculate average rating
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "N/A";
+
+  // Helper to transform _id to id for lean() results
+  const transformDoc = (doc) => {
+    if (!doc) return null;
+    const { _id, __v, ...rest } = doc;
+    return { id: _id?.toString(), ...rest };
+  };
+
+  // Recent items - scoped by dealerId
+  const recentAppraisalsRaw = await Appraisal.find({ dealerId })
+    .populate("contactId")
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .lean();
+
+  const recentVehiclesRaw = await Vehicle.find({ dealerId })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .lean();
+
+  const recentSubmissionsRaw = await FormSubmission.find({ dealerId })
+    .populate("formId")
+    .sort({ submittedAt: -1 })
+    .limit(5)
+    .lean();
+
+  // Transform all recent items
+  const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
+  const recentVehicles = recentVehiclesRaw.map(transformDoc);
+  const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
+
+  // Calculate days since oldest pending appraisal
+  const oldestAppraisalDays = oldestPendingAppraisal
+    ? Math.floor((Date.now() - new Date(oldestPendingAppraisal.createdAt)) / (1000 * 60 * 60 * 24))
+    : null;
+
+  // Calculate days since last review
+  const lastReviewDays = lastReview
+    ? Math.floor((Date.now() - new Date(lastReview.createdAt)) / (1000 * 60 * 60 * 24))
+    : null;
+
+  return res.status(200).json({
+    appraisals: { total: totalAppraisals, pending: pendingAppraisals },
+    vehicles: {
+      total: totalVehicles,
+      inStock: inStockVehicles,
+      inPrep: inPrepVehicles,
+      live: liveVehicles,
+      delivered: deliveredVehicles
+    },
+    aftercare: { total: totalCases, open: openCases },
+    reviews: { count: reviews.length, avgRating, lastReviewDays },
+    forms: { total: totalForms, submissions: totalSubmissions },
+    recent: { appraisals: recentAppraisals, vehicles: recentVehicles, formSubmissions: recentSubmissions },
+    // Needs Attention counts
+    needsAttention: {
+      soldInProgress,
+      warrantyNotBookedIn,
+      eventsToday,
+      courtesyDueBack,
+      motExpiringSoon
+    },
+    // Today strip
+    today: {
+      events: eventsToday,
+      deliveries: deliveriesToday,
+      testDrives: testDrivesToday,
+      courtesyDueBack
+    },
+    // Top forms by usage
+    topForms: topFormsAgg,
+    // KPI micro-context
+    oldestAppraisalDays,
+  });
+}
+
+export default withDealerContext(handler);

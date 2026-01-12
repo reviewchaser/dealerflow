@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   178→
+   179→  // Search filter state
+   180→  const [searchQuery, setSearchQuery] = useState("");
+   181→
+   182→  // Filter state (matching stock board style)
+   183→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   184→  const [showMobileFilters, setShowMobileFilters] = useState(false);
+   185→  const [filters, setFilters] = useState({
+   186→    location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
+   187→    booked: "all",        // "all" | "booked" | "not_booked"
+   188→    partsRequired: "all", // "all" | "yes" | "no"
+   189→    priority: "all",      // "all" | "low" | "normal" | "high" | "critical"

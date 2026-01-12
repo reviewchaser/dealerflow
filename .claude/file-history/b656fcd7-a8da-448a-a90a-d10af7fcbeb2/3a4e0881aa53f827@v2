@@ -1,0 +1,76 @@
+/**
+ * Tenant Calendar Page - /app/[dealerSlug]/calendar
+ */
+
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+
+// Inner component that uses context
+function CalendarContent({ dealer }) {
+  const { fetchWithTenant } = useDealer();
+  const [events, setEvents] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWithTenant("/api/calendar/events")
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setEvents(Array.isArray(data) ? data : []))
+      .finally(() => setIsLoading(false));
+  }, [fetchWithTenant]);
+
+  return (
+    <>
+      <Head><title>Calendar | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+        <p className="text-slate-600 mt-1">View deliveries, test drives, and events</p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+        </div>
+      ) : events.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No events scheduled</h3>
+          <p className="text-slate-500">Events will appear here when scheduled</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {events.map((event) => (
+              <div key={event.id || event._id} className="p-4 hover:bg-slate-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-900">{event.title || event.type}</p>
+                    <p className="text-sm text-slate-500">
+                      {new Date(event.date || event.startDate).toLocaleDateString('en-GB', {
+                        weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+                    {event.type || 'Event'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function TenantCalendar({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <CalendarContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

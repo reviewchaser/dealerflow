@@ -1,0 +1,44 @@
+    95→  useEffect(() => {
+    96→    if (router.query.create === "1") {
+    97→      console.log("[Sales] create=1 detected, opening modal");
+    98→      setShowCreateModal(true);
+    99→      // Remove ONLY the create param, preserve id if present
+   100→      const { create, ...restQuery } = router.query;
+   101→      const queryString = Object.keys(restQuery).length > 0
+   102→        ? "?" + new URLSearchParams(restQuery).toString()
+   103→        : "";
+   104→      router.replace(`/sales${queryString}`, undefined, { shallow: true });
+   105→    }
+   106→  }, [router.query.create]);
+   107→
+   108→  // Load available vehicles when modal opens
+   109→  const fetchAvailableVehicles = useCallback(async () => {
+   110→    setVehiclesLoading(true);
+   111→    setVehiclesError(null);
+   112→    try {
+   113→      // Fetch vehicles that can be sold (not sold status, eligible for sale)
+   114→      const res = await fetch("/api/vehicles?forSale=true");
+   115→      if (!res.ok) {
+   116→        const err = await res.json().catch(() => ({}));
+   117→        throw new Error(err.error || `Failed to fetch vehicles (${res.status})`);
+   118→      }
+   119→      const data = await res.json();
+   120→      setAvailableVehicles(data.vehicles || data);
+   121→    } catch (error) {
+   122→      console.error("[Sales] Vehicle fetch error:", error);
+   123→      setVehiclesError(error.message || "Failed to load vehicles");
+   124→      setAvailableVehicles([]);
+   125→    } finally {
+   126→      setVehiclesLoading(false);
+   127→    }
+   128→  }, []);
+   129→
+   130→  useEffect(() => {
+   131→    if (showCreateModal) {
+   132→      fetchAvailableVehicles();
+   133→    }
+   134→  }, [showCreateModal, fetchAvailableVehicles]);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

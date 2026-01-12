@@ -1,0 +1,138 @@
+import connectMongo from "@/libs/mongoose";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
+import FormSubmissionFile from "@/models/FormSubmissionFile";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import { requireDealerContext } from "@/libs/authContext";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  // GET requires authentication
+  if (req.method === "GET") {
+    try {
+      const ctx = await requireDealerContext(req, res);
+      const { dealerId } = ctx;
+      let { formId, formType, search, startDate, endDate } = req.query;
+
+      let query = { dealerId };
+
+      // Filter by form
+      if (formId) {
+        query.formId = formId;
+      }
+
+      // Filter by form type
+      if (formType) {
+        const forms = await Form.find({ dealerId, type: formType });
+        const formIds = forms.map((f) => f._id);
+        query.formId = { $in: formIds };
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.submittedAt = {};
+        if (startDate) query.submittedAt.$gte = new Date(startDate);
+        if (endDate) query.submittedAt.$lte = new Date(endDate);
+      }
+
+      // Search filter (search in rawAnswers)
+      if (search) {
+        query.$or = [
+          { "rawAnswers.name": { $regex: search, $options: "i" } },
+          { "rawAnswers.email": { $regex: search, $options: "i" } },
+          { "rawAnswers.phone": { $regex: search, $options: "i" } },
+          { "rawAnswers.reg": { $regex: search, $options: "i" } },
+          { "rawAnswers.vrm": { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const submissions = await FormSubmission.find(query)
+        .populate("formId")
+        .populate("submittedByContactId")
+        .populate("linkedVehicleId")
+        .populate("linkedAftercareCaseId")
+        .sort({ submittedAt: -1 });
+
+      return res.status(200).json(submissions);
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || "Failed to fetch submissions" });
+    }
+  }
+
+  // POST is public - form submissions from public forms
+  if (req.method === "POST") {
+    try {
+      const { formId, rawAnswers, submittedByContactId, files } = req.body;
+
+      if (!formId || !rawAnswers) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const form = await Form.findById(formId);
+      if (!form) {
+        return res.status(404).json({ error: "Form not found" });
+      }
+
+      const submission = await FormSubmission.create({
+        formId,
+        dealerId: form.dealerId,
+        rawAnswers,
+        submittedByContactId,
+        submittedAt: new Date(),
+      });
+
+      // Handle file uploads if provided
+      if (files && Array.isArray(files)) {
+        const filePromises = files.map((file) =>
+          FormSubmissionFile.create({
+            formSubmissionId: submission._id,
+            ...file,
+          })
+        );
+        await Promise.all(filePromises);
+      }
+
+      // Vehicle integration - update vehicle records based on form type
+      const vrm = rawAnswers.vrm || rawAnswers.courtesy_vrm || rawAnswers.vehicle_reg;
+      if (vrm) {
+        const vehicle = await Vehicle.findOne({
+          regCurrent: vrm.toUpperCase().replace(/\s/g, ""),
+          dealerId: form.dealerId
+        });
+
+        if (vehicle) {
+          const updates = {};
+
+          switch (form.type) {
+            case "PDI":
+              updates.pdiSubmissionId = submission._id;
+              updates.pdiCompletedAt = new Date();
+              break;
+
+            case "TEST_DRIVE":
+              updates.testDriveCount = (vehicle.testDriveCount || 0) + 1;
+              break;
+
+            case "DELIVERY":
+              updates.deliverySubmissionId = submission._id;
+              updates.status = "delivered";
+              break;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+          }
+        }
+      }
+
+      return res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating submission:", error);
+      return res.status(500).json({ error: "Failed to create submission" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

@@ -1,0 +1,58 @@
+The file C:\Users\georg\dealerflow\pages\public\invoice\[token].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   331→                </div>
+   332→              </div>
+   333→            )}
+   334→
+   335→            {/* Signature Section - ensure stays together on page */}
+   336→            <div className="print:break-inside-avoid border-t border-slate-200 pt-6">
+   337→              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-4">Acknowledgement</p>
+   338→              <div className="grid grid-cols-2 gap-6">
+   339→                <div className="space-y-2">
+   340→                  <p className="text-xs text-slate-600">I confirm receipt of the above vehicle and agree to the terms and conditions stated.</p>
+   341→                  <div className="border-b-2 border-slate-300 pt-8 mt-2">
+   342→                    <p className="text-xs text-slate-400 -mb-1">Customer Signature</p>
+   343→                  </div>
+   344→                  <div className="border-b border-slate-200 pt-4">
+   345→                    <p className="text-xs text-slate-400 -mb-1">Print Name</p>
+   346→                  </div>
+   347→                  <div className="border-b border-slate-200 pt-4">
+   348→                    <p className="text-xs text-slate-400 -mb-1">Date</p>
+   349→                  </div>
+   350→                </div>
+   351→                <div className="space-y-2">
+   352→                  <p className="text-xs text-slate-600">Authorised on behalf of {snap.dealer?.companyName || snap.dealer?.name}</p>
+   353→                  <div className="border-b-2 border-slate-300 pt-8 mt-2">
+   354→                    <p className="text-xs text-slate-400 -mb-1">Dealer Signature</p>
+   355→                  </div>
+   356→                  <div className="border-b border-slate-200 pt-4">
+   357→                    <p className="text-xs text-slate-400 -mb-1">Print Name</p>
+   358→                  </div>
+   359→                  <div className="border-b border-slate-200 pt-4">
+   360→                    <p className="text-xs text-slate-400 -mb-1">Date</p>
+   361→                  </div>
+   362→                </div>
+   363→              </div>
+   364→            </div>
+   365→
+   366→            {/* Footer - keep with signatures */}
+   367→            <div className="print:break-inside-avoid border-t border-slate-200 pt-4 text-center">
+   368→              {snap.dealer?.companyNumber && (
+   369→                <p className="text-xs text-slate-500">Registered Company: {snap.dealer.companyNumber}</p>
+   370→              )}
+   371→              <p className="text-xs text-slate-400 mt-2">Thank you for your business.</p>
+   372→            </div>
+   373→          </div>
+   374→
+   375→          {/* Terms & Conditions - separate page if present */}
+   376→          {snap.termsText && (
+   377→            <div className="p-8 print:p-6 print:break-before-page border-t border-slate-200">
+   378→              <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
+   379→              <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+   380→            </div>
+   381→          )}
+   382→        </div>
+   383→      </div>
+   384→
+   385→      <style jsx global>{`
+   386→        @media print {
+   387→          @page {

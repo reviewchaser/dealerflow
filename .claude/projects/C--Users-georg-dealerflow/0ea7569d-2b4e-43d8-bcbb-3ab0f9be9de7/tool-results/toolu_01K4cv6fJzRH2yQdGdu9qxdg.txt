@@ -1,0 +1,1484 @@
+     1→import { useState, useEffect, useCallback } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import VehicleImageUploader from "@/components/VehicleImageUploader";
+     4→import VehicleImageGallery from "@/components/VehicleImageGallery";
+     5→
+     6→// Helper to get viewable URL (handles signed URL fallback for private buckets)
+     7→const getViewableUrl = async (urlOrKey) => {
+     8→  if (!urlOrKey) return null;
+     9→
+    10→  // If it's a data URL or local path, return as-is
+    11→  if (urlOrKey.startsWith("data:") || urlOrKey.startsWith("/")) {
+    12→    return urlOrKey;
+    13→  }
+    14→
+    15→  // If it looks like an S3 key (no protocol), get signed URL
+    16→  if (!urlOrKey.startsWith("http")) {
+    17→    try {
+    18→      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(urlOrKey)}`);
+    19→      if (res.ok) {
+    20→        const { signedUrl } = await res.json();
+    21→        return signedUrl;
+    22→      }
+    23→    } catch (err) {
+    24→      console.error("[VehicleDrawer] Failed to get signed URL:", err);
+    25→    }
+    26→  }
+    27→
+    28→  // Return the original URL (may be public or already signed)
+    29→  return urlOrKey;
+    30→};
+    31→
+    32→// Helper to open file with signed URL fallback
+    33→const openFileWithFallback = async (urlOrKey, e) => {
+    34→  if (e) e.preventDefault();
+    35→
+    36→  try {
+    37→    const viewableUrl = await getViewableUrl(urlOrKey);
+    38→    if (viewableUrl) {
+    39→      window.open(viewableUrl, "_blank");
+    40→    } else {
+    41→      toast.error("Could not open file");
+    42→    }
+    43→  } catch (err) {
+    44→    console.error("[VehicleDrawer] Error opening file:", err);
+    45→    toast.error("Failed to open file");
+    46→  }
+    47→};
+    48→
+    49→// Helper for relative time display
+    50→const relativeTime = (date) => {
+    51→  if (!date) return "";
+    52→  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+    53→  if (days === 0) {
+    54→    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    55→    if (hours === 0) {
+    56→      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+    57→      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    58→    }
+    59→    return `${hours}h ago`;
+    60→  }
+    61→  if (days === 1) return "Yesterday";
+    62→  if (days < 7) return `${days}d ago`;
+    63→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    64→  return `${Math.floor(days / 30)}mo ago`;
+    65→};
+    66→
+    67→// Format date helper
+    68→const formatDate = (date) => {
+    69→  if (!date) return "";
+    70→  return new Date(date).toLocaleDateString("en-GB", {
+    71→    day: "numeric",
+    72→    month: "short",
+    73→    year: "numeric",
+    74→  });
+    75→};
+    76→
+    77→// DVLA Details formatting helpers
+    78→const formatMonthYear = (monthStr) => {
+    79→  // Format YYYY-MM to "Dec 2004"
+    80→  if (!monthStr) return null;
+    81→  try {
+    82→    const [year, month] = monthStr.split("-");
+    83→    const date = new Date(parseInt(year), parseInt(month) - 1);
+    84→    return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+    85→  } catch {
+    86→    return monthStr;
+    87→  }
+    88→};
+    89→
+    90→const formatEngineCapacity = (cc) => {
+    91→  if (!cc) return null;
+    92→  return `${cc.toLocaleString()} cc`;
+    93→};
+    94→
+    95→const formatCo2 = (g) => {
+    96→  if (!g) return null;
+    97→  return `${g} g/km`;
+    98→};
+    99→
+   100→const formatWeight = (kg) => {
+   101→  if (!kg) return null;
+   102→  return `${kg.toLocaleString()} kg`;
+   103→};
+   104→
+   105→const STATUS_LABELS = {
+   106→  in_stock: "In Prep",
+   107→  in_prep: "Advertised",
+   108→  live: "Sold In Progress",
+   109→  reserved: "Completed",
+   110→  delivered: "Delivered",
+   111→};
+   112→
+   113→/**
+   114→ * VehicleDrawer - A reusable component to display vehicle details in a drawer/modal
+   115→ *
+   116→ * Props:
+   117→ * - vehicleId: The ID of the vehicle to display
+   118→ * - isOpen: Whether the drawer is open
+   119→ * - onClose: Function to call when closing the drawer
+   120→ * - isStacked: If true, renders as a stacked drawer (overlays another drawer)
+   121→ * - readOnly: If true, hides editing controls (default: true for warranty context)
+   122→ */
+   123→export default function VehicleDrawer({
+   124→  vehicleId,
+   125→  isOpen,
+   126→  onClose,
+   127→  isStacked = false,
+   128→  readOnly = true,
+   129→}) {
+   130→  const [vehicle, setVehicle] = useState(null);
+   131→  const [isLoading, setIsLoading] = useState(false);
+   132→  const [activeTab, setActiveTab] = useState("overview");
+   133→  const [expandedIssues, setExpandedIssues] = useState({});
+   134→
+   135→  // Sales/Deal state
+   136→  const [deal, setDeal] = useState(null);
+   137→  const [dealDocuments, setDealDocuments] = useState([]);
+   138→  const [dealLoading, setDealLoading] = useState(false);
+   139→  const [dealActionLoading, setDealActionLoading] = useState(null);
+   140→
+   141→  // Lock body scroll and prevent horizontal pan when drawer is open
+   142→  useEffect(() => {
+   143→    if (isOpen) {
+   144→      const scrollY = window.scrollY;
+   145→      const html = document.documentElement;
+   146→
+   147→      document.body.style.position = "fixed";
+   148→      document.body.style.top = `-${scrollY}px`;
+   149→      document.body.style.left = "0";
+   150→      document.body.style.right = "0";
+   151→      document.body.style.width = "100%";
+   152→      document.body.style.overflow = "hidden";
+   153→      document.body.style.overflowX = "hidden";
+   154→      document.body.style.touchAction = "none";
+   155→
+   156→      html.style.overflow = "hidden";
+   157→      html.style.overflowX = "hidden";
+   158→
+   159→      document.body.classList.add("modal-open");
+   160→
+   161→      return () => {
+   162→        document.body.style.position = "";
+   163→        document.body.style.top = "";
+   164→        document.body.style.left = "";
+   165→        document.body.style.right = "";
+   166→        document.body.style.width = "";
+   167→        document.body.style.overflow = "";
+   168→        document.body.style.overflowX = "";
+   169→        document.body.style.touchAction = "";
+   170→
+   171→        html.style.overflow = "";
+   172→        html.style.overflowX = "";
+   173→
+   174→        document.body.classList.remove("modal-open");
+   175→        window.scrollTo(0, scrollY);
+   176→      };
+   177→    }
+   178→  }, [isOpen]);
+   179→
+   180→  useEffect(() => {
+   181→    if (isOpen && vehicleId) {
+   182→      fetchVehicle();
+   183→    }
+   184→  }, [isOpen, vehicleId]);
+   185→
+   186→  const fetchVehicle = async () => {
+   187→    setIsLoading(true);
+   188→    try {
+   189→      const res = await fetch(`/api/vehicles/${vehicleId}`);
+   190→      if (!res.ok) throw new Error("Failed to load vehicle");
+   191→      const data = await res.json();
+   192→      setVehicle(data);
+   193→      // Also fetch any existing deal for this vehicle
+   194→      fetchDealForVehicle(vehicleId);
+   195→    } catch (error) {
+   196→      toast.error("Failed to load vehicle details");
+   197→      console.error(error);
+   198→    } finally {
+   199→      setIsLoading(false);
+   200→    }
+   201→  };
+   202→
+   203→  // Fetch deal for this vehicle
+   204→  const fetchDealForVehicle = async (vehId) => {
+   205→    setDealLoading(true);
+   206→    try {
+   207→      const res = await fetch(`/api/deals?vehicleId=${vehId}`);
+   208→      if (!res.ok) throw new Error("Failed to fetch deals");
+   209→      const deals = await res.json();
+   210→      // Find active deal (not cancelled/completed)
+   211→      const activeDeal = deals.find(d => !["CANCELLED", "COMPLETED"].includes(d.status)) || deals[0];
+   212→      setDeal(activeDeal || null);
+   213→    } catch (error) {
+   214→      console.error("Failed to fetch deal:", error);
+   215→      setDeal(null);
+   216→    } finally {
+   217→      setDealLoading(false);
+   218→    }
+   219→  };
+   220→
+   221→  // Create a new deal for this vehicle
+   222→  const handleCreateDeal = async () => {
+   223→    setDealActionLoading("create");
+   224→    try {
+   225→      const res = await fetch("/api/deals", {
+   226→        method: "POST",
+   227→        headers: { "Content-Type": "application/json" },
+   228→        body: JSON.stringify({ vehicleId }),
+   229→      });
+   230→      if (!res.ok) {
+   231→        const err = await res.json();
+   232→        throw new Error(err.error || "Failed to create deal");
+   233→      }
+   234→      const newDeal = await res.json();
+   235→      setDeal(newDeal);
+   236→      toast.success("Deal created");
+   237→    } catch (error) {
+   238→      toast.error(error.message);
+   239→    } finally {
+   240→      setDealActionLoading(null);
+   241→    }
+   242→  };
+   243→
+   244→  // Take deposit action
+   245→  const handleTakeDeposit = async (amount, method) => {
+   246→    if (!deal) return;
+   247→    setDealActionLoading("deposit");
+   248→    try {
+   249→      const res = await fetch(`/api/deals/${deal.id}/take-deposit`, {
+   250→        method: "POST",
+   251→        headers: { "Content-Type": "application/json" },
+   252→        body: JSON.stringify({ amount, method }),
+   253→      });
+   254→      if (!res.ok) {
+   255→        const err = await res.json();
+   256→        throw new Error(err.error || "Failed to record deposit");
+   257→      }
+   258→      toast.success("Deposit recorded");
+   259→      fetchDealForVehicle(vehicleId);
+   260→    } catch (error) {
+   261→      toast.error(error.message);
+   262→    } finally {
+   263→      setDealActionLoading(null);
+   264→    }
+   265→  };
+   266→
+   267→  // Generate invoice action
+   268→  const handleGenerateInvoice = async () => {
+   269→    if (!deal) return;
+   270→    setDealActionLoading("invoice");
+   271→    try {
+   272→      const res = await fetch(`/api/deals/${deal.id}/generate-invoice`, {
+   273→        method: "POST",
+   274→        headers: { "Content-Type": "application/json" },
+   275→      });
+   276→      if (!res.ok) {
+   277→        const err = await res.json();
+   278→        throw new Error(err.error || "Failed to generate invoice");
+   279→      }
+   280→      const result = await res.json();
+   281→      toast.success(`Invoice generated: ${result.documentNumber}`);
+   282→      fetchDealForVehicle(vehicleId);
+   283→    } catch (error) {
+   284→      toast.error(error.message);
+   285→    } finally {
+   286→      setDealActionLoading(null);
+   287→    }
+   288→  };
+   289→
+   290→  // Mark delivered action
+   291→  const handleMarkDelivered = async () => {
+   292→    if (!deal) return;
+   293→    setDealActionLoading("delivered");
+   294→    try {
+   295→      const res = await fetch(`/api/deals/${deal.id}/mark-delivered`, {
+   296→        method: "POST",
+   297→        headers: { "Content-Type": "application/json" },
+   298→      });
+   299→      if (!res.ok) {
+   300→        const err = await res.json();
+   301→        throw new Error(err.error || "Failed to mark as delivered");
+   302→      }
+   303→      toast.success("Deal marked as delivered");
+   304→      fetchDealForVehicle(vehicleId);
+   305→    } catch (error) {
+   306→      toast.error(error.message);
+   307→    } finally {
+   308→      setDealActionLoading(null);
+   309→    }
+   310→  };
+   311→
+   312→  // Mark completed action
+   313→  const handleMarkCompleted = async () => {
+   314→    if (!deal) return;
+   315→    setDealActionLoading("completed");
+   316→    try {
+   317→      const res = await fetch(`/api/deals/${deal.id}/mark-completed`, {
+   318→        method: "POST",
+   319→        headers: { "Content-Type": "application/json" },
+   320→      });
+   321→      if (!res.ok) {
+   322→        const err = await res.json();
+   323→        throw new Error(err.error || "Failed to complete deal");
+   324→      }
+   325→      toast.success("Deal completed");
+   326→      fetchDealForVehicle(vehicleId);
+   327→    } catch (error) {
+   328→      toast.error(error.message);
+   329→    } finally {
+   330→      setDealActionLoading(null);
+   331→    }
+   332→  };
+   333→
+   334→  // Format currency helper
+   335→  const formatCurrency = (amount) => {
+   336→    if (amount === null || amount === undefined) return "—";
+   337→    return new Intl.NumberFormat("en-GB", {
+   338→      style: "currency",
+   339→      currency: "GBP",
+   340→    }).format(amount);
+   341→  };
+   342→
+   343→  // Deal status config
+   344→  const DEAL_STATUS_CONFIG = {
+   345→    DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
+   346→    DEPOSIT_TAKEN: { label: "Deposit Taken", color: "bg-amber-100 text-amber-700" },
+   347→    INVOICED: { label: "Invoiced", color: "bg-blue-100 text-blue-700" },
+   348→    DELIVERED: { label: "Delivered", color: "bg-purple-100 text-purple-700" },
+   349→    COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+   350→    CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+   351→  };
+   352→
+   353→  if (!isOpen) return null;
+   354→
+   355→  return (
+   356→    <div
+   357→      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
+   358→      style={{
+   359→        touchAction: "none",
+   360→        overscrollBehavior: "none",
+   361→        WebkitOverflowScrolling: "touch",
+   362→      }}
+   363→    >
+   364→      {/* Backdrop with blur - captures all pointer/touch events outside drawer */}
+   365→      <div
+   366→        className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
+   367→        onClick={onClose}
+   368→        onTouchMove={(e) => e.preventDefault()}
+   369→        style={{ touchAction: "none" }}
+   370→      />
+   371→
+   372→      {/* Drawer - Uses 100dvh for proper mobile Safari height, locked horizontal scroll */}
+   373→      <div
+   374→        className={`relative bg-[#f8fafc] flex flex-col ${
+   375→          isStacked ? "w-full max-w-2xl" : "w-full max-w-3xl"
+   376→        } min-w-0 translate-x-0 overflow-x-hidden shadow-2xl`}
+   377→        style={{
+   378→          height: "100dvh",
+   379→          maxHeight: "100dvh",
+   380→          touchAction: "pan-y",
+   381→          WebkitOverflowScrolling: "touch",
+   382→          overscrollBehaviorX: "none",
+   383→          overscrollBehaviorY: "contain",
+   384→        }}
+   385→      >
+   386→        {isLoading ? (
+   387→          <div className="flex items-center justify-center h-full">
+   388→            <span className="loading loading-spinner loading-lg"></span>
+   389→          </div>
+   390→        ) : !vehicle ? (
+   391→          <div className="flex flex-col items-center justify-center h-full">
+   392→            <p className="text-base-content/60">Vehicle not found</p>
+   393→            <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>
+   394→              Close
+   395→            </button>
+   396→          </div>
+   397→        ) : (
+   398→          <>
+   399→            {/* Header - Modern gradient design */}
+   400→            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+   401→              <div className="flex items-center justify-between">
+   402→                <div className="flex items-center gap-3">
+   403→                  <button
+   404→                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+   405→                    onClick={onClose}
+   406→                    title="Close"
+   407→                  >
+   408→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   409→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   410→                    </svg>
+   411→                  </button>
+   412→                  <div>
+   413→                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+   414→                      {vehicle.year || ""} {vehicle.make} {vehicle.model}
+   415→                    </h2>
+   416→                    <div className="flex items-center gap-2 mt-1">
+   417→                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+   418→                        {vehicle.regCurrent}
+   419→                      </span>
+   420→                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+   421→                        vehicle.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
+   422→                        vehicle.status === "live" ? "bg-blue-100 text-blue-700" :
+   423→                        vehicle.status === "in_prep" ? "bg-amber-100 text-amber-700" :
+   424→                        vehicle.status === "reserved" ? "bg-pink-100 text-pink-700" :
+   425→                        "bg-slate-100 text-slate-600"
+   426→                      }`}>
+   427→                        {STATUS_LABELS[vehicle.status] || vehicle.status}
+   428→                      </span>
+   429→                    </div>
+   430→                  </div>
+   431→                </div>
+   432→                <button
+   433→                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+   434→                  onClick={onClose}
+   435→                >
+   436→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   437→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   438→                  </svg>
+   439→                </button>
+   440→              </div>
+   441→            </div>
+   442→
+   443→            {/* Tabs - Dropdown on mobile, pills on desktop */}
+   444→            <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
+   445→              {/* Mobile: Dropdown selector */}
+   446→              <div className="md:hidden">
+   447→                <select
+   448→                  value={activeTab}
+   449→                  onChange={(e) => setActiveTab(e.target.value)}
+   450→                  className="select select-bordered w-full font-medium"
+   451→                >
+   452→                  {[
+   453→                    { id: "overview", label: "Overview" },
+   454→                    { id: "sales", label: `Sales${deal ? ` (${DEAL_STATUS_CONFIG[deal.status]?.label || deal.status})` : ""}` },
+   455→                    { id: "checklist", label: `Checklist${vehicle.tasks?.length ? ` (${vehicle.tasks.length})` : ""}` },
+   456→                    { id: "issues", label: `Issues${vehicle.issues?.length ? ` (${vehicle.issues.length})` : ""}` },
+   457→                    { id: "documents", label: `Documents${vehicle.documents?.length ? ` (${vehicle.documents.length})` : ""}` },
+   458→                    { id: "images", label: `Images${vehicle.images?.length ? ` (${vehicle.images.length})` : ""}` },
+   459→                  ].map((tab) => (
+   460→                    <option key={tab.id} value={tab.id}>
+   461→                      {tab.label}
+   462→                    </option>
+   463→                  ))}
+   464→                </select>
+   465→              </div>
+   466→
+   467→              {/* Desktop: Pill tabs */}
+   468→              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+   469→                {[
+   470→                  { id: "overview", label: "Overview", icon: (
+   471→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   472→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   473→                    </svg>
+   474→                  )},
+   475→                  { id: "sales", label: "Sales", count: deal ? 1 : 0, icon: (
+   476→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   477→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+   478→                    </svg>
+   479→                  )},
+   480→                  { id: "checklist", label: "Checklist", count: vehicle.tasks?.length, icon: (
+   481→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   482→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+   483→                    </svg>
+   484→                  )},
+   485→                  { id: "issues", label: "Issues", count: vehicle.issues?.length, icon: (
+   486→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   487→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   488→                    </svg>
+   489→                  )},
+   490→                  { id: "documents", label: "Documents", count: vehicle.documents?.length, icon: (
+   491→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   492→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+   493→                    </svg>
+   494→                  )},
+   495→                  { id: "images", label: "Images", count: vehicle.images?.length, icon: (
+   496→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   497→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   498→                    </svg>
+   499→                  )},
+   500→                ].map((tab) => (
+   501→                  <button
+   502→                    key={tab.id}
+   503→                    onClick={() => setActiveTab(tab.id)}
+   504→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   505→                      activeTab === tab.id
+   506→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   507→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+   508→                    }`}
+   509→                  >
+   510→                    {tab.icon}
+   511→                    <span>{tab.label}</span>
+   512→                    {tab.count > 0 && (
+   513→                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   514→                        activeTab === tab.id
+   515→                          ? "bg-white/20 text-white"
+   516→                          : "bg-slate-200 text-slate-600"
+   517→                      }`}>
+   518→                        {tab.count}
+   519→                      </span>
+   520→                    )}
+   521→                  </button>
+   522→                ))}
+   523→              </div>
+   524→            </div>
+   525→
+   526→            {/* Content - Scrollable region with generous bottom padding for mobile */}
+   527→            <div
+   528→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
+   529→              style={{
+   530→                // Generous padding to ensure last content is fully visible and tappable
+   531→                // 96px base + safe-area-inset for iPhone home bar = ~130px on iPhone X+
+   532→                paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))",
+   533→                touchAction: "pan-y",
+   534→                WebkitOverflowScrolling: "touch",
+   535→              }}
+   536→            >
+   537→              {/* Overview Tab */}
+   538→              {activeTab === "overview" && (
+   539→                <div className="space-y-4">
+   540→                  {/* Identity Section */}
+   541→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   542→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   543→                      <div className="flex items-center gap-2">
+   544→                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+   545→                          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   546→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+   547→                          </svg>
+   548→                        </div>
+   549→                        <h3 className="text-sm font-bold text-slate-800">Identity</h3>
+   550→                      </div>
+   551→                    </div>
+   552→                    <div className="p-4 grid grid-cols-2 gap-4">
+   553→                      <div>
+   554→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Registration</span>
+   555→                        <p className="font-mono font-bold text-slate-900 mt-0.5">{vehicle.regCurrent || "—"}</p>
+   556→                      </div>
+   557→                      <div>
+   558→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">VIN</span>
+   559→                        <p className="font-mono text-xs text-slate-700 mt-0.5 break-all">{vehicle.vin || "—"}</p>
+   560→                      </div>
+   561→                    </div>
+   562→                  </div>
+   563→
+   564→                  {/* Quick Stats Row */}
+   565→                  <div className="grid grid-cols-3 gap-3">
+   566→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   567→                      <p className="text-2xl font-bold text-slate-900">{vehicle.year || "—"}</p>
+   568→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Year</p>
+   569→                    </div>
+   570→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   571→                      <p className="text-lg font-bold text-slate-900">{vehicle.mileageCurrent ? `${(vehicle.mileageCurrent / 1000).toFixed(0)}k` : "—"}</p>
+   572→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Miles</p>
+   573→                    </div>
+   574→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   575→                      <p className="text-lg font-bold text-slate-900">{vehicle.fuelType ? vehicle.fuelType.charAt(0).toUpperCase() : "—"}</p>
+   576→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Fuel</p>
+   577→                    </div>
+   578→                  </div>
+   579→
+   580→                  {/* Labels */}
+   581→                  {vehicle.labels?.length > 0 && (
+   582→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   583→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   584→                        <div className="flex items-center gap-2">
+   585→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+   586→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   587→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+   588→                            </svg>
+   589→                          </div>
+   590→                          <h3 className="text-sm font-bold text-slate-800">Labels</h3>
+   591→                        </div>
+   592→                      </div>
+   593→                      <div className="p-4 flex flex-wrap gap-2">
+   594→                        {vehicle.labels.map((label) => (
+   595→                          <span
+   596→                            key={label.id}
+   597→                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm"
+   598→                            style={{
+   599→                              backgroundColor: `${label.colour}15`,
+   600→                              color: label.colour,
+   601→                              border: `1px solid ${label.colour}30`,
+   602→                            }}
+   603→                          >
+   604→                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+   605→                            {label.name}
+   606→                          </span>
+   607→                        ))}
+   608→                      </div>
+   609→                    </div>
+   610→                  )}
+   611→
+   612→                  {/* Specifications Section */}
+   613→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   614→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   615→                      <div className="flex items-center gap-2">
+   616→                        <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center">
+   617→                          <svg className="w-4 h-4 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   618→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   619→                          </svg>
+   620→                        </div>
+   621→                        <h3 className="text-sm font-bold text-slate-800">Specifications</h3>
+   622→                      </div>
+   623→                    </div>
+   624→                    <div className="p-4 grid grid-cols-2 gap-4 text-sm">
+   625→                      <div>
+   626→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Make</span>
+   627→                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.make || "—"}</p>
+   628→                      </div>
+   629→                      <div>
+   630→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Model</span>
+   631→                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.model || "—"}</p>
+   632→                      </div>
+   633→                      <div>
+   634→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Colour</span>
+   635→                        <p className="text-slate-700 mt-0.5">{vehicle.colour || "—"}</p>
+   636→                      </div>
+   637→                      <div>
+   638→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+   639→                        <p className="text-slate-700 mt-0.5">{vehicle.fuelType || "—"}</p>
+   640→                      </div>
+   641→                      <div>
+   642→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Location</span>
+   643→                        <p className="text-slate-700 mt-0.5">{vehicle.locationId?.name || "On Site"}</p>
+   644→                      </div>
+   645→                      <div>
+   646→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Type</span>
+   647→                        <p className="text-slate-700 mt-0.5">{vehicle.type || "Stock"}</p>
+   648→                      </div>
+   649→                      <div className="col-span-2">
+   650→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Expiry</span>
+   651→                        <p className={`font-medium mt-0.5 ${
+   652→                          vehicle.motExpiryDate && new Date(vehicle.motExpiryDate) < new Date()
+   653→                            ? "text-red-600"
+   654→                            : "text-slate-700"
+   655→                        }`}>
+   656→                          {vehicle.motExpiryDate ? formatDate(vehicle.motExpiryDate) : "—"}
+   657→                        </p>
+   658→                      </div>
+   659→                    </div>
+   660→                  </div>
+   661→
+   662→                  {/* DVLA Details Section */}
+   663→                  {vehicle.dvlaDetails && Object.values(vehicle.dvlaDetails).some(v => v != null) && (
+   664→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   665→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   666→                        <div className="flex items-center gap-2">
+   667→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+   668→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   669→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+   670→                            </svg>
+   671→                          </div>
+   672→                          <h3 className="text-sm font-bold text-slate-800">DVLA Details</h3>
+   673→                          {vehicle.lastDvlaFetchAt && (
+   674→                            <span className="text-[10px] text-slate-400 ml-auto">
+   675→                              Last updated: {formatDate(vehicle.lastDvlaFetchAt)}
+   676→                            </span>
+   677→                          )}
+   678→                        </div>
+   679→                      </div>
+   680→                      <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+   681→                        {vehicle.dvlaDetails.monthOfFirstRegistration && (
+   682→                          <div>
+   683→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">First Registered</span>
+   684→                            <p className="text-slate-700 mt-0.5">{formatMonthYear(vehicle.dvlaDetails.monthOfFirstRegistration)}</p>
+   685→                          </div>
+   686→                        )}
+   687→                        {vehicle.dvlaDetails.engineCapacity && (
+   688→                          <div>
+   689→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Engine Capacity</span>
+   690→                            <p className="text-slate-700 mt-0.5">{formatEngineCapacity(vehicle.dvlaDetails.engineCapacity)}</p>
+   691→                          </div>
+   692→                        )}
+   693→                        {vehicle.dvlaDetails.fuelType && (
+   694→                          <div>
+   695→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+   696→                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.fuelType}</p>
+   697→                          </div>
+   698→                        )}
+   699→                        {vehicle.dvlaDetails.co2Emissions && (
+   700→                          <div>
+   701→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">CO2 Emissions</span>
+   702→                            <p className="text-slate-700 mt-0.5">{formatCo2(vehicle.dvlaDetails.co2Emissions)}</p>
+   703→                          </div>
+   704→                        )}
+   705→                        {vehicle.dvlaDetails.euroStatus && (
+   706→                          <div>
+   707→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Euro Status</span>
+   708→                            <p className="text-slate-700 mt-0.5">{vehicle.dvlaDetails.euroStatus}</p>
+   709→                          </div>
+   710→                        )}
+   711→                        {vehicle.dvlaDetails.revenueWeight && (
+   712→                          <div>
+   713→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Revenue Weight</span>
+   714→                            <p className="text-slate-700 mt-0.5">{formatWeight(vehicle.dvlaDetails.revenueWeight)}</p>
+   715→                          </div>
+   716→                        )}
+   717→                        {vehicle.dvlaDetails.taxStatus && (
+   718→                          <div>
+   719→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Status</span>
+   720→                            <p className={`mt-0.5 ${
+   721→                              vehicle.dvlaDetails.taxStatus === "Taxed" ? "text-emerald-600 font-medium" :
+   722→                              vehicle.dvlaDetails.taxStatus === "SORN" ? "text-amber-600 font-medium" :
+   723→                              "text-red-600 font-medium"
+   724→                            }`}>{vehicle.dvlaDetails.taxStatus}</p>
+   725→                          </div>
+   726→                        )}
+   727→                        {vehicle.dvlaDetails.taxDueDate && (
+   728→                          <div>
+   729→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Tax Due Date</span>
+   730→                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.taxDueDate)}</p>
+   731→                          </div>
+   732→                        )}
+   733→                        {vehicle.dvlaDetails.motStatus && (
+   734→                          <div>
+   735→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Status (DVLA)</span>
+   736→                            <p className={`mt-0.5 ${
+   737→                              vehicle.dvlaDetails.motStatus === "Valid" ? "text-emerald-600 font-medium" :
+   738→                              vehicle.dvlaDetails.motStatus === "No details held by DVLA" ? "text-slate-400" :
+   739→                              "text-red-600 font-medium"
+   740→                            }`}>{vehicle.dvlaDetails.motStatus}</p>
+   741→                          </div>
+   742→                        )}
+   743→                        {vehicle.dvlaDetails.dateOfLastV5CIssued && (
+   744→                          <div>
+   745→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">V5C Issued</span>
+   746→                            <p className="text-slate-700 mt-0.5">{formatDate(vehicle.dvlaDetails.dateOfLastV5CIssued)}</p>
+   747→                          </div>
+   748→                        )}
+   749→                        {vehicle.dvlaDetails.markedForExport && (
+   750→                          <div className="col-span-2">
+   751→                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 text-xs font-semibold">
+   752→                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   753→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   754→                              </svg>
+   755→                              Marked for Export
+   756→                            </span>
+   757→                          </div>
+   758→                        )}
+   759→                      </div>
+   760→                    </div>
+   761→                  )}
+   762→
+   763→                  {/* Safety Recalls Check */}
+   764→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   765→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   766→                      <div className="flex items-center gap-2">
+   767→                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+   768→                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   769→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   770→                          </svg>
+   771→                        </div>
+   772→                        <h3 className="text-sm font-bold text-slate-800">Safety Recalls</h3>
+   773→                      </div>
+   774→                    </div>
+   775→                    <div className="p-4">
+   776→                      <p className="text-xs text-slate-500 mb-3">Check for outstanding manufacturer safety recalls on this vehicle via the official DVSA service.</p>
+   777→                      <a
+   778→                        href="https://www.check-vehicle-recall.service.gov.uk/start"
+   779→                        target="_blank"
+   780→                        rel="noopener noreferrer"
+   781→                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-xl transition-colors border border-amber-200"
+   782→                      >
+   783→                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   784→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+   785→                        </svg>
+   786→                        Check for Recalls
+   787→                      </a>
+   788→                      <p className="text-xs text-slate-400 mt-2 text-center">VRM: <span className="font-mono font-medium text-slate-600">{vehicle.regCurrent || vehicle.vrm}</span></p>
+   789→                    </div>
+   790→                  </div>
+   791→
+   792→                  {/* V5 Document */}
+   793→                  {vehicle.v5Url && (
+   794→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   795→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   796→                        <div className="flex items-center gap-2">
+   797→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+   798→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   799→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   800→                            </svg>
+   801→                          </div>
+   802→                          <h3 className="text-sm font-bold text-slate-800">V5 Document</h3>
+   803→                        </div>
+   804→                      </div>
+   805→                      <div className="p-4">
+   806→                        <a
+   807→                          href={vehicle.v5Url}
+   808→                          target="_blank"
+   809→                          rel="noopener noreferrer"
+   810→                          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#0066CC]/10 hover:bg-[#0066CC]/20 text-[#0066CC] font-medium rounded-xl transition-colors"
+   811→                        >
+   812→                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   813→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+   814→                          </svg>
+   815→                          View V5 Document
+   816→                        </a>
+   817→                      </div>
+   818→                    </div>
+   819→                  )}
+   820→
+   821→                  {/* Notes */}
+   822→                  {vehicle.notes && (
+   823→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   824→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   825→                        <div className="flex items-center gap-2">
+   826→                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+   827→                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   828→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+   829→                            </svg>
+   830→                          </div>
+   831→                          <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+   832→                        </div>
+   833→                      </div>
+   834→                      <div className="p-4">
+   835→                        <p className="text-sm whitespace-pre-wrap text-slate-600 leading-relaxed">{vehicle.notes}</p>
+   836→                      </div>
+   837→                    </div>
+   838→                  )}
+   839→                </div>
+   840→              )}
+   841→
+   842→              {/* Sales Tab */}
+   843→              {activeTab === "sales" && (
+   844→                <div className="space-y-4">
+   845→                  {dealLoading ? (
+   846→                    <div className="flex items-center justify-center py-12">
+   847→                      <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   848→                    </div>
+   849→                  ) : !deal ? (
+   850→                    // No deal exists - show create button
+   851→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   852→                      <div className="p-6 text-center">
+   853→                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+   854→                          <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   855→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+   856→                          </svg>
+   857→                        </div>
+   858→                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Active Deal</h3>
+   859→                        <p className="text-sm text-slate-500 mb-4">
+   860→                          Create a deal to start the sales process for this vehicle.
+   861→                        </p>
+   862→                        <button
+   863→                          onClick={handleCreateDeal}
+   864→                          disabled={dealActionLoading === "create"}
+   865→                          className="btn bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+   866→                        >
+   867→                          {dealActionLoading === "create" ? (
+   868→                            <span className="loading loading-spinner loading-sm"></span>
+   869→                          ) : (
+   870→                            <>
+   871→                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   872→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   873→                              </svg>
+   874→                              Create Deal
+   875→                            </>
+   876→                          )}
+   877→                        </button>
+   878→                      </div>
+   879→                    </div>
+   880→                  ) : (
+   881→                    // Deal exists - show details and actions
+   882→                    <>
+   883→                      {/* Deal Status Card */}
+   884→                      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   885→                        <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   886→                          <div className="flex items-center justify-between">
+   887→                            <div className="flex items-center gap-2">
+   888→                              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+   889→                                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   890→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   891→                                </svg>
+   892→                              </div>
+   893→                              <h3 className="text-sm font-bold text-slate-800">Deal #{deal.dealNumber}</h3>
+   894→                            </div>
+   895→                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${DEAL_STATUS_CONFIG[deal.status]?.color || "bg-slate-100 text-slate-600"}`}>
+   896→                              {DEAL_STATUS_CONFIG[deal.status]?.label || deal.status}
+   897→                            </span>
+   898→                          </div>
+   899→                        </div>
+   900→                        <div className="p-4 space-y-3">
+   901→                          {/* Customer */}
+   902→                          <div>
+   903→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Customer</span>
+   904→                            <p className="font-semibold text-slate-900 mt-0.5">
+   905→                              {deal.customer?.displayName || "Not assigned"}
+   906→                            </p>
+   907→                          </div>
+   908→
+   909→                          {/* Price */}
+   910→                          <div className="grid grid-cols-2 gap-4">
+   911→                            <div>
+   912→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Sale Price</span>
+   913→                              <p className="font-bold text-slate-900 mt-0.5">
+   914→                                {formatCurrency(deal.vehiclePriceGross)}
+   915→                              </p>
+   916→                            </div>
+   917→                            <div>
+   918→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">VAT Scheme</span>
+   919→                              <p className="text-sm text-slate-700 mt-0.5">
+   920→                                {deal.vatScheme === "VAT_QUALIFYING" ? "VAT Qualifying" : deal.vatScheme === "MARGIN" ? "Margin" : deal.vatScheme}
+   921→                              </p>
+   922→                            </div>
+   923→                          </div>
+   924→
+   925→                          {/* Payments Summary */}
+   926→                          {deal.payments?.length > 0 && (
+   927→                            <div>
+   928→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Payments</span>
+   929→                              <div className="mt-1 space-y-1">
+   930→                                {deal.payments.filter(p => !p.isRefunded).map((payment, idx) => (
+   931→                                  <div key={idx} className="flex justify-between text-sm">
+   932→                                    <span className="text-slate-600">{payment.type}</span>
+   933→                                    <span className="font-medium text-emerald-600">{formatCurrency(payment.amount)}</span>
+   934→                                  </div>
+   935→                                ))}
+   936→                              </div>
+   937→                            </div>
+   938→                          )}
+   939→                        </div>
+   940→                      </div>
+   941→
+   942→                      {/* Action Buttons */}
+   943→                      {deal.status !== "COMPLETED" && deal.status !== "CANCELLED" && (
+   944→                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   945→                          <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   946→                            <h3 className="text-sm font-bold text-slate-800">Actions</h3>
+   947→                          </div>
+   948→                          <div className="p-4 flex flex-wrap gap-2">
+   949→                            {deal.status === "DRAFT" && (
+   950→                              <button
+   951→                                onClick={() => handleTakeDeposit(500, "CARD")}
+   952→                                disabled={dealActionLoading}
+   953→                                className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white border-none"
+   954→                              >
+   955→                                {dealActionLoading === "deposit" ? (
+   956→                                  <span className="loading loading-spinner loading-xs"></span>
+   957→                                ) : (
+   958→                                  "Take Deposit"
+   959→                                )}
+   960→                              </button>
+   961→                            )}
+   962→                            {(deal.status === "DEPOSIT_TAKEN" || (deal.status === "DRAFT" && deal.soldToContactId && deal.vehiclePriceGross)) && (
+   963→                              <button
+   964→                                onClick={handleGenerateInvoice}
+   965→                                disabled={dealActionLoading}
+   966→                                className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white border-none"
+   967→                              >
+   968→                                {dealActionLoading === "invoice" ? (
+   969→                                  <span className="loading loading-spinner loading-xs"></span>
+   970→                                ) : (
+   971→                                  "Generate Invoice"
+   972→                                )}
+   973→                              </button>
+   974→                            )}
+   975→                            {deal.status === "INVOICED" && (
+   976→                              <button
+   977→                                onClick={handleMarkDelivered}
+   978→                                disabled={dealActionLoading}
+   979→                                className="btn btn-sm bg-purple-500 hover:bg-purple-600 text-white border-none"
+   980→                              >
+   981→                                {dealActionLoading === "delivered" ? (
+   982→                                  <span className="loading loading-spinner loading-xs"></span>
+   983→                                ) : (
+   984→                                  "Mark Delivered"
+   985→                                )}
+   986→                              </button>
+   987→                            )}
+   988→                            {deal.status === "DELIVERED" && (
+   989→                              <button
+   990→                                onClick={handleMarkCompleted}
+   991→                                disabled={dealActionLoading}
+   992→                                className="btn btn-sm bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+   993→                              >
+   994→                                {dealActionLoading === "completed" ? (
+   995→                                  <span className="loading loading-spinner loading-xs"></span>
+   996→                                ) : (
+   997→                                  "Complete Deal"
+   998→                                )}
+   999→                              </button>
+  1000→                            )}
+  1001→                            <a
+  1002→                              href={`/sales?id=${deal.id}`}
+  1003→                              className="btn btn-sm btn-ghost text-[#0066CC]"
+  1004→                            >
+  1005→                              Open Full Deal
+  1006→                            </a>
+  1007→                          </div>
+  1008→                        </div>
+  1009→                      )}
+  1010→
+  1011→                      {/* Progress Bar */}
+  1012→                      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1013→                        <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1014→                          <h3 className="text-sm font-bold text-slate-800">Progress</h3>
+  1015→                        </div>
+  1016→                        <div className="p-4">
+  1017→                          <div className="flex items-center gap-1">
+  1018→                            {["DRAFT", "DEPOSIT_TAKEN", "INVOICED", "DELIVERED", "COMPLETED"].map((step, idx) => {
+  1019→                              const statusOrder = ["DRAFT", "DEPOSIT_TAKEN", "INVOICED", "DELIVERED", "COMPLETED"];
+  1020→                              const currentIdx = statusOrder.indexOf(deal.status);
+  1021→                              const stepIdx = idx;
+  1022→                              const isActive = stepIdx <= currentIdx;
+  1023→                              const isCancelled = deal.status === "CANCELLED";
+  1024→
+  1025→                              return (
+  1026→                                <div
+  1027→                                  key={step}
+  1028→                                  className={`h-2 flex-1 rounded-full ${
+  1029→                                    isCancelled
+  1030→                                      ? "bg-red-200"
+  1031→                                      : isActive
+  1032→                                      ? "bg-[#0066CC]"
+  1033→                                      : "bg-slate-200"
+  1034→                                  }`}
+  1035→                                />
+  1036→                              );
+  1037→                            })}
+  1038→                          </div>
+  1039→                          <div className="flex justify-between text-[10px] text-slate-400 mt-2 uppercase tracking-wide">
+  1040→                            <span>Draft</span>
+  1041→                            <span>Deposit</span>
+  1042→                            <span>Invoice</span>
+  1043→                            <span>Delivered</span>
+  1044→                            <span>Complete</span>
+  1045→                          </div>
+  1046→                        </div>
+  1047→                      </div>
+  1048→                    </>
+  1049→                  )}
+  1050→                </div>
+  1051→              )}
+  1052→
+  1053→              {/* Checklist Tab */}
+  1054→              {activeTab === "checklist" && (
+  1055→                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1056→                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1057→                    <div className="flex items-center justify-between">
+  1058→                      <div className="flex items-center gap-2">
+  1059→                        <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1060→                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1061→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+  1062→                          </svg>
+  1063→                        </div>
+  1064→                        <h3 className="text-sm font-bold text-slate-800">Prep Checklist</h3>
+  1065→                      </div>
+  1066→                      {vehicle.tasks?.length > 0 && (
+  1067→                        <span className="text-xs font-medium text-slate-500">
+  1068→                          {vehicle.tasks.filter(t => t.status === "done").length}/{vehicle.tasks.length} Complete
+  1069→                        </span>
+  1070→                      )}
+  1071→                    </div>
+  1072→                  </div>
+  1073→                  <div className="p-4">
+  1074→                    {vehicle.tasks?.length > 0 ? (
+  1075→                      <div className="space-y-2">
+  1076→                        {vehicle.tasks.map((task) => (
+  1077→                          <div
+  1078→                            key={task.id}
+  1079→                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+  1080→                              task.status === "done"
+  1081→                                ? "bg-emerald-50/50 border-emerald-100"
+  1082→                                : task.status === "in_progress"
+  1083→                                ? "bg-amber-50/50 border-amber-100"
+  1084→                                : "bg-white border-slate-100"
+  1085→                            }`}
+  1086→                          >
+  1087→                            {/* Status Icon */}
+  1088→                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+  1089→                              task.status === "done"
+  1090→                                ? "bg-emerald-500 text-white"
+  1091→                                : task.status === "in_progress"
+  1092→                                ? "bg-amber-500 text-white"
+  1093→                                : task.status === "not_required"
+  1094→                                ? "bg-slate-200 text-slate-400"
+  1095→                                : "bg-slate-100 text-slate-400"
+  1096→                            }`}>
+  1097→                              {task.status === "done" ? (
+  1098→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1099→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+  1100→                                </svg>
+  1101→                              ) : task.status === "in_progress" ? (
+  1102→                                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1103→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  1104→                                </svg>
+  1105→                              ) : task.status === "not_required" ? (
+  1106→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1107→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+  1108→                                </svg>
+  1109→                              ) : (
+  1110→                                <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+  1111→                              )}
+  1112→                            </div>
+  1113→                            {/* Task Name */}
+  1114→                            <span className={`flex-1 text-sm font-medium ${
+  1115→                              task.status === "done" ? "line-through text-slate-400" : "text-slate-700"
+  1116→                            }`}>
+  1117→                              {task.name}
+  1118→                            </span>
+  1119→                            {/* Completion Date */}
+  1120→                            {task.completedAt && (
+  1121→                              <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-2 py-1 rounded-lg">
+  1122→                                {formatDate(task.completedAt)}
+  1123→                              </span>
+  1124→                            )}
+  1125→                          </div>
+  1126→                        ))}
+  1127→                      </div>
+  1128→                    ) : (
+  1129→                      <div className="text-center py-8">
+  1130→                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1131→                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1132→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+  1133→                          </svg>
+  1134→                        </div>
+  1135→                        <p className="text-sm font-medium text-slate-600">No tasks</p>
+  1136→                        <p className="text-xs text-slate-400 mt-1">This vehicle has no prep tasks</p>
+  1137→                      </div>
+  1138→                    )}
+  1139→                  </div>
+  1140→                </div>
+  1141→              )}
+  1142→
+  1143→              {/* Issues Tab */}
+  1144→              {activeTab === "issues" && (
+  1145→                <div className="space-y-4">
+  1146→                  {vehicle.issues?.length > 0 ? (
+  1147→                    vehicle.issues.map((issue) => (
+  1148→                      <div
+  1149→                        key={issue.id}
+  1150→                        className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+  1151→                      >
+  1152→                        {/* Issue Card Header */}
+  1153→                        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100">
+  1154→                          <div className="flex items-center justify-between gap-3">
+  1155→                            {/* Category & Subcategory Badges */}
+  1156→                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+  1157→                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+  1158→                                {issue.category}
+  1159→                              </span>
+  1160→                              {issue.subcategory && (
+  1161→                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+  1162→                                  {issue.subcategory}
+  1163→                                </span>
+  1164→                              )}
+  1165→                            </div>
+  1166→                            {/* Status Badge */}
+  1167→                            <span
+  1168→                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+  1169→                                issue.status === "Complete"
+  1170→                                  ? "bg-emerald-100 text-emerald-700"
+  1171→                                  : issue.status === "In Progress"
+  1172→                                  ? "bg-amber-100 text-amber-700"
+  1173→                                  : issue.status === "Ordered"
+  1174→                                  ? "bg-blue-100 text-blue-700"
+  1175→                                  : "bg-red-100 text-red-700"
+  1176→                              }`}
+  1177→                            >
+  1178→                              {issue.status || "Outstanding"}
+  1179→                            </span>
+  1180→                          </div>
+  1181→                        </div>
+  1182→
+  1183→                        {/* Issue Card Body */}
+  1184→                        <div className="p-4 space-y-3">
+  1185→                          {/* Description */}
+  1186→                          <p className="text-sm font-medium text-slate-900">{issue.description}</p>
+  1187→
+  1188→                          {/* Details Grid */}
+  1189→                          <div className="space-y-2">
+  1190→                            {issue.actionNeeded && (
+  1191→                              <div className="flex items-start gap-2">
+  1192→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+  1193→                                  Action
+  1194→                                </span>
+  1195→                                <p className="text-sm text-slate-600">{issue.actionNeeded}</p>
+  1196→                              </div>
+  1197→                            )}
+  1198→                            {issue.priority && (
+  1199→                              <div className="flex items-center gap-2">
+  1200→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+  1201→                                  Priority
+  1202→                                </span>
+  1203→                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+  1204→                                  issue.priority === "high" ? "bg-red-50 text-red-700" :
+  1205→                                  issue.priority === "medium" ? "bg-amber-50 text-amber-700" :
+  1206→                                  "bg-slate-100 text-slate-600"
+  1207→                                }`}>
+  1208→                                  {issue.priority}
+  1209→                                </span>
+  1210→                              </div>
+  1211→                            )}
+  1212→                            {issue.location && (
+  1213→                              <div className="flex items-center gap-2">
+  1214→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+  1215→                                  Location
+  1216→                                </span>
+  1217→                                <p className="text-sm text-slate-600">{issue.location}</p>
+  1218→                              </div>
+  1219→                            )}
+  1220→                            {issue.partsRequired && (
+  1221→                              <div className="flex items-start gap-2">
+  1222→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+  1223→                                  Parts Details
+  1224→                                </span>
+  1225→                                <div>
+  1226→                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC] mb-1">
+  1227→                                    Required
+  1228→                                  </span>
+  1229→                                  {issue.partsDetails && (
+  1230→                                    <p className="text-sm text-slate-600">{issue.partsDetails}</p>
+  1231→                                  )}
+  1232→                                </div>
+  1233→                              </div>
+  1234→                            )}
+  1235→                            {issue.notes && (
+  1236→                              <div className="flex items-start gap-2">
+  1237→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+  1238→                                  Notes
+  1239→                                </span>
+  1240→                                <p className="text-sm text-slate-600">{issue.notes}</p>
+  1241→                              </div>
+  1242→                            )}
+  1243→                          </div>
+  1244→
+  1245→                          {/* Photos */}
+  1246→                          {issue.photos?.length > 0 && (
+  1247→                            <div className="pt-2">
+  1248→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+  1249→                                Photos ({issue.photos.length})
+  1250→                              </p>
+  1251→                              <div className="flex flex-wrap gap-2">
+  1252→                                {issue.photos.map((photo, idx) => (
+  1253→                                  <a
+  1254→                                    key={idx}
+  1255→                                    href={photo}
+  1256→                                    target="_blank"
+  1257→                                    rel="noopener noreferrer"
+  1258→                                    className="block"
+  1259→                                  >
+  1260→                                    <img
+  1261→                                      src={photo}
+  1262→                                      alt={`Issue photo ${idx + 1}`}
+  1263→                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-90 hover:scale-105 transition-all border-2 border-slate-200 hover:border-[#0066CC]"
+  1264→                                    />
+  1265→                                  </a>
+  1266→                                ))}
+  1267→                              </div>
+  1268→                            </div>
+  1269→                          )}
+  1270→
+  1271→                          {/* Attachments (new format - objects with key/url) */}
+  1272→                          {issue.attachments?.length > 0 && (
+  1273→                            <div className="pt-2">
+  1274→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+  1275→                                Attachments ({issue.attachments.length})
+  1276→                              </p>
+  1277→                              <div className="flex flex-wrap gap-2">
+  1278→                                {issue.attachments.map((attachment, idx) => {
+  1279→                                  // Handle both object format {key, url} and legacy string format
+  1280→                                  const attachmentKey = typeof attachment === "object" ? (attachment.key || attachment.url) : attachment;
+  1281→                                  const fileName = typeof attachment === "object" ? (attachment.fileName || attachment.caption || `File ${idx + 1}`) : `File ${idx + 1}`;
+  1282→                                  const isImage = typeof attachment === "object" && attachment.contentType?.startsWith("image/");
+  1283→
+  1284→                                  return (
+  1285→                                    <button
+  1286→                                      key={idx}
+  1287→                                      onClick={(e) => openFileWithFallback(attachmentKey, e)}
+  1288→                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors cursor-pointer"
+  1289→                                    >
+  1290→                                      {isImage ? (
+  1291→                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1292→                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  1293→                                        </svg>
+  1294→                                      ) : (
+  1295→                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1296→                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+  1297→                                        </svg>
+  1298→                                      )}
+  1299→                                      {fileName}
+  1300→                                    </button>
+  1301→                                  );
+  1302→                                })}
+  1303→                              </div>
+  1304→                            </div>
+  1305→                          )}
+  1306→                        </div>
+  1307→
+  1308→                        {/* Updates Accordion */}
+  1309→                        {issue.updates?.length > 0 && (
+  1310→                          <div className="border-t border-slate-100">
+  1311→                            <button
+  1312→                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+  1313→                              onClick={() =>
+  1314→                                setExpandedIssues((prev) => ({
+  1315→                                  ...prev,
+  1316→                                  [issue.id]: !prev[issue.id],
+  1317→                                }))
+  1318→                              }
+  1319→                            >
+  1320→                              <span className="flex items-center gap-2">
+  1321→                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1322→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  1323→                                </svg>
+  1324→                                {issue.updates.length} Update{issue.updates.length !== 1 ? "s" : ""}
+  1325→                              </span>
+  1326→                              <svg
+  1327→                                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+  1328→                                  expandedIssues[issue.id] ? "rotate-180" : ""
+  1329→                                }`}
+  1330→                                fill="none"
+  1331→                                stroke="currentColor"
+  1332→                                viewBox="0 0 24 24"
+  1333→                              >
+  1334→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  1335→                              </svg>
+  1336→                            </button>
+  1337→
+  1338→                            {expandedIssues[issue.id] && (
+  1339→                              <div className="px-4 pb-4 space-y-3 bg-slate-50/50">
+  1340→                                {issue.updates.map((update, idx) => (
+  1341→                                  <div
+  1342→                                    key={idx}
+  1343→                                    className="pl-4 border-l-2 border-[#0066CC]/30"
+  1344→                                  >
+  1345→                                    <div className="flex items-center gap-2 mb-1">
+  1346→                                      <p className="text-sm font-semibold text-slate-700">
+  1347→                                        {update.userName || "User"}
+  1348→                                      </p>
+  1349→                                      <span className="text-xs text-slate-400">
+  1350→                                        {formatDate(update.createdAt)}
+  1351→                                      </span>
+  1352→                                    </div>
+  1353→                                    <p className="text-sm text-slate-600">{update.content}</p>
+  1354→                                  </div>
+  1355→                                ))}
+  1356→                              </div>
+  1357→                            )}
+  1358→                          </div>
+  1359→                        )}
+  1360→                      </div>
+  1361→                    ))
+  1362→                  ) : (
+  1363→                    <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
+  1364→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1365→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1366→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1367→                        </svg>
+  1368→                      </div>
+  1369→                      <p className="text-sm font-medium text-slate-600">No issues recorded</p>
+  1370→                      <p className="text-xs text-slate-400 mt-1">This vehicle has no reported issues</p>
+  1371→                    </div>
+  1372→                  )}
+  1373→                </div>
+  1374→              )}
+  1375→
+  1376→              {/* Documents Tab */}
+  1377→              {activeTab === "documents" && (
+  1378→                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1379→                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1380→                    <div className="flex items-center gap-2">
+  1381→                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1382→                        <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1383→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+  1384→                        </svg>
+  1385→                      </div>
+  1386→                      <h3 className="text-sm font-bold text-slate-800">Documents</h3>
+  1387→                    </div>
+  1388→                  </div>
+  1389→                  <div className="p-4">
+  1390→                    {vehicle.documents?.length > 0 ? (
+  1391→                      <div className="space-y-2">
+  1392→                        {vehicle.documents.map((doc) => (
+  1393→                          <button
+  1394→                            key={doc.id}
+  1395→                            onClick={(e) => openFileWithFallback(doc.key || doc.url, e)}
+  1396→                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group text-left cursor-pointer"
+  1397→                          >
+  1398→                            {/* Document Icon */}
+  1399→                            <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-[#0066CC]/10 flex items-center justify-center shrink-0 transition-colors">
+  1400→                              <svg className="w-5 h-5 text-slate-400 group-hover:text-[#0066CC] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1401→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  1402→                              </svg>
+  1403→                            </div>
+  1404→                            {/* Document Info */}
+  1405→                            <div className="flex-1 min-w-0">
+  1406→                              <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+  1407→                              <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-semibold uppercase tracking-wide ${
+  1408→                                doc.type === "v5" ? "bg-amber-100 text-amber-700" :
+  1409→                                doc.type === "service_history" ? "bg-[#14B8A6]/10 text-[#14B8A6]" :
+  1410→                                doc.type === "fault_codes" ? "bg-red-100 text-red-600" :
+  1411→                                "bg-slate-100 text-slate-600"
+  1412→                              }`}>
+  1413→                                {doc.type === "v5" && "V5"}
+  1414→                                {doc.type === "service_history" && "Service History"}
+  1415→                                {doc.type === "fault_codes" && "Fault Codes"}
+  1416→                                {doc.type === "other" && "Other"}
+  1417→                              </span>
+  1418→                            </div>
+  1419→                            {/* View Arrow */}
+  1420→                            <svg className="w-5 h-5 text-slate-300 group-hover:text-[#0066CC] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1421→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  1422→                            </svg>
+  1423→                          </button>
+  1424→                        ))}
+  1425→                      </div>
+  1426→                    ) : (
+  1427→                      <div className="text-center py-8">
+  1428→                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1429→                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1430→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+  1431→                          </svg>
+  1432→                        </div>
+  1433→                        <p className="text-sm font-medium text-slate-600">No documents</p>
+  1434→                        <p className="text-xs text-slate-400 mt-1">No documents have been uploaded</p>
+  1435→                      </div>
+  1436→                    )}
+  1437→                  </div>
+  1438→                </div>
+  1439→              )}
+  1440→
+  1441→              {/* Images Tab */}
+  1442→              {activeTab === "images" && (
+  1443→                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1444→                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1445→                    <div className="flex items-center justify-between">
+  1446→                      <div className="flex items-center gap-2">
+  1447→                        <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1448→                          <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1449→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  1450→                          </svg>
+  1451→                        </div>
+  1452→                        <h3 className="text-sm font-bold text-slate-800">Vehicle Images</h3>
+  1453→                      </div>
+  1454→                      {!readOnly && (
+  1455→                        <VehicleImageUploader
+  1456→                          vehicleId={vehicle.id}
+  1457→                          onUploadComplete={(updatedVehicle) => setVehicle(updatedVehicle)}
+  1458→                        />
+  1459→                      )}
+  1460→                    </div>
+  1461→                  </div>
+  1462→                  <div className="p-4">
+  1463→                    <VehicleImageGallery
+  1464→                      vehicleId={vehicle.id}
+  1465→                      images={vehicle.images || []}
+  1466→                      primaryImageUrl={vehicle.primaryImageUrl}
+  1467→                      onUpdate={(updatedVehicle) => setVehicle(updatedVehicle)}
+  1468→                      editable={!readOnly}
+  1469→                    />
+  1470→                  </div>
+  1471→                </div>
+  1472→              )}
+  1473→            </div>
+  1474→          </>
+  1475→        )}
+  1476→      </div>
+  1477→    </div>
+  1478→  );
+  1479→}
+  1480→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

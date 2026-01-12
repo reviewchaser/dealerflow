@@ -1,0 +1,229 @@
+     1→/**
+     2→ * Tenant (Dealer) Context Helpers
+     3→ *
+     4→ * Provides utilities for multi-tenant routing and context resolution.
+     5→ * Works with both legacy routes (/dashboard) and new tenant routes (/app/[dealerSlug]/dashboard)
+     6→ */
+     7→
+     8→import { getServerSession } from "next-auth";
+     9→import { authOptions } from "@/libs/authOptions";
+    10→import Dealer from "@/models/Dealer";
+    11→import DealerMembership from "@/models/DealerMembership";
+    12→import User, { PLATFORM_ROLES, USER_STATUS } from "@/models/User";
+    13→import { DEALER_STATUS } from "@/models/Dealer";
+    14→import connectMongo from "@/libs/mongoose";
+    15→
+    16→/**
+    17→ * Error class for tenant access errors
+    18→ */
+    19→export class TenantError extends Error {
+    20→  constructor(message, code = "ACCESS_DENIED", status = 403) {
+    21→    super(message);
+    22→    this.name = "TenantError";
+    23→    this.code = code;
+    24→    this.status = status;
+    25→  }
+    26→}
+    27→
+    28→/**
+    29→ * Get tenant context from URL slug
+    30→ *
+    31→ * Use this in page getServerSideProps or API routes that need to resolve
+    32→ * dealer from URL path instead of user's default dealer.
+    33→ *
+    34→ * @param {object} req - Request object
+    35→ * @param {object} res - Response object
+    36→ * @param {string} dealerSlug - Dealer slug from URL
+    37→ * @returns {Promise<{ user, dealer, membership, userId, dealerId, role, dealerSlug }>}
+    38→ * @throws {TenantError} if access denied
+    39→ */
+    40→export async function getTenantFromSlug(req, res, dealerSlug) {
+    41→  await connectMongo();
+    42→
+    43→  // Get session
+    44→  const session = await getServerSession(req, res, authOptions);
+    45→  if (!session?.user?.id) {
+    46→    throw new TenantError("Unauthorized - Please sign in", "UNAUTHORIZED", 401);
+    47→  }
+    48→
+    49→  const userId = session.user.id;
+    50→
+    51→  // Get user and check status
+    52→  const user = await User.findById(userId).lean();
+    53→  if (!user) {
+    54→    throw new TenantError("User not found", "USER_NOT_FOUND", 404);
+    55→  }
+    56→
+    57→  if (user.status === USER_STATUS.DISABLED) {
+    58→    throw new TenantError(
+    59→      "Your account has been disabled. Please contact support.",
+    60→      "USER_DISABLED",
+    61→      403
+    62→    );
+    63→  }
+    64→
+    65→  // SUPER_ADMIN users should use admin routes
+    66→  if (user.role === PLATFORM_ROLES.SUPER_ADMIN) {
+    67→    throw new TenantError(
+    68→      "Platform admins cannot access dealer workflows. Use the admin panel instead.",
+    69→      "ADMIN_BLOCKED",
+    70→      403
+    71→    );
+    72→  }
+    73→
+    74→  // Find dealer by slug
+    75→  const dealer = await Dealer.findOne({ slug: dealerSlug }).lean();
+    76→  if (!dealer) {
+    77→    throw new TenantError(
+    78→      `Dealership "${dealerSlug}" not found`,
+    79→      "DEALER_NOT_FOUND",
+    80→      404
+    81→    );
+    82→  }
+    83→
+    84→  // Check if dealer is disabled
+    85→  if (dealer.status === DEALER_STATUS.DISABLED) {
+    86→    throw new TenantError(
+    87→      "This dealership has been disabled. Please contact support.",
+    88→      "DEALER_DISABLED",
+    89→      403
+    90→    );
+    91→  }
+    92→
+    93→  // Check user's membership to this dealer
+    94→  const membership = await DealerMembership.findOneActive({
+    95→    userId,
+    96→    dealerId: dealer._id,
+    97→  }).lean();
+    98→
+    99→  if (!membership) {
+   100→    throw new TenantError(
+   101→      "You don't have access to this dealership",
+   102→      "NO_MEMBERSHIP",
+   103→      403
+   104→    );
+   105→  }
+   106→
+   107→  // Update last active timestamp (fire and forget)
+   108→  DealerMembership.updateOne(
+   109→    { _id: membership._id },
+   110→    { lastActiveAt: new Date() }
+   111→  ).exec();
+   112→
+   113→  return {
+   114→    user: session.user,
+   115→    userId,
+   116→    dealer,
+   117→    dealerId: dealer._id,
+   118→    dealerSlug: dealer.slug,
+   119→    membership: {
+   120→      id: membership._id,
+   121→      role: membership.role,
+   122→    },
+   123→    role: membership.role,
+   124→  };
+   125→}
+   126→
+   127→/**
+   128→ * Get tenant from request (for API routes)
+   129→ *
+   130→ * Checks for x-dealer-slug header (set by middleware) or falls back to
+   131→ * user's default/most recent dealer.
+   132→ *
+   133→ * @param {object} req - Request object
+   134→ * @param {object} res - Response object
+   135→ * @returns {Promise<{ user, dealer, membership, userId, dealerId, role, dealerSlug? }>}
+   136→ */
+   137→export async function getTenantFromRequest(req, res) {
+   138→  const dealerSlug = req.headers["x-dealer-slug"];
+   139→
+   140→  if (dealerSlug) {
+   141→    // URL-based tenant from middleware
+   142→    return getTenantFromSlug(req, res, dealerSlug);
+   143→  }
+   144→
+   145→  // Fall back to default dealer context (existing behavior)
+   146→  const { requireDealerContext } = await import("@/libs/authContext");
+   147→  const ctx = await requireDealerContext(req, res);
+   148→
+   149→  return {
+   150→    ...ctx,
+   151→    dealerSlug: ctx.dealer?.slug || null,
+   152→  };
+   153→}
+   154→
+   155→/**
+   156→ * Wrapper for API routes with tenant context from URL or session
+   157→ *
+   158→ * @param {function} handler - Async handler function(req, res, ctx)
+   159→ * @returns {function} Wrapped handler
+   160→ */
+   161→export function withTenantContext(handler) {
+   162→  return async (req, res) => {
+   163→    try {
+   164→      const ctx = await getTenantFromRequest(req, res);
+   165→      return await handler(req, res, ctx);
+   166→    } catch (error) {
+   167→      console.error("[withTenantContext]", error.message);
+   168→      const status = error.status || 500;
+   169→      return res.status(status).json({
+   170→        error: error.message,
+   171→        code: error.code || "UNKNOWN_ERROR",
+   172→      });
+   173→    }
+   174→  };
+   175→}
+   176→
+   177→/**
+   178→ * Get all dealers a user has access to (for dealer switcher)
+   179→ *
+   180→ * @param {string} userId
+   181→ * @returns {Promise<Array<{ id, name, slug, logoUrl, role }>>}
+   182→ */
+   183→export async function getUserDealers(userId) {
+   184→  await connectMongo();
+   185→
+   186→  const memberships = await DealerMembership.findActive({ userId })
+   187→    .populate("dealerId", "name slug logoUrl status")
+   188→    .sort({ lastActiveAt: -1 })
+   189→    .lean();
+   190→
+   191→  return memberships
+   192→    .filter((m) => m.dealerId && m.dealerId.status !== DEALER_STATUS.DISABLED)
+   193→    .map((m) => ({
+   194→      id: m.dealerId._id.toString(),
+   195→      name: m.dealerId.name,
+   196→      slug: m.dealerId.slug,
+   197→      logoUrl: m.dealerId.logoUrl,
+   198→      role: m.role,
+   199→    }));
+   200→}
+   201→
+   202→/**
+   203→ * Generate URL path for tenant-aware routes
+   204→ *
+   205→ * @param {string} dealerSlug - Dealer slug
+   206→ * @param {string} path - Path after dealer slug (e.g., "dashboard", "vehicles")
+   207→ * @returns {string} Full path
+   208→ */
+   209→export function tenantPath(dealerSlug, path = "") {
+   210→  if (!dealerSlug) {
+   211→    // Fall back to legacy routes
+   212→    return `/${path}`;
+   213→  }
+   214→  return `/app/${dealerSlug}/${path}`.replace(/\/+$/, "");
+   215→}
+   216→
+   217→export default {
+   218→  getTenantFromSlug,
+   219→  getTenantFromRequest,
+   220→  withTenantContext,
+   221→  getUserDealers,
+   222→  tenantPath,
+   223→  TenantError,
+   224→};
+   225→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,183 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import VehicleLabel from "@/models/VehicleLabel";
+import VehicleIssue from "@/models/VehicleIssue";
+import VehicleLocation from "@/models/VehicleLocation";
+import VehicleDocument from "@/models/VehicleDocument";
+
+const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+
+// Helper to safely transform MongoDB _id to id
+const transformId = (obj) => {
+  if (!obj) return null;
+  const result = { ...obj };
+  if (result._id) {
+    result.id = result._id.toString();
+    delete result._id;
+  }
+  delete result.__v;
+  return result;
+};
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { status } = req.query;
+      let query = {};
+      if (status && status !== "all") query.status = status;
+
+      const vehicles = await Vehicle.find(query)
+        .sort({ createdAt: -1 })
+        .lean();
+
+      if (!vehicles || vehicles.length === 0) {
+        return res.status(200).json([]);
+      }
+
+      // Get all vehicle IDs
+      const vehicleIds = vehicles.map(v => v._id);
+
+      // Fetch all related data in parallel
+      const [allTasks, allIssues, allDocuments, allLocations] = await Promise.all([
+        VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+        VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
+        VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
+        VehicleLocation.find().lean(),
+      ]);
+
+      // Create lookup maps
+      const tasksByVehicle = {};
+      const issuesByVehicle = {};
+      const documentsByVehicle = {};
+      const locationsById = {};
+
+      // Build location lookup
+      for (const loc of allLocations) {
+        locationsById[loc._id.toString()] = {
+          id: loc._id.toString(),
+          name: loc.name,
+        };
+      }
+
+      // Build tasks lookup
+      for (const task of allTasks) {
+        const vid = task.vehicleId.toString();
+        if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+        tasksByVehicle[vid].push(transformId(task));
+      }
+
+      // Build issues lookup
+      for (const issue of allIssues) {
+        const vid = issue.vehicleId.toString();
+        if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+        issuesByVehicle[vid].push(transformId(issue));
+      }
+
+      // Build documents lookup
+      for (const doc of allDocuments) {
+        const vid = doc.vehicleId.toString();
+        if (!documentsByVehicle[vid]) documentsByVehicle[vid] = [];
+        documentsByVehicle[vid].push(transformId(doc));
+      }
+
+      // Transform vehicles
+      const result = vehicles.map(vehicle => {
+        const vid = vehicle._id.toString();
+
+        // Get location data
+        let locationData = null;
+        if (vehicle.locationId) {
+          const locId = vehicle.locationId.toString();
+          locationData = locationsById[locId] || null;
+        }
+
+        return {
+          id: vid,
+          dealerId: vehicle.dealerId,
+          type: vehicle.type,
+          saleType: vehicle.saleType,
+          regCurrent: vehicle.regCurrent,
+          vin: vehicle.vin,
+          make: vehicle.make,
+          model: vehicle.model,
+          derivative: vehicle.derivative,
+          year: vehicle.year,
+          mileageCurrent: vehicle.mileageCurrent,
+          bodyType: vehicle.bodyType,
+          fuelType: vehicle.fuelType,
+          transmission: vehicle.transmission,
+          colour: vehicle.colour,
+          status: vehicle.status,
+          locationId: locationData,
+          motExpiryDate: vehicle.motExpiryDate,
+          motStatus: vehicle.motStatus,
+          taxExpiryDate: vehicle.taxExpiryDate,
+          serviceDueDate: vehicle.serviceDueDate,
+          notes: vehicle.notes,
+          createdAt: vehicle.createdAt,
+          updatedAt: vehicle.updatedAt,
+          tasks: tasksByVehicle[vid] || [],
+          issues: issuesByVehicle[vid] || [],
+          documents: documentsByVehicle[vid] || [],
+          labels: [], // Skip labels for now - fetch separately if needed
+        };
+      });
+
+      return res.status(200).json(result);
+    }
+
+    if (req.method === "POST") {
+      const {
+        regCurrent, vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status = "in_stock", notes, locationId, skipDefaultTasks,
+        type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
+        saleType = "RETAIL" // RETAIL, TRADE - only for STOCK vehicles
+      } = req.body;
+
+      if (!regCurrent || !make || !model) {
+        return res.status(400).json({ error: "Reg, make and model required" });
+      }
+
+      const vehicleData = {
+        regCurrent: regCurrent.toUpperCase().replace(/\s/g, ""),
+        vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status, notes, type,
+        // Only set saleType for STOCK vehicles
+        ...(type === "STOCK" && { saleType }),
+      };
+
+      // Only add locationId if it's not empty
+      if (locationId) {
+        vehicleData.locationId = locationId;
+      }
+
+      const vehicle = await Vehicle.create(vehicleData);
+
+      // Create default tasks only if not skipped (for backwards compatibility)
+      if (!skipDefaultTasks) {
+        for (const taskName of DEFAULT_TASKS) {
+          await VehicleTask.create({
+            vehicleId: vehicle._id,
+            name: taskName,
+            status: "pending",
+            source: "system_default",
+          });
+        }
+      }
+
+      // Transform to include id field
+      const vehicleJson = vehicle.toJSON();
+      return res.status(201).json(vehicleJson);
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    console.error("Vehicles API error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

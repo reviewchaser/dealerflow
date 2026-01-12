@@ -1,0 +1,41 @@
+The file C:\Users\georg\dealerflow\pages\public\invoice\[token].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   107→
+   108→      {/* Document */}
+   109→      <div className="min-h-screen bg-slate-100 print:bg-white p-4 print:p-0">
+   110→        <div className="max-w-[800px] mx-auto bg-white shadow-xl print:shadow-none rounded-2xl print:rounded-none overflow-hidden">
+   111→          {/* Header with Logo */}
+   112→          <div className="bg-white p-6 print:p-4 border-b border-slate-200">
+   113→            <div className="flex items-start justify-between">
+   114→              <div className="flex items-center gap-4">
+   115→                {snap.dealer?.logoUrl && (
+   116→                  <div className="bg-white p-2 rounded border border-slate-100 shrink-0">
+   117→                    <img
+   118→                      src={snap.dealer.logoUrl}
+   119→                      alt={snap.dealer.companyName || snap.dealer.name}
+   120→                      className="h-12 max-w-[150px] object-contain"
+   121→                    />
+   122→                  </div>
+   123→                )}
+   124→                <div>
+   125→                  <p className="font-bold text-lg text-slate-900">{snap.dealer?.companyName || snap.dealer?.name}</p>
+   126→                  {snap.dealer?.address && (
+   127→                    <p className="text-slate-500 text-xs mt-1 whitespace-pre-line">{snap.dealer.address}</p>
+   128→                  )}
+   129→                  {snap.dealer?.phone && <p className="text-slate-500 text-xs">{snap.dealer.phone}</p>}
+   130→                  {snap.dealer?.email && <p className="text-slate-500 text-xs">{snap.dealer.email}</p>}
+   131→                </div>
+   132→              </div>
+   133→              <div className="text-right">
+   134→                <h1 className="text-2xl font-bold text-slate-900">INVOICE</h1>
+   135→                <p className="text-slate-600 mt-1 text-base font-semibold">{document.documentNumber}</p>
+   136→                <p className="text-slate-500 text-sm mt-1">{formatDate(document.issuedAt)}</p>
+   137→                {snap.dealer?.vatNumber && (
+   138→                  <p className="text-slate-400 text-xs mt-2">VAT No: {snap.dealer.vatNumber}</p>
+   139→                )}
+   140→              </div>
+   141→            </div>
+   142→          </div>
+   143→
+   144→          {/* Details */}
+   145→          <div className="p-8 print:p-6 space-y-8 print:space-y-6">
+   146→            {/* Invoice Info Row */}

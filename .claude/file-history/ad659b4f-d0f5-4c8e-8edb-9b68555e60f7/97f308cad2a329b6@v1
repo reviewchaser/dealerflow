@@ -1,0 +1,113 @@
+import connectMongo from "@/libs/mongoose";
+import Form from "@/models/Form";
+import FormField from "@/models/FormField";
+
+// Fix PDI form fields - Updates Gear Change, DPF Soot Level, and adds Issues Found section
+// Call via POST /api/fix-pdi-fields
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed. Use POST." });
+  }
+
+  try {
+    await connectMongo();
+
+    // Find all PDI forms across all dealers
+    const pdiForms = await Form.find({ type: "PDI" });
+    const results = [];
+
+    for (const form of pdiForms) {
+      const formResult = { formId: form._id, formName: form.name, changes: [] };
+
+      // 1. Update Gear Change field
+      const gearChangeResult = await FormField.updateOne(
+        { formId: form._id, fieldName: "gear_change" },
+        {
+          $set: {
+            type: "RADIO",
+            options: { choices: ["OK", "Repair"] },
+            label: "Gear Change",
+          }
+        }
+      );
+      if (gearChangeResult.modifiedCount > 0) {
+        formResult.changes.push("Updated Gear Change to RADIO [OK, Repair]");
+      }
+
+      // 2. Update DPF Soot Level field
+      const dpfResult = await FormField.updateOne(
+        { formId: form._id, fieldName: "dpf_soot" },
+        {
+          $set: {
+            type: "RADIO",
+            options: { choices: ["OK", "Repair/Replace"] },
+            label: "DPF Soot Level",
+          }
+        }
+      );
+      if (dpfResult.modifiedCount > 0) {
+        formResult.changes.push("Updated DPF Soot Level to RADIO [OK, Repair/Replace]");
+      }
+
+      // 3. Check if Issues Found section exists
+      const issuesSectionExists = await FormField.findOne({
+        formId: form._id,
+        fieldName: "_section_issues"
+      });
+
+      if (!issuesSectionExists) {
+        // Add section header
+        await FormField.create({
+          formId: form._id,
+          label: "Issues Found",
+          fieldName: "_section_issues",
+          type: "SECTION_HEADER",
+          order: 133,
+          visible: true,
+          isDefault: true,
+          isCustom: false,
+        });
+
+        // Add help text
+        await FormField.create({
+          formId: form._id,
+          label: "Add issues that need attention. These will be automatically added to the vehicle's issue list.",
+          fieldName: "_issues_help",
+          type: "PARAGRAPH",
+          order: 134,
+          visible: true,
+          isDefault: true,
+          isCustom: false,
+        });
+
+        // Add PDI Issues field
+        await FormField.create({
+          formId: form._id,
+          label: "Issues",
+          fieldName: "pdi_issues",
+          type: "PDI_ISSUES",
+          required: false,
+          order: 135,
+          visible: true,
+          isDefault: true,
+          isCustom: false,
+        });
+
+        formResult.changes.push("Added Issues Found section with PDI_ISSUES field");
+      }
+
+      if (formResult.changes.length > 0) {
+        results.push(formResult);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Fixed PDI fields for ${results.length} form(s)`,
+      results,
+    });
+  } catch (error) {
+    console.error("Error fixing PDI fields:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

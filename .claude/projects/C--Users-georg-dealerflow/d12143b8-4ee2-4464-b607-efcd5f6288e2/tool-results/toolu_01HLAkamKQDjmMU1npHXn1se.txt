@@ -1,0 +1,64 @@
+  1740→        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
+  1741→            {/* VRM Search */}
+  1742→            <div className="relative shrink-0">
+  1743→              <div className="relative">
+  1744→                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1745→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1746→                </svg>
+  1747→                <input
+  1748→                  type="text"
+  1749→                  placeholder="Search VRM..."
+  1750→                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
+  1751→                  value={vrmSearch}
+  1752→                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+  1753→                  onFocus={() => {
+  1754→                    if (vrmSearch.length >= 2) {
+  1755→                      setShowVrmDropdown(true);
+  1756→                      if (vrmSearchResults.length === 0) {
+  1757→                        searchVehiclesApi(vrmSearch);
+  1758→                      }
+  1759→                    }
+  1760→                  }}
+  1761→                  onKeyDown={(e) => {
+  1762→                    if (e.key === "Escape") {
+  1763→                      setShowVrmDropdown(false);
+  1764→                      e.target.blur();
+  1765→                    }
+  1766→                  }}
+  1767→                />
+  1768→                {vrmSearch && (
+  1769→                  <button
+  1770→                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+  1771→                    onClick={() => {
+  1772→                      setVrmSearch("");
+  1773→                      setShowVrmDropdown(false);
+  1774→                      setVrmSearchResults([]);
+  1775→                    }}
+  1776→                  >
+  1777→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1778→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1779→                    </svg>
+  1780→                  </button>
+  1781→                )}
+  1782→              </div>
+  1783→
+  1784→              {/* VRM Search Dropdown */}
+  1785→              {showVrmDropdown && (
+  1786→                <>
+  1787→                  <div className="fixed inset-0 z-10" onClick={() => setShowVrmDropdown(false)}></div>
+  1788→                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-20 overflow-hidden">
+  1789→                    {vrmSearchLoading ? (
+  1790→                      <div className="px-4 py-6 text-center">
+  1791→                        <span className="loading loading-spinner loading-sm text-slate-400"></span>
+  1792→                        <p className="text-sm text-slate-500 mt-2">Searching...</p>
+  1793→                      </div>
+  1794→                    ) : vrmSearchResults.length > 0 ? (
+  1795→                      <ul className="py-1 max-h-64 overflow-y-auto">
+  1796→                        {vrmSearchResults.map((vehicle, idx) => (
+  1797→                          <li key={vehicle.id || vehicle._id}>
+  1798→                            <button
+  1799→                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

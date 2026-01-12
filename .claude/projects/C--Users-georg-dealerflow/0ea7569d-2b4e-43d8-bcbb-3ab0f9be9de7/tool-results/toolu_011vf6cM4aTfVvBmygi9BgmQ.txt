@@ -1,0 +1,278 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   941→                      </div>
+   942→                    </div>
+   943→                  )}
+   944→
+   945→                  {/* Sale Classification Section */}
+   946→                  {deal.status === "DRAFT" && (
+   947→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   948→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   949→                        <h3 className="text-sm font-bold text-slate-800">Sale Classification</h3>
+   950→                      </div>
+   951→                      <div className="p-4 space-y-4">
+   952→                        {/* Step 1: Sale Type */}
+   953→                        <div>
+   954→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Sale Type</label>
+   955→                          <div className="flex flex-wrap gap-2">
+   956→                            {SALE_TYPE_OPTIONS.map((opt) => (
+   957→                              <button
+   958→                                key={opt.value}
+   959→                                onClick={() => handleUpdateField({
+   960→                                  saleType: opt.value,
+   961→                                  // Reset dependent fields when sale type changes
+   962→                                  ...(opt.value !== "RETAIL" ? { buyerUse: null, saleChannel: null } : {})
+   963→                                })}
+   964→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   965→                                  deal.saleType === opt.value
+   966→                                    ? "bg-[#0066CC] text-white"
+   967→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   968→                                }`}
+   969→                                title={opt.description}
+   970→                              >
+   971→                                {opt.label}
+   972→                              </button>
+   973→                            ))}
+   974→                          </div>
+   975→                        </div>
+   976→
+   977→                        {/* Step 2: Buyer Use - Only for Retail */}
+   978→                        {deal.saleType === "RETAIL" && (
+   979→                          <div>
+   980→                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Buyer Use</label>
+   981→                            <div className="flex flex-wrap gap-2">
+   982→                              {BUYER_USE_OPTIONS.map((opt) => (
+   983→                                <button
+   984→                                  key={opt.value}
+   985→                                  onClick={() => handleUpdateField({ buyerUse: opt.value })}
+   986→                                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   987→                                    deal.buyerUse === opt.value
+   988→                                      ? "bg-[#0066CC] text-white"
+   989→                                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   990→                                  }`}
+   991→                                  title={opt.description}
+   992→                                >
+   993→                                  {opt.label}
+   994→                                </button>
+   995→                              ))}
+   996→                            </div>
+   997→                          </div>
+   998→                        )}
+   999→
+  1000→                        {/* Step 3: Sale Channel - Only for Retail */}
+  1001→                        {deal.saleType === "RETAIL" && (
+  1002→                          <div>
+  1003→                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Sale Channel</label>
+  1004→                            <div className="flex flex-wrap gap-2">
+  1005→                              {SALE_CHANNEL_OPTIONS.map((opt) => (
+  1006→                                <button
+  1007→                                  key={opt.value}
+  1008→                                  onClick={() => handleUpdateField({ saleChannel: opt.value })}
+  1009→                                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1010→                                    deal.saleChannel === opt.value
+  1011→                                      ? "bg-[#0066CC] text-white"
+  1012→                                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1013→                                  }`}
+  1014→                                  title={opt.description}
+  1015→                                >
+  1016→                                  {opt.label}
+  1017→                                </button>
+  1018→                              ))}
+  1019→                            </div>
+  1020→                            {deal.saleChannel === "DISTANCE" && (
+  1021→                              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+  1022→                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1023→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  1024→                                </svg>
+  1025→                                14-day cooling off period applies
+  1026→                              </p>
+  1027→                            )}
+  1028→                          </div>
+  1029→                        )}
+  1030→
+  1031→                        {/* Step 4: Business Details - For Trade or Business buyers */}
+  1032→                        {(deal.saleType === "TRADE" || deal.buyerUse === "BUSINESS") && (
+  1033→                          <div className="border-t border-slate-100 pt-4 space-y-3">
+  1034→                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Business Details</h4>
+  1035→                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  1036→                              <div>
+  1037→                                <label className="block text-xs text-slate-500 mb-1">Company Name</label>
+  1038→                                <input
+  1039→                                  type="text"
+  1040→                                  className="input input-sm input-bordered w-full"
+  1041→                                  placeholder="Company name"
+  1042→                                  value={deal.businessDetails?.companyName || ""}
+  1043→                                  onChange={(e) => handleUpdateField({
+  1044→                                    businessDetails: { ...deal.businessDetails, companyName: e.target.value }
+  1045→                                  })}
+  1046→                                />
+  1047→                              </div>
+  1048→                              <div>
+  1049→                                <label className="block text-xs text-slate-500 mb-1">Company Reg Number</label>
+  1050→                                <input
+  1051→                                  type="text"
+  1052→                                  className="input input-sm input-bordered w-full"
+  1053→                                  placeholder="e.g., 12345678"
+  1054→                                  value={deal.businessDetails?.companyRegNumber || ""}
+  1055→                                  onChange={(e) => handleUpdateField({
+  1056→                                    businessDetails: { ...deal.businessDetails, companyRegNumber: e.target.value }
+  1057→                                  })}
+  1058→                                />
+  1059→                              </div>
+  1060→                              <div className="md:col-span-2">
+  1061→                                <label className="block text-xs text-slate-500 mb-1">VAT Number</label>
+  1062→                                <input
+  1063→                                  type="text"
+  1064→                                  className="input input-sm input-bordered w-full"
+  1065→                                  placeholder="e.g., GB 123 4567 89"
+  1066→                                  value={deal.businessDetails?.vatNumber || ""}
+  1067→                                  onChange={(e) => handleUpdateField({
+  1068→                                    businessDetails: { ...deal.businessDetails, vatNumber: e.target.value }
+  1069→                                  })}
+  1070→                                />
+  1071→                              </div>
+  1072→                            </div>
+  1073→                          </div>
+  1074→                        )}
+  1075→
+  1076→                        {/* VAT Treatment */}
+  1077→                        <div className="border-t border-slate-100 pt-4">
+  1078→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">VAT Treatment</label>
+  1079→                          <div className="flex flex-wrap gap-2">
+  1080→                            {[
+  1081→                              { value: "MARGIN", label: "Margin Scheme" },
+  1082→                              { value: "VAT_QUALIFYING", label: "Standard VAT" },
+  1083→                              { value: "NO_VAT", label: "Zero-rated / No VAT" },
+  1084→                            ].map((opt) => (
+  1085→                              <button
+  1086→                                key={opt.value}
+  1087→                                onClick={() => handleUpdateField({ vatScheme: opt.value })}
+  1088→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1089→                                  deal.vatScheme === opt.value
+  1090→                                    ? "bg-[#0066CC] text-white"
+  1091→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1092→                                }`}
+  1093→                              >
+  1094→                                {opt.label}
+  1095→                              </button>
+  1096→                            ))}
+  1097→                          </div>
+  1098→                        </div>
+  1099→
+  1100→                        {/* Payment Type */}
+  1101→                        <div className="border-t border-slate-100 pt-4">
+  1102→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Payment Type</label>
+  1103→                          <div className="flex flex-wrap gap-2">
+  1104→                            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+  1105→                              <button
+  1106→                                key={opt.value}
+  1107→                                onClick={() => handleUpdateField({ paymentType: opt.value })}
+  1108→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1109→                                  deal.paymentType === opt.value
+  1110→                                    ? "bg-[#0066CC] text-white"
+  1111→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1112→                                }`}
+  1113→                              >
+  1114→                                {opt.label}
+  1115→                              </button>
+  1116→                            ))}
+  1117→                          </div>
+  1118→                        </div>
+  1119→
+  1120→                        {/* Finance Details - shown when paymentType is FINANCE or MIXED */}
+  1121→                        {(deal.paymentType === "FINANCE" || deal.paymentType === "MIXED") && (
+  1122→                          <div className="border-t border-slate-100 pt-4 space-y-3">
+  1123→                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Finance Details</h4>
+  1124→                            <div className="grid grid-cols-2 gap-3">
+  1125→                              <div>
+  1126→                                <label className="block text-xs text-slate-500 mb-1">Provider</label>
+  1127→                                <input
+  1128→                                  type="text"
+  1129→                                  className="input input-sm input-bordered w-full"
+  1130→                                  placeholder="Finance company"
+  1131→                                  value={deal.finance?.provider || ""}
+  1132→                                  onChange={(e) => handleUpdateField({
+  1133→                                    finance: { ...deal.finance, provider: e.target.value }
+  1134→                                  })}
+  1135→                                />
+  1136→                              </div>
+  1137→                              <div>
+  1138→                                <label className="block text-xs text-slate-500 mb-1">Finance Type</label>
+  1139→                                <select
+  1140→                                  className="select select-sm select-bordered w-full"
+  1141→                                  value={deal.finance?.financeType || ""}
+  1142→                                  onChange={(e) => handleUpdateField({
+  1143→                                    finance: { ...deal.finance, financeType: e.target.value }
+  1144→                                  })}
+  1145→                                >
+  1146→                                  <option value="">Select...</option>
+  1147→                                  {FINANCE_TYPE_OPTIONS.map((opt) => (
+  1148→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1149→                                  ))}
+  1150→                                </select>
+  1151→                              </div>
+  1152→                              <div>
+  1153→                                <label className="block text-xs text-slate-500 mb-1">Amount Financed</label>
+  1154→                                <div className="relative">
+  1155→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1156→                                  <input
+  1157→                                    type="number"
+  1158→                                    className="input input-sm input-bordered w-full pl-7"
+  1159→                                    placeholder="0.00"
+  1160→                                    value={deal.finance?.amountFinanced || ""}
+  1161→                                    onChange={(e) => handleUpdateField({
+  1162→                                      finance: { ...deal.finance, amountFinanced: parseFloat(e.target.value) || null }
+  1163→                                    })}
+  1164→                                  />
+  1165→                                </div>
+  1166→                              </div>
+  1167→                              <div>
+  1168→                                <label className="block text-xs text-slate-500 mb-1">Customer Deposit</label>
+  1169→                                <div className="relative">
+  1170→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1171→                                  <input
+  1172→                                    type="number"
+  1173→                                    className="input input-sm input-bordered w-full pl-7"
+  1174→                                    placeholder="0.00"
+  1175→                                    value={deal.finance?.customerDeposit || ""}
+  1176→                                    onChange={(e) => handleUpdateField({
+  1177→                                      finance: { ...deal.finance, customerDeposit: parseFloat(e.target.value) || null }
+  1178→                                    })}
+  1179→                                  />
+  1180→                                </div>
+  1181→                              </div>
+  1182→                              <div>
+  1183→                                <label className="block text-xs text-slate-500 mb-1">Status</label>
+  1184→                                <select
+  1185→                                  className="select select-sm select-bordered w-full"
+  1186→                                  value={deal.finance?.status || "QUOTED"}
+  1187→                                  onChange={(e) => handleUpdateField({
+  1188→                                    finance: { ...deal.finance, status: e.target.value }
+  1189→                                  })}
+  1190→                                >
+  1191→                                  {FINANCE_STATUS_OPTIONS.map((opt) => (
+  1192→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1193→                                  ))}
+  1194→                                </select>
+  1195→                              </div>
+  1196→                              <div>
+  1197→                                <label className="block text-xs text-slate-500 mb-1">Reference</label>
+  1198→                                <input
+  1199→                                  type="text"
+  1200→                                  className="input input-sm input-bordered w-full"
+  1201→                                  placeholder="Agreement ref"
+  1202→                                  value={deal.finance?.reference || ""}
+  1203→                                  onChange={(e) => handleUpdateField({
+  1204→                                    finance: { ...deal.finance, reference: e.target.value }
+  1205→                                  })}
+  1206→                                />
+  1207→                              </div>
+  1208→                            </div>
+  1209→                          </div>
+  1210→                        )}
+  1211→                      </div>
+  1212→                    </div>
+  1213→                  )}
+  1214→
+  1215→                  {/* Vehicle Section */}
+  1216→                  {deal.vehicle && (
+  1217→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">

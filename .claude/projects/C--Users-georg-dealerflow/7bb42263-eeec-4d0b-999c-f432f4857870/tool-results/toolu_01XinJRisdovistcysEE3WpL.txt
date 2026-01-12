@@ -1,0 +1,546 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import StatsCard from "@/components/StatsCard";
+     7→
+     8→// Human-readable form type labels
+     9→const FORM_TYPE_LABELS = {
+    10→  PDI: "PDI",
+    11→  TEST_DRIVE: "Test Drive",
+    12→  WARRANTY_CLAIM: "Warranty Claim",
+    13→  COURTESY_OUT: "Courtesy Out",
+    14→  COURTESY_IN: "Courtesy In",
+    15→  SERVICE_RECEIPT: "Service",
+    16→  REVIEW_FEEDBACK: "Feedback",
+    17→  OTHER: "Other",
+    18→};
+    19→
+    20→// Default priority forms - PDI is always first as it's the most common daily task
+    21→// These are shown when there's no usage data, or PDI is forced to always be first
+    22→const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "DELIVERY"];
+    23→const ALWAYS_FIRST_FORM_TYPE = "PDI"; // PDI always shows as the first quick form
+    24→
+    25→// Needs Attention item configurations
+    26→const NEEDS_ATTENTION_ITEMS = [
+    27→  {
+    28→    key: "soldInProgress",
+    29→    label: "Sold in progress",
+    30→    href: "/sales-prep",
+    31→    color: "bg-amber-500",
+    32→    description: "vehicles awaiting delivery"
+    33→  },
+    34→  {
+    35→    key: "warrantyNotBookedIn",
+    36→    label: "Warranty not booked in",
+    37→    href: "/warranty",
+    38→    color: "bg-red-500",
+    39→    description: "cases need scheduling"
+    40→  },
+    41→  {
+    42→    key: "eventsToday",
+    43→    label: "Events today",
+    44→    href: "/calendar",
+    45→    color: "bg-blue-500",
+    46→    description: "on your calendar"
+    47→  },
+    48→  {
+    49→    key: "courtesyDueBack",
+    50→    label: "Courtesy due back",
+    51→    href: "/warranty",
+    52→    color: "bg-amber-500",
+    53→    description: "vehicles due today or overdue"
+    54→  },
+    55→  {
+    56→    key: "motExpiringSoon",
+    57→    label: "MOT expiring soon",
+    58→    href: "/sales-prep",
+    59→    color: "bg-red-500",
+    60→    description: "within 14 days"
+    61→  }
+    62→];
+    63→
+    64→export default function Dashboard() {
+    65→  const router = useRouter();
+    66→  const [stats, setStats] = useState(null);
+    67→  const [forms, setForms] = useState([]);
+    68→  const [isLoading, setIsLoading] = useState(true);
+    69→
+    70→  // Default empty stats object to prevent crashes
+    71→  const defaultStats = {
+    72→    appraisals: { total: 0, pending: 0 },
+    73→    vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+    74→    aftercare: { total: 0, open: 0 },
+    75→    reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+    76→    forms: { total: 0, submissions: 0 },
+    77→    recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+    78→    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+    79→    today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+    80→    topForms: [],
+    81→    oldestAppraisalDays: null,
+    82→  };
+    83→
+    84→  useEffect(() => {
+    85→    // Helper to safely parse JSON responses
+    86→    const safeJsonParse = async (res) => {
+    87→      const contentType = res.headers.get("content-type") || "";
+    88→      if (!contentType.includes("application/json")) {
+    89→        console.error("[Dashboard] Non-JSON response:", res.status, contentType);
+    90→        return null;
+    91→      }
+    92→      return res.json();
+    93→    };
+    94→
+    95→    // Single API call - stats now includes forms list
+    96→    fetch("/api/dashboard/stats")
+    97→      .then(async (res) => {
+    98→        if (res.status === 403) return { error: "No dealer context" };
+    99→        if (!res.ok) return { error: "Failed to fetch stats" };
+   100→        return await safeJsonParse(res) || { error: "Invalid response" };
+   101→      })
+   102→      .then((statsData) => {
+   103→        if (statsData?.error) {
+   104→          console.error("Dashboard stats error:", statsData.error);
+   105→          setStats(defaultStats);
+   106→          setForms([]);
+   107→        } else {
+   108→          setStats(statsData || defaultStats);
+   109→          // Forms are now included in stats response
+   110→          setForms(Array.isArray(statsData?.formsList) ? statsData.formsList : []);
+   111→        }
+   112→        setIsLoading(false);
+   113→      })
+   114→      .catch((err) => {
+   115→        console.error("Dashboard fetch error:", err);
+   116→        setStats(defaultStats);
+   117→        setForms([]);
+   118→        setIsLoading(false);
+   119→      });
+   120→  }, []);
+   121→
+   122→  const handleFormClick = (form) => {
+   123→    if (form.isPublic && form.publicSlug) {
+   124→      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+   125→    } else {
+   126→      router.push(`/forms/fill/${form.id || form._id}`);
+   127→    }
+   128→  };
+   129→
+   130→  // Get top forms - PDI is always first, then by usage stats or defaults
+   131→  const getTopForms = () => {
+   132→    // Find PDI form - it should always be first
+   133→    const pdiForm = forms.find(f => f.type === ALWAYS_FIRST_FORM_TYPE);
+   134→
+   135→    let otherTopForms = [];
+   136→    if (stats?.topForms?.length > 0) {
+   137→      // Map topForms to actual form objects - ensure both sides are strings for comparison
+   138→      // Exclude PDI since we're adding it first
+   139→      otherTopForms = stats.topForms
+   140→        .map(tf => forms.find(f => (f.id || f._id?.toString?.() || f._id) === (tf.formId?.toString?.() || tf.formId)))
+   141→        .filter(f => f && f.type !== ALWAYS_FIRST_FORM_TYPE)
+   142→        .slice(0, 2);
+   143→    } else {
+   144→      // Fallback to default priority forms (excluding PDI)
+   145→      otherTopForms = forms.filter(f => DEFAULT_PRIORITY_FORM_TYPES.includes(f.type) && f.type !== ALWAYS_FIRST_FORM_TYPE).slice(0, 2);
+   146→    }
+   147→
+   148→    // PDI first, then other top forms
+   149→    return pdiForm ? [pdiForm, ...otherTopForms] : otherTopForms;
+   150→  };
+   151→
+   152→  const topForms = getTopForms();
+   153→  const otherForms = forms.filter(f => !topForms.find(tf => (tf.id || tf._id?.toString?.() || tf._id) === (f.id || f._id?.toString?.() || f._id)));
+   154→
+   155→  // Get active needs attention items (only those with count > 0)
+   156→  const activeNeedsAttention = NEEDS_ATTENTION_ITEMS.filter(item =>
+   157→    stats?.needsAttention?.[item.key] > 0
+   158→  );
+   159→
+   160→  // Check if today strip has any data to show
+   161→  const hasTodayData = stats?.today && (
+   162→    stats.today.events > 0 ||
+   163→    stats.today.deliveries > 0 ||
+   164→    stats.today.testDrives > 0 ||
+   165→    stats.today.courtesyDueBack > 0
+   166→  );
+   167→
+   168→  return (
+   169→    <DashboardLayout>
+   170→      <Head><title>Dashboard | DealerFlow</title></Head>
+   171→
+   172→      {/* Header - Compact */}
+   173→      <div className="mb-4">
+   174→        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+   175→        <p className="text-slate-500 text-sm mt-1">Here's what needs attention today</p>
+   176→      </div>
+   177→
+   178→      {isLoading ? (
+   179→        <div className="flex justify-center py-20">
+   180→          <span className="loading loading-spinner loading-lg"></span>
+   181→        </div>
+   182→      ) : (
+   183→        <div className="space-y-4">
+   184→          {/* Today Strip - Only show if there's data */}
+   185→          {hasTodayData && (
+   186→            <div className="bg-gradient-to-r from-slate-50 to-blue-50 rounded-2xl px-4 py-3 flex items-center gap-3 flex-wrap shadow-sm">
+   187→              <span className="text-sm font-semibold text-slate-700">Today</span>
+   188→              <div className="h-4 w-px bg-slate-300" />
+   189→              <div className="flex items-center gap-3 flex-wrap">
+   190→                {(stats?.today?.events ?? 0) > 0 && (
+   191→                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium hover:bg-blue-200 transition-colors">
+   192→                    <span className="w-2 h-2 rounded-full bg-blue-500" />
+   193→                    {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
+   194→                  </Link>
+   195→                )}
+   196→                {(stats?.today?.deliveries ?? 0) > 0 && (
+   197→                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium hover:bg-emerald-200 transition-colors">
+   198→                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+   199→                    {stats.today.deliveries} deliver{stats.today.deliveries !== 1 ? "ies" : "y"}
+   200→                  </Link>
+   201→                )}
+   202→                {(stats?.today?.testDrives ?? 0) > 0 && (
+   203→                  <Link href="/calendar" className="inline-flex items-center gap-1.5 px-3 py-1 bg-cyan-100 text-cyan-700 rounded-full text-sm font-medium hover:bg-cyan-200 transition-colors">
+   204→                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+   205→                    {stats.today.testDrives} test drive{stats.today.testDrives !== 1 ? "s" : ""}
+   206→                  </Link>
+   207→                )}
+   208→                {(stats?.today?.courtesyDueBack ?? 0) > 0 && (
+   209→                  <Link href="/warranty" className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium hover:bg-amber-200 transition-colors">
+   210→                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+   211→                    {stats.today.courtesyDueBack} courtesy due
+   212→                  </Link>
+   213→                )}
+   214→              </div>
+   215→            </div>
+   216→          )}
+   217→
+   218→          {/* Top Row - KPI Cards with micro-context */}
+   219→          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+   220→            <StatsCard
+   221→              title="Pending Appraisals"
+   222→              value={stats?.appraisals?.pending ?? 0}
+   223→              trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
+   224→              icon="📋"
+   225→              color="primary"
+   226→            />
+   227→            <StatsCard
+   228→              title="Total Stock"
+   229→              value={(stats?.vehicles?.inStock ?? 0) + (stats?.vehicles?.inPrep ?? 0)}
+   230→              trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
+   231→              icon="🚗"
+   232→              color="secondary"
+   233→            />
+   234→            <StatsCard
+   235→              title="Advertised"
+   236→              value={stats?.vehicles?.inPrep ?? 0}
+   237→              trend={stats?.vehicles?.live > 0 ? `${stats.vehicles.live} sold in progress` : null}
+   238→              icon="📢"
+   239→              color="accent"
+   240→            />
+   241→            <StatsCard
+   242→              title="Avg Rating"
+   243→              value={stats?.reviews?.avgRating ?? "N/A"}
+   244→              trend={
+   245→                typeof stats?.reviews?.lastReviewDays === "number"
+   246→                  ? `Last review: ${stats.reviews.lastReviewDays}d ago`
+   247→                  : stats?.reviews?.count === 0
+   248→                  ? "No reviews yet"
+   249→                  : null
+   250→              }
+   251→              icon="⭐"
+   252→              color="warning"
+   253→            />
+   254→          </div>
+   255→
+   256→          {/* Quick Forms - Touch Cards Grid */}
+   257→          {forms.length > 0 && (
+   258→            <div>
+   259→              <div className="flex items-center justify-between mb-3">
+   260→                <div className="flex items-center gap-2">
+   261→                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+   262→                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wide">Quick Forms</span>
+   263→                </div>
+   264→                <Link href="/forms" className="text-sm text-blue-600 hover:text-blue-700 font-semibold transition-colors">All Submissions →</Link>
+   265→              </div>
+   266→              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   267→                {/* Top form buttons - Touch Cards */}
+   268→                {topForms.map((form) => (
+   269→                  <button
+   270→                    key={form.id || form._id}
+   271→                    onClick={() => handleFormClick(form)}
+   272→                    className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-blue-500 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer text-left"
+   273→                  >
+   274→                    <div className="bg-blue-50 text-blue-600 p-2 rounded-lg shrink-0">
+   275→                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   276→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   277→                      </svg>
+   278→                    </div>
+   279→                    <span className="font-semibold text-slate-700 truncate">
+   280→                      {FORM_TYPE_LABELS[form.type] || form.name}
+   281→                    </span>
+   282→                  </button>
+   283→                ))}
+   284→                {/* More Forms Card */}
+   285→                {otherForms.length > 0 && (
+   286→                  <div className="dropdown dropdown-end">
+   287→                    <label
+   288→                      tabIndex={0}
+   289→                      className="bg-white border border-slate-200 shadow-sm p-4 rounded-xl flex items-center gap-3 hover:border-slate-400 hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer w-full"
+   290→                    >
+   291→                      <div className="bg-slate-100 text-slate-500 p-2 rounded-lg shrink-0">
+   292→                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   293→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+   294→                        </svg>
+   295→                      </div>
+   296→                      <span className="font-semibold text-slate-500">More ({otherForms.length})</span>
+   297→                    </label>
+   298→                    <div tabIndex={0} className="dropdown-content z-20 shadow-xl bg-white rounded-xl w-64 border border-slate-200 mt-2 overflow-hidden">
+   299→                      {/* Header */}
+   300→                      <div className="px-3 py-2.5 border-b border-slate-100 bg-slate-50">
+   301→                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">All Forms</p>
+   302→                      </div>
+   303→                      {/* Scrollable list */}
+   304→                      <div className="max-h-64 overflow-y-auto overscroll-contain">
+   305→                        {otherForms.map((form) => (
+   306→                          <button
+   307→                            key={form.id || form._id}
+   308→                            onClick={() => handleFormClick(form)}
+   309→                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors border-b border-slate-50 last:border-0"
+   310→                          >
+   311→                            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
+   312→                              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   313→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   314→                              </svg>
+   315→                            </div>
+   316→                            <span className="truncate">{FORM_TYPE_LABELS[form.type] || form.name}</span>
+   317→                          </button>
+   318→                        ))}
+   319→                      </div>
+   320→                    </div>
+   321→                  </div>
+   322→                )}
+   323→              </div>
+   324→            </div>
+   325→          )}
+   326→
+   327→          {/* Middle Row - Needs Attention + Dealer Actions */}
+   328→          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   329→            {/* Needs Attention - 2/3 width - Task Style */}
+   330→            <div className="lg:col-span-2 bg-white border border-red-100 rounded-2xl p-1 shadow-sm">
+   331→              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+   332→                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   333→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   334→                </svg>
+   335→                <h3 className="text-base font-bold text-slate-800">Needs Attention</h3>
+   336→              </div>
+   337→              {activeNeedsAttention.length > 0 ? (
+   338→                <div className="p-2">
+   339→                  {activeNeedsAttention.map((item) => (
+   340→                    <Link
+   341→                      key={item.key}
+   342→                      href={item.href}
+   343→                      className="flex items-center gap-4 p-3 hover:bg-red-50/50 rounded-lg cursor-pointer transition-colors"
+   344→                    >
+   345→                      {/* Soft Circle Counter */}
+   346→                      <div className="bg-red-100 text-red-600 font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0">
+   347→                        {stats?.needsAttention?.[item.key] ?? 0}
+   348→                      </div>
+   349→                      <div className="flex-1 min-w-0">
+   350→                        <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+   351→                        <p className="text-xs text-slate-500">{item.description}</p>
+   352→                      </div>
+   353→                      <svg className="w-5 h-5 text-slate-300 group-hover:text-red-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   354→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   355→                      </svg>
+   356→                    </Link>
+   357→                  ))}
+   358→                </div>
+   359→              ) : (
+   360→                <div className="flex items-center justify-center py-8 m-2 bg-emerald-50 rounded-xl">
+   361→                  <div className="text-center">
+   362→                    <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-2">
+   363→                      <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   364→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   365→                      </svg>
+   366→                    </div>
+   367→                    <p className="text-emerald-700 font-semibold text-sm">All clear!</p>
+   368→                    <p className="text-xs text-emerald-600/70 mt-0.5">Nothing needs attention right now</p>
+   369→                  </div>
+   370→                </div>
+   371→              )}
+   372→            </div>
+   373→
+   374→            {/* Dealer Actions - 1/3 width - Command Cards */}
+   375→            <div className="bg-slate-50/50 rounded-2xl p-4">
+   376→              <div className="flex items-center gap-2 mb-4">
+   377→                <svg className="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   378→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+   379→                </svg>
+   380→                <h3 className="text-base font-bold text-slate-800">Quick Actions</h3>
+   381→              </div>
+   382→              <div className="space-y-3">
+   383→                {/* Add Vehicle Card */}
+   384→                <Link href="/sales-prep" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+   385→                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+   386→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   387→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   388→                    </svg>
+   389→                  </div>
+   390→                  <span className="font-semibold text-slate-700">Add Vehicle</span>
+   391→                </Link>
+   392→
+   393→                {/* New Appraisal Card */}
+   394→                <Link href="/appraisals/new" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+   395→                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+   396→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   397→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   398→                    </svg>
+   399→                  </div>
+   400→                  <span className="font-semibold text-slate-700">New Appraisal</span>
+   401→                </Link>
+   402→
+   403→                {/* View Submissions Card */}
+   404→                <Link href="/forms" className="group flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-blue-500 hover:scale-[1.02] transition-all">
+   405→                  <div className="bg-blue-50 text-blue-600 p-2 rounded-lg">
+   406→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   407→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+   408→                    </svg>
+   409→                  </div>
+   410→                  <span className="font-semibold text-slate-700">View Submissions</span>
+   411→                </Link>
+   412→
+   413→                {/* Invite Team Card - Distinct Purple Style */}
+   414→                <Link href="/settings/team" className="group flex items-center gap-3 p-4 bg-gradient-to-r from-violet-50 to-purple-50 border-2 border-violet-200 rounded-2xl shadow-sm hover:shadow-md hover:border-violet-400 hover:scale-[1.02] transition-all">
+   415→                  <div className="bg-gradient-to-br from-violet-500 to-purple-600 text-white p-2 rounded-lg shadow">
+   416→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   417→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+   418→                    </svg>
+   419→                  </div>
+   420→                  <div>
+   421→                    <span className="font-semibold text-violet-700 block">Invite Team</span>
+   422→                    <span className="text-xs text-violet-500">Add staff members</span>
+   423→                  </div>
+   424→                </Link>
+   425→              </div>
+   426→            </div>
+   427→          </div>
+   428→
+   429→          {/* Bottom Row - Recent Lists */}
+   430→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   431→            {/* Recent Appraisals */}
+   432→            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+   433→              <div className="flex justify-between items-center mb-6">
+   434→                <h3 className="text-lg font-bold text-slate-900">Recent Appraisals</h3>
+   435→                <Link href="/appraisals" className="text-xs font-bold text-blue-600 uppercase tracking-wide hover:underline">View All</Link>
+   436→              </div>
+   437→
+   438→              {stats?.recent?.appraisals?.length > 0 ? (
+   439→                <div className="overflow-y-auto max-h-[240px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+   440→                  {/* Column Headers */}
+   441→                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-2">
+   442→                    <div className="col-span-4">Vehicle</div>
+   443→                    <div className="col-span-4">Contact</div>
+   444→                    <div className="col-span-4 text-right">Status</div>
+   445→                  </div>
+   446→                  {/* Data Rows */}
+   447→                  <div className="space-y-1">
+   448→                    {stats.recent.appraisals.map((a) => (
+   449→                      <div
+   450→                        key={a.id}
+   451→                        onClick={() => router.push(`/appraisals/${a.id}`)}
+   452→                        className="grid grid-cols-12 gap-2 items-center py-4 hover:bg-slate-50 transition-colors cursor-pointer rounded-lg -mx-2 px-2"
+   453→                      >
+   454→                        <div className="col-span-4">
+   455→                          <span className="font-mono text-xs bg-[#fcd34d] border border-yellow-500/50 rounded px-1.5 py-0.5 text-slate-900 font-bold">{a.vehicleReg}</span>
+   456→                        </div>
+   457→                        <div className="col-span-4">
+   458→                          <p className="text-sm text-slate-600 truncate">{a.contactId?.name || "—"}</p>
+   459→                        </div>
+   460→                        <div className="col-span-4 text-right">
+   461→                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+   462→                            a.decision === "purchased" || a.decision === "converted"
+   463→                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+   464→                              : a.decision === "not_purchased" || a.decision === "declined"
+   465→                              ? "bg-red-50 text-red-700 border-red-200"
+   466→                              : "bg-amber-50 text-amber-700 border-amber-200"
+   467→                          }`}>
+   468→                            {a.decision}
+   469→                          </span>
+   470→                        </div>
+   471→                      </div>
+   472→                    ))}
+   473→                  </div>
+   474→                </div>
+   475→              ) : (
+   476→                <div className="flex items-center justify-center py-10 bg-slate-50 rounded-xl">
+   477→                  <p className="text-slate-400 text-sm">No appraisals yet</p>
+   478→                </div>
+   479→              )}
+   480→            </div>
+   481→
+   482→            {/* Pending Prep */}
+   483→            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+   484→              <div className="flex justify-between items-center mb-6">
+   485→                <h3 className="text-lg font-bold text-slate-900">Pending Prep</h3>
+   486→                <Link href="/sales-prep" className="text-xs font-bold text-blue-600 uppercase tracking-wide hover:underline">View All</Link>
+   487→              </div>
+   488→
+   489→              {stats?.recent?.vehicles?.length > 0 ? (
+   490→                <div className="overflow-y-auto max-h-[240px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+   491→                  {/* Column Headers */}
+   492→                  <div className="grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider pb-2 border-b border-slate-100 mb-2">
+   493→                    <div className="col-span-4">Vehicle</div>
+   494→                    <div className="col-span-4">Reg</div>
+   495→                    <div className="col-span-4 text-right">Status</div>
+   496→                  </div>
+   497→                  {/* Data Rows */}
+   498→                  <div className="space-y-1">
+   499→                    {stats.recent.vehicles.map((v) => (
+   500→                      <div
+   501→                        key={v.id}
+   502→                        onClick={() => router.push("/sales-prep")}
+   503→                        className="grid grid-cols-12 gap-2 items-center py-4 hover:bg-slate-50 transition-colors cursor-pointer rounded-lg -mx-2 px-2"
+   504→                      >
+   505→                        <div className="col-span-4">
+   506→                          <p className="font-bold text-slate-700 text-sm truncate">{v.make} {v.model}</p>
+   507→                        </div>
+   508→                        <div className="col-span-4">
+   509→                          <span className="font-mono text-xs bg-[#fcd34d] border border-yellow-500/50 rounded px-1.5 py-0.5 text-slate-900 font-bold">{v.regCurrent}</span>
+   510→                        </div>
+   511→                        <div className="col-span-4 text-right">
+   512→                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+   513→                            v.status === "delivered"
+   514→                              ? "bg-slate-100 text-slate-600 border-slate-200"
+   515→                              : v.status === "live"
+   516→                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+   517→                              : v.status === "in_prep"
+   518→                              ? "bg-amber-50 text-amber-700 border-amber-200"
+   519→                              : v.status === "in_stock"
+   520→                              ? "bg-blue-50 text-blue-700 border-blue-200"
+   521→                              : "bg-amber-50 text-amber-700 border-amber-200"
+   522→                          }`}>
+   523→                            {v.status.replace("_", " ")}
+   524→                          </span>
+   525→                        </div>
+   526→                      </div>
+   527→                    ))}
+   528→                  </div>
+   529→                </div>
+   530→              ) : (
+   531→                <div className="flex items-center justify-center py-10 bg-slate-50 rounded-xl">
+   532→                  <p className="text-slate-400 text-sm">No vehicles yet</p>
+   533→                </div>
+   534→              )}
+   535→            </div>
+   536→          </div>
+   537→        </div>
+   538→      )}
+   539→    </DashboardLayout>
+   540→  );
+   541→}
+   542→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

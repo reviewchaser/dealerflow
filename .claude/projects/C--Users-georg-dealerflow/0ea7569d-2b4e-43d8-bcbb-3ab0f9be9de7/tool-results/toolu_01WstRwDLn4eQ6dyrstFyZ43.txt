@@ -1,0 +1,83 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   400→// ============================================================================
+   401→// FEATURES SECTION - Detailed Feature Groups
+   402→// ============================================================================
+   403→function FeaturesSection() {
+   404→  const featureGroups = [
+   405→    {
+   406→      title: "Stock & Prep",
+   407→      description: "Track every vehicle from arrival to sale-ready",
+   408→      color: "blue",
+   409→      features: [
+   410→        "Visual stock board with drag-and-drop",
+   411→        "Prep checklists per vehicle",
+   412→        "Issue tracking with photos",
+   413→        "Activity log for every change",
+   414→        "Documents attached to vehicles",
+   415→      ],
+   416→    },
+   417→    {
+   418→      title: "Sales",
+   419→      description: "Complete deal management with UK VAT compliance",
+   420→      color: "cyan",
+   421→      features: [
+   422→        "Full deal lifecycle management",
+   423→        "Deposit receipts and invoices",
+   424→        "VAT Qualifying & Margin Scheme",
+   425→        "Part exchange with settlement tracking",
+   426→        "Customer and contact management",
+   427→      ],
+   428→    },
+   429→    {
+   430→      title: "Appraisals",
+   431→      description: "Capture part-exchanges and buying opportunities",
+   432→      color: "emerald",
+   433→      features: [
+   434→        "Customer PX submission forms",
+   435→        "Dealer buying appraisals",
+   436→        "DVLA vehicle lookup",
+   437→        "Convert appraisal to stock instantly",
+   438→        "AI hints for common issues",
+   439→      ],
+   440→    },
+   441→    {
+   442→      title: "Forms & Submissions",
+   443→      description: "Digital forms that feed into your workflow",
+   444→      color: "violet",
+   445→      features: [
+   446→        "Pre-delivery inspections (PDI)",
+   447→        "Test drive agreements",
+   448→        "Courtesy car sign-out/return",
+   449→        "Custom internal forms",
+   450→        "Submission inbox with filters",
+   451→      ],
+   452→    },
+   453→    {
+   454→      title: "Warranty & Aftersales",
+   455→      description: "Manage claims from start to finish",
+   456→      color: "amber",
+   457→      features: [
+   458→        "Warranty case tracking board",
+   459→        "Issue logging with evidence",
+   460→        "Status updates and notes",
+   461→        "Customer communication log",
+   462→        "Export for reporting",
+   463→      ],
+   464→    },
+   465→    {
+   466→      title: "Team & HR",
+   467→      description: "Keep your team organised",
+   468→      color: "rose",
+   469→      features: [
+   470→        "Staff roles and permissions",
+   471→        "Holiday request & approval",
+   472→        "Overtime submissions",
+   473→        "Shared team calendar",
+   474→        "Activity visibility",
+   475→      ],
+   476→    },
+   477→  ];
+   478→
+   479→  const colorMap = {
+   480→    blue: { bg: "bg-blue-50", border: "border-blue-200", accent: "text-blue-600", dot: "bg-blue-600" },
+   481→    emerald: { bg: "bg-emerald-50", border: "border-emerald-200", accent: "text-emerald-600", dot: "bg-emerald-600" },

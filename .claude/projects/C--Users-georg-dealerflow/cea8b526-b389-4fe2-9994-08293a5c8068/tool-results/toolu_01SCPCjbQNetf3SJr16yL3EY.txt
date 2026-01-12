@@ -1,0 +1,147 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const aftercareCaseSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+     7→    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: true },
+     8→    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+     9→    vehicleSaleId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleSale" },
+    10→    source: {
+    11→      type: String,
+    12→      enum: ["warranty_claim_form", "low_review", "complaint_form", "manual"],
+    13→      default: "manual"
+    14→    },
+    15→    status: {
+    16→      type: String,
+    17→      enum: ["new", "in_progress", "pending_third_party", "resolved", "closed"],
+    18→      default: "new"
+    19→    },
+    20→    // Board status for Customer/Warranty board
+    21→    boardStatus: {
+    22→      type: String,
+    23→      enum: ["not_booked_in", "on_site", "work_complete", "collected"],
+    24→      default: "not_booked_in"
+    25→    },
+    26→    priority: {
+    27→      type: String,
+    28→      enum: ["low", "normal", "high", "critical"],
+    29→      default: "normal"
+    30→    },
+    31→    assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    32→    summary: { type: String }, // short text
+    33→    details: { type: Object }, // text or json
+    34→    regAtPurchase: { type: String }, // reg at time of purchase if different
+    35→    currentReg: { type: String }, // current reg if vehicle was re-registered
+    36→    warrantyType: {
+    37→      type: String,
+    38→      enum: ["Dealer Warranty", "External Warranty"],
+    39→    },
+    40→    linkedSubmissionIds: [{
+    41→      type: mongoose.Schema.Types.ObjectId,
+    42→      ref: "FormSubmission"
+    43→    }],
+    44→
+    45→    // Case-level attachments (separate from comment attachments)
+    46→    attachments: [{
+    47→      url: { type: String, required: true },
+    48→      filename: { type: String },
+    49→      uploadedAt: { type: Date, default: Date.now },
+    50→      uploadedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    51→    }],
+    52→
+    53→    // Timeline events - embedded array
+    54→    events: [{
+    55→      type: {
+    56→        type: String,
+    57→        enum: [
+    58→          "CASE_CREATED",
+    59→          "SUBMISSION_LINKED",
+    60→          "COMMENT_ADDED",
+    61→          "STATUS_CHANGED",
+    62→          "AI_REVIEW_GENERATED",
+    63→          "ATTACHMENT_ADDED",
+    64→          "LOCATION_UPDATED",
+    65→          "BOOKING_UPDATED",
+    66→          "PARTS_UPDATED",
+    67→          "COURTESY_REQUIRED_TOGGLED",
+    68→          "COURTESY_ALLOCATED",
+    69→          "COURTESY_RETURNED",
+    70→          "COURTESY_OUT_RECORDED",
+    71→          "COURTESY_IN_RECORDED",
+    72→          // Warranty booking auto-move events
+    73→          "WARRANTY_BOOKED_IN",
+    74→          "WARRANTY_BOOKING_UPDATED",
+    75→          "WARRANTY_BOOKING_CANCELLED",
+    76→          "WARRANTY_STAGE_MOVED"
+    77→        ],
+    78→        required: true
+    79→      },
+    80→      createdAt: { type: Date, default: Date.now },
+    81→      createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    82→      createdByName: { type: String }, // snapshot of user name for display
+    83→      summary: { type: String },
+    84→      metadata: { type: mongoose.Schema.Types.Mixed }
+    85→    }],
+    86→
+    87→    // Repair Location - tracks where the vehicle currently is
+    88→    repairLocationType: {
+    89→      type: String,
+    90→      enum: ["WITH_CUSTOMER", "ON_SITE", "THIRD_PARTY"],
+    91→      default: "WITH_CUSTOMER"  // New claims start with vehicle at customer
+    92→    },
+    93→    repairLocationName: { type: String }, // garage name when THIRD_PARTY
+    94→    repairLocationNotes: { type: String }, // notes about repair location
+    95→
+    96→    // LEGACY: kept for backwards compatibility - do not use in new code
+    97→    repairLocationContact: { type: String },
+    98→    repairExpectedCompleteAt: { type: Date },
+    99→
+   100→    // Booking fields
+   101→    bookedInAt: { type: Date }, // booking date/time
+   102→    linkedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" }, // linked warranty booking calendar event
+   103→    previousBoardStatusBeforeBookedIn: { type: String }, // for restoring if booking removed
+   104→
+   105→    // Parts fields
+   106→    partsRequired: { type: Boolean, default: false },
+   107→    partsNotes: { type: String },
+   108→
+   109→    // Courtesy car fields
+   110→    courtesyRequired: { type: Boolean, default: false },
+   111→    courtesyAllocationId: { type: mongoose.Schema.Types.ObjectId, ref: "CourtesyAllocation" },
+   112→    // Courtesy summary for clean card display (populated from submissions)
+   113→    courtesy: {
+   114→      vehicleReg: { type: String },      // Courtesy car registration
+   115→      vehicleName: { type: String },     // e.g. "Ford Fiesta" for display
+   116→      outAt: { type: Date },             // When courtesy car was given out
+   117→      dueBack: { type: Date },           // Expected return date
+   118→      returnedAt: { type: Date },        // Actual return date (null if still out)
+   119→    },
+   120→
+   121→    // AI Case Review - cached output
+   122→    aiReview: {
+   123→      generatedAt: { type: Date },
+   124→      generatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   125→      payload: {
+   126→        summary: { type: String },
+   127→        possibleCauses: [{ type: String }],
+   128→        recommendedSteps: [{ type: String }],
+   129→        warrantyConsiderations: [{ type: String }],
+   130→        draftCustomerReply: { type: String },
+   131→        draftInternalNote: { type: String }
+   132→      }
+   133→    },
+   134→    // Audit fields
+   135→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   136→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   137→  },
+   138→  { timestamps: true }
+   139→);
+   140→
+   141→aftercareCaseSchema.plugin(toJSON);
+   142→export default mongoose.models.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);
+   143→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

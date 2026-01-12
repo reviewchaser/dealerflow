@@ -1,0 +1,179 @@
+A) Fix Contact creation bug + review required fields
+
+Goal: user can create a contact reliably. Validation errors should be friendly and only require what we truly need.
+
+Reproduce
+
+Go to /app/[dealerSlug]/contacts
+
+Click Add Contact
+
+Fill the visible fields, submit, confirm it fails with “Name (displayName) is required”.
+
+Debug
+
+Inspect the network request payload on submit:
+
+Confirm whether displayName is present.
+
+If it’s missing, trace where submit payload is built (Contact create modal component).
+
+Inspect backend validation:
+
+Where is displayName required? (Mongoose schema / zod / API handler)
+
+Confirm exact field name is displayName not name.
+
+Fix the UI
+
+Ensure the modal includes a clear, top-of-form field:
+
+Name / Company Name (maps to displayName)
+
+On submit, always send:
+
+displayName (string)
+
+plus any other fields that exist
+
+If there’s a “firstName / lastName” concept, still compute:
+
+displayName = companyName || (firstName + " " + lastName).trim()
+
+Ensure the “Create Contact” button disables until required fields valid, and show inline validation.
+
+Required fields policy (recommended)
+
+Required:
+
+displayName (Name / Company Name)
+
+Optional:
+
+email, phone
+
+address lines, town/city, postcode, country
+
+VAT number (B2B only)
+
+notes
+
+Add a Contact “Type” selector:
+
+CUSTOMER | SUPPLIER | FINANCE | OTHER (default CUSTOMER)
+
+This will be useful later for Sales invoicing and Purchased From.
+
+Backend resilience
+
+Keep backend requirement as displayName required.
+
+Improve error message returned to UI:
+
+show “Name is required” (don’t expose internal field names like displayName).
+
+Confirm create + edit + delete still work.
+
+Test
+
+Create contact with only Name → succeeds
+
+Create contact with Name + address/vat → succeeds
+
+Edit contact → persists
+
+ContactPicker inline create (inside DealDrawer) works too
+
+B) Fix “Create Sale” vehicle picker search returning no vehicles
+
+Goal: vehicle picker should show vehicles immediately (before search), and search should filter by VRM, make, model, stock number, etc.
+
+Reproduce
+
+Go to /app/[dealerSlug]/sales
+
+Click Create Sale
+
+Type into search and confirm no results appear.
+
+Debug
+
+Check console + network:
+
+Does the modal call an endpoint to fetch vehicles?
+
+Does it return 200 with a list?
+
+If 401/403/404, fix route or tenant slug usage.
+
+Confirm correct endpoint:
+
+It must include dealer scope (dealerSlug / dealerId).
+
+Confirm returned vehicle shape:
+
+What fields exist? e.g. registration vs vrm, make, model, etc.
+
+Fix data loading
+
+On modal open:
+
+fetch a list of eligible vehicles (not SOLD, or all except SOLD depending on your rule).
+
+Show states:
+
+loading spinner
+
+empty state (“No stock vehicles found”)
+
+error state (“Couldn’t load vehicles” + retry)
+
+Fix filtering logic
+
+Ensure search matches these fields (case-insensitive):
+
+VRM/registration
+
+make
+
+model
+
+stock number (if present)
+
+customer name (if already assigned)
+
+Ensure the filter runs against the fetched list and renders properly on desktop/mobile.
+
+Eligibility rules (recommended)
+
+Only allow creating a sale from vehicles where vehicle.status !== SOLD.
+
+If a vehicle already has an open deal, show it and prevent creating duplicate:
+
+show “Already has a sale (Open)” and link/open drawer.
+
+Add missing entry point on vehicle drawer
+
+In the open vehicle drawer (Stock & Prep):
+
+Add a Sales tab OR an action button in header:
+
+“Create Sale” / “Open Sale”
+
+This should:
+
+create a sale if none exists
+
+otherwise open the existing deal drawer
+
+Test
+
+Create Sale modal:
+
+shows vehicles without searching
+
+search returns expected matches
+
+selecting vehicle creates deal and opens DealDrawer
+
+Verify on Vercel + localhost

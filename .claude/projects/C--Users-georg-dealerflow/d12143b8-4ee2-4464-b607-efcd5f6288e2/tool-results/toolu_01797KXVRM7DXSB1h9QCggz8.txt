@@ -1,0 +1,204 @@
+  1240→      return false;
+  1241→    }));
+  1242→    return allFiltered.length;
+  1243→  };
+  1244→
+  1245→  // VRM Search functions - debounced API search
+  1246→  const searchVehiclesApi = async (query) => {
+  1247→    if (query.length < 2) {
+  1248→      setVrmSearchResults([]);
+  1249→      return;
+  1250→    }
+  1251→
+  1252→    setVrmSearchLoading(true);
+  1253→    try {
+  1254→      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=10`);
+  1255→      if (res.ok) {
+  1256→        const results = await res.json();
+  1257→        // Sort by updatedAt (most recent activity first)
+  1258→        results.sort((a, b) => {
+  1259→          const aDate = new Date(a.updatedAt || a.createdAt || 0);
+  1260→          const bDate = new Date(b.updatedAt || b.createdAt || 0);
+  1261→          return bDate - aDate;
+  1262→        });
+  1263→        setVrmSearchResults(results);
+  1264→      }
+  1265→    } catch (err) {
+  1266→      console.error("VRM search error:", err);
+  1267→    } finally {
+  1268→      setVrmSearchLoading(false);
+  1269→    }
+  1270→  };
+  1271→
+  1272→  const handleVrmSearchChange = (value) => {
+  1273→    const normalized = value.toUpperCase();
+  1274→    setVrmSearch(normalized);
+  1275→
+  1276→    // Clear previous timeout
+  1277→    if (vrmSearchTimeout.current) {
+  1278→      clearTimeout(vrmSearchTimeout.current);
+  1279→    }
+  1280→
+  1281→    if (normalized.length >= 2) {
+  1282→      setShowVrmDropdown(true);
+  1283→      // Debounce API call by 250ms
+  1284→      vrmSearchTimeout.current = setTimeout(() => {
+  1285→        searchVehiclesApi(normalized);
+  1286→      }, 250);
+  1287→    } else {
+  1288→      setVrmSearchResults([]);
+  1289→      setShowVrmDropdown(false);
+  1290→    }
+  1291→  };
+  1292→
+  1293→  // Cleanup timeout on unmount
+  1294→  useEffect(() => {
+  1295→    return () => {
+  1296→      if (vrmSearchTimeout.current) {
+  1297→        clearTimeout(vrmSearchTimeout.current);
+  1298→      }
+  1299→    };
+  1300→  }, []);
+  1301→
+  1302→  const handleVrmSelect = (vehicle) => {
+  1303→    // Close dropdown and clear search
+  1304→    setVrmSearch("");
+  1305→    setShowVrmDropdown(false);
+  1306→    setVrmSearchResults([]);
+  1307→
+  1308→    // Find which column this vehicle is in and scroll to it
+  1309→    const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
+  1310→    if (columnIndex >= 0) {
+  1311→      // Scroll the column into view
+  1312→      const columnElements = document.querySelectorAll('[data-column-key]');
+  1313→      if (columnElements[columnIndex]) {
+  1314→        columnElements[columnIndex].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  1315→      }
+  1316→    }
+  1317→
+  1318→    // Open the vehicle drawer with full details
+  1319→    openVehicleDrawer(vehicle);
+  1320→  };
+  1321→
+  1322→  const getStatusLabel = (statusKey) => {
+  1323→    const col = COLUMNS.find(c => c.key === statusKey);
+  1324→    return col ? col.label : statusKey;
+  1325→  };
+  1326→
+  1327→  const handlePrintVehicle = () => {
+  1328→    if (!selectedVehicle) return;
+  1329→
+  1330→    const vehicle = selectedVehicle;
+  1331→    const tasks = vehicle.tasks || [];
+  1332→    const issues = vehicle.issues || [];
+  1333→    const documents = vehicle.documents || [];
+  1334→    const completedTasks = tasks.filter(t => t.status === "done").length;
+  1335→    const daysInStock = vehicle.createdAt
+  1336→      ? Math.floor((new Date() - new Date(vehicle.createdAt)) / (1000 * 60 * 60 * 24))
+  1337→      : 0;
+  1338→
+  1339→    // Get status label from COLUMNS
+  1340→    const statusColumn = COLUMNS.find(col => col.key === vehicle.status);
+  1341→    const statusLabel = statusColumn ? statusColumn.label : vehicle.status;
+  1342→
+  1343→    // Generate HTML for print
+  1344→    const printContent = `
+  1345→<!DOCTYPE html>
+  1346→<html>
+  1347→<head>
+  1348→  <title>${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.regCurrent}</title>
+  1349→  <style>
+  1350→    * { margin: 0; padding: 0; box-sizing: border-box; }
+  1351→    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+  1352→    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+  1353→    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+  1354→    .reg { font-size: 18px; font-family: monospace; color: #64748b; }
+  1355→    .section { margin-bottom: 30px; }
+  1356→    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  1357→    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  1358→    .field { margin-bottom: 12px; }
+  1359→    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+  1360→    .field-value { font-size: 14px; color: #1e293b; }
+  1361→    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  1362→    .badge-status { background: #e0e7ff; color: #4338ca; }
+  1363→    .badge-days { background: ${daysInStock > 30 ? '#fef2f2' : '#f1f5f9'}; color: ${daysInStock > 30 ? '#dc2626' : '#475569'}; }
+  1364→    .task-list { list-style: none; }
+  1365→    .task-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+  1366→    .task-status { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  1367→    .task-done { background: #dcfce7; color: #16a34a; }
+  1368→    .task-pending { background: #fef3c7; color: #d97706; }
+  1369→    .task-progress { background: #dbeafe; color: #2563eb; }
+  1370→    .issue-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  1371→    .issue-header { display: flex; gap: 8px; margin-bottom: 8px; }
+  1372→    .issue-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  1373→    .issue-desc { font-size: 14px; color: #1e293b; }
+  1374→    .doc-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+  1375→    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+  1376→    @media print {
+  1377→      body { padding: 20px; }
+  1378→      .no-print { display: none; }
+  1379→    }
+  1380→  </style>
+  1381→</head>
+  1382→<body>
+  1383→  <div class="header">
+  1384→    <div class="title">${vehicle.year || ""} ${vehicle.make} ${vehicle.model}</div>
+  1385→    <div class="reg">${vehicle.regCurrent}</div>
+  1386→  </div>
+  1387→
+  1388→  <div class="section">
+  1389→    <div class="section-title">Overview</div>
+  1390→    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+  1391→      <span class="badge badge-status">${statusLabel}</span>
+  1392→      <span class="badge badge-days">Days in Stock: ${daysInStock}</span>
+  1393→      ${vehicle.locationId ? `<span class="badge" style="background:#eef2ff;color:#4f46e5;">📍 ${vehicle.locationId.name || 'Offsite'}</span>` : '<span class="badge" style="background:#f0fdf4;color:#16a34a;">📍 On Site</span>'}
+  1394→    </div>
+  1395→  </div>
+  1396→
+  1397→  <div class="section">
+  1398→    <div class="section-title">Vehicle Details</div>
+  1399→    <div class="grid">
+  1400→      <div class="field">
+  1401→        <div class="field-label">Registration</div>
+  1402→        <div class="field-value">${vehicle.regCurrent || '—'}</div>
+  1403→      </div>
+  1404→      <div class="field">
+  1405→        <div class="field-label">VIN</div>
+  1406→        <div class="field-value">${vehicle.vin || '—'}</div>
+  1407→      </div>
+  1408→      <div class="field">
+  1409→        <div class="field-label">Make</div>
+  1410→        <div class="field-value">${vehicle.make || '—'}</div>
+  1411→      </div>
+  1412→      <div class="field">
+  1413→        <div class="field-label">Model</div>
+  1414→        <div class="field-value">${vehicle.model || '—'}</div>
+  1415→      </div>
+  1416→      <div class="field">
+  1417→        <div class="field-label">Year</div>
+  1418→        <div class="field-value">${vehicle.year || '—'}</div>
+  1419→      </div>
+  1420→      <div class="field">
+  1421→        <div class="field-label">Mileage</div>
+  1422→        <div class="field-value">${vehicle.mileageCurrent ? vehicle.mileageCurrent.toLocaleString() + ' miles' : '—'}</div>
+  1423→      </div>
+  1424→      <div class="field">
+  1425→        <div class="field-label">Colour</div>
+  1426→        <div class="field-value">${vehicle.colour || '—'}</div>
+  1427→      </div>
+  1428→      <div class="field">
+  1429→        <div class="field-label">Fuel Type</div>
+  1430→        <div class="field-value">${vehicle.fuelType || '—'}</div>
+  1431→      </div>
+  1432→      <div class="field">
+  1433→        <div class="field-label">MOT Expiry</div>
+  1434→        <div class="field-value">${vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
+  1435→      </div>
+  1436→    </div>
+  1437→  </div>
+  1438→
+  1439→  <div class="section">
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

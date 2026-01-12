@@ -1,0 +1,17 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→import { BottomSheet, PageHint } from "@/components/ui/BottomSheet";
+     9→import { Portal } from "@/components/ui/Portal";
+    10→import { MobileStageSelector } from "@/components/ui/PageShell";
+    11→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    12→import VehicleImage from "@/components/VehicleImage";
+    13→
+    14→const COLUMNS = [
+    15→  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    16→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },

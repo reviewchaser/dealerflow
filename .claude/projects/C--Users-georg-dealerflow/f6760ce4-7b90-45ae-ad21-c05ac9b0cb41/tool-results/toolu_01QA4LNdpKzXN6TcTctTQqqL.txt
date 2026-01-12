@@ -1,0 +1,65 @@
+     1→/**
+     2→ * Set User's Default Dealer
+     3→ *
+     4→ * PUT /api/user/default-dealer
+     5→ *
+     6→ * Sets the default dealership for the current user.
+     7→ * Used when navigating between dealerships in a multi-dealer setup.
+     8→ */
+     9→
+    10→import { getServerSession } from "next-auth/next";
+    11→import { authOptions } from "@/libs/authOptions";
+    12→import connectMongo from "@/libs/mongoose";
+    13→import User from "@/models/User";
+    14→import DealerMembership from "@/models/DealerMembership";
+    15→
+    16→export default async function handler(req, res) {
+    17→  if (req.method !== "PUT") {
+    18→    return res.status(405).json({ error: "Method not allowed" });
+    19→  }
+    20→
+    21→  const session = await getServerSession(req, res, authOptions);
+    22→  if (!session?.user?.id) {
+    23→    return res.status(401).json({ error: "Not authenticated" });
+    24→  }
+    25→
+    26→  const { dealerId } = req.body;
+    27→  if (!dealerId) {
+    28→    return res.status(400).json({ error: "dealerId is required" });
+    29→  }
+    30→
+    31→  try {
+    32→    await connectMongo();
+    33→
+    34→    // Verify user has membership at this dealer
+    35→    const membership = await DealerMembership.findOne({
+    36→      userId: session.user.id,
+    37→      dealerId: dealerId,
+    38→      status: "ACTIVE",
+    39→    });
+    40→
+    41→    if (!membership) {
+    42→      return res.status(403).json({ error: "No access to this dealership" });
+    43→    }
+    44→
+    45→    // Update user's default dealer
+    46→    await User.findByIdAndUpdate(session.user.id, {
+    47→      defaultDealerId: dealerId,
+    48→    });
+    49→
+    50→    // Update membership's lastActiveAt
+    51→    await DealerMembership.findByIdAndUpdate(membership._id, {
+    52→      lastActiveAt: new Date(),
+    53→    });
+    54→
+    55→    return res.status(200).json({ success: true });
+    56→  } catch (error) {
+    57→    console.error("[DefaultDealer] Error:", error);
+    58→    return res.status(500).json({ error: "Failed to set default dealer" });
+    59→  }
+    60→}
+    61→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

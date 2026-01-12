@@ -1,0 +1,20 @@
+// Redirect to tenant dashboard
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
+
+export default function TenantIndex() {
+  const router = useRouter();
+  const { dealerSlug } = router.query;
+
+  useEffect(() => {
+    if (dealerSlug) {
+      router.replace(`/app/${dealerSlug}/dashboard`);
+    }
+  }, [dealerSlug, router]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <span className="loading loading-spinner loading-lg"></span>
+    </div>
+  );
+}

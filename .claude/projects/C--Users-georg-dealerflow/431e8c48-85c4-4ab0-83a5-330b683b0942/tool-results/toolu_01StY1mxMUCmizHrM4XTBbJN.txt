@@ -1,0 +1,64 @@
+     1→/**
+     2→ * Get User's Dealership Memberships
+     3→ *
+     4→ * GET /api/dealers/memberships
+     5→ *
+     6→ * Returns all dealerships the current user has access to.
+     7→ */
+     8→
+     9→import { getServerSession } from "next-auth/next";
+    10→import { authOptions } from "@/libs/authOptions";
+    11→import connectMongo from "@/libs/mongoose";
+    12→import DealerMembership from "@/models/DealerMembership";
+    13→import Dealer from "@/models/Dealer";
+    14→
+    15→export default async function handler(req, res) {
+    16→  if (req.method !== "GET") {
+    17→    return res.status(405).json({ error: "Method not allowed" });
+    18→  }
+    19→
+    20→  const session = await getServerSession(req, res, authOptions);
+    21→  if (!session?.user?.id) {
+    22→    return res.status(401).json({ error: "Not authenticated" });
+    23→  }
+    24→
+    25→  try {
+    26→    await connectMongo();
+    27→
+    28→    // Find all active memberships for this user
+    29→    const memberships = await DealerMembership.find({
+    30→      userId: session.user.id,
+    31→      status: "ACTIVE",
+    32→    })
+    33→      .populate({
+    34→        path: "dealerId",
+    35→        select: "name slug logoUrl status",
+    36→      })
+    37→      .lean();
+    38→
+    39→    // Filter out memberships where dealer is disabled or doesn't exist
+    40→    const activeMembers = memberships.filter(
+    41→      (m) => m.dealerId && m.dealerId.status !== "DISABLED"
+    42→    );
+    43→
+    44→    // Format response
+    45→    const dealers = activeMembers.map((m) => ({
+    46→      id: m.dealerId._id.toString(),
+    47→      name: m.dealerId.name,
+    48→      slug: m.dealerId.slug,
+    49→      logoUrl: m.dealerId.logoUrl || null,
+    50→      role: m.role,
+    51→      membershipId: m._id.toString(),
+    52→    }));
+    53→
+    54→    return res.status(200).json(dealers);
+    55→  } catch (error) {
+    56→    console.error("[Memberships] Error:", error);
+    57→    return res.status(500).json({ error: "Failed to load dealerships" });
+    58→  }
+    59→}
+    60→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

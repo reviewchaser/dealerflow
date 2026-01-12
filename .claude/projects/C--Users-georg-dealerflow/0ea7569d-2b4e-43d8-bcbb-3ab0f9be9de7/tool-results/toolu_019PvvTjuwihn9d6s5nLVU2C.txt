@@ -1,0 +1,60 @@
+12:  --brand: 210 100% 45%; /* Cobalt Blue #0066CC */
+22:  --accent: 175 75% 45%; /* Teal #14B8A6 */
+27:  --success: 152 69% 40%; /* Emerald #059669 */
+29:  --warning: 38 92% 50%; /* Amber #F59E0B */
+31:  --danger: 0 72% 51%; /* Red #DC2626 */
+33:  --info: 199 89% 48%; /* Cyan #0EA5E9 */
+182:  border: 1px solid #e2e8f0;
+295:  background: #e2e8f0;
+300:  background: #cbd5e1;
+323:  background: linear-gradient(135deg, #0066CC 0%, #0EA5E9 100%);
+328:  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+333:  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+338:  background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+343:  background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+348:  background: linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%);
+372:  background: linear-gradient(180deg, white 0%, #f8fafc 100%);
+392:.icon-primary { background: rgba(0,102,204,0.1); color: #0066CC; }
+393:.icon-success { background: rgba(5,150,105,0.1); color: #059669; }
+394:.icon-warning { background: rgba(217,119,6,0.1); color: #D97706; }
+395:.icon-danger { background: rgba(220,38,38,0.1); color: #DC2626; }
+396:.icon-accent { background: rgba(20,184,166,0.1); color: #14B8A6; }
+397:.icon-info { background: rgba(14,165,233,0.1); color: #0EA5E9; }
+400:.icon-solid-primary { background: #0066CC; color: white; }
+401:.icon-solid-success { background: #059669; color: white; }
+402:.icon-solid-warning { background: #D97706; color: white; }
+403:.icon-solid-danger { background: #DC2626; color: white; }
+404:.icon-solid-accent { background: #14B8A6; color: white; }
+405:.icon-solid-info { background: #0EA5E9; color: white; }
+418:  color: #0f172a;
+433:.pill-primary { background: rgba(0,102,204,0.1); color: #0066CC; }
+434:.pill-success { background: rgba(5,150,105,0.1); color: #059669; }
+435:.pill-warning { background: rgba(217,119,6,0.1); color: #D97706; }
+436:.pill-danger { background: rgba(220,38,38,0.1); color: #DC2626; }
+437:.pill-accent { background: rgba(20,184,166,0.1); color: #14B8A6; }
+438:.pill-info { background: rgba(14,165,233,0.1); color: #0EA5E9; }
+439:.pill-neutral { background: #f1f5f9; color: #64748b; }
+442:.pill-solid-primary { background: #0066CC; color: white; }
+443:.pill-solid-success { background: #059669; color: white; }
+444:.pill-solid-warning { background: #D97706; color: white; }
+445:.pill-solid-danger { background: #DC2626; color: white; }
+488:  border: 1px solid #e2e8f0;
+495:  border-color: #0066CC;
+504:  background: #f8fafc;
+508:  color: #0f172a;
+514:  border-color: #0066CC;
+520:  color: #94a3b8;
+551:  border: 1px solid #e2e8f0;
+565:  background: #f8fafc;
+566:  border-bottom: 1px solid #e2e8f0;
+575:  background: #f8fafc;
+576:  border-top: 1px solid #e2e8f0;
+599:  border-color: #0066CC;
+617:.status-dot-success { background: #059669; }
+618:.status-dot-warning { background: #D97706; }
+619:.status-dot-danger { background: #DC2626; }
+620:.status-dot-info { background: #0EA5E9; }
+621:.status-dot-neutral { background: #94a3b8; }
+639:  background: #f8fafc;
+646:  color: #0f172a;
+651:  color: #64748b;

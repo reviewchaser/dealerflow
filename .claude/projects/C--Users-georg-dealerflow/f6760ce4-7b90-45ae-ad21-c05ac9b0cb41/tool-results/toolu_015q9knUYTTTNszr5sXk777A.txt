@@ -1,0 +1,20 @@
+The file C:\Users\georg\dealerflow\components\VehicleImageGallery.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   227→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   228→            </svg>
+   229→          </button>
+   230→
+   231→          <div className="relative max-w-4xl max-h-[80vh] w-full h-full" onClick={(e) => e.stopPropagation()}>
+   232→            <Image
+   233→              src={getImageUrl(lightboxImage)}
+   234→              alt="Vehicle image"
+   235→              fill
+   236→              className="object-contain"
+   237→              sizes="100vw"
+   238→              unoptimized
+   239→              onError={() => handleImageError(lightboxImage.key)}
+   240→            />
+   241→          </div>
+   242→
+   243→          {/* Navigation */}
+   244→          {images.length > 1 && (
+   245→            <>

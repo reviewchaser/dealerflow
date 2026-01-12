@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   164→  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+   165→  { name: "Reviews", href: "/reviews", Icon: StarIcon },
+   166→  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+   167→  // HR
+   168→  { name: "Holidays", href: "/holidays", Icon: SunIcon },
+   169→  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
+   170→  // System
+   171→  { name: "Settings", href: "/settings", Icon: CogIcon },
+   172→];

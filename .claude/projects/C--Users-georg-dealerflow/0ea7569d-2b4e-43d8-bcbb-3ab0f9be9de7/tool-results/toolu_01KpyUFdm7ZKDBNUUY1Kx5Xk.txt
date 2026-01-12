@@ -1,0 +1,69 @@
+The file C:\Users\georg\dealerflow\components\ContactPicker.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   106→    onChange?.(null, null);
+   107→    setSearchQuery("");
+   108→  };
+   109→
+   110→  const handleCreate = async (e) => {
+   111→    e.preventDefault();
+   112→    setIsCreating(true);
+   113→
+   114→    try {
+   115→      // Compute displayName from firstName/lastName or companyName
+   116→      let displayName;
+   117→      if (createForm.contactType === "company") {
+   118→        displayName = createForm.companyName?.trim();
+   119→      } else {
+   120→        displayName = `${createForm.firstName || ""} ${createForm.lastName || ""}`.trim();
+   121→      }
+   122→
+   123→      if (!displayName) {
+   124→        toast.error("Name is required");
+   125→        setIsCreating(false);
+   126→        return;
+   127→      }
+   128→
+   129→      // Normalize typeTags to uppercase
+   130→      const normalizedTypeTags = (filterTypeTags.length > 0 ? filterTypeTags : ["CUSTOMER"])
+   131→        .map(t => t.toUpperCase());
+   132→
+   133→      const payload = {
+   134→        displayName,
+   135→        companyName: createForm.companyName,
+   136→        email: createForm.email,
+   137→        phone: createForm.phone,
+   138→        typeTags: normalizedTypeTags,
+   139→      };
+   140→
+   141→      const res = await fetch("/api/contacts", {
+   142→        method: "POST",
+   143→        headers: { "Content-Type": "application/json" },
+   144→        body: JSON.stringify(payload),
+   145→      });
+   146→
+   147→      if (!res.ok) {
+   148→        const err = await res.json();
+   149→        throw new Error(err.error || "Failed to create contact");
+   150→      }
+   151→
+   152→      const newContact = await res.json();
+   153→      toast.success("Contact created");
+   154→      handleSelect(newContact);
+   155→      setShowCreateForm(false);
+   156→      setCreateForm({
+   157→        contactType: "individual",
+   158→        firstName: "",
+   159→        lastName: "",
+   160→        companyName: "",
+   161→        email: "",
+   162→        phone: "",
+   163→      });
+   164→    } catch (error) {
+   165→      toast.error(error.message);
+   166→    } finally {
+   167→      setIsCreating(false);
+   168→    }
+   169→  };
+   170→
+   171→  return (
+   172→    <div ref={containerRef} className="relative">
+   173→      {label && (

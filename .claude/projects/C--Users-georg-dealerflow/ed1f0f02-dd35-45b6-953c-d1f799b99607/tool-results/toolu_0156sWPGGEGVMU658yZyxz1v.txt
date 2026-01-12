@@ -1,0 +1,179 @@
+184-  const [showMobileFilters, setShowMobileFilters] = useState(false);
+185-  const [filters, setFilters] = useState({
+186-    location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
+187-    booked: "all",        // "all" | "booked" | "not_booked"
+188-    partsRequired: "all", // "all" | "yes" | "no"
+189:    priority: "all",      // "all" | "low" | "normal" | "high" | "critical"
+190-  });
+191-
+192-  // Mobile column selection
+193-  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+194-
+--
+635-      filtered = filtered.filter(c => c.partsRequired === true);
+636-    } else if (filters.partsRequired === "no") {
+637-      filtered = filtered.filter(c => !c.partsRequired);
+638-    }
+639-
+640:    // Apply priority filter
+641:    if (filters.priority !== "all") {
+642:      filtered = filtered.filter(c => (c.priority || "normal") === filters.priority);
+643-    }
+644-
+645-    return filtered;
+646-  };
+647-
+648-  // Check if any filters are active
+649-  const hasActiveFilters = () => {
+650-    return filters.location !== "all" ||
+651-           filters.booked !== "all" ||
+652-           filters.partsRequired !== "all" ||
+653:           filters.priority !== "all";
+654-  };
+655-
+656-  // Clear all filters
+657-  const clearFilters = () => {
+658-    setFilters({
+659-      location: "all",
+660-      booked: "all",
+661-      partsRequired: "all",
+662:      priority: "all",
+663-    });
+664-  };
+665-
+666-  // Get cases by status with sorting
+667-  const getCasesByStatus = (status) => {
+--
+854-                {/* Priority Filter */}
+855-                <div className="form-control">
+856-                  <label className="label label-text text-xs py-0">Priority</label>
+857-                  <select
+858-                    className="select select-bordered select-sm w-full"
+859:                    value={filters.priority}
+860:                    onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+861-                  >
+862-                    <option value="all">All</option>
+863-                    <option value="low">Low</option>
+864-                    <option value="normal">Normal</option>
+865-                    <option value="high">High</option>
+--
+961-            <label className="label">
+962-              <span className="label-text font-medium">Priority</span>
+963-            </label>
+964-            <select
+965-              className="select select-bordered w-full"
+966:              value={filters.priority}
+967:              onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+968-            >
+969-              <option value="all">All Priorities</option>
+970-              <option value="low">Low</option>
+971-              <option value="normal">Normal</option>
+972-              <option value="high">High</option>
+--
+1014-              const columnCases = getCasesByStatus(col.key);
+1015-              return (
+1016-                <div key={col.key} className="space-y-3">
+1017-                  {columnCases.map((caseItem) => {
+1018-                    const daysOpen = daysSince(caseItem.createdAt);
+1019:                    const priority = caseItem.priority || "normal";
+1020:                    const priorityStyle = PRIORITIES[priority] || PRIORITIES.normal;
+1021-                    const locationType = caseItem.repairLocationType || "WITH_CUSTOMER";
+1022-                    const locationStyle = REPAIR_LOCATION_STYLES[locationType] || REPAIR_LOCATION_STYLES.WITH_CUSTOMER;
+1023-                    const attachmentCount = (caseItem.submissionAttachmentCount || 0) + (caseItem.commentAttachmentCount || 0);
+1024-                    const activityCount = (caseItem.comments?.length || 0) + (caseItem.events?.length || 0);
+1025-
+--
+1042-                                    {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "NO REG"}
+1043-                                  </span>
+1044-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold ${locationStyle.bg} ${locationStyle.text}`}>
+1045-                                    {REPAIR_LOCATION_LABELS[locationType]}
+1046-                                  </span>
+1047:                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${priorityStyle.bg} ${priorityStyle.text} border ${priorityStyle.border}`}>
+1048:                                    {priority.charAt(0).toUpperCase() + priority.slice(1)}
+1049-                                  </span>
+1050-                                </div>
+1051-                              </div>
+1052-                            </div>
+1053-
+--
+1209-                  <div className="space-y-3">
+1210-                    {columnCases.map((caseItem) => {
+1211-                      const daysOpen = daysSince(caseItem.createdAt);
+1212-                      const attachmentCount = getAttachmentCount(caseItem);
+1213-                      const activityCount = getActivityCount(caseItem);
+1214:                      // Default priority to "normal" if missing
+1215:                      const priority = caseItem.priority || "normal";
+1216:                      const priorityStyle = PRIORITIES[priority] || PRIORITIES.normal;
+1217-                      // Default location to WITH_CUSTOMER if missing (vehicle starts with customer)
+1218-                      const locationType = caseItem.repairLocationType || "WITH_CUSTOMER";
+1219-                      const locationStyle = REPAIR_LOCATION_STYLES[locationType] || REPAIR_LOCATION_STYLES.WITH_CUSTOMER;
+1220-
+1221-                      return (
+--
+1247-                                    </span>
+1248-                                  )}
+1249-                                </div>
+1250-                              </div>
+1251-                              {/* Priority badge */}
+1252:                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${priorityStyle.bg} ${priorityStyle.text} border ${priorityStyle.border}`}>
+1253:                                {priority.charAt(0).toUpperCase() + priority.slice(1)}
+1254-                              </span>
+1255-                            </div>
+1256-
+1257-                            {/* Customer name + Vehicle make/model */}
+1258-                            <div className="mb-2">
+--
+1397-                    {selectedCase.warrantyType && (
+1398-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+1399-                        {selectedCase.warrantyType}
+1400-                      </span>
+1401-                    )}
+1402:                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${PRIORITIES[selectedCase.priority]?.bg} ${PRIORITIES[selectedCase.priority]?.text} ${PRIORITIES[selectedCase.priority]?.border} border`}>
+1403:                      {selectedCase.priority}
+1404-                    </span>
+1405-                  </div>
+1406-                  <p className="text-sm text-slate-500 mt-1.5 truncate">
+1407-                    {selectedCase.contactId?.name || "Unknown"} &middot; {daysSince(selectedCase.createdAt)}d open
+1408-                  </p>
+--
+1461-                    { key: "critical", label: "Urgent", shortLabel: "Urgent" },
+1462-                  ].map(p => (
+1463-                    <button
+1464-                      key={p.key}
+1465-                      onClick={async () => {
+1466:                        if (selectedCase.priority !== p.key) {
+1467:                          await updateCase({ priority: p.key }, "Priority updated");
+1468-                        }
+1469-                      }}
+1470-                      className={`flex-1 px-3 py-2.5 text-xs font-medium rounded-lg transition-all ${
+1471:                        selectedCase.priority === p.key
+1472-                          ? `${PRIORITIES[p.key]?.bg} ${PRIORITIES[p.key]?.text} shadow-sm`
+1473-                          : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
+1474-                      }`}
+1475-                    >
+1476-                      {p.label}
+--
+2433-
+2434-function AddCaseModal({ onClose, onSuccess }) {
+2435-  const [isLoading, setIsLoading] = useState(false);
+2436-  const [formData, setFormData] = useState({
+2437-    customerName: "", customerEmail: "", customerPhone: "",
+2438:    vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
+2439-    warrantyType: "",
+2440-  });
+2441-
+2442-  const handleSubmit = async (e) => {
+2443-    e.preventDefault();
+--
+2494-            </div>
+2495-          </div>
+2496-          <div className="grid grid-cols-2 gap-3 mt-3">
+2497-            <div className="form-control">
+2498-              <label className="label"><span className="label-text">Priority</span></label>
+2499:              <select className="select select-bordered" value={formData.priority}
+2500:                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+2501-                <option value="low">Low</option>
+2502-                <option value="normal">Normal</option>
+2503-                <option value="high">High</option>
+2504-                <option value="critical">Critical</option>
+2505-              </select>

@@ -1,0 +1,31 @@
+The file C:\Users\georg\dealerflow\components\ui\MobileModal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    94→    }
+    95→    return true;
+    96→  });
+    97→
+    98→  return (
+    99→    <Portal>
+   100→      <div
+   101→        className="fixed inset-0 z-[9999]"
+   102→        style={{
+   103→          touchAction: "pan-x pan-y pinch-zoom", // Allow pinch zoom
+   104→          overscrollBehavior: "contain"
+   105→        }}
+   106→      >
+   107→        {/* Backdrop - prevent touch events from reaching background */}
+   108→        <div
+   109→          className="fixed inset-0 bg-black/50"
+   110→          onClick={onClose}
+   111→          onTouchMove={(e) => {
+   112→            // Only prevent default if not a pinch zoom (single touch)
+   113→            if (e.touches && e.touches.length === 1) {
+   114→              e.preventDefault();
+   115→            }
+   116→          }}
+   117→          aria-hidden="true"
+   118→          style={{ touchAction: "pan-x pan-y pinch-zoom" }}
+   119→        />
+   120→
+   121→        {/* Modal Container - Centered on desktop, full screen on mobile */}
+   122→        <div className="fixed inset-0 flex items-start md:items-center justify-center p-0 md:p-4">
+   123→          {/* Modal */}

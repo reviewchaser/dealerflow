@@ -1,0 +1,154 @@
+  2461→                  {columnVehicles.map((vehicle) => {
+  2462→                    const tasks = vehicle.tasks || [];
+  2463→                    const completedTasks = tasks.filter(t => t.status === "done").length;
+  2464→                    const motStatus = getMOTStatus(vehicle.motExpiryDate);
+  2465→                    const issueCounts = getActiveIssuesByCategory(vehicle.issues);
+  2466→                    const duration = getVehicleDuration(vehicle);
+  2467→
+  2468→                    return (
+  2469→                      <div
+  2470→                        key={vehicle.id}
+  2471→                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100/50 overflow-hidden active:scale-[0.98]"
+  2472→                        onClick={() => openVehicleDrawer(vehicle)}
+  2473→                      >
+  2474→                        <div className="p-4">
+  2475→                          {/* Title with Registration Badge */}
+  2476→                          <div className="flex justify-between items-start mb-2">
+  2477→                            <div className="flex-1">
+  2478→                              <div className="flex items-center gap-2 flex-wrap mb-1">
+  2479→                                <p className="font-bold text-slate-900 text-base">
+  2480→                                  {vehicle.year || ""} {vehicle.make} {vehicle.model}
+  2481→                                </p>
+  2482→                                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+  2483→                                  {vehicle.regCurrent}
+  2484→                                </span>
+  2485→                              </div>
+  2486→                            </div>
+  2487→                            {/* Duration badge - Sold or In Stock */}
+  2488→                            <span className={`inline-flex items-center gap-1 text-xs ${
+  2489→                              duration.isSold ? "text-emerald-600" : duration.days > 30 ? "text-red-500" : "text-slate-400"
+  2490→                            }`}>
+  2491→                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2492→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2493→                              </svg>
+  2494→                              {duration.label}
+  2495→                            </span>
+  2496→                          </div>
+  2497→
+  2498→                          {/* Tags - Modern Pill Style */}
+  2499→                          <div className="flex gap-1.5 flex-wrap mb-3">
+  2500→                            {vehicle.locationId && (
+  2501→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
+  2502→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2503→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+  2504→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  2505→                                </svg>
+  2506→                                {vehicle.locationId.name || "Offsite"}
+  2507→                              </span>
+  2508→                            )}
+  2509→                            {vehicle.saleType === "TRADE" && (
+  2510→                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
+  2511→                                Trade
+  2512→                              </span>
+  2513→                            )}
+  2514→                            {vehicle.type === "COURTESY" && (
+  2515→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-600 text-white uppercase">
+  2516→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2517→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  2518→                                </svg>
+  2519→                                Courtesy
+  2520→                              </span>
+  2521→                            )}
+  2522→                            {vehicle.type === "FLEET_OTHER" && (
+  2523→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0066CC] text-white uppercase">
+  2524→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2525→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  2526→                                </svg>
+  2527→                                Fleet
+  2528→                              </span>
+  2529→                            )}
+  2530→                            {motStatus?.type === "expired" && (
+  2531→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-100">
+  2532→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2533→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  2534→                                </svg>
+  2535→                                MOT {motStatus.label}
+  2536→                              </span>
+  2537→                            )}
+  2538→                            {motStatus?.type === "due_soon" && (
+  2539→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+  2540→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2541→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2542→                                </svg>
+  2543→                                MOT {motStatus.label}
+  2544→                              </span>
+  2545→                            )}
+  2546→                            {motStatus?.type === "valid" && (
+  2547→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+  2548→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2549→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2550→                                </svg>
+  2551→                                MOT {vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : motStatus.label}
+  2552→                              </span>
+  2553→                            )}
+  2554→                            {motStatus?.type === "unknown" && (
+  2555→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+  2556→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2557→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  2558→                                </svg>
+  2559→                                MOT ?
+  2560→                              </span>
+  2561→                            )}
+  2562→                            {/* Issue Pills with Icons */}
+  2563→                            {Object.entries(issueCounts).map(([category, count]) => {
+  2564→                              const style = issueCategoryStyles[category] || issueCategoryStyles.Other;
+  2565→                              return (
+  2566→                                <span key={category} className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${style.bg} ${style.text} border ${style.border}`}>
+  2567→                                  {style.icon}
+  2568→                                  {count} {category}
+  2569→                                </span>
+  2570→                              );
+  2571→                            })}
+  2572→                            {/* Custom Labels */}
+  2573→                            {vehicle.labels?.map((label) => (
+  2574→                              <span
+  2575→                                key={label.id}
+  2576→                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border"
+  2577→                                style={{
+  2578→                                  backgroundColor: `${label.colour}10`,
+  2579→                                  color: label.colour,
+  2580→                                  borderColor: `${label.colour}30`,
+  2581→                                }}
+  2582→                              >
+  2583→                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.colour }}></span>
+  2584→                                {label.name}
+  2585→                              </span>
+  2586→                            ))}
+  2587→                          </div>
+  2588→
+  2589→                          {/* Slick Progress Bar */}
+  2590→                          {tasks.length > 0 && (
+  2591→                            <div>
+  2592→                              <span className="text-xs text-slate-400 mb-1 block">
+  2593→                                {completedTasks}/{tasks.length} tasks
+  2594→                              </span>
+  2595→                              <div className="w-full bg-slate-100 rounded-full h-2">
+  2596→                                <div
+  2597→                                  className="h-2 rounded-full transition-all bg-gradient-to-r from-blue-500 to-cyan-400"
+  2598→                                  style={{ width: `${(completedTasks / tasks.length) * 100}%` }}
+  2599→                                ></div>
+  2600→                              </div>
+  2601→                            </div>
+  2602→                          )}
+  2603→
+  2604→                          {/* Mobile Move Button */}
+  2605→                          <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+  2606→                            <button
+  2607→                              className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+  2608→                              onClick={(e) => {
+  2609→                                e.stopPropagation();
+  2610→                                setMoveVehicle(vehicle);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

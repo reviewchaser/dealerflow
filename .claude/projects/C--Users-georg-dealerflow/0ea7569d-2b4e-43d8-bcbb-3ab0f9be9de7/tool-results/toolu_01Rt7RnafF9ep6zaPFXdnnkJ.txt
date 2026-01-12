@@ -1,0 +1,30 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    97→    });
+    98→    return acc;
+    99→  }, {});
+   100→
+   101→  // Open modal for new contact
+   102→  const handleNewContact = () => {
+   103→    setEditingContact(null);
+   104→    setFormData({
+   105→      contactType: "individual",
+   106→      firstName: "",
+   107→      lastName: "",
+   108→      companyName: "",
+   109→      email: "",
+   110→      phone: "",
+   111→      addressLine1: "",
+   112→      addressLine2: "",
+   113→      town: "",
+   114→      postcode: "",
+   115→      country: "United Kingdom",
+   116→      vatNumber: "",
+   117→      notes: "",
+   118→      typeTags: ["CUSTOMER"],
+   119→    });
+   120→    setShowModal(true);
+   121→  };
+   122→
+   123→  // Open modal for editing
+   124→  const handleEditContact = (contact) => {
+   125→    setEditingContact(contact);

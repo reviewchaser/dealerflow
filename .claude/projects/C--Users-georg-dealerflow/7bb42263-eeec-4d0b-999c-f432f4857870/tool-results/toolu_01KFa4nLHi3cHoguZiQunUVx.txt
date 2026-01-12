@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   298→                    setShowShareModal(true);
+   299→                  }}
+   300→                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-left"
+   301→                >
+   302→                  <div className="w-10 h-10 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center flex-shrink-0">
+   303→                    <svg className="w-5 h-5 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   304→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+   305→                    </svg>
+   306→                  </div>
+   307→                  <div>

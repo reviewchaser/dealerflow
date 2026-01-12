@@ -1,0 +1,84 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import { useSession } from "next-auth/react";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import { toast } from "react-hot-toast";
+     8→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     9→
+    10→export default function Calendar() {
+    11→  const router = useRouter();
+    12→  const { isRedirecting } = useDealerRedirect();
+    13→  const { data: session } = useSession();
+    14→  const [events, setEvents] = useState([]);
+    15→  const [categories, setCategories] = useState([]);
+    16→  const [isLoading, setIsLoading] = useState(true);
+    17→  const [showAddModal, setShowAddModal] = useState(false);
+    18→  const [editingEvent, setEditingEvent] = useState(null);
+    19→  const [selectedDate, setSelectedDate] = useState(new Date());
+    20→  const [viewMode, setViewMode] = useState("week"); // day, 3day, week, month
+    21→  const [isMobile, setIsMobile] = useState(false);
+    22→  const [searchQuery, setSearchQuery] = useState("");
+    23→  const [selectedCategories, setSelectedCategories] = useState([]);
+    24→  const [showHolidayModal, setShowHolidayModal] = useState(false);
+    25→  const [pendingHolidayCount, setPendingHolidayCount] = useState(0);
+    26→  const [userRole, setUserRole] = useState(null);
+    27→
+    28→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    29→
+    30→  // Fetch user's role from dealer context
+    31→  useEffect(() => {
+    32→    const fetchRole = async () => {
+    33→      try {
+    34→        const res = await fetch("/api/dealer");
+    35→        if (res.ok) {
+    36→          const data = await res.json();
+    37→          setUserRole(data.currentUserRole);
+    38→        }
+    39→      } catch (error) {
+    40→        console.error("Failed to fetch user role:", error);
+    41→      }
+    42→    };
+    43→    fetchRole();
+    44→  }, []);
+    45→
+    46→  // Detect mobile
+    47→  useEffect(() => {
+    48→    const checkMobile = () => {
+    49→      const mobile = window.innerWidth < 768;
+    50→      setIsMobile(mobile);
+    51→      // On mobile, default to 3day view if currently on week
+    52→      if (mobile && viewMode === "week") {
+    53→        setViewMode("3day");
+    54→      }
+    55→    };
+    56→    checkMobile();
+    57→    window.addEventListener("resize", checkMobile);
+    58→    return () => window.removeEventListener("resize", checkMobile);
+    59→  }, [viewMode]);
+    60→
+    61→  useEffect(() => {
+    62→    fetchEvents();
+    63→    fetchCategories();
+    64→    if (isAdmin) {
+    65→      fetchPendingHolidayCount();
+    66→    }
+    67→  }, [isAdmin]);
+    68→
+    69→  const fetchEvents = async () => {
+    70→    try {
+    71→      const start = new Date();
+    72→      start.setMonth(start.getMonth() - 1);
+    73→      const end = new Date();
+    74→      end.setMonth(end.getMonth() + 3);
+    75→
+    76→      const res = await fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`);
+    77→      // Check for JSON response
+    78→      const contentType = res.headers.get("content-type") || "";
+    79→      if (!contentType.includes("application/json")) {
+    80→        console.error("[Calendar] Non-JSON response:", res.status);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

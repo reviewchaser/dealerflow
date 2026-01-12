@@ -1,0 +1,39 @@
+   388→    <DashboardLayout>
+   389→      <Head><title>Holidays | DealerFlow</title></Head>
+   390→
+   391→      <div className="mb-6">
+   392→        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+   393→          <div>
+   394→            <h1 className="text-3xl font-bold">Holiday Requests</h1>
+   395→            <p className="text-base-content/60 mt-1">
+   396→              {isAdmin ? "Manage team holiday requests" : "View and request time off"}
+   397→            </p>
+   398→          </div>
+   399→          <button
+   400→            className="btn btn-primary w-full sm:w-auto"
+   401→            onClick={() => setShowCreateModal(true)}
+   402→          >
+   403→            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   404→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   405→            </svg>
+   406→            Request Holiday
+   407→          </button>
+   408→        </div>
+   409→      </div>
+   410→
+   411→      {/* Stats Cards */}
+   412→      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+   413→        <div className="card bg-base-200">
+   414→          <div className="card-body p-4">
+   415→            <p className="text-3xl font-bold text-success">{totalApprovedDays}</p>
+   416→            <p className="text-sm text-base-content/60">Days approved ({currentYear})</p>
+   417→          </div>
+   418→        </div>
+   419→        <div className="card bg-base-200">
+   420→          <div className="card-body p-4">
+   421→            <p className="text-3xl font-bold text-warning">{pendingCount}</p>
+   422→            <p className="text-sm text-base-content/60">Pending requests</p>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

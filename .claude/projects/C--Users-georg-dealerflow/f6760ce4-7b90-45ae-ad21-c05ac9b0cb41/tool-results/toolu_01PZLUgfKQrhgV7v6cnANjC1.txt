@@ -1,0 +1,124 @@
+  2740→                      await fetch(`/api/vehicles/${selectedVehicle.id}`, { method: "DELETE" });
+  2741→                      setSelectedVehicle(null);
+  2742→                      fetchVehicles();
+  2743→                      toast.success("Vehicle deleted");
+  2744→                    }
+  2745→                  }}
+  2746→                  title="Delete vehicle"
+  2747→                >
+  2748→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2749→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  2750→                  </svg>
+  2751→                </button>
+  2752→                <button className="hidden md:flex btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>
+  2753→                  ✕
+  2754→                </button>
+  2755→              </div>
+  2756→            </div>
+  2757→
+  2758→            {/* Tabs - Using DaisyUI tabs */}
+  2759→            <div className="bg-base-100 border-b border-base-300 px-4">
+  2760→              <div className="tabs tabs-bordered">
+  2761→                <button
+  2762→                  className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+  2763→                  onClick={() => setActiveTab("overview")}
+  2764→                >
+  2765→                  Overview
+  2766→                </button>
+  2767→                <button
+  2768→                  className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
+  2769→                  onClick={() => setActiveTab("checklist")}
+  2770→                >
+  2771→                  Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
+  2772→                </button>
+  2773→                <button
+  2774→                  className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
+  2775→                  onClick={() => setActiveTab("issues")}
+  2776→                >
+  2777→                  Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
+  2778→                </button>
+  2779→                <button
+  2780→                  className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
+  2781→                  onClick={() => setActiveTab("documents")}
+  2782→                >
+  2783→                  Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
+  2784→                </button>
+  2785→                <button
+  2786→                  className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
+  2787→                  onClick={() => {
+  2788→                    setActiveTab("activity");
+  2789→                    if (selectedVehicle?.id) {
+  2790→                      fetchActivity(selectedVehicle.id);
+  2791→                    }
+  2792→                  }}
+  2793→                >
+  2794→                  Activity
+  2795→                </button>
+  2796→              </div>
+  2797→            </div>
+  2798→
+  2799→            <div className="p-6 space-y-6">
+  2800→              {/* Overview Tab */}
+  2801→              {activeTab === "overview" && (
+  2802→                <div className="space-y-6">
+  2803→                  {/* Identity Section */}
+  2804→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  2805→                    <h3 className="text-sm font-semibold text-slate-900 mb-4">Identity</h3>
+  2806→                    <div className="grid grid-cols-2 gap-4">
+  2807→                      <div className="form-control">
+  2808→                        <label className="text-xs font-medium text-slate-600 mb-1 block">Registration</label>
+  2809→                        <div className="flex gap-2">
+  2810→                          <input
+  2811→                            type="text"
+  2812→                            className="input input-sm bg-slate-50 border-slate-200 text-slate-900 flex-1 font-mono uppercase"
+  2813→                            value={selectedVehicle.regCurrent || ""}
+  2814→                            onChange={(e) => setSelectedVehicle({ ...selectedVehicle, regCurrent: e.target.value.toUpperCase() })}
+  2815→                            onBlur={async () => {
+  2816→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  2817→                                method: "PUT",
+  2818→                                headers: { "Content-Type": "application/json" },
+  2819→                                body: JSON.stringify({ regCurrent: selectedVehicle.regCurrent }),
+  2820→                              });
+  2821→                              fetchVehicles();
+  2822→                            }}
+  2823→                          />
+  2824→                          <button
+  2825→                            type="button"
+  2826→                            className="btn btn-sm btn-primary"
+  2827→                            onClick={lookupVehicleDVLA}
+  2828→                            disabled={isLookingUpDrawer}
+  2829→                            title="Lookup DVLA data for this registration"
+  2830→                          >
+  2831→                            {isLookingUpDrawer ? (
+  2832→                              <span className="loading loading-spinner loading-xs"></span>
+  2833→                            ) : (
+  2834→                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2835→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  2836→                              </svg>
+  2837→                            )}
+  2838→                          </button>
+  2839→                        </div>
+  2840→                        <p className="text-xs text-slate-400 mt-1">Click lookup to refresh DVLA data</p>
+  2841→                      </div>
+  2842→                      <div className="form-control">
+  2843→                        <label className="text-xs font-medium text-slate-600 mb-1 block">VIN</label>
+  2844→                        <input
+  2845→                          type="text"
+  2846→                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900"
+  2847→                          value={selectedVehicle.vin || ""}
+  2848→                          onChange={(e) => setSelectedVehicle({ ...selectedVehicle, vin: e.target.value })}
+  2849→                          onBlur={async () => {
+  2850→                            await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  2851→                              method: "PUT",
+  2852→                              headers: { "Content-Type": "application/json" },
+  2853→                              body: JSON.stringify({ vin: selectedVehicle.vin }),
+  2854→                            });
+  2855→                            fetchVehicles();
+  2856→                          }}
+  2857→                        />
+  2858→                      </div>
+  2859→                    </div>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

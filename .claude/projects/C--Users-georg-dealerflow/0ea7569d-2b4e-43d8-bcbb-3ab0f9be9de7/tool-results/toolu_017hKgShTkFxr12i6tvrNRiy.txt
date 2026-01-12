@@ -1,0 +1,692 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import mongoose from "mongoose";
+     3→import Appraisal from "@/models/Appraisal";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import VehicleTask from "@/models/VehicleTask";
+     6→import VehicleIssue from "@/models/VehicleIssue";
+     7→import AftercareCase from "@/models/AftercareCase";
+     8→import ReviewResponse from "@/models/ReviewResponse";
+     9→import Form from "@/models/Form";
+    10→import FormSubmission from "@/models/FormSubmission";
+    11→import CalendarEvent from "@/models/CalendarEvent";
+    12→import CourtesyAllocation from "@/models/CourtesyAllocation";
+    13→import Contact from "@/models/Contact"; // Required for populate
+    14→import Deal from "@/models/Deal";
+    15→import { requireDealerContext } from "@/libs/authContext";
+    16→
+    17→// Default empty stats object for safe responses
+    18→const DEFAULT_STATS = {
+    19→  appraisals: { total: 0, pending: 0 },
+    20→  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+    21→  aftercare: { total: 0, open: 0 },
+    22→  reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+    23→  forms: { total: 0, submissions: 0 },
+    24→  recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+    25→  prepPriorities: [], // Enhanced prep priorities for dashboard widget
+    26→  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
+    27→  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+    28→  topForms: [],
+    29→  oldestAppraisalDays: null,
+    30→  aftersalesCosts: {
+    31→    thisMonth: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 },
+    32→    lastMonth: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 },
+    33→    ytd: { totalNet: 0, partsNet: 0, labourNet: 0, totalVat: 0, partsVat: 0, labourVat: 0, totalGross: 0, total: 0, parts: 0, labour: 0, caseCount: 0, avgPerCase: 0, avgPerCaseGross: 0 }
+    34→  },
+    35→  // Sales KPIs - using completedAt for proper date attribution
+    36→  sales: {
+    37→    thisMonth: { totalNet: 0, totalVat: 0, totalGross: 0, marginSalesGross: 0, vatQualifyingNet: 0, vatQualifyingVat: 0, dealCount: 0, depositTotal: 0 },
+    38→    lastMonth: { totalNet: 0, totalVat: 0, totalGross: 0, marginSalesGross: 0, vatQualifyingNet: 0, vatQualifyingVat: 0, dealCount: 0, depositTotal: 0 },
+    39→    ytd: { totalNet: 0, totalVat: 0, totalGross: 0, marginSalesGross: 0, vatQualifyingNet: 0, vatQualifyingVat: 0, dealCount: 0, depositTotal: 0 },
+    40→    activeDeals: 0,
+    41→    inProgressDeals: 0
+    42→  },
+    43→};
+    44→
+    45→export default async function handler(req, res) {
+    46→  await connectMongo();
+    47→
+    48→  // Try to get dealer context - if it fails, return safe defaults
+    49→  let ctx;
+    50→  try {
+    51→    ctx = await requireDealerContext(req, res);
+    52→  } catch (error) {
+    53→    // No dealer context - return safe defaults instead of 403
+    54→    console.log("[Dashboard Stats] No dealer context, returning defaults");
+    55→    return res.status(200).json(DEFAULT_STATS);
+    56→  }
+    57→
+    58→  return handleStats(req, res, ctx);
+    59→}
+    60→
+    61→async function handleStats(req, res, ctx) {
+    62→  await connectMongo();
+    63→  const { dealerId } = ctx;
+    64→
+    65→  // Date helpers for today queries
+    66→  const startOfToday = new Date();
+    67→  startOfToday.setHours(0, 0, 0, 0);
+    68→  const endOfToday = new Date();
+    69→  endOfToday.setHours(23, 59, 59, 999);
+    70→
+    71→  // MOT due within 14 days
+    72→  const motDueSoon = new Date();
+    73→  motDueSoon.setDate(motDueSoon.getDate() + 14);
+    74→
+    75→  // 48 hours ago for new warranty cases
+    76→  const fortyEightHoursAgo = new Date();
+    77→  fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+    78→
+    79→  // Date ranges for aftersales cost calculations
+    80→  const startOfMonth = new Date();
+    81→  startOfMonth.setDate(1);
+    82→  startOfMonth.setHours(0, 0, 0, 0);
+    83→
+    84→  const startOfLastMonth = new Date(startOfMonth);
+    85→  startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1);
+    86→
+    87→  const endOfLastMonth = new Date(startOfMonth);
+    88→  endOfLastMonth.setTime(endOfLastMonth.getTime() - 1);
+    89→
+    90→  const startOfYear = new Date();
+    91→  startOfYear.setMonth(0, 1);
+    92→  startOfYear.setHours(0, 0, 0, 0);
+    93→
+    94→  const [
+    95→    totalAppraisals, pendingAppraisals,
+    96→    totalVehicles, inStockVehicles, inPrepVehicles, liveVehicles, deliveredVehicles,
+    97→    totalCases, openCases,
+    98→    reviews,
+    99→    totalForms, totalSubmissions,
+   100→    // Needs Attention counts
+   101→    soldInProgress,
+   102→    warrantyNotBookedIn,
+   103→    eventsToday,
+   104→    courtesyDueBack,
+   105→    motExpiringSoon,
+   106→    contactDue,
+   107→    newWarrantyCases,
+   108→    // Additional data
+   109→    oldestPendingAppraisal,
+   110→    lastReview
+   111→  ] = await Promise.all([
+   112→    Appraisal.countDocuments({ dealerId }),
+   113→    Appraisal.countDocuments({ dealerId, decision: "pending" }),
+   114→    Vehicle.countDocuments({ dealerId }),
+   115→    Vehicle.countDocuments({ dealerId, status: "in_stock" }),
+   116→    Vehicle.countDocuments({ dealerId, status: "in_prep" }),
+   117→    Vehicle.countDocuments({ dealerId, status: "live" }),
+   118→    Vehicle.countDocuments({ dealerId, status: "delivered" }),
+   119→    AftercareCase.countDocuments({ dealerId }),
+   120→    AftercareCase.countDocuments({ dealerId, status: { $in: ["new", "in_progress"] } }),
+   121→    ReviewResponse.find({ dealerId }).lean(),
+   122→    Form.countDocuments({ dealerId }),
+   123→    FormSubmission.countDocuments({ dealerId }),
+   124→    // Needs Attention: Sold in progress (status="live" maps to "Sold In Progress" column)
+   125→    Vehicle.countDocuments({ dealerId, status: "live" }),
+   126→    // Needs Attention: Warranty not booked in
+   127→    AftercareCase.countDocuments({ dealerId, boardStatus: "not_booked_in" }),
+   128→    // Needs Attention: Events today
+   129→    CalendarEvent.countDocuments({
+   130→      dealerId,
+   131→      startDatetime: { $gte: startOfToday, $lt: endOfToday }
+   132→    }),
+   133→    // Needs Attention: Courtesy due back today or overdue
+   134→    CourtesyAllocation.countDocuments({
+   135→      dealerId,
+   136→      dateDueBack: { $lte: endOfToday },
+   137→      dateReturned: null
+   138→    }),
+   139→    // Needs Attention: MOT expiring soon (only if motExpiryDate exists)
+   140→    Vehicle.countDocuments({
+   141→      dealerId,
+   142→      motExpiryDate: { $exists: true, $ne: null, $lte: motDueSoon },
+   143→      status: { $nin: ["delivered", "archived"] }
+   144→    }),
+   145→    // Needs Attention: Contact due (nextContactAt is today or earlier)
+   146→    AftercareCase.countDocuments({
+   147→      dealerId,
+   148→      nextContactAt: { $exists: true, $ne: null, $lte: endOfToday },
+   149→      status: { $in: ["new", "in_progress"] }
+   150→    }),
+   151→    // Needs Attention: New warranty cases (created within last 48 hours)
+   152→    AftercareCase.countDocuments({
+   153→      dealerId,
+   154→      createdAt: { $gte: fortyEightHoursAgo },
+   155→      status: { $in: ["new", "in_progress"] }
+   156→    }),
+   157→    // Oldest pending appraisal (sort ascending to get oldest)
+   158→    Appraisal.findOne({ dealerId, decision: "pending" })
+   159→      .sort({ createdAt: 1 })
+   160→      .select("createdAt")
+   161→      .lean(),
+   162→    // Most recent review
+   163→    ReviewResponse.findOne({ dealerId })
+   164→      .sort({ createdAt: -1 })
+   165→      .select("createdAt")
+   166→      .lean()
+   167→  ]);
+   168→
+   169→  // Helper to transform _id to id for lean() results
+   170→  const transformDoc = (doc) => {
+   171→    if (!doc) return null;
+   172→    const { _id, __v, ...rest } = doc;
+   173→    return { id: _id?.toString(), ...rest };
+   174→  };
+   175→
+   176→  // Second batch of parallel queries - aggregations and recent items
+   177→  const dealerObjectId = new mongoose.Types.ObjectId(dealerId);
+   178→  const [
+   179→    topFormsAgg,
+   180→    todayCategoryCounts,
+   181→    recentAppraisalsRaw,
+   182→    recentVehiclesRaw,
+   183→    recentSubmissionsRaw,
+   184→    allForms,
+   185→    prepPriorityVehiclesRaw,
+   186→    // Aftersales cost aggregations
+   187→    aftersalesCostThisMonth,
+   188→    aftersalesCostLastMonth,
+   189→    aftersalesCostYTD,
+   190→    // Sales KPI aggregations
+   191→    activeDealsCount,
+   192→    inProgressDealsCount,
+   193→    salesThisMonth,
+   194→    salesLastMonth,
+   195→    salesYTD,
+   196→    depositsThisMonth,
+   197→    depositsLastMonth,
+   198→    depositsYTD
+   199→  ] = await Promise.all([
+   200→    // Top 3 forms by submission count
+   201→    FormSubmission.aggregate([
+   202→      { $match: { dealerId: dealerObjectId } },
+   203→      { $group: { _id: "$formId", count: { $sum: 1 } } },
+   204→      { $sort: { count: -1 } },
+   205→      { $limit: 3 },
+   206→      { $lookup: { from: "forms", localField: "_id", foreignField: "_id", as: "form" } },
+   207→      { $unwind: { path: "$form", preserveNullAndEmptyArrays: false } },
+   208→      { $project: { formId: "$_id", count: 1, name: "$form.name", type: "$form.type" } }
+   209→    ]),
+   210→    // Today counts by calendar category
+   211→    CalendarEvent.aggregate([
+   212→      { $match: {
+   213→        dealerId: dealerObjectId,
+   214→        startDatetime: { $gte: startOfToday, $lt: endOfToday }
+   215→      }},
+   216→      { $lookup: { from: "calendarcategories", localField: "categoryId", foreignField: "_id", as: "category" }},
+   217→      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
+   218→      { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
+   219→    ]),
+   220→    // Recent appraisals
+   221→    Appraisal.find({ dealerId })
+   222→      .populate("contactId")
+   223→      .sort({ createdAt: -1 })
+   224→      .limit(5)
+   225→      .lean(),
+   226→    // Recent vehicles
+   227→    Vehicle.find({ dealerId })
+   228→      .sort({ createdAt: -1 })
+   229→      .limit(5)
+   230→      .lean(),
+   231→    // Recent submissions
+   232→    FormSubmission.find({ dealerId })
+   233→      .populate("formId")
+   234→      .sort({ submittedAt: -1 })
+   235→      .limit(5)
+   236→      .lean(),
+   237→    // All forms for quick forms section (eliminates separate /api/forms call)
+   238→    Form.find({ dealerId })
+   239→      .sort({ type: 1, createdAt: -1 })
+   240→      .lean(),
+   241→    // Prep priority vehicles - in_stock, in_prep, or live (sold in progress)
+   242→    Vehicle.find({
+   243→      dealerId,
+   244→      status: { $in: ["in_stock", "in_prep", "live"] }
+   245→    })
+   246→      .sort({ status: -1, createdAt: 1 }) // live first (urgent), then oldest
+   247→      .limit(10)
+   248→      .lean(),
+   249→    // Aftersales cost this month - using costingAddedAt for correct month attribution
+   250→    // Uses new VAT structure: partsNet, labourNet with per-component VAT treatment
+   251→    AftercareCase.aggregate([
+   252→      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfMonth } } },
+   253→      { $addFields: {
+   254→        // Calculate VAT for each component based on treatment
+   255→        partsVat: {
+   256→          $cond: [
+   257→            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+   258→            0,
+   259→            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+   260→          ]
+   261→        },
+   262→        labourVat: {
+   263→          $cond: [
+   264→            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+   265→            0,
+   266→            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+   267→          ]
+   268→        },
+   269→        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+   270→        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+   271→      }},
+   272→      { $group: {
+   273→        _id: null,
+   274→        totalPartsNet: { $sum: "$partsNetVal" },
+   275→        totalLabourNet: { $sum: "$labourNetVal" },
+   276→        totalPartsVat: { $sum: "$partsVat" },
+   277→        totalLabourVat: { $sum: "$labourVat" },
+   278→        caseCount: { $sum: 1 }
+   279→      }}
+   280→    ]),
+   281→    // Aftersales cost last month
+   282→    AftercareCase.aggregate([
+   283→      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfLastMonth, $lte: endOfLastMonth } } },
+   284→      { $addFields: {
+   285→        partsVat: {
+   286→          $cond: [
+   287→            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+   288→            0,
+   289→            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+   290→          ]
+   291→        },
+   292→        labourVat: {
+   293→          $cond: [
+   294→            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+   295→            0,
+   296→            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+   297→          ]
+   298→        },
+   299→        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+   300→        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+   301→      }},
+   302→      { $group: {
+   303→        _id: null,
+   304→        totalPartsNet: { $sum: "$partsNetVal" },
+   305→        totalLabourNet: { $sum: "$labourNetVal" },
+   306→        totalPartsVat: { $sum: "$partsVat" },
+   307→        totalLabourVat: { $sum: "$labourVat" },
+   308→        caseCount: { $sum: 1 }
+   309→      }}
+   310→    ]),
+   311→    // Aftersales cost YTD
+   312→    AftercareCase.aggregate([
+   313→      { $match: { dealerId: dealerObjectId, costingAddedAt: { $gte: startOfYear } } },
+   314→      { $addFields: {
+   315→        partsVat: {
+   316→          $cond: [
+   317→            { $eq: ["$costing.partsVatTreatment", "NO_VAT"] },
+   318→            0,
+   319→            { $multiply: [{ $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] }, { $ifNull: ["$costing.partsVatRate", 0.2] }] }
+   320→          ]
+   321→        },
+   322→        labourVat: {
+   323→          $cond: [
+   324→            { $eq: ["$costing.labourVatTreatment", "NO_VAT"] },
+   325→            0,
+   326→            { $multiply: [{ $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }, { $ifNull: ["$costing.labourVatRate", 0.2] }] }
+   327→          ]
+   328→        },
+   329→        partsNetVal: { $ifNull: ["$costing.partsNet", { $ifNull: ["$costing.partsCost", 0] }] },
+   330→        labourNetVal: { $ifNull: ["$costing.labourNet", { $ifNull: ["$costing.labourCost", 0] }] }
+   331→      }},
+   332→      { $group: {
+   333→        _id: null,
+   334→        totalPartsNet: { $sum: "$partsNetVal" },
+   335→        totalLabourNet: { $sum: "$labourNetVal" },
+   336→        totalPartsVat: { $sum: "$partsVat" },
+   337→        totalLabourVat: { $sum: "$labourVat" },
+   338→        caseCount: { $sum: 1 }
+   339→      }}
+   340→    ]),
+   341→    // === SALES KPIs ===
+   342→    // Active deals count (not completed or cancelled)
+   343→    Deal.countDocuments({
+   344→      dealerId: dealerObjectId,
+   345→      status: { $nin: ["COMPLETED", "CANCELLED"] }
+   346→    }),
+   347→    // In-progress deals (deposit taken but not delivered)
+   348→    Deal.countDocuments({
+   349→      dealerId: dealerObjectId,
+   350→      status: { $in: ["DEPOSIT_TAKEN", "INVOICED"] }
+   351→    }),
+   352→    // Sales completed this month - uses completedAt for proper date attribution
+   353→    Deal.aggregate([
+   354→      { $match: {
+   355→        dealerId: dealerObjectId,
+   356→        status: "COMPLETED",
+   357→        completedAt: { $gte: startOfMonth }
+   358→      }},
+   359→      { $group: {
+   360→        _id: null,
+   361→        // For margin scheme: only gross matters
+   362→        marginSalesGross: {
+   363→          $sum: { $cond: [{ $eq: ["$vatScheme", "MARGIN"] }, { $ifNull: ["$vehiclePriceGross", 0] }, 0] }
+   364→        },
+   365→        // For VAT qualifying: net + VAT separately
+   366→        vatQualifyingNet: {
+   367→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehiclePriceNet", 0] }, 0] }
+   368→        },
+   369→        vatQualifyingVat: {
+   370→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehicleVatAmount", 0] }, 0] }
+   371→        },
+   372→        dealCount: { $sum: 1 }
+   373→      }}
+   374→    ]),
+   375→    // Sales completed last month
+   376→    Deal.aggregate([
+   377→      { $match: {
+   378→        dealerId: dealerObjectId,
+   379→        status: "COMPLETED",
+   380→        completedAt: { $gte: startOfLastMonth, $lte: endOfLastMonth }
+   381→      }},
+   382→      { $group: {
+   383→        _id: null,
+   384→        marginSalesGross: {
+   385→          $sum: { $cond: [{ $eq: ["$vatScheme", "MARGIN"] }, { $ifNull: ["$vehiclePriceGross", 0] }, 0] }
+   386→        },
+   387→        vatQualifyingNet: {
+   388→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehiclePriceNet", 0] }, 0] }
+   389→        },
+   390→        vatQualifyingVat: {
+   391→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehicleVatAmount", 0] }, 0] }
+   392→        },
+   393→        dealCount: { $sum: 1 }
+   394→      }}
+   395→    ]),
+   396→    // Sales completed YTD
+   397→    Deal.aggregate([
+   398→      { $match: {
+   399→        dealerId: dealerObjectId,
+   400→        status: "COMPLETED",
+   401→        completedAt: { $gte: startOfYear }
+   402→      }},
+   403→      { $group: {
+   404→        _id: null,
+   405→        marginSalesGross: {
+   406→          $sum: { $cond: [{ $eq: ["$vatScheme", "MARGIN"] }, { $ifNull: ["$vehiclePriceGross", 0] }, 0] }
+   407→        },
+   408→        vatQualifyingNet: {
+   409→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehiclePriceNet", 0] }, 0] }
+   410→        },
+   411→        vatQualifyingVat: {
+   412→          $sum: { $cond: [{ $eq: ["$vatScheme", "VAT_QUALIFYING"] }, { $ifNull: ["$vehicleVatAmount", 0] }, 0] }
+   413→        },
+   414→        dealCount: { $sum: 1 }
+   415→      }}
+   416→    ]),
+   417→    // Deposits this month - uses payment paidAt date
+   418→    Deal.aggregate([
+   419→      { $match: { dealerId: dealerObjectId }},
+   420→      { $unwind: "$payments" },
+   421→      { $match: {
+   422→        "payments.type": "DEPOSIT",
+   423→        "payments.isRefunded": { $ne: true },
+   424→        "payments.paidAt": { $gte: startOfMonth }
+   425→      }},
+   426→      { $group: { _id: null, total: { $sum: "$payments.amount" } }}
+   427→    ]),
+   428→    // Deposits last month
+   429→    Deal.aggregate([
+   430→      { $match: { dealerId: dealerObjectId }},
+   431→      { $unwind: "$payments" },
+   432→      { $match: {
+   433→        "payments.type": "DEPOSIT",
+   434→        "payments.isRefunded": { $ne: true },
+   435→        "payments.paidAt": { $gte: startOfLastMonth, $lte: endOfLastMonth }
+   436→      }},
+   437→      { $group: { _id: null, total: { $sum: "$payments.amount" } }}
+   438→    ]),
+   439→    // Deposits YTD
+   440→    Deal.aggregate([
+   441→      { $match: { dealerId: dealerObjectId }},
+   442→      { $unwind: "$payments" },
+   443→      { $match: {
+   444→        "payments.type": "DEPOSIT",
+   445→        "payments.isRefunded": { $ne: true },
+   446→        "payments.paidAt": { $gte: startOfYear }
+   447→      }},
+   448→      { $group: { _id: null, total: { $sum: "$payments.amount" } }}
+   449→    ])
+   450→  ]);
+   451→
+   452→  // Extract category counts
+   453→  const deliveriesToday = todayCategoryCounts.find(c =>
+   454→    c._id?.includes("handover") || c._id?.includes("delivery")
+   455→  )?.count || 0;
+   456→  const testDrivesToday = todayCategoryCounts.find(c =>
+   457→    c._id?.includes("test drive") || c._id?.includes("testdrive")
+   458→  )?.count || 0;
+   459→
+   460→  // Calculate average rating
+   461→  const avgRating = reviews.length > 0
+   462→    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+   463→    : "N/A";
+   464→
+   465→  // Transform all recent items
+   466→  const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
+   467→  const recentVehicles = recentVehiclesRaw.map(transformDoc);
+   468→  const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
+   469→  const formsList = allForms.map(transformDoc);
+   470→
+   471→  // Calculate days since oldest pending appraisal
+   472→  const oldestAppraisalDays = oldestPendingAppraisal
+   473→    ? Math.floor((Date.now() - new Date(oldestPendingAppraisal.createdAt)) / (1000 * 60 * 60 * 24))
+   474→    : null;
+   475→
+   476→  // Calculate days since last review
+   477→  const lastReviewDays = lastReview
+   478→    ? Math.floor((Date.now() - new Date(lastReview.createdAt)) / (1000 * 60 * 60 * 24))
+   479→    : null;
+   480→
+   481→  // Enrich prep priority vehicles with tasks and issues
+   482→  let prepPriorities = [];
+   483→  if (prepPriorityVehiclesRaw.length > 0) {
+   484→    const vehicleIds = prepPriorityVehiclesRaw.map(v => v._id);
+   485→
+   486→    // Fetch tasks and issues for all prep priority vehicles in parallel
+   487→    const [allTasks, allIssues] = await Promise.all([
+   488→      VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+   489→      VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean()
+   490→    ]);
+   491→
+   492→    // Group tasks and issues by vehicleId
+   493→    const tasksByVehicle = {};
+   494→    const issuesByVehicle = {};
+   495→
+   496→    allTasks.forEach(task => {
+   497→      const vid = task.vehicleId.toString();
+   498→      if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+   499→      tasksByVehicle[vid].push(task);
+   500→    });
+   501→
+   502→    allIssues.forEach(issue => {
+   503→      const vid = issue.vehicleId.toString();
+   504→      if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+   505→      issuesByVehicle[vid].push(issue);
+   506→    });
+   507→
+   508→    // Build enriched prep priorities
+   509→    prepPriorities = prepPriorityVehiclesRaw.map(v => {
+   510→      const vid = v._id.toString();
+   511→      const tasks = tasksByVehicle[vid] || [];
+   512→      const issues = issuesByVehicle[vid] || [];
+   513→
+   514→      // Calculate task stats
+   515→      const totalTasks = tasks.filter(t =>
+   516→        !["not_required", "NOT_REQUIRED"].includes(t.status)
+   517→      ).length;
+   518→      const completedTasks = tasks.filter(t =>
+   519→        ["done", "DONE"].includes(t.status)
+   520→      ).length;
+   521→      const tasksRemaining = totalTasks - completedTasks;
+   522→      const awaitingParts = tasks.filter(t =>
+   523→        t.partsStatus === "AWAITING_DELIVERY"
+   524→      ).length;
+   525→
+   526→      // Calculate issue stats
+   527→      const openIssues = issues.filter(i => i.status !== "Complete");
+   528→      const mechanicalIssues = openIssues.filter(i => i.category === "Mechanical").length;
+   529→      const highPriorityIssues = openIssues.filter(i => i.priority === "high").length;
+   530→
+   531→      // Calculate days in stock
+   532→      const daysInStock = Math.floor(
+   533→        (Date.now() - new Date(v.createdAt)) / (1000 * 60 * 60 * 24)
+   534→      );
+   535→
+   536→      // Priority score for sorting (higher = more urgent)
+   537→      // Sold in progress = 100 base, mechanical issues = +20 each, high priority = +10, days = +1 per day
+   538→      let priorityScore = 0;
+   539→      if (v.status === "live") priorityScore += 100; // Sold in progress is most urgent
+   540→      priorityScore += mechanicalIssues * 20;
+   541→      priorityScore += highPriorityIssues * 10;
+   542→      priorityScore += Math.min(daysInStock, 30); // Cap days contribution at 30
+   543→
+   544→      return {
+   545→        id: vid,
+   546→        regCurrent: v.regCurrent,
+   547→        make: v.make,
+   548→        model: v.model,
+   549→        year: v.year,
+   550→        status: v.status,
+   551→        daysInStock,
+   552→        totalTasks,
+   553→        completedTasks,
+   554→        tasksRemaining,
+   555→        awaitingParts,
+   556→        openIssues: openIssues.length,
+   557→        mechanicalIssues,
+   558→        highPriorityIssues,
+   559→        priorityScore
+   560→      };
+   561→    });
+   562→
+   563→    // Sort by priority score (highest first), then take top 5
+   564→    prepPriorities = prepPriorities
+   565→      .sort((a, b) => b.priorityScore - a.priorityScore)
+   566→      .slice(0, 5);
+   567→  }
+   568→
+   569→  // Process aftersales cost aggregations with new VAT structure
+   570→  const defaultCost = { totalPartsNet: 0, totalLabourNet: 0, totalPartsVat: 0, totalLabourVat: 0, caseCount: 0 };
+   571→  const costThisMonth = aftersalesCostThisMonth[0] || defaultCost;
+   572→  const costLastMonth = aftersalesCostLastMonth[0] || defaultCost;
+   573→  const costYTD = aftersalesCostYTD[0] || defaultCost;
+   574→
+   575→  // Helper to calculate cost breakdown for a period
+   576→  const buildCostBreakdown = (cost) => {
+   577→    const totalNet = (cost.totalPartsNet || 0) + (cost.totalLabourNet || 0);
+   578→    const totalVat = (cost.totalPartsVat || 0) + (cost.totalLabourVat || 0);
+   579→    const totalGross = totalNet + totalVat;
+   580→    return {
+   581→      // Net amounts (default display)
+   582→      totalNet,
+   583→      partsNet: cost.totalPartsNet || 0,
+   584→      labourNet: cost.totalLabourNet || 0,
+   585→      // VAT amounts
+   586→      totalVat,
+   587→      partsVat: cost.totalPartsVat || 0,
+   588→      labourVat: cost.totalLabourVat || 0,
+   589→      // Gross amounts
+   590→      totalGross,
+   591→      // Legacy compatibility - "total" defaults to net
+   592→      total: totalNet,
+   593→      parts: cost.totalPartsNet || 0,
+   594→      labour: cost.totalLabourNet || 0,
+   595→      // Counts and averages
+   596→      caseCount: cost.caseCount || 0,
+   597→      avgPerCase: cost.caseCount > 0 ? totalNet / cost.caseCount : 0,
+   598→      avgPerCaseGross: cost.caseCount > 0 ? totalGross / cost.caseCount : 0
+   599→    };
+   600→  };
+   601→
+   602→  const aftersalesCosts = {
+   603→    thisMonth: buildCostBreakdown(costThisMonth),
+   604→    lastMonth: buildCostBreakdown(costLastMonth),
+   605→    ytd: buildCostBreakdown(costYTD)
+   606→  };
+   607→
+   608→  // Process sales KPIs
+   609→  // Sales values - margin sales are already gross, VAT qualifying have net + VAT
+   610→  const buildSalesBreakdown = (salesData, depositData) => {
+   611→    const data = salesData?.[0] || {};
+   612→    const marginGross = data.marginSalesGross || 0;
+   613→    const vatQNet = data.vatQualifyingNet || 0;
+   614→    const vatQVat = data.vatQualifyingVat || 0;
+   615→
+   616→    // For Ex VAT display: margin gross + VAT qualifying net
+   617→    const totalNet = marginGross + vatQNet;
+   618→    // VAT collected is only from VAT qualifying sales
+   619→    const totalVat = vatQVat;
+   620→    // Gross total: margin gross + VAT qualifying (net + VAT)
+   621→    const totalGross = marginGross + vatQNet + vatQVat;
+   622→
+   623→    return {
+   624→      totalNet,
+   625→      totalVat,
+   626→      totalGross,
+   627→      marginSalesGross: marginGross,
+   628→      vatQualifyingNet: vatQNet,
+   629→      vatQualifyingVat: vatQVat,
+   630→      dealCount: data.dealCount || 0,
+   631→      depositTotal: depositData?.[0]?.total || 0
+   632→    };
+   633→  };
+   634→
+   635→  const sales = {
+   636→    thisMonth: buildSalesBreakdown(salesThisMonth, depositsThisMonth),
+   637→    lastMonth: buildSalesBreakdown(salesLastMonth, depositsLastMonth),
+   638→    ytd: buildSalesBreakdown(salesYTD, depositsYTD),
+   639→    activeDeals: activeDealsCount || 0,
+   640→    inProgressDeals: inProgressDealsCount || 0
+   641→  };
+   642→
+   643→  return res.status(200).json({
+   644→    appraisals: { total: totalAppraisals, pending: pendingAppraisals },
+   645→    vehicles: {
+   646→      total: totalVehicles,
+   647→      inStock: inStockVehicles,
+   648→      inPrep: inPrepVehicles,
+   649→      live: liveVehicles,
+   650→      delivered: deliveredVehicles
+   651→    },
+   652→    aftercare: { total: totalCases, open: openCases },
+   653→    reviews: { count: reviews.length, avgRating, lastReviewDays },
+   654→    forms: { total: totalForms, submissions: totalSubmissions },
+   655→    recent: { appraisals: recentAppraisals, vehicles: recentVehicles, formSubmissions: recentSubmissions },
+   656→    // Prep priority vehicles with enriched data
+   657→    prepPriorities,
+   658→    // Needs Attention counts
+   659→    needsAttention: {
+   660→      soldInProgress,
+   661→      warrantyNotBookedIn,
+   662→      eventsToday,
+   663→      courtesyDueBack,
+   664→      motExpiringSoon,
+   665→      contactDue,
+   666→      newWarrantyCases
+   667→    },
+   668→    // Today strip
+   669→    today: {
+   670→      events: eventsToday,
+   671→      deliveries: deliveriesToday,
+   672→      testDrives: testDrivesToday,
+   673→      courtesyDueBack
+   674→    },
+   675→    // Top forms by usage
+   676→    topForms: topFormsAgg,
+   677→    // All forms for quick forms section (eliminates separate /api/forms call)
+   678→    formsList,
+   679→    // KPI micro-context
+   680→    oldestAppraisalDays,
+   681→    // Aftersales cost KPIs
+   682→    aftersalesCosts,
+   683→    // Sales KPIs - using completedAt for proper attribution
+   684→    sales,
+   685→  });
+   686→}
+   687→
+   688→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

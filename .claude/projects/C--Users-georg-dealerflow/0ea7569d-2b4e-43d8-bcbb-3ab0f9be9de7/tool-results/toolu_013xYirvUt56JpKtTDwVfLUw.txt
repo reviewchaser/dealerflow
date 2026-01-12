@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   198→  const [vrmSearch, setVrmSearch] = useState("");
+   199→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   200→  const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
+   201→  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+   202→  const vrmSearchInputRef = useRef(null);
+   203→  const vrmDropdownRef = useRef(null);
+   204→
+   205→  // Compute VRM search results reactively based on vrmSearch and vehicles
+   206→  const vrmSearchResults = useMemo(() => {
+   207→    if (vrmSearch.length < 2) return [];

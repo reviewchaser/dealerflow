@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\models\FormSubmission.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    49→  },
+    50→  { timestamps: true }
+    51→);
+    52→
+    53→formSubmissionSchema.plugin(toJSON);
+    54→
+    55→// Indexes for dashboard and submission queries
+    56→formSubmissionSchema.index({ dealerId: 1, formId: 1 });
+    57→formSubmissionSchema.index({ dealerId: 1, submittedAt: -1 });
+    58→formSubmissionSchema.index({ dealerId: 1, status: 1 });
+    59→
+    60→export default mongoose.models.FormSubmission || mongoose.model("FormSubmission", formSubmissionSchema);
+    61→

@@ -1,0 +1,37 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\px\[id].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   608→                  </button>
+   609→                </div>
+   610→              )}
+   611→
+   612→              {/* Email Valuation */}
+   613→              <div className="pt-4 border-t border-slate-200">
+   614→                <button
+   615→                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+   616→                  onClick={() => {
+   617→                    // Pre-fill customer email if available
+   618→                    const customerEmail = appraisal.customerEmail || appraisal.contactId?.email;
+   619→                    if (customerEmail) setEmailTo(customerEmail);
+   620→                    setShowEmailModal(true);
+   621→                  }}
+   622→                >
+   623→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   624→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   625→                  </svg>
+   626→                  Email Valuation
+   627→                </button>
+   628→              </div>
+   629→
+   630→              {/* Issues Summary */}
+   631→              {issues.length > 0 && (
+   632→                <div className="pt-4 border-t border-slate-200">
+   633→                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Issues Summary</p>
+   634→                  <p className="text-sm text-slate-700">{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+   635→                  {totalEstimatedCost > 0 && (
+   636→                    <p className="text-sm font-semibold text-red-600">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+   637→                  )}
+   638→                </div>
+   639→              )}
+   640→
+   641→              <div className="pt-4 border-t border-slate-200">
+   642→                <button
+   643→                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-red-500 hover:bg-red-50 transition-colors"

@@ -1,0 +1,29 @@
+  4658→  };
+  4659→
+  4660→  return (
+  4661→    <div className="modal modal-open">
+  4662→      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+  4663→        <div className="flex items-center justify-between mb-6">
+  4664→          <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
+  4665→          <button
+  4666→            type="button"
+  4667→            onClick={onClose}
+  4668→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  4669→          >
+  4670→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  4671→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  4672→            </svg>
+  4673→          </button>
+  4674→        </div>
+  4675→        <form onSubmit={handleSubmit}>
+  4676→          {/* Vehicle Details Section */}
+  4677→          <div className="mb-6 pb-6 border-b border-slate-100">
+  4678→            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
+  4679→            <div className="relative flex gap-2 mb-4">
+  4680→              <div className="relative flex-1">
+  4681→                <input
+  4682→                  type="text"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

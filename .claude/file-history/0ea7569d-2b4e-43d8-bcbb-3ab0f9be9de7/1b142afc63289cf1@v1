@@ -1,0 +1,17 @@
+/**
+ * Tenant-aware Inventory Report Route
+ * /app/[dealerSlug]/reports/inventory
+ *
+ * Wraps the existing inventory report page with tenant context.
+ */
+
+import TenantPage from "@/components/TenantPage";
+import InventoryReportPage from "@/pages/reports/inventory";
+
+export default function TenantInventoryReport() {
+  return (
+    <TenantPage>
+      <InventoryReportPage />
+    </TenantPage>
+  );
+}

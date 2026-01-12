@@ -1,0 +1,67 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const appraisalSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: false, default: null },
+     7→    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: false, default: null }, // seller (optional)
+     8→    vehicleReg: { type: String, required: true, uppercase: true },
+     9→    vehicleMake: { type: String },
+    10→    vehicleModel: { type: String },
+    11→    vehicleYear: { type: Number },
+    12→    mileage: { type: Number },
+    13→    colour: { type: String },
+    14→    fuelType: { type: String },
+    15→    motExpiryDate: { type: Date }, // MOT expiry - transferred to vehicle on conversion
+    16→    conditionNotes: { type: String },
+    17→    proposedPurchasePrice: { type: Number },
+    18→    // Document URLs
+    19→    v5Url: { type: String },
+    20→    serviceHistoryUrl: { type: String },
+    21→    otherDocuments: [{
+    22→      name: { type: String },
+    23→      url: { type: String }
+    24→    }],
+    25→    // Legacy fields - kept for backwards compatibility
+    26→    damagePhotos: [{ type: String }],
+    27→    faultCodePhotos: [{ type: String }],
+    28→    // Prep checklist template to use when converting to stock
+    29→    prepTemplateId: { type: String },
+    30→    decision: {
+    31→      type: String,
+    32→      enum: ["pending", "reviewed", "converted", "declined"],
+    33→      default: "pending"
+    34→    },
+    35→    decidedAt: { type: Date },
+    36→    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" }, // if converted
+    37→    formSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+    38→    shareLinkId: { type: mongoose.Schema.Types.ObjectId, ref: "AppraisalShareLink" }, // if submitted via share link
+    39→    aiHintText: { type: String }, // cached AI common faults
+    40→    // Contact info captured during submission (if no contact exists)
+    41→    submitterName: { type: String },
+    42→    submitterEmail: { type: String },
+    43→    submitterPhone: { type: String },
+    44→    // Share link for viewing this specific appraisal
+    45→    shareTokenHash: { type: String, index: true }, // SHA256 hash of share token
+    46→    shareExpiresAt: { type: Date },
+    47→    shareCreatedAt: { type: Date },
+    48→    // Audit fields
+    49→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    50→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    51→  },
+    52→  { timestamps: true }
+    53→);
+    54→
+    55→appraisalSchema.plugin(toJSON);
+    56→
+    57→// Delete cached model to force schema update
+    58→if (mongoose.models.Appraisal) {
+    59→  delete mongoose.models.Appraisal;
+    60→}
+    61→
+    62→export default mongoose.model("Appraisal", appraisalSchema);
+    63→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

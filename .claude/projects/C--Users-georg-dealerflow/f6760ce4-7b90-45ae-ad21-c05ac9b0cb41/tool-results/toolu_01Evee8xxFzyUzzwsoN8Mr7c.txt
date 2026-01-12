@@ -1,0 +1,3 @@
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:53:  return new S3Client({
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js:65:  return new S3Client({
+C:\Users\georg\dealerflow\libs\r2Client.js:61:  r2Client = new S3Client({

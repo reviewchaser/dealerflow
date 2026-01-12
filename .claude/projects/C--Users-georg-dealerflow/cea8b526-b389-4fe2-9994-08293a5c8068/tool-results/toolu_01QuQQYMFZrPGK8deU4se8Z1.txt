@@ -1,0 +1,24 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Appraisal from "@/models/Appraisal";
+     3→import AppraisalIssue from "@/models/AppraisalIssue";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import VehicleTask from "@/models/VehicleTask";
+     6→import VehicleDocument from "@/models/VehicleDocument";
+     7→import VehicleIssue from "@/models/VehicleIssue";
+     8→import VehicleTaskTemplate from "@/models/VehicleTaskTemplate";
+     9→
+    10→const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+    11→
+    12→// Map appraisal issue categories to vehicle issue categories
+    13→const CATEGORY_MAP = {
+    14→  mechanical: "Mechanical",
+    15→  electrical: "Electrical",
+    16→  bodywork: "Cosmetic",
+    17→  interior: "Cosmetic",
+    18→  tyres: "Mechanical",
+    19→  mot: "Other",
+    20→  service: "Other",
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

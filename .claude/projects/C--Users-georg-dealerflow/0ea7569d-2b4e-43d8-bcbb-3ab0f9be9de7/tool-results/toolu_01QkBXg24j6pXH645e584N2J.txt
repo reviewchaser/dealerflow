@@ -1,0 +1,404 @@
+     1→import { useState, useEffect, useCallback } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import ContactPicker from "@/components/ContactPicker";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";
+     8→  return new Intl.NumberFormat("en-GB", {
+     9→    style: "currency",
+    10→    currency: "GBP",
+    11→  }).format(amount);
+    12→};
+    13→
+    14→// Format date helper
+    15→const formatDate = (date) => {
+    16→  if (!date) return "";
+    17→  return new Date(date).toLocaleDateString("en-GB", {
+    18→    day: "numeric",
+    19→    month: "short",
+    20→    year: "numeric",
+    21→  });
+    22→};
+    23→
+    24→// Format datetime helper
+    25→const formatDateTime = (date) => {
+    26→  if (!date) return "";
+    27→  return new Date(date).toLocaleString("en-GB", {
+    28→    day: "numeric",
+    29→    month: "short",
+    30→    year: "numeric",
+    31→    hour: "2-digit",
+    32→    minute: "2-digit",
+    33→  });
+    34→};
+    35→
+    36→// Status labels and colors
+    37→const STATUS_CONFIG = {
+    38→  DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
+    39→  DEPOSIT_TAKEN: { label: "Deposit Taken", color: "bg-amber-100 text-amber-700" },
+    40→  INVOICED: { label: "Invoiced", color: "bg-blue-100 text-blue-700" },
+    41→  DELIVERED: { label: "Delivered", color: "bg-purple-100 text-purple-700" },
+    42→  COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+    43→  CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    44→};
+    45→
+    46→const VAT_SCHEME_LABELS = {
+    47→  MARGIN: "Margin Scheme",
+    48→  VAT_QUALIFYING: "VAT Qualifying",
+    49→  NO_VAT: "No VAT",
+    50→  ZERO: "Zero-rated",
+    51→  EXEMPT: "VAT Exempt",
+    52→};
+    53→
+    54→const SALE_TYPE_OPTIONS = [
+    55→  { value: "RETAIL", label: "Retail", description: "Sale to end customer" },
+    56→  { value: "TRADE", label: "Trade", description: "Sale to motor trader" },
+    57→  { value: "EXPORT", label: "Export", description: "Export sale" },
+    58→];
+    59→
+    60→const BUYER_USE_OPTIONS = [
+    61→  { value: "PERSONAL", label: "Personal use", description: "Consumer rights apply" },
+    62→  { value: "BUSINESS", label: "Business use", description: "B2B terms apply" },
+    63→];
+    64→
+    65→const SALE_CHANNEL_OPTIONS = [
+    66→  { value: "IN_PERSON", label: "In person", description: "Customer saw vehicle on-site" },
+    67→  { value: "DISTANCE", label: "Distance", description: "Online/phone sale - 14 day cooling off" },
+    68→];
+    69→
+    70→const PAYMENT_TYPE_OPTIONS = [
+    71→  { value: "CASH", label: "Cash" },
+    72→  { value: "CARD", label: "Card" },
+    73→  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+    74→  { value: "FINANCE", label: "Finance" },
+    75→  { value: "MIXED", label: "Mixed" },
+    76→];
+    77→
+    78→const FINANCE_TYPE_OPTIONS = [
+    79→  { value: "HP", label: "Hire Purchase (HP)" },
+    80→  { value: "PCP", label: "Personal Contract Purchase (PCP)" },
+    81→  { value: "LEASE", label: "Lease" },
+    82→  { value: "PERSONAL_LOAN", label: "Personal Loan" },
+    83→  { value: "OTHER", label: "Other" },
+    84→];
+    85→
+    86→const FINANCE_STATUS_OPTIONS = [
+    87→  { value: "QUOTED", label: "Quoted" },
+    88→  { value: "SUBMITTED", label: "Submitted" },
+    89→  { value: "APPROVED", label: "Approved" },
+    90→  { value: "DECLINED", label: "Declined" },
+    91→  { value: "PAID_OUT", label: "Paid Out" },
+    92→];
+    93→
+    94→/**
+    95→ * DealDrawer - Display and manage deal details
+    96→ *
+    97→ * Props:
+    98→ * - dealId: The ID of the deal to display
+    99→ * - isOpen: Whether the drawer is open
+   100→ * - onClose: Function to call when closing the drawer
+   101→ * - onUpdate: Function to call when deal is updated
+   102→ */
+   103→export default function DealDrawer({
+   104→  dealId,
+   105→  isOpen,
+   106→  onClose,
+   107→  onUpdate,
+   108→}) {
+   109→  const [deal, setDeal] = useState(null);
+   110→  const [isLoading, setIsLoading] = useState(false);
+   111→  const [fetchError, setFetchError] = useState(null);
+   112→  const [activeTab, setActiveTab] = useState("overview");
+   113→  const [actionLoading, setActionLoading] = useState(null);
+   114→
+   115→  // Deposit modal state
+   116→  const [showDepositModal, setShowDepositModal] = useState(false);
+   117→  const [depositAmount, setDepositAmount] = useState("");
+   118→  const [depositMethod, setDepositMethod] = useState("CARD");
+   119→  const [depositReference, setDepositReference] = useState("");
+   120→
+   121→  // Customer editing state
+   122→  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+   123→
+   124→  // Deal details editing state
+   125→  const [isEditingPrice, setIsEditingPrice] = useState(false);
+   126→  const [priceInput, setPriceInput] = useState("");
+   127→  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+   128→
+   129→  // Add-on state
+   130→  const [showAddOnPicker, setShowAddOnPicker] = useState(false);
+   131→  const [availableAddOns, setAvailableAddOns] = useState([]);
+   132→  const [addOnsLoading, setAddOnsLoading] = useState(false);
+   133→  const [addOnQty, setAddOnQty] = useState(1);
+   134→  const [addOnPrice, setAddOnPrice] = useState("");
+   135→
+   136→  // Fetch available add-on products
+   137→  const fetchAddOnProducts = async () => {
+   138→    setAddOnsLoading(true);
+   139→    try {
+   140→      const res = await fetch("/api/addons");
+   141→      if (res.ok) {
+   142→        const data = await res.json();
+   143→        setAvailableAddOns(data);
+   144→      }
+   145→    } catch (error) {
+   146→      console.error("Failed to fetch add-ons:", error);
+   147→    } finally {
+   148→      setAddOnsLoading(false);
+   149→    }
+   150→  };
+   151→
+   152→  // Add an add-on to the deal
+   153→  const handleAddAddOn = async (addOnProduct) => {
+   154→    if (!deal) return;
+   155→
+   156→    const price = addOnPrice ? parseFloat(addOnPrice) : addOnProduct.defaultPriceNet;
+   157→
+   158→    const newAddOn = {
+   159→      addOnProductId: addOnProduct.id,
+   160→      name: addOnProduct.name,
+   161→      category: addOnProduct.category,
+   162→      qty: addOnQty,
+   163→      unitPriceNet: price,
+   164→      vatTreatment: addOnProduct.vatTreatment || "STANDARD",
+   165→      vatRate: addOnProduct.vatRate || 0.2,
+   166→    };
+   167→
+   168→    setActionLoading("addon");
+   169→    try {
+   170→      const updatedAddOns = [...(deal.addOns || []), newAddOn];
+   171→      const res = await fetch(`/api/deals/${dealId}`, {
+   172→        method: "PUT",
+   173→        headers: { "Content-Type": "application/json" },
+   174→        body: JSON.stringify({ addOns: updatedAddOns }),
+   175→      });
+   176→
+   177→      if (!res.ok) {
+   178→        const err = await res.json();
+   179→        throw new Error(err.error || "Failed to add add-on");
+   180→      }
+   181→
+   182→      toast.success("Add-on added");
+   183→      setShowAddOnPicker(false);
+   184→      setAddOnQty(1);
+   185→      setAddOnPrice("");
+   186→      fetchDeal();
+   187→      onUpdate?.();
+   188→    } catch (error) {
+   189→      toast.error(error.message);
+   190→    } finally {
+   191→      setActionLoading(null);
+   192→    }
+   193→  };
+   194→
+   195→  // Remove an add-on from the deal
+   196→  const handleRemoveAddOn = async (index) => {
+   197→    if (!deal) return;
+   198→
+   199→    setActionLoading("addon");
+   200→    try {
+   201→      const updatedAddOns = deal.addOns.filter((_, i) => i !== index);
+   202→      const res = await fetch(`/api/deals/${dealId}`, {
+   203→        method: "PUT",
+   204→        headers: { "Content-Type": "application/json" },
+   205→        body: JSON.stringify({ addOns: updatedAddOns }),
+   206→      });
+   207→
+   208→      if (!res.ok) {
+   209→        const err = await res.json();
+   210→        throw new Error(err.error || "Failed to remove add-on");
+   211→      }
+   212→
+   213→      toast.success("Add-on removed");
+   214→      fetchDeal();
+   215→      onUpdate?.();
+   216→    } catch (error) {
+   217→      toast.error(error.message);
+   218→    } finally {
+   219→      setActionLoading(null);
+   220→    }
+   221→  };
+   222→
+   223→  // Lock body scroll when drawer is open
+   224→  useEffect(() => {
+   225→    if (isOpen) {
+   226→      const scrollY = window.scrollY;
+   227→      const html = document.documentElement;
+   228→
+   229→      document.body.style.position = "fixed";
+   230→      document.body.style.top = `-${scrollY}px`;
+   231→      document.body.style.left = "0";
+   232→      document.body.style.right = "0";
+   233→      document.body.style.width = "100%";
+   234→      document.body.style.overflow = "hidden";
+   235→      document.body.style.touchAction = "none";
+   236→
+   237→      html.style.overflow = "hidden";
+   238→
+   239→      return () => {
+   240→        document.body.style.position = "";
+   241→        document.body.style.top = "";
+   242→        document.body.style.left = "";
+   243→        document.body.style.right = "";
+   244→        document.body.style.width = "";
+   245→        document.body.style.overflow = "";
+   246→        document.body.style.touchAction = "";
+   247→
+   248→        html.style.overflow = "";
+   249→
+   250→        window.scrollTo(0, scrollY);
+   251→      };
+   252→    }
+   253→  }, [isOpen]);
+   254→
+   255→  useEffect(() => {
+   256→    if (isOpen && dealId) {
+   257→      fetchDeal();
+   258→    } else if (!dealId) {
+   259→      // Reset state when dealId is cleared
+   260→      setDeal(null);
+   261→      setFetchError(null);
+   262→    }
+   263→  }, [isOpen, dealId]);
+   264→
+   265→  const fetchDeal = async () => {
+   266→    setIsLoading(true);
+   267→    setFetchError(null);
+   268→    try {
+   269→      const res = await fetch(`/api/deals/${dealId}`);
+   270→      if (!res.ok) {
+   271→        const errData = await res.json().catch(() => ({}));
+   272→        throw new Error(errData.error || `Failed to load deal (${res.status})`);
+   273→      }
+   274→      const data = await res.json();
+   275→      setDeal(data);
+   276→    } catch (error) {
+   277→      console.error("[DealDrawer] Fetch error:", error);
+   278→      setFetchError(error.message || "Failed to load deal details");
+   279→      // Don't show toast here - we'll show error in UI instead
+   280→    } finally {
+   281→      setIsLoading(false);
+   282→    }
+   283→  };
+   284→
+   285→  // Calculate totals
+   286→  const calculateTotals = () => {
+   287→    if (!deal) return {};
+   288→
+   289→    const addOnsNetTotal = (deal.addOns || []).reduce(
+   290→      (sum, a) => sum + (a.unitPriceNet * (a.qty || 1)),
+   291→      0
+   292→    );
+   293→    const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+   294→      if (a.vatTreatment === "STANDARD") {
+   295→        return sum + a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2);
+   296→      }
+   297→      return sum;
+   298→    }, 0);
+   299→
+   300→    let subtotal, totalVat, grandTotal;
+   301→
+   302→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   303→      subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
+   304→      totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
+   305→      grandTotal = subtotal + totalVat;
+   306→    } else {
+   307→      subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
+   308→      totalVat = 0;
+   309→      grandTotal = subtotal;
+   310→    }
+   311→
+   312→    const totalPaid = (deal.payments || [])
+   313→      .filter((p) => !p.isRefunded)
+   314→      .reduce((sum, p) => sum + p.amount, 0);
+   315→
+   316→    const pxNetValue = deal.partExchange
+   317→      ? (deal.partExchange.allowance || 0) - (deal.partExchange.settlement || 0)
+   318→      : 0;
+   319→
+   320→    const balanceDue = grandTotal - totalPaid - pxNetValue;
+   321→
+   322→    return {
+   323→      addOnsNetTotal,
+   324→      addOnsVatTotal,
+   325→      subtotal,
+   326→      totalVat,
+   327→      grandTotal,
+   328→      totalPaid,
+   329→      pxNetValue,
+   330→      balanceDue,
+   331→    };
+   332→  };
+   333→
+   334→  // Deal actions
+   335→  const handleTakeDeposit = async () => {
+   336→    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+   337→      toast.error("Please enter a valid deposit amount");
+   338→      return;
+   339→    }
+   340→
+   341→    setActionLoading("deposit");
+   342→    try {
+   343→      const res = await fetch(`/api/deals/${dealId}/take-deposit`, {
+   344→        method: "POST",
+   345→        headers: { "Content-Type": "application/json" },
+   346→        body: JSON.stringify({
+   347→          amount: parseFloat(depositAmount),
+   348→          method: depositMethod,
+   349→          reference: depositReference,
+   350→        }),
+   351→      });
+   352→
+   353→      if (!res.ok) {
+   354→        const err = await res.json();
+   355→        throw new Error(err.error || "Failed to record deposit");
+   356→      }
+   357→
+   358→      const result = await res.json();
+   359→      toast.success(`Deposit recorded: ${result.documentNumber}`);
+   360→      setShowDepositModal(false);
+   361→      setDepositAmount("");
+   362→      setDepositReference("");
+   363→      fetchDeal();
+   364→      onUpdate?.();
+   365→    } catch (error) {
+   366→      toast.error(error.message);
+   367→    } finally {
+   368→      setActionLoading(null);
+   369→    }
+   370→  };
+   371→
+   372→  const handleGenerateInvoice = async () => {
+   373→    setActionLoading("invoice");
+   374→    try {
+   375→      const res = await fetch(`/api/deals/${dealId}/generate-invoice`, {
+   376→        method: "POST",
+   377→        headers: { "Content-Type": "application/json" },
+   378→      });
+   379→
+   380→      if (!res.ok) {
+   381→        const err = await res.json();
+   382→        throw new Error(err.error || "Failed to generate invoice");
+   383→      }
+   384→
+   385→      const result = await res.json();
+   386→      toast.success(`Invoice generated: ${result.documentNumber}`);
+   387→      fetchDeal();
+   388→      onUpdate?.();
+   389→    } catch (error) {
+   390→      toast.error(error.message);
+   391→    } finally {
+   392→      setActionLoading(null);
+   393→    }
+   394→  };
+   395→
+   396→  const handleMarkDelivered = async () => {
+   397→    setActionLoading("delivered");
+   398→    try {
+   399→      const res = await fetch(`/api/deals/${dealId}/mark-delivered`, {
+   400→        method: "POST",
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

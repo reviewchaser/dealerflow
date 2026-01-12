@@ -1,0 +1,19 @@
+The file C:\Users\georg\dealerflow\components\VehicleImageGallery.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   148→                isPrimary ? "border-blue-500 ring-2 ring-blue-200" : "border-transparent hover:border-slate-300"
+   149→              }`}
+   150→              onClick={() => setLightboxImage(image)}
+   151→            >
+   152→              {/* Image */}
+   153→              <Image
+   154→                src={getImageUrl(image)}
+   155→                alt={`Vehicle image ${idx + 1}`}
+   156→                fill
+   157→                className="object-cover"
+   158→                sizes="(max-width: 768px) 33vw, 25vw"
+   159→                unoptimized
+   160→                onError={() => handleImageError(image.key)}
+   161→              />
+   162→
+   163→              {/* Primary Badge */}
+   164→              {isPrimary && (
+   165→                <div className="absolute top-1 left-1 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">

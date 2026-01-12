@@ -1,0 +1,390 @@
+Goal
+
+Fix Sales page so clicking a sale reliably opens DealDrawer and stays open.
+
+Implement Purchase + SIV (stock book fields) in the best “optional-first” way without ruining UX or KPI accuracy.
+
+Add Sales KPIs to Sales page and Dashboard, plus quick-create entry points (Dashboard + top “+” menu).
+
+Add missing KPI controls: period selector, gross/net profit, VAT breakdown, “missing data” handling.
+
+A) Fix: Clicking a sale opens then instantly returns to list
+A1) Reproduce and find exact cause
+
+On /app/[dealerSlug]/sales:
+
+Create a sale draft from a vehicle
+
+Click the draft in the list
+
+Observe: drawer flashes then returns to list
+
+Now debug in this order:
+
+1) Console + error boundaries
+
+Open devtools console and watch for any runtime errors when clicking a sale.
+
+If DealDrawer throws, wrap it with an error boundary and surface the error in a toast (don’t silently close).
+
+2) Network calls
+
+When clicking a sale, confirm whether you call:
+
+GET /api/app/[dealerSlug]/sales/:id (or equivalent)
+If it returns 404/401/500, fix the endpoint or slug scoping.
+
+3) State reset investigation (most likely)
+
+Search in pages/sales.js for patterns like:
+
+useEffect(() => { setSelectedSaleId(null) }, [sales])
+
+router.replace(...) or router.push(...) that clears query params
+
+any setDrawerOpen(false) triggered after fetch completes
+
+Fix rule: once the user clicks a sale, the open sale id must not be cleared unless:
+
+user closes drawer
+
+sale is deleted/cancelled and you deliberately close it
+
+A2) Implement a robust open-sale mechanism
+
+Choose ONE approach and implement it cleanly:
+
+Option 1 (recommended): local state only (no router query)
+
+In pages/sales.js:
+
+const [openSaleId, setOpenSaleId] = useState(null)
+
+Clicking a card does only: setOpenSaleId(sale._id)
+
+Render <DealDrawer saleId={openSaleId} open={!!openSaleId} onClose={()=>setOpenSaleId(null)} />
+
+Do not reset openSaleId during list refresh.
+
+Option 2: query-param driven
+
+If you want deep links:
+
+use ?saleId=...
+
+on click: router.push({ query: { ...router.query, saleId }}, undefined, { shallow: true })
+
+only clear when drawer closes
+
+on initial load: read from query and set open state
+
+Critical: don’t have any effect that wipes query params during refresh.
+
+A3) Fix DealDrawer data loading to prevent “flash close”
+
+Inside DealDrawer.js:
+
+If it fetches sale details and fails, show an error state inside the drawer (don’t auto-close and bounce user back)
+
+Ensure it doesn’t call onClose() on failed fetch unless user chooses
+
+Add defensive guards:
+
+If saleId changes, cancel previous fetch via AbortController
+
+Only set state if component is mounted
+
+A4) Test acceptance criteria
+
+Click draft sale → drawer opens and remains open
+
+Refresh sales list while drawer open → drawer stays open
+
+Close drawer → returns to list and stays
+
+Open another sale while drawer open → switches sale cleanly
+
+B) Purchase info + SIV (best solution without forcing at vehicle creation)
+
+Your instinct is right: make purchase info optional at vehicle creation, but you must:
+
+have a way to see which vehicles are missing it
+
+prevent KPIs from lying by silently treating missing values as £0
+
+B1) Define “Purchase Info” fields (Stock book essentials)
+
+Add these to Vehicle model (or a purchase subdocument):
+
+purchaseDate (optional)
+
+purchasedFromContactId (optional)
+
+purchaseInvoiceRef (optional)
+
+purchasePrice (SIV) number (optional)
+
+purchaseVatType: enum:
+
+NONE (no VAT / private purchase)
+
+VAT_QUALIFYING
+
+MARGIN_SCHEME
+
+If VAT qualifying:
+
+purchaseVatRate default 20
+
+optional derived fields
+
+Note: For many dealers, the single most important is purchase price + VAT type.
+
+B2) Where to edit Purchase Info
+Vehicle drawer (Stock & Prep) should include this
+
+Add a new section/tab in vehicle drawer:
+
+either a “Purchase” tab OR a Purchase card in Overview beneath Specs
+
+It should show:
+
+Purchase price (SIV)
+
+VAT type
+
+Purchased from (contact picker)
+
+Purchase date
+
+Notes / ref
+
+This is where you’ll naturally maintain “stock book”.
+
+B3) When creating a sale, enforce only what’s needed
+
+When a sale is created:
+
+If Vehicle is missing purchasePrice or VAT type:
+
+show a non-blocking warning banner in DealDrawer:
+
+“Purchase info missing — profits/VAT may be inaccurate”
+
+provide “Add purchase info now” inline panel (ContactPicker + SIV + VAT type)
+
+Do not hard-block drafting the deal.
+
+Do block invoice generation / completion if required data is missing for accurate invoice/VAT outputs (you decide the gating rules).
+
+Recommended gating:
+
+Invoice generation requires:
+
+Sold-to contact
+
+Sale price
+
+VAT scheme selection for the deal (often derived from vehicle)
+
+Profit KPIs require:
+
+purchasePrice present
+
+B4) Make “missing purchase info” visible without clicking each vehicle
+
+Add indicators:
+
+On Stock board cards
+
+Add a small badge:
+
+“Missing SIV” if purchasePrice null
+
+optional “Missing VAT type”
+
+In Stock filters
+
+Add filter toggles:
+
+“Missing Purchase Info”
+
+“Missing SIV”
+
+“Missing VAT Type”
+
+In Stock list/table view (if exists)
+
+Add columns for:
+
+SIV present? yes/no
+
+VAT type
+
+purchased from
+
+This solves the “manual clicking” problem.
+
+B5) KPI accuracy: never treat missing values as £0
+
+In KPIs:
+
+Show totals + a “coverage” metric:
+
+“Gross profit (based on 9/15 vehicles with SIV)”
+
+Provide a separate card:
+
+“Vehicles missing SIV: 6”
+
+For total stock value:
+
+show “Known stock value” (sum of vehicles with SIV)
+
+show “Unknown stock value (missing SIV): count”
+
+This prevents misleading “skewed figures”.
+
+C) Add Sales KPIs (Sales page + Dashboard)
+C1) Sales page KPI row (top)
+
+Add KPI cards:
+
+Deals this month (count)
+
+Total sales revenue (gross)
+
+Total sales revenue (net) (VAT-aware)
+
+Gross profit (known only)
+
+Net profit (VAT-aware, known only)
+
+VAT due (VAT qualifying only) + Margin scheme VAT calc if applicable
+
+Missing SIV count (for sold/completed deals)
+
+Missing customer details count (draft/invoiced readiness)
+
+C2) Period selector
+
+Add a dropdown:
+
+This month / last month / last 3 / YTD / custom range
+This should re-query KPIs with date range.
+
+Important: Sales KPIs should be attributed to:
+
+“Invoice date” OR “Deal completed date” (choose one and implement consistently)
+My recommendation:
+
+Revenue + VAT: invoice date
+
+Profit reporting: completed date (or invoice date if you always invoice before completion)
+Pick one and document it in code.
+
+C3) Dashboard KPIs and quick actions
+
+On Dashboard:
+
+Add a “Sales” section:
+
+This month revenue / profit / deals count
+
+“Create sale” quick button
+
+“Drafts needing attention” (missing customer / missing SIV)
+
+C4) Add “Create Sale” to the top “+” menu
+
+Wherever the global plus menu is (top right):
+
+Add item: “Create Sale”
+
+Opens the same vehicle picker modal
+
+Works from any page
+
+D) Fix the vehicle drawer: “Create Sale” button and Sales visibility
+
+Your screenshot shows a Create Sale button in vehicle drawer header. Ensure it behaves correctly:
+
+If an active sale exists for this vehicle:
+
+button label “Open Sale”
+
+clicking opens DealDrawer for that sale
+
+Else:
+
+clicking creates draft sale and opens it immediately
+
+Also add a “Sales” tab/section in the vehicle drawer to show:
+
+current sale status (if any)
+
+sale number
+
+customer (if set)
+
+key actions: open sale / create sale
+
+E) Implement missing Sales features/options you listed
+
+Add to DealDrawer / Sales flow:
+
+VAT scheme per deal (inherited from vehicle but editable)
+
+Sale type: Retail / Trade / B2B + terms selection
+
+Deposit: amount/method/ref/date + deposit receipt generation
+
+Part exchange linking:
+
+allow selecting an appraisal (dealer appraisal or customer part-ex) and attach to deal
+
+Add-ons:
+
+add-on catalog with inc/ex VAT + VAT type
+
+Deliver-to address
+
+Requests:
+
+best solution: keep “requests” inside Sales as Deal Requests (not prep issues)
+
+optional “Send to prep issues” toggle if a request affects prep (e.g., alloy refurb)
+
+F) Verification tests (must complete)
+
+Create sale from vehicle drawer → opens DealDrawer and stays open
+
+Create sale from Sales page modal → opens DealDrawer and stays open
+
+Click sale in list → opens and stays open
+
+Sales KPIs update when you:
+
+add sale price
+
+mark invoiced
+
+mark completed
+
+Stock board shows “Missing SIV” badge and filter works
+
+Purchase info editable in vehicle drawer and reflects in KPIs coverage counts
+
+Deliverable expectations
+
+When done, reply with:
+
+what root cause was for the “drawer flashes then closes”
+
+the exact files changed
+
+confirmation of each test step passing on localhost
+
+Also: answer the user’s question about whether purchase info should be in the stock drawer
+
+Yes — add purchase info to the stock vehicle drawer (optional), plus badges/filters so missing data is obvious. Do not force entry on vehicle creation; instead, enforce only at invoice/completion and show coverage stats in KPIs so numbers aren’t misleading.

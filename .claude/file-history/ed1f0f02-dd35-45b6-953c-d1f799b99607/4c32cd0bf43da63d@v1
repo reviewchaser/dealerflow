@@ -1,0 +1,174 @@
+import connectMongo from "@/libs/mongoose";
+import AftercareCase from "@/models/AftercareCase";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
+import { withDealerContext } from "@/libs/authContext";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function handler(req, res, ctx) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+
+  const { caseId, regenerate } = req.body;
+
+  if (!caseId) {
+    return res.status(400).json({ error: "caseId is required" });
+  }
+
+  try {
+    // Fetch the case with all details
+    const aftercareCase = await AftercareCase.findOne({ _id: caseId, dealerId })
+      .populate("contactId", "name email phone")
+      .populate("vehicleId", "make model regCurrent year mileage")
+      .lean();
+
+    if (!aftercareCase) {
+      return res.status(404).json({ error: "Case not found" });
+    }
+
+    // Check if we already have a summary and don't need to regenerate
+    if (aftercareCase.aiReview?.payload && !regenerate) {
+      return res.status(200).json({
+        ok: true,
+        summary: aftercareCase.aiReview.payload,
+        cached: true,
+        generatedAt: aftercareCase.aiReview.generatedAt,
+      });
+    }
+
+    // Fetch comments for additional context
+    const comments = await AftercareCaseComment.find({ aftercareCaseId: caseId })
+      .sort({ createdAt: 1 })
+      .lean();
+
+    // Build context for AI
+    const caseContext = {
+      customer: aftercareCase.contactId?.name || "Unknown customer",
+      customerEmail: aftercareCase.contactId?.email || null,
+      customerPhone: aftercareCase.contactId?.phone || null,
+      vehicle: {
+        make: aftercareCase.vehicleId?.make || aftercareCase.details?.vehicleMake || "Unknown",
+        model: aftercareCase.vehicleId?.model || aftercareCase.details?.vehicleModel || "",
+        reg: aftercareCase.regAtPurchase || aftercareCase.vehicleId?.regCurrent || "Unknown",
+        year: aftercareCase.vehicleId?.year || null,
+        mileage: aftercareCase.vehicleId?.mileage || aftercareCase.details?.mileageAtPurchase || null,
+      },
+      issue: aftercareCase.details?.issueDescription || aftercareCase.issueDescription || "No description provided",
+      source: aftercareCase.source || "Manual",
+      priority: aftercareCase.priority || "normal",
+      status: aftercareCase.boardStatus || "not_booked_in",
+      warrantyType: aftercareCase.warrantyType || "Dealer Warranty",
+      purchaseDate: aftercareCase.purchaseDate || aftercareCase.details?.dateOfPurchase || null,
+      daysOpen: Math.floor((Date.now() - new Date(aftercareCase.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+      repairLocation: aftercareCase.repairLocationType || "WITH_CUSTOMER",
+      partsRequired: aftercareCase.partsRequired || false,
+      partsNotes: aftercareCase.partsNotes || null,
+      courtesyRequired: aftercareCase.courtesyRequired || false,
+      timeline: (aftercareCase.events || []).slice(-10).map(e => ({
+        type: e.type,
+        summary: e.summary,
+        date: e.createdAt,
+      })),
+      comments: comments.slice(-5).map(c => ({
+        text: c.text?.substring(0, 500) || "",
+        isInternal: c.isInternal,
+        date: c.createdAt,
+      })),
+    };
+
+    // Generate AI summary
+    const prompt = `You are an expert automotive warranty case analyst for a car dealership. Analyze this warranty case and provide a helpful summary.
+
+CASE DETAILS:
+- Customer: ${caseContext.customer}
+- Vehicle: ${caseContext.vehicle.year || ""} ${caseContext.vehicle.make} ${caseContext.vehicle.model} (${caseContext.vehicle.reg})
+- Mileage: ${caseContext.vehicle.mileage || "Unknown"}
+- Purchase Date: ${caseContext.purchaseDate ? new Date(caseContext.purchaseDate).toLocaleDateString() : "Unknown"}
+- Warranty Type: ${caseContext.warrantyType}
+- Days Open: ${caseContext.daysOpen}
+- Priority: ${caseContext.priority}
+- Current Status: ${caseContext.status}
+- Repair Location: ${caseContext.repairLocation}
+- Parts Required: ${caseContext.partsRequired ? "Yes" : "No"}
+${caseContext.partsNotes ? `- Parts Notes: ${caseContext.partsNotes}` : ""}
+- Courtesy Car Required: ${caseContext.courtesyRequired ? "Yes" : "No"}
+
+ISSUE REPORTED:
+${caseContext.issue}
+
+${caseContext.comments.length > 0 ? `RECENT COMMENTS:
+${caseContext.comments.map(c => `- ${c.text} (${c.isInternal ? "Internal" : "Customer"})`).join("\n")}` : ""}
+
+${caseContext.timeline.length > 0 ? `RECENT ACTIVITY:
+${caseContext.timeline.map(t => `- ${t.summary}`).join("\n")}` : ""}
+
+Provide a JSON response with the following structure:
+{
+  "summary": "A brief 2-3 sentence summary of the case and current status",
+  "assessment": "Your assessment of the issue - is this likely a warranty claim, wear and tear, customer misuse, etc.?",
+  "recommendedActions": ["List of 2-4 recommended next steps"],
+  "estimatedComplexity": "LOW | MEDIUM | HIGH",
+  "riskLevel": "LOW | MEDIUM | HIGH - based on customer sentiment, time open, issue severity",
+  "draftCustomerReply": "A professional, empathetic customer-facing message acknowledging the issue and next steps (2-3 sentences)",
+  "draftInternalNote": "A brief internal note for staff summarizing the key points"
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful automotive warranty analyst. Always respond with valid JSON only, no markdown or explanations."
+        },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    let aiResponse;
+    try {
+      const responseText = completion.choices[0].message.content;
+      // Clean up potential markdown code blocks
+      const cleanedText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      aiResponse = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", completion.choices[0].message.content);
+      return res.status(500).json({ error: "Failed to parse AI response" });
+    }
+
+    // Store the result in the database
+    await AftercareCase.updateOne(
+      { _id: caseId, dealerId },
+      {
+        $set: {
+          aiReview: {
+            payload: aiResponse,
+            generatedAt: new Date(),
+            generatedByUserId: userId,
+          }
+        }
+      }
+    );
+
+    return res.status(200).json({
+      ok: true,
+      summary: aiResponse,
+      cached: false,
+      generatedAt: new Date().toISOString(),
+    });
+
+  } catch (error) {
+    console.error("Error generating warranty summary:", error);
+    return res.status(500).json({ error: "Failed to generate summary" });
+  }
+}
+
+export default withDealerContext(handler);

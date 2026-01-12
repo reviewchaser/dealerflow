@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\holidays.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   391→
+   392→      <div className="mb-6">
+   393→        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+   394→          <div>
+   395→            <h1 className="text-3xl font-bold">Holiday Requests</h1>
+   396→            <p className="text-base-content/60 mt-1">
+   397→              {isAdmin ? "Manage team holiday requests" : "View and request time off"}
+   398→            </p>
+   399→            <div className="mt-2"><PageHint id="holidays">Request time off and track your allowance. Admins can approve or reject requests here.</PageHint></div>
+   400→          </div>
+   401→          <button
+   402→            className="btn btn-primary w-full sm:w-auto"
+   403→            onClick={() => setShowCreateModal(true)}
+   404→          >

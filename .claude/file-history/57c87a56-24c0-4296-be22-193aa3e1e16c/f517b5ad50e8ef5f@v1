@@ -1,0 +1,65 @@
+// Step 1: Save dealership profile
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  try {
+    await connectMongo();
+
+    const { name, logoUrl, timezone, primaryContactEmail, primaryContactPhone } = req.body;
+
+    // Validate required fields
+    if (!name?.trim()) {
+      return res.status(400).json({ error: "Dealership name is required" });
+    }
+
+    // Find the dealer (for now, single-tenant - get first dealer)
+    // TODO: In multi-tenant setup, get dealer from session
+    let dealer = await Dealer.findOne();
+
+    if (!dealer) {
+      // Create new dealer if none exists
+      dealer = await Dealer.create({
+        name: name.trim(),
+        logoUrl,
+        timezone: timezone || "Europe/London",
+        primaryContactEmail,
+        primaryContactPhone,
+        companyName: name.trim(),
+        companyEmail: primaryContactEmail,
+        companyPhone: primaryContactPhone,
+      });
+    } else {
+      // Update existing dealer
+      dealer.name = name.trim();
+      if (logoUrl !== undefined) dealer.logoUrl = logoUrl;
+      if (timezone) dealer.timezone = timezone;
+      if (primaryContactEmail !== undefined) dealer.primaryContactEmail = primaryContactEmail;
+      if (primaryContactPhone !== undefined) dealer.primaryContactPhone = primaryContactPhone;
+
+      // Also update company fields for forms
+      dealer.companyName = name.trim();
+      if (primaryContactEmail) dealer.companyEmail = primaryContactEmail;
+      if (primaryContactPhone) dealer.companyPhone = primaryContactPhone;
+
+      await dealer.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      dealer: {
+        id: dealer._id,
+        name: dealer.name,
+        logoUrl: dealer.logoUrl,
+        timezone: dealer.timezone,
+      },
+    });
+  } catch (error) {
+    console.error("[Onboarding Profile] Error:", error);
+    return res.status(500).json({ error: "Failed to save profile" });
+  }
+}

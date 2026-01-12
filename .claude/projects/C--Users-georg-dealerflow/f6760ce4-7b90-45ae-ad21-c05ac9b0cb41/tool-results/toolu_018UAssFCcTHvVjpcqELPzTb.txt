@@ -1,0 +1,48 @@
+     1→import { Html, Head, Main, NextScript } from "next/document";
+     2→import config from "@/config";
+     3→
+     4→export default function Document() {
+     5→  return (
+     6→    <Html lang="en" data-theme={config.colors.theme}>
+     7→      <Head>
+     8→        <meta name="viewport" content="width=device-width, initial-scale=1" />
+     9→        <meta name="theme-color" content={config.colors.main} />
+    10→        <meta name="msapplication-TileColor" content={config.colors.main} />
+    11→
+    12→        <link
+    13→          rel="apple-touch-icon"
+    14→          sizes="180x180"
+    15→          href="/apple-touch-icon.png"
+    16→        />
+    17→        <link
+    18→          rel="icon"
+    19→          type="image/png"
+    20→          sizes="32x32"
+    21→          href="/favicon-32x32.png"
+    22→        />
+    23→        <link
+    24→          rel="icon"
+    25→          type="image/png"
+    26→          sizes="16x16"
+    27→          href="/favicon-16x16.png"
+    28→        />
+    29→        <link rel="icon" href="/favicon.ico" />
+    30→
+    31→        <script
+    32→          defer
+    33→          data-domain={config.domainName}
+    34→          src="https://plausible.io/js/script.js"
+    35→        ></script>
+    36→      </Head>
+    37→      <body>
+    38→        <Main />
+    39→        <NextScript />
+    40→      </body>
+    41→    </Html>
+    42→  );
+    43→}
+    44→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

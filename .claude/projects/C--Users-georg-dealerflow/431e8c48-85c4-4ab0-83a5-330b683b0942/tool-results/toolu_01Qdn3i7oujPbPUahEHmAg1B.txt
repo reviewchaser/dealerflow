@@ -1,0 +1,12 @@
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:13:You are helping diagnose a warranty claim or aftercare issue. Based on the information provided, generate practical diagnostic suggestions.
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:73:  const userPrompt = `Please analyse this warranty/aftercare issue and provide diagnostic suggestions.
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:41:    if (appraisal.aiSummary?.payload && !regenerate) {
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:44:        summary: appraisal.aiSummary.payload,
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:46:        generatedAt: appraisal.aiSummary.generatedAt,
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js:139:    console.error("Error generating appraisal summary:", error);
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:2: * AI Appraisal Issue Suggestions API
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:13:You are helping assess an issue found during a vehicle appraisal (trade-in or part-exchange). Based on the information provided, generate practical investigation suggestions to help the dealer understand the scope and cost of repairs.
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:78:  const userPrompt = `Please analyse this appraisal issue and provide investigation suggestions to help with the purchase decision.
+C:\Users\georg\dealerflow\pages\vehicles\new.js:308:                                  {suggestion.issueCount} issue{suggestion.issueCount !== 1 ? "s" : ""}
+C:\Users\georg\dealerflow\pages\sales-prep.js:4480:        await fetch(`/api/appraisals/${matchedAppraisal.id}`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:84:      const res = await fetch(`/api/appraisals/issues?appraisalId=${id}`);

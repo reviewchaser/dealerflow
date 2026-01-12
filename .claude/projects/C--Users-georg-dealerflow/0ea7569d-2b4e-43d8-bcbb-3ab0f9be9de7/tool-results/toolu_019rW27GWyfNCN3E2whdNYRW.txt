@@ -1,0 +1,404 @@
+   400→        method: "POST",
+   401→        headers: { "Content-Type": "application/json" },
+   402→      });
+   403→
+   404→      if (!res.ok) {
+   405→        const err = await res.json();
+   406→        throw new Error(err.error || "Failed to mark as delivered");
+   407→      }
+   408→
+   409→      toast.success("Deal marked as delivered");
+   410→      fetchDeal();
+   411→      onUpdate?.();
+   412→    } catch (error) {
+   413→      toast.error(error.message);
+   414→    } finally {
+   415→      setActionLoading(null);
+   416→    }
+   417→  };
+   418→
+   419→  const handleMarkCompleted = async () => {
+   420→    setActionLoading("completed");
+   421→    try {
+   422→      const res = await fetch(`/api/deals/${dealId}/mark-completed`, {
+   423→        method: "POST",
+   424→        headers: { "Content-Type": "application/json" },
+   425→      });
+   426→
+   427→      if (!res.ok) {
+   428→        const err = await res.json();
+   429→        throw new Error(err.error || "Failed to complete deal");
+   430→      }
+   431→
+   432→      toast.success("Deal completed");
+   433→      fetchDeal();
+   434→      onUpdate?.();
+   435→    } catch (error) {
+   436→      toast.error(error.message);
+   437→    } finally {
+   438→      setActionLoading(null);
+   439→    }
+   440→  };
+   441→
+   442→  const handleCancelDeal = async () => {
+   443→    if (!confirm("Are you sure you want to cancel this deal?")) return;
+   444→
+   445→    setActionLoading("cancel");
+   446→    try {
+   447→      const res = await fetch(`/api/deals/${dealId}`, {
+   448→        method: "DELETE",
+   449→        headers: { "Content-Type": "application/json" },
+   450→        body: JSON.stringify({ cancelReason: "Cancelled by user" }),
+   451→      });
+   452→
+   453→      if (!res.ok) {
+   454→        const err = await res.json();
+   455→        throw new Error(err.error || "Failed to cancel deal");
+   456→      }
+   457→
+   458→      toast.success("Deal cancelled");
+   459→      fetchDeal();
+   460→      onUpdate?.();
+   461→    } catch (error) {
+   462→      toast.error(error.message);
+   463→    } finally {
+   464→      setActionLoading(null);
+   465→    }
+   466→  };
+   467→
+   468→  const handleUpdateCustomer = async (contactId) => {
+   469→    if (!contactId) return;
+   470→
+   471→    setActionLoading("customer");
+   472→    try {
+   473→      const res = await fetch(`/api/deals/${dealId}`, {
+   474→        method: "PUT",
+   475→        headers: { "Content-Type": "application/json" },
+   476→        body: JSON.stringify({ soldToContactId: contactId }),
+   477→      });
+   478→
+   479→      if (!res.ok) {
+   480→        const err = await res.json();
+   481→        throw new Error(err.error || "Failed to update customer");
+   482→      }
+   483→
+   484→      toast.success("Customer updated");
+   485→      setIsEditingCustomer(false);
+   486→      fetchDeal();
+   487→      onUpdate?.();
+   488→    } catch (error) {
+   489→      toast.error(error.message);
+   490→    } finally {
+   491→      setActionLoading(null);
+   492→    }
+   493→  };
+   494→
+   495→  // Generic field update handler
+   496→  const handleUpdateField = async (updates, successMessage) => {
+   497→    setActionLoading("field");
+   498→    try {
+   499→      const res = await fetch(`/api/deals/${dealId}`, {
+   500→        method: "PUT",
+   501→        headers: { "Content-Type": "application/json" },
+   502→        body: JSON.stringify(updates),
+   503→      });
+   504→
+   505→      if (!res.ok) {
+   506→        const err = await res.json();
+   507→        throw new Error(err.error || "Failed to update");
+   508→      }
+   509→
+   510→      if (successMessage) toast.success(successMessage);
+   511→      fetchDeal();
+   512→      onUpdate?.();
+   513→    } catch (error) {
+   514→      toast.error(error.message);
+   515→    } finally {
+   516→      setActionLoading(null);
+   517→    }
+   518→  };
+   519→
+   520→  // Update vehicle price
+   521→  const handleUpdatePrice = async () => {
+   522→    const price = parseFloat(priceInput);
+   523→    if (isNaN(price) || price <= 0) {
+   524→      toast.error("Please enter a valid price");
+   525→      return;
+   526→    }
+   527→
+   528→    const updates = { vehiclePriceGross: price };
+   529→
+   530→    // For VAT qualifying, calculate net and VAT
+   531→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   532→      const vatRate = deal.vatRate || 0.2;
+   533→      const net = price / (1 + vatRate);
+   534→      updates.vehiclePriceNet = Math.round(net * 100) / 100;
+   535→      updates.vehicleVatAmount = Math.round((price - net) * 100) / 100;
+   536→    }
+   537→
+   538→    await handleUpdateField(updates, "Price updated");
+   539→    setIsEditingPrice(false);
+   540→  };
+   541→
+   542→  // Delete draft deal
+   543→  const handleDeleteDraft = async () => {
+   544→    if (deal.status !== "DRAFT") {
+   545→      toast.error("Only draft deals can be deleted");
+   546→      return;
+   547→    }
+   548→
+   549→    setActionLoading("delete");
+   550→    try {
+   551→      const res = await fetch(`/api/deals/${dealId}`, {
+   552→        method: "DELETE",
+   553→        headers: { "Content-Type": "application/json" },
+   554→        body: JSON.stringify({ hardDelete: true }),
+   555→      });
+   556→
+   557→      if (!res.ok) {
+   558→        const err = await res.json();
+   559→        throw new Error(err.error || "Failed to delete deal");
+   560→      }
+   561→
+   562→      toast.success("Draft deleted");
+   563→      setShowDeleteConfirm(false);
+   564→      onClose?.();
+   565→      onUpdate?.();
+   566→    } catch (error) {
+   567→      toast.error(error.message);
+   568→    } finally {
+   569→      setActionLoading(null);
+   570→    }
+   571→  };
+   572→
+   573→  // Check deal readiness
+   574→  const getReadinessChecks = () => {
+   575→    if (!deal) return [];
+   576→
+   577→    const checks = [
+   578→      {
+   579→        id: "vehicle",
+   580→        label: "Vehicle selected",
+   581→        passed: !!deal.vehicleId || !!deal.vehicle,
+   582→        tab: null, // Vehicle is auto-selected on deal creation
+   583→      },
+   584→      {
+   585→        id: "customer",
+   586→        label: "Customer selected",
+   587→        passed: !!deal.soldToContactId || !!deal.customer,
+   588→        tab: "customer",
+   589→      },
+   590→      {
+   591→        id: "saleType",
+   592→        label: "Sale type set",
+   593→        passed: !!deal.saleType,
+   594→        tab: "overview",
+   595→      },
+   596→      {
+   597→        id: "paymentType",
+   598→        label: "Payment type set",
+   599→        passed: !!deal.paymentType,
+   600→        tab: "overview",
+   601→      },
+   602→      {
+   603→        id: "price",
+   604→        label: "Vehicle price set",
+   605→        passed: deal.vehiclePriceGross > 0,
+   606→        tab: "overview",
+   607→      },
+   608→      {
+   609→        id: "vatScheme",
+   610→        label: "VAT treatment set",
+   611→        passed: !!deal.vatScheme,
+   612→        tab: "overview",
+   613→      },
+   614→    ];
+   615→
+   616→    return checks;
+   617→  };
+   618→
+   619→  // Check if deposit can be taken
+   620→  const canTakeDeposit = () => {
+   621→    if (!deal) return { allowed: false, reasons: [] };
+   622→
+   623→    const reasons = [];
+   624→    if (!deal.soldToContactId && !deal.customer) reasons.push("Customer not selected");
+   625→    if (!deal.vehiclePriceGross || deal.vehiclePriceGross <= 0) reasons.push("Vehicle price not set");
+   626→
+   627→    return { allowed: reasons.length === 0, reasons };
+   628→  };
+   629→
+   630→  if (!isOpen) return null;
+   631→
+   632→  const totals = calculateTotals();
+   633→  const statusConfig = STATUS_CONFIG[deal?.status] || STATUS_CONFIG.DRAFT;
+   634→
+   635→  return (
+   636→    <div
+   637→      className="fixed inset-0 flex justify-end z-50 drawer-locked"
+   638→      style={{ touchAction: "none", overscrollBehavior: "none" }}
+   639→    >
+   640→      {/* Backdrop */}
+   641→      <div
+   642→        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+   643→        onClick={onClose}
+   644→      />
+   645→
+   646→      {/* Drawer */}
+   647→      <div
+   648→        className="relative bg-[#f8fafc] flex flex-col w-full max-w-3xl min-w-0 translate-x-0 overflow-x-hidden shadow-2xl"
+   649→        style={{
+   650→          height: "100dvh",
+   651→          maxHeight: "100dvh",
+   652→          touchAction: "pan-y",
+   653→        }}
+   654→      >
+   655→        {isLoading ? (
+   656→          <div className="flex items-center justify-center h-full">
+   657→            <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   658→          </div>
+   659→        ) : fetchError ? (
+   660→          <div className="flex flex-col items-center justify-center h-full p-6">
+   661→            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+   662→              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   663→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   664→              </svg>
+   665→            </div>
+   666→            <p className="text-lg font-semibold text-slate-900 mb-1">Failed to load deal</p>
+   667→            <p className="text-sm text-slate-500 text-center mb-4">{fetchError}</p>
+   668→            <div className="flex gap-2">
+   669→              <button className="btn btn-ghost" onClick={onClose}>
+   670→                Close
+   671→              </button>
+   672→              <button className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none" onClick={fetchDeal}>
+   673→                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   674→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+   675→                </svg>
+   676→                Retry
+   677→              </button>
+   678→            </div>
+   679→          </div>
+   680→        ) : !deal ? (
+   681→          <div className="flex flex-col items-center justify-center h-full p-6">
+   682→            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+   683→              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   684→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   685→              </svg>
+   686→            </div>
+   687→            <p className="text-lg font-semibold text-slate-900 mb-1">Deal not found</p>
+   688→            <p className="text-sm text-slate-500 text-center mb-4">This deal may have been deleted or you may not have access</p>
+   689→            <button className="btn btn-ghost" onClick={onClose}>
+   690→              Close
+   691→            </button>
+   692→          </div>
+   693→        ) : (
+   694→          <>
+   695→            {/* Header */}
+   696→            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+   697→              <div className="flex items-center justify-between">
+   698→                <div className="flex items-center gap-3">
+   699→                  <button
+   700→                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+   701→                    onClick={onClose}
+   702→                  >
+   703→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   704→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   705→                    </svg>
+   706→                  </button>
+   707→                  <div>
+   708→                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+   709→                      Deal #{deal.dealNumber || "—"}
+   710→                    </h2>
+   711→                    <div className="flex items-center gap-2 mt-1">
+   712→                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusConfig.color}`}>
+   713→                        {statusConfig.label}
+   714→                      </span>
+   715→                      {deal.vehicle && (
+   716→                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+   717→                          {deal.vehicle.regCurrent}
+   718→                        </span>
+   719→                      )}
+   720→                    </div>
+   721→                  </div>
+   722→                </div>
+   723→                <button
+   724→                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+   725→                  onClick={onClose}
+   726→                >
+   727→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   728→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   729→                  </svg>
+   730→                </button>
+   731→              </div>
+   732→            </div>
+   733→
+   734→            {/* Tabs */}
+   735→            <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
+   736→              {/* Mobile: Dropdown selector */}
+   737→              <div className="md:hidden">
+   738→                <select
+   739→                  value={activeTab}
+   740→                  onChange={(e) => setActiveTab(e.target.value)}
+   741→                  className="select select-bordered w-full font-medium"
+   742→                >
+   743→                  <option value="overview">Summary</option>
+   744→                  <option value="customer">Customer</option>
+   745→                  <option value="addons">Add-ons ({deal.addOns?.length || 0})</option>
+   746→                  <option value="payments">Payments ({deal.payments?.length || 0})</option>
+   747→                </select>
+   748→              </div>
+   749→
+   750→              {/* Desktop: Pill tabs */}
+   751→              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
+   752→                {[
+   753→                  { id: "overview", label: "Summary" },
+   754→                  { id: "customer", label: "Customer" },
+   755→                  { id: "addons", label: "Add-ons", count: deal.addOns?.length },
+   756→                  { id: "payments", label: "Payments", count: deal.payments?.length },
+   757→                ].map((tab) => (
+   758→                  <button
+   759→                    key={tab.id}
+   760→                    onClick={() => setActiveTab(tab.id)}
+   761→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   762→                      activeTab === tab.id
+   763→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   764→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+   765→                    }`}
+   766→                  >
+   767→                    <span>{tab.label}</span>
+   768→                    {tab.count > 0 && (
+   769→                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   770→                        activeTab === tab.id
+   771→                          ? "bg-white/20 text-white"
+   772→                          : "bg-slate-200 text-slate-600"
+   773→                      }`}>
+   774→                        {tab.count}
+   775→                      </span>
+   776→                    )}
+   777→                  </button>
+   778→                ))}
+   779→              </div>
+   780→            </div>
+   781→
+   782→            {/* Content */}
+   783→            <div
+   784→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
+   785→              style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+   786→            >
+   787→              {/* Overview Tab */}
+   788→              {activeTab === "overview" && (
+   789→                <div className="space-y-4">
+   790→                  {/* Deal Readiness - Show for Draft deals */}
+   791→                  {deal.status === "DRAFT" && (() => {
+   792→                    const checks = getReadinessChecks();
+   793→                    const passedCount = checks.filter(c => c.passed).length;
+   794→                    const allPassed = passedCount === checks.length;
+   795→                    return (
+   796→                      <div className={`rounded-2xl border shadow-sm overflow-hidden ${
+   797→                        allPassed ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"
+   798→                      }`}>
+   799→                        <div className="px-4 py-3 border-b border-inherit">
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

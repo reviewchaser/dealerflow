@@ -1,0 +1,318 @@
+     1→/**
+     2→ * Authentication and Dealer Context Helpers
+     3→ *
+     4→ * All server actions and API routes should use these helpers to:
+     5→ * 1. Validate the user's session
+     6→ * 2. Resolve the current dealer from membership
+     7→ * 3. Scope all queries by dealerId
+     8→ */
+     9→
+    10→import { getServerSession } from "next-auth";
+    11→import { authOptions } from "@/libs/authOptions";
+    12→import DealerMembership, { MEMBERSHIP_ROLES } from "@/models/DealerMembership";
+    13→import User, { PLATFORM_ROLES, USER_STATUS } from "@/models/User";
+    14→import { DEALER_STATUS } from "@/models/Dealer";
+    15→import connectMongo from "@/libs/mongoose";
+    16→
+    17→/**
+    18→ * Custom error class for auth/access errors
+    19→ */
+    20→export class AuthError extends Error {
+    21→  constructor(message, status = 401) {
+    22→    super(message);
+    23→    this.name = "AuthError";
+    24→    this.status = status;
+    25→  }
+    26→}
+    27→
+    28→/**
+    29→ * Get the current user's session
+    30→ * @param {object} req - Request object
+    31→ * @param {object} res - Response object
+    32→ * @returns {Promise<object|null>} Session or null
+    33→ */
+    34→export async function getSession(req, res) {
+    35→  return getServerSession(req, res, authOptions);
+    36→}
+    37→
+    38→/**
+    39→ * Require authenticated user (no dealer context)
+    40→ * Use this for routes that don't need dealer scoping (e.g., profile, invite accept)
+    41→ *
+    42→ * @param {object} req - Request object
+    43→ * @param {object} res - Response object
+    44→ * @returns {Promise<{ user: object, userId: string }>}
+    45→ * @throws {AuthError} if not authenticated
+    46→ */
+    47→export async function requireAuth(req, res) {
+    48→  await connectMongo();
+    49→
+    50→  const session = await getServerSession(req, res, authOptions);
+    51→  if (!session?.user?.id) {
+    52→    throw new AuthError("Unauthorized - Please sign in", 401);
+    53→  }
+    54→
+    55→  return {
+    56→    user: session.user,
+    57→    userId: session.user.id,
+    58→  };
+    59→}
+    60→
+    61→/**
+    62→ * Get authenticated dealer context for API routes
+    63→ * This is the primary helper for most API routes.
+    64→ *
+    65→ * IMPORTANT: SUPER_ADMIN users are blocked from dealer context.
+    66→ * They should use requireSuperAdmin() instead.
+    67→ *
+    68→ * @param {object} req - Request object
+    69→ * @param {object} res - Response object
+    70→ * @returns {Promise<{ user, dealer, membership, userId, dealerId, role }>}
+    71→ * @throws {AuthError} if not authenticated or no dealer access
+    72→ */
+    73→export async function requireDealerContext(req, res) {
+    74→  await connectMongo();
+    75→
+    76→  const session = await getServerSession(req, res, authOptions);
+    77→  if (!session?.user?.id) {
+    78→    throw new AuthError("Unauthorized - Please sign in", 401);
+    79→  }
+    80→
+    81→  const userId = session.user.id;
+    82→
+    83→  // Get user's preferred dealer or most recently active membership
+    84→  const user = await User.findById(userId).lean();
+    85→
+    86→  // Check if user is disabled
+    87→  if (user?.status === USER_STATUS.DISABLED) {
+    88→    throw new AuthError(
+    89→      "Your account has been disabled. Please contact support.",
+    90→      403
+    91→    );
+    92→  }
+    93→
+    94→  // SUPER_ADMIN users cannot access dealer context
+    95→  if (user?.role === PLATFORM_ROLES.SUPER_ADMIN) {
+    96→    throw new AuthError(
+    97→      "Platform admins cannot access dealer workflows. Use the admin panel instead.",
+    98→      403
+    99→    );
+   100→  }
+   101→
+   102→  let membership;
+   103→
+   104→  // Check for preferred dealer first
+   105→  if (user?.defaultDealerId) {
+   106→    membership = await DealerMembership.findOneActive({
+   107→      userId,
+   108→      dealerId: user.defaultDealerId,
+   109→    }).populate("dealerId");
+   110→  }
+   111→
+   112→  // Fall back to most recently active membership
+   113→  if (!membership) {
+   114→    membership = await DealerMembership.findOneActive({ userId })
+   115→      .sort({ lastActiveAt: -1 })
+   116→      .populate("dealerId");
+   117→  }
+   118→
+   119→  if (!membership) {
+   120→    throw new AuthError(
+   121→      "No dealer access. Please accept an invitation or create a dealership.",
+   122→      403
+   123→    );
+   124→  }
+   125→
+   126→  const dealer = membership.dealerId;
+   127→
+   128→  // Check if dealer is disabled
+   129→  if (dealer?.status === DEALER_STATUS.DISABLED) {
+   130→    throw new AuthError(
+   131→      "This dealership has been disabled. Please contact support.",
+   132→      403
+   133→    );
+   134→  }
+   135→
+   136→  // Update last active timestamp (fire and forget)
+   137→  DealerMembership.updateOne(
+   138→    { _id: membership._id },
+   139→    { lastActiveAt: new Date() }
+   140→  ).exec();
+   141→
+   142→  return {
+   143→    user: session.user,
+   144→    userId,
+   145→    dealer,
+   146→    dealerId: dealer._id || dealer,
+   147→    membership: {
+   148→      id: membership._id,
+   149→      role: membership.role,
+   150→    },
+   151→    role: membership.role,
+   152→  };
+   153→}
+   154→
+   155→/**
+   156→ * Check if user has required role(s)
+   157→ *
+   158→ * @param {{ role: string }} membership - Membership object with role
+   159→ * @param {string[]} allowedRoles - Array of allowed roles
+   160→ * @throws {AuthError} if role not allowed
+   161→ */
+   162→export function requireRole(membership, allowedRoles) {
+   163→  if (!allowedRoles.includes(membership.role)) {
+   164→    throw new AuthError(
+   165→      `This action requires ${allowedRoles.join(" or ")} role`,
+   166→      403
+   167→    );
+   168→  }
+   169→}
+   170→
+   171→/**
+   172→ * Check if user can manage team (OWNER or ADMIN)
+   173→ *
+   174→ * @param {{ role: string }} membership
+   175→ * @throws {AuthError} if not allowed
+   176→ */
+   177→export function requireTeamManagement(membership) {
+   178→  requireRole(membership, ["OWNER", "ADMIN"]);
+   179→}
+   180→
+   181→/**
+   182→ * Check if user can assign a specific role
+   183→ * - OWNER can assign any role
+   184→ * - ADMIN can assign ADMIN, STAFF, WORKSHOP (not OWNER)
+   185→ *
+   186→ * @param {{ role: string }} membership - Current user's membership
+   187→ * @param {string} targetRole - Role being assigned
+   188→ * @throws {AuthError} if not allowed
+   189→ */
+   190→export function canAssignRole(membership, targetRole) {
+   191→  if (membership.role === "OWNER") {
+   192→    return true; // Owner can assign any role
+   193→  }
+   194→
+   195→  if (membership.role === "ADMIN") {
+   196→    if (targetRole === "OWNER") {
+   197→      throw new AuthError("Only owners can assign the OWNER role", 403);
+   198→    }
+   199→    return true;
+   200→  }
+   201→
+   202→  throw new AuthError("You don't have permission to manage team members", 403);
+   203→}
+   204→
+   205→/**
+   206→ * Wrapper for API routes with dealer context
+   207→ * Automatically handles errors and returns proper status codes
+   208→ *
+   209→ * @param {function} handler - Async handler function(req, res, ctx)
+   210→ * @returns {function} Wrapped handler
+   211→ *
+   212→ * @example
+   213→ * export default withDealerContext(async (req, res, ctx) => {
+   214→ *   const { dealerId, userId, role } = ctx;
+   215→ *   // Your logic here
+   216→ * });
+   217→ */
+   218→export function withDealerContext(handler) {
+   219→  return async (req, res) => {
+   220→    try {
+   221→      const ctx = await requireDealerContext(req, res);
+   222→      return await handler(req, res, ctx);
+   223→    } catch (error) {
+   224→      console.error("[withDealerContext]", error.message);
+   225→      const status = error.status || 500;
+   226→      return res.status(status).json({ error: error.message });
+   227→    }
+   228→  };
+   229→}
+   230→
+   231→/**
+   232→ * Wrapper for API routes that only need auth (no dealer context)
+   233→ *
+   234→ * @param {function} handler - Async handler function(req, res, ctx)
+   235→ * @returns {function} Wrapped handler
+   236→ */
+   237→export function withAuth(handler) {
+   238→  return async (req, res) => {
+   239→    try {
+   240→      const ctx = await requireAuth(req, res);
+   241→      return await handler(req, res, ctx);
+   242→    } catch (error) {
+   243→      console.error("[withAuth]", error.message);
+   244→      const status = error.status || 500;
+   245→      return res.status(status).json({ error: error.message });
+   246→    }
+   247→  };
+   248→}
+   249→
+   250→/**
+   251→ * Get all memberships for a user (for dealer switcher UI)
+   252→ *
+   253→ * @param {string} userId
+   254→ * @returns {Promise<Array>}
+   255→ */
+   256→export async function getUserMemberships(userId) {
+   257→  await connectMongo();
+   258→  return DealerMembership.findActive({ userId })
+   259→    .populate("dealerId", "name logoUrl")
+   260→    .sort({ lastActiveAt: -1 })
+   261→    .lean();
+   262→}
+   263→
+   264→/**
+   265→ * Require SUPER_ADMIN role for platform admin routes
+   266→ * This is completely separate from dealer context.
+   267→ *
+   268→ * @param {object} req - Request object
+   269→ * @param {object} res - Response object
+   270→ * @returns {Promise<{ user: object, userId: string }>}
+   271→ * @throws {AuthError} if not authenticated or not SUPER_ADMIN
+   272→ */
+   273→export async function requireSuperAdmin(req, res) {
+   274→  await connectMongo();
+   275→
+   276→  const session = await getServerSession(req, res, authOptions);
+   277→  if (!session?.user?.id) {
+   278→    throw new AuthError("Unauthorized - Please sign in", 401);
+   279→  }
+   280→
+   281→  const userId = session.user.id;
+   282→  const user = await User.findById(userId).lean();
+   283→
+   284→  if (!user || user.role !== PLATFORM_ROLES.SUPER_ADMIN) {
+   285→    throw new AuthError("Access denied. This area is restricted to platform administrators.", 403);
+   286→  }
+   287→
+   288→  return {
+   289→    user: { ...session.user, role: user.role },
+   290→    userId,
+   291→  };
+   292→}
+   293→
+   294→/**
+   295→ * Wrapper for API routes that require SUPER_ADMIN
+   296→ *
+   297→ * @param {function} handler - Async handler function(req, res, ctx)
+   298→ * @returns {function} Wrapped handler
+   299→ */
+   300→export function withSuperAdmin(handler) {
+   301→  return async (req, res) => {
+   302→    try {
+   303→      const ctx = await requireSuperAdmin(req, res);
+   304→      return await handler(req, res, ctx);
+   305→    } catch (error) {
+   306→      console.error("[withSuperAdmin]", error.message);
+   307→      const status = error.status || 500;
+   308→      return res.status(status).json({ error: error.message });
+   309→    }
+   310→  };
+   311→}
+   312→
+   313→export { MEMBERSHIP_ROLES, PLATFORM_ROLES };
+   314→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

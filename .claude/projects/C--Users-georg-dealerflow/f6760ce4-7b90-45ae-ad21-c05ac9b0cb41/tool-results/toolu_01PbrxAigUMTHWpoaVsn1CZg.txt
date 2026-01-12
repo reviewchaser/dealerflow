@@ -1,0 +1,404 @@
+  2270→                      }`}
+  2271→                      value={selectedCase.bookedInAt ? new Date(selectedCase.bookedInAt).toISOString().slice(0, 16) : ""}
+  2272→                      onChange={async (e) => {
+  2273→                        const newValue = e.target.value ? new Date(e.target.value).toISOString() : null;
+  2274→                        const oldValue = selectedCase.bookedInAt || null;
+  2275→                        await updateCase({
+  2276→                          bookedInAt: newValue,
+  2277→                          _eventType: "BOOKING_UPDATED",
+  2278→                          _eventMetadata: { oldBookedAt: oldValue, newBookedAt: newValue }
+  2279→                        }, newValue ? "Booking updated" : null);
+  2280→                      }}
+  2281→                    />
+  2282→                    {selectedCase.bookedInAt && (
+  2283→                      <button
+  2284→                        className="inline-flex items-center gap-1 mt-2 px-2 py-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+  2285→                        onClick={async () => {
+  2286→                          const oldValue = selectedCase.bookedInAt;
+  2287→                          await updateCase({
+  2288→                            bookedInAt: null,
+  2289→                            _eventType: "BOOKING_UPDATED",
+  2290→                            _eventMetadata: { oldBookedAt: oldValue, newBookedAt: null }
+  2291→                          }, "Booking cleared");
+  2292→                        }}
+  2293→                      >
+  2294→                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2295→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  2296→                        </svg>
+  2297→                        Clear booking
+  2298→                      </button>
+  2299→                    )}
+  2300→                  </div>
+  2301→                </div>
+  2302→              </div>
+  2303→
+  2304→              {/* Parts Required Section */}
+  2305→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  2306→                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+  2307→                  <h3 className="text-sm font-semibold text-slate-900">Parts</h3>
+  2308→                  {selectedCase.partsRequired && (
+  2309→                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+  2310→                      Required
+  2311→                    </span>
+  2312→                  )}
+  2313→                </div>
+  2314→                <div className="p-4 space-y-3">
+  2315→                  <label className="flex items-center gap-3 cursor-pointer group">
+  2316→                    <div className="relative">
+  2317→                      <input
+  2318→                        type="checkbox"
+  2319→                        className="sr-only peer"
+  2320→                        checked={selectedCase.partsRequired || false}
+  2321→                        onChange={async (e) => {
+  2322→                          const newValue = e.target.checked;
+  2323→                          const oldValue = selectedCase.partsRequired || false;
+  2324→                          await updateCase({
+  2325→                            partsRequired: newValue,
+  2326→                            _eventType: "PARTS_UPDATED",
+  2327→                            _eventMetadata: { partsRequired: newValue, wasRequired: oldValue }
+  2328→                          }, newValue ? "Parts required marked" : "Parts not required");
+  2329→                        }}
+  2330→                      />
+  2331→                      <div className="w-10 h-6 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
+  2332→                      <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+  2333→                    </div>
+  2334→                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Parts required</span>
+  2335→                  </label>
+  2336→
+  2337→                  {selectedCase.partsRequired && (
+  2338→                    <div className="pt-2 border-t border-slate-100">
+  2339→                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Parts Notes</label>
+  2340→                      <textarea
+  2341→                        className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm resize-none"
+  2342→                        rows={2}
+  2343→                        value={selectedCase.partsNotes || ""}
+  2344→                        placeholder="List parts needed, order status, etc..."
+  2345→                        onChange={(e) => setSelectedCase({ ...selectedCase, partsNotes: e.target.value })}
+  2346→                        onBlur={() => updateCase({
+  2347→                          partsNotes: selectedCase.partsNotes,
+  2348→                          _eventType: "PARTS_UPDATED",
+  2349→                          _eventMetadata: { partsNotes: selectedCase.partsNotes }
+  2350→                        })}
+  2351→                      />
+  2352→                    </div>
+  2353→                  )}
+  2354→                </div>
+  2355→              </div>
+  2356→
+  2357→              {/* Courtesy Car Section */}
+  2358→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  2359→                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+  2360→                  <div className="flex items-center gap-2">
+  2361→                    <span className="text-base">🚗</span>
+  2362→                    <h3 className="text-sm font-semibold text-slate-900">Courtesy Car</h3>
+  2363→                  </div>
+  2364→                  {selectedCase.courtesyAllocation?.status === "OUT" && (
+  2365→                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+  2366→                      Out
+  2367→                    </span>
+  2368→                  )}
+  2369→                </div>
+  2370→                <div className="p-4 space-y-3">
+  2371→                  {/* Toggle: Courtesy Required */}
+  2372→                  <label className="flex items-center gap-3 cursor-pointer group">
+  2373→                    <div className="relative">
+  2374→                      <input
+  2375→                        type="checkbox"
+  2376→                        className="sr-only peer"
+  2377→                        checked={selectedCase.courtesyRequired || false}
+  2378→                        onChange={async (e) => {
+  2379→                          const newValue = e.target.checked;
+  2380→                          await updateCase({
+  2381→                            courtesyRequired: newValue,
+  2382→                            _eventType: "COURTESY_REQUIRED_TOGGLED",
+  2383→                            _eventMetadata: { courtesyRequired: newValue }
+  2384→                          }, newValue ? "Courtesy car marked as required" : "Courtesy car not required");
+  2385→                        }}
+  2386→                      />
+  2387→                      <div className="w-10 h-6 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
+  2388→                      <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4"></div>
+  2389→                    </div>
+  2390→                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Courtesy car required</span>
+  2391→                  </label>
+  2392→
+  2393→                  {/* Allocation Display / Controls */}
+  2394→                  {selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "OUT" ? (
+  2395→                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 space-y-2">
+  2396→                      <div className="flex items-center justify-between">
+  2397→                        <span className="text-sm font-medium text-emerald-800">Currently Allocated</span>
+  2398→                        <span className="inline-flex items-center bg-amber-100 border border-amber-300 rounded-lg px-2 py-0.5 font-mono font-bold text-slate-900 text-xs tracking-wider uppercase">
+  2399→                          {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent || "N/A"}
+  2400→                        </span>
+  2401→                      </div>
+  2402→                      {selectedCase.courtesyAllocation.courtesyVehicle && (
+  2403→                        <p className="text-xs text-emerald-700">
+  2404→                          {selectedCase.courtesyAllocation.courtesyVehicle.make} {selectedCase.courtesyAllocation.courtesyVehicle.model}
+  2405→                        </p>
+  2406→                      )}
+  2407→                      {selectedCase.courtesyAllocation.dateDueBack && (
+  2408→                        <p className="text-xs text-emerald-700">
+  2409→                          Due back: {new Date(selectedCase.courtesyAllocation.dateDueBack).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+  2410→                        </p>
+  2411→                      )}
+  2412→                      <button
+  2413→                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors mt-1"
+  2414→                        onClick={returnCourtesy}
+  2415→                      >
+  2416→                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2417→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  2418→                        </svg>
+  2419→                        Mark as Returned
+  2420→                      </button>
+  2421→                    </div>
+  2422→                  ) : selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "RETURNED" ? (
+  2423→                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+  2424→                      <div className="flex items-center gap-2 text-sm text-slate-600">
+  2425→                        <svg className="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2426→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  2427→                        </svg>
+  2428→                        Courtesy car returned
+  2429→                        {selectedCase.courtesyAllocation.courtesyVehicle?.regCurrent && (
+  2430→                          <span className="font-mono text-xs bg-slate-100 px-1.5 py-0.5 rounded">({selectedCase.courtesyAllocation.courtesyVehicle.regCurrent})</span>
+  2431→                        )}
+  2432→                      </div>
+  2433→                    </div>
+  2434→                  ) : selectedCase.courtesyRequired ? (
+  2435→                    <div className="space-y-2 pt-2 border-t border-slate-100">
+  2436→                      <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+  2437→                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2438→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  2439→                        </svg>
+  2440→                        No courtesy car allocated yet
+  2441→                      </p>
+  2442→                      <div>
+  2443→                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Select Vehicle</label>
+  2444→                        <select
+  2445→                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+  2446→                          onFocus={loadCourtesyVehicles}
+  2447→                          onChange={(e) => {
+  2448→                            if (e.target.value) {
+  2449→                              allocateCourtesy(e.target.value);
+  2450→                            }
+  2451→                          }}
+  2452→                          defaultValue=""
+  2453→                        >
+  2454→                          <option value="" disabled>
+  2455→                            {isLoadingCourtesy ? "Loading..." : "Choose courtesy vehicle..."}
+  2456→                          </option>
+  2457→                          {courtesyVehicles.map((v) => (
+  2458→                            <option key={v._id} value={v._id}>
+  2459→                              {v.regCurrent} - {v.make} {v.model}
+  2460→                            </option>
+  2461→                          ))}
+  2462→                          {courtesyVehicles.length === 0 && !isLoadingCourtesy && (
+  2463→                            <option value="" disabled>No courtesy vehicles available</option>
+  2464→                          )}
+  2465→                        </select>
+  2466→                      </div>
+  2467→                    </div>
+  2468→                  ) : null}
+  2469→                </div>
+  2470→              </div>
+  2471→
+  2472→              {/* Quick Actions Row */}
+  2473→              <div className="flex gap-2 flex-wrap">
+  2474→                {selectedCase.aiReview?.payload ? (
+  2475→                  <button
+  2476→                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+  2477→                    onClick={() => setShowRegenerateConfirm(true)}
+  2478→                    disabled={isGeneratingAI}
+  2479→                  >
+  2480→                    {isGeneratingAI ? (
+  2481→                      <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
+  2482→                    ) : (
+  2483→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2484→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  2485→                      </svg>
+  2486→                    )}
+  2487→                    Regenerate AI
+  2488→                  </button>
+  2489→                ) : (
+  2490→                  <button
+  2491→                    className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#0066CC] hover:bg-[#0055BB] rounded-lg transition-colors shadow-sm"
+  2492→                    onClick={() => generateAIReview()}
+  2493→                    disabled={isGeneratingAI}
+  2494→                  >
+  2495→                    {isGeneratingAI ? (
+  2496→                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+  2497→                    ) : (
+  2498→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2499→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+  2500→                      </svg>
+  2501→                    )}
+  2502→                    Generate AI Review
+  2503→                  </button>
+  2504→                )}
+  2505→                <button
+  2506→                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+  2507→                  disabled={!selectedCase.aiReview?.payload?.draftCustomerReply}
+  2508→                  onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftCustomerReply, "Customer reply")}
+  2509→                >
+  2510→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2511→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  2512→                  </svg>
+  2513→                  Customer Reply
+  2514→                </button>
+  2515→                <button
+  2516→                  className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+  2517→                  disabled={!selectedCase.aiReview?.payload?.draftInternalNote}
+  2518→                  onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftInternalNote, "Internal note")}
+  2519→                >
+  2520→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2521→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  2522→                  </svg>
+  2523→                  Internal Note
+  2524→                </button>
+  2525→              </div>
+  2526→
+  2527→              {/* AI Case Review Panel */}
+  2528→              {selectedCase.aiReview?.payload ? (
+  2529→                <div className="bg-[#0066CC]/5/50 rounded-xl border border-[#0066CC]/20 overflow-hidden">
+  2530→                  <div className="px-4 py-3 border-b border-[#0066CC]/10 flex justify-between items-center bg-[#0066CC]/8">
+  2531→                    <h3 className="text-sm font-semibold text-[#0055BB] flex items-center gap-2">
+  2532→                      <span>🤖</span> AI Case Review
+  2533→                    </h3>
+  2534→                    <span className="text-xs text-[#0066CC]">
+  2535→                      Generated {relativeTime(selectedCase.aiReview.generatedAt)}
+  2536→                    </span>
+  2537→                  </div>
+  2538→                  <div className="p-4 space-y-4">
+  2539→                    {/* Summary */}
+  2540→                    <div>
+  2541→                      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Summary</h4>
+  2542→                      <p className="text-sm text-slate-700">{selectedCase.aiReview.payload.summary}</p>
+  2543→                    </div>
+  2544→
+  2545→                    {/* Possible Causes */}
+  2546→                    {selectedCase.aiReview.payload.possibleCauses?.length > 0 && (
+  2547→                      <div>
+  2548→                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Possible Causes</h4>
+  2549→                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
+  2550→                          {selectedCase.aiReview.payload.possibleCauses.map((cause, i) => (
+  2551→                            <li key={i}>{cause}</li>
+  2552→                          ))}
+  2553→                        </ul>
+  2554→                      </div>
+  2555→                    )}
+  2556→
+  2557→                    {/* Recommended Steps */}
+  2558→                    {selectedCase.aiReview.payload.recommendedSteps?.length > 0 && (
+  2559→                      <div>
+  2560→                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Recommended Next Steps</h4>
+  2561→                        <ol className="text-sm text-slate-700 list-decimal list-inside space-y-1">
+  2562→                          {selectedCase.aiReview.payload.recommendedSteps.map((step, i) => (
+  2563→                            <li key={i}>{step}</li>
+  2564→                          ))}
+  2565→                        </ol>
+  2566→                      </div>
+  2567→                    )}
+  2568→
+  2569→                    {/* Warranty Considerations */}
+  2570→                    {selectedCase.aiReview.payload.warrantyConsiderations?.length > 0 && (
+  2571→                      <div>
+  2572→                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Warranty Considerations</h4>
+  2573→                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
+  2574→                          {selectedCase.aiReview.payload.warrantyConsiderations.map((item, i) => (
+  2575→                            <li key={i}>{item}</li>
+  2576→                          ))}
+  2577→                        </ul>
+  2578→                      </div>
+  2579→                    )}
+  2580→
+  2581→                    {/* Draft Customer Reply */}
+  2582→                    {selectedCase.aiReview.payload.draftCustomerReply && (
+  2583→                      <div>
+  2584→                        <div className="flex justify-between items-center mb-1.5">
+  2585→                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Customer Reply</h4>
+  2586→                          <button
+  2587→                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0066CC] hover:text-[#0066CC] hover:bg-[#0066CC]/10 rounded transition-colors"
+  2588→                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftCustomerReply, "Customer reply")}
+  2589→                          >
+  2590→                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2591→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  2592→                            </svg>
+  2593→                            Copy
+  2594→                          </button>
+  2595→                        </div>
+  2596→                        <p className="text-sm bg-white p-3 rounded-lg border border-[#0066CC]/10 whitespace-pre-wrap text-slate-700">
+  2597→                          {selectedCase.aiReview.payload.draftCustomerReply}
+  2598→                        </p>
+  2599→                      </div>
+  2600→                    )}
+  2601→
+  2602→                    {/* Draft Internal Note */}
+  2603→                    {selectedCase.aiReview.payload.draftInternalNote && (
+  2604→                      <div>
+  2605→                        <div className="flex justify-between items-center mb-1.5">
+  2606→                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Internal Note</h4>
+  2607→                          <button
+  2608→                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0066CC] hover:text-[#0066CC] hover:bg-[#0066CC]/10 rounded transition-colors"
+  2609→                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftInternalNote, "Internal note")}
+  2610→                          >
+  2611→                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2612→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  2613→                            </svg>
+  2614→                            Copy
+  2615→                          </button>
+  2616→                        </div>
+  2617→                        <p className="text-sm bg-white p-3 rounded-lg border border-[#0066CC]/10 whitespace-pre-wrap text-slate-700">
+  2618→                          {selectedCase.aiReview.payload.draftInternalNote}
+  2619→                        </p>
+  2620→                      </div>
+  2621→                    )}
+  2622→                  </div>
+  2623→                </div>
+  2624→              ) : (
+  2625→                <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 text-center">
+  2626→                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center text-lg">
+  2627→                    🤖
+  2628→                  </div>
+  2629→                  <p className="text-sm text-slate-500">
+  2630→                    Click "Generate AI Review" to get AI-powered analysis of this case.
+  2631→                  </p>
+  2632→                </div>
+  2633→              )}
+  2634→
+  2635→              {/* AI Diagnostics Panel */}
+  2636→              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+  2637→                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+  2638→                  <h3 className="text-sm font-semibold text-slate-900">AI Diagnostics</h3>
+  2639→                  <button
+  2640→                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
+  2641→                    onClick={fetchAIDiagnostics}
+  2642→                    disabled={isLoadingDiagnostics}
+  2643→                  >
+  2644→                    {isLoadingDiagnostics ? (
+  2645→                      <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
+  2646→                    ) : aiDiagnostics ? (
+  2647→                      <>
+  2648→                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2649→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  2650→                        </svg>
+  2651→                        Refresh
+  2652→                      </>
+  2653→                    ) : (
+  2654→                      <>
+  2655→                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2656→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+  2657→                        </svg>
+  2658→                        Get Suggestions
+  2659→                      </>
+  2660→                    )}
+  2661→                  </button>
+  2662→                </div>
+  2663→                {(aiDiagnostics || isLoadingDiagnostics) && (
+  2664→                  <AISuggestionsPanel
+  2665→                    suggestions={aiDiagnostics?.suggestions}
+  2666→                    isLoading={isLoadingDiagnostics}
+  2667→                    isDummy={aiDiagnostics?.isDummy}
+  2668→                    errorCode={aiDiagnostics?.errorCode}
+  2669→                    errorMessage={aiDiagnostics?.errorMessage}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

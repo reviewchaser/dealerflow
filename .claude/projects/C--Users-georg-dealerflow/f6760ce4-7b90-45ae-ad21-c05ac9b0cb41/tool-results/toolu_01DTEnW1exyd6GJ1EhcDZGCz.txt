@@ -1,0 +1,58 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\px\[id].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   213→      setIsAddingIssue(false);
+   214→    }
+   215→  };
+   216→
+   217→  const handleDeleteIssue = async (issueId) => {
+   218→    if (!confirm("Delete this issue?")) return;
+   219→
+   220→    try {
+   221→      await fetch(`/api/customer-px/issues/${issueId}`, { method: "DELETE" });
+   222→      toast.success("Issue deleted");
+   223→      fetchIssues();
+   224→    } catch (error) {
+   225→      toast.error("Failed to delete");
+   226→    }
+   227→  };
+   228→
+   229→  const handleSendEmail = async (e) => {
+   230→    e.preventDefault();
+   231→    if (!emailTo.trim()) {
+   232→      toast.error("Please enter an email address");
+   233→      return;
+   234→    }
+   235→
+   236→    setIsSendingEmail(true);
+   237→    try {
+   238→      const res = await fetch(`/api/customer-px/${id}/share-email`, {
+   239→        method: "POST",
+   240→        headers: { "Content-Type": "application/json" },
+   241→        body: JSON.stringify({
+   242→          to: emailTo.trim(),
+   243→          message: emailMessage.trim() || undefined,
+   244→          includeValuation,
+   245→        }),
+   246→      });
+   247→
+   248→      const data = await res.json();
+   249→
+   250→      if (!res.ok) {
+   251→        throw new Error(data.error || "Failed to send email");
+   252→      }
+   253→
+   254→      toast.success(`Valuation sent to ${emailTo}`);
+   255→      setShowEmailModal(false);
+   256→      setEmailTo("");
+   257→      setEmailMessage("");
+   258→    } catch (error) {
+   259→      toast.error(error.message || "Failed to send email");
+   260→    } finally {
+   261→      setIsSendingEmail(false);
+   262→    }
+   263→  };
+   264→
+   265→  const totalEstimatedCost = issues.reduce((sum, issue) => sum + (issue.estimatedCost || 0), 0);
+   266→
+   267→  if (isLoading) {
+   268→    return (
+   269→      <DashboardLayout>

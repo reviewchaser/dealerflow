@@ -1,0 +1,24 @@
+The file C:\Users\georg\dealerflow\pages\api\dvla-lookup.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   193→  const motExpiryDate = new Date();
+   194→  motExpiryDate.setDate(motExpiryDate.getDate() + daysOffset);
+   195→  const motExpiryStr = motExpiryDate.toISOString().split("T")[0];
+   196→
+   197→  // Create raw DVLA-like data
+   198→  const rawData = {
+   199→    registrationNumber: vehicleReg,
+   200→    make: "FORD",
+   201→    model: "FOCUS",
+   202→    colour: "BLUE",
+   203→    yearOfManufacture: 2019,
+   204→    engineCapacity: 1500,
+   205→    fuelType: "Petrol",
+   206→    transmission: "Manual",
+   207→    taxStatus: "Taxed",
+   208→    taxDueDate: "2025-03-01",
+   209→    motStatus: motStatus,
+   210→    motExpiryDate: motExpiryStr,
+   211→  };
+   212→
+   213→  // Normalize using shared normalizer
+   214→  const normalizedData = normalizeDvlaResponse(rawData);
+   215→

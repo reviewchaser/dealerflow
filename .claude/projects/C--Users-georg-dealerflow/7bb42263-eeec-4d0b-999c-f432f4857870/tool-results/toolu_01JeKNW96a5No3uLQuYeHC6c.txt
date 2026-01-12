@@ -1,0 +1,101 @@
+4817:function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
+4818-  const [isLoading, setIsLoading] = useState(false);
+4819-  const [photoFiles, setPhotoFiles] = useState([]);
+4820-  const [photoPreviews, setPhotoPreviews] = useState([]);
+4821-  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+4822-
+4823-  const handlePhotoChange = (e) => {
+4824-    const files = Array.from(e.target.files);
+4825-    setPhotoFiles(prev => [...prev, ...files]);
+4826-
+4827-    // Create previews
+4828-    files.forEach(file => {
+4829-      const reader = new FileReader();
+4830-      reader.onloadend = () => {
+4831-        setPhotoPreviews(prev => [...prev, reader.result]);
+4832-      };
+4833-      reader.readAsDataURL(file);
+4834-    });
+4835-  };
+4836-
+4837-  const removePhoto = (index) => {
+4838-    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+4839-    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+4840-  };
+4841-
+4842-  const uploadPhotos = async () => {
+4843-    const uploadedUrls = [];
+4844-    for (const file of photoFiles) {
+4845-      const formData = new FormData();
+4846-      formData.append("file", file);
+4847-      const res = await fetch("/api/vehicles/upload", {
+4848-        method: "POST",
+4849-        body: formData,
+4850-      });
+4851-      if (res.ok) {
+4852-        const data = await res.json();
+4853-        // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+4854-        uploadedUrls.push(data.key || data.url);
+4855-      }
+4856-    }
+4857-    return uploadedUrls;
+4858-  };
+4859-
+4860-  const handleSubmit = async (e) => {
+4861-    e.preventDefault();
+4862-    setIsLoading(true);
+4863-    try {
+4864-      // Upload photos first if any
+4865-      let photoUrls = [];
+4866-      if (photoFiles.length > 0) {
+4867-        setIsUploadingPhotos(true);
+4868-        photoUrls = await uploadPhotos();
+4869-        setIsUploadingPhotos(false);
+4870-      }
+4871-      // Pass photo URLs/keys to onSubmit
+4872-      await onSubmit(photoUrls);
+4873-    } finally {
+4874-      setIsLoading(false);
+4875-    }
+4876-  };
+4877-
+4878-  return (
+4879-    <div className="modal modal-open">
+4880-      <div className="modal-box max-w-2xl bg-white">
+4881-        <div className="flex items-center justify-between mb-6">
+4882-          <h3 className="text-xl font-bold text-slate-900">Add Issue</h3>
+4883-          <button
+4884-            type="button"
+4885-            onClick={onClose}
+4886-            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+4887-          >
+4888-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+4889-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+4890-            </svg>
+4891-          </button>
+4892-        </div>
+4893-        <form onSubmit={handleSubmit}>
+4894-          <div className="grid grid-cols-2 gap-4">
+4895-            <div className="form-control">
+4896-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
+4897-              <select
+4898-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-violet-500 focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+4899-                value={issueForm.category}
+4900-                onChange={(e) => {
+4901-                  setIssueForm({ ...issueForm, category: e.target.value, subcategory: "" });
+4902-                }}
+4903-                required
+4904-              >
+4905-                <option value="">Select category...</option>
+4906-                <option value="mechanical">Mechanical</option>
+4907-                <option value="electrical">Electrical</option>
+4908-                <option value="bodywork">Bodywork</option>
+4909-                <option value="interior">Interior</option>
+4910-                <option value="tyres">Tyres</option>
+4911-                <option value="mot">MOT</option>
+4912-                <option value="service">Service</option>
+4913-                <option value="fault_codes">Fault Codes</option>
+4914-                <option value="other">Other</option>
+4915-              </select>
+4916-            </div>
+4917-

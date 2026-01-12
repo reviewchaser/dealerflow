@@ -1,0 +1,104 @@
+  5050→                      <span className="text-[#0066CC]">✓</span>
+  5051→                      <span>{task}</span>
+  5052→                    </div>
+  5053→                  ))}
+  5054→                </div>
+  5055→              </div>
+  5056→            )}
+  5057→          </div>
+  5058→
+  5059→          {/* Notes Section */}
+  5060→          <div className="mb-8">
+  5061→            <div className="form-control">
+  5062→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
+  5063→              <textarea
+  5064→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
+  5065→                rows={4}
+  5066→                value={formData.notes}
+  5067→                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+  5068→              ></textarea>
+  5069→            </div>
+  5070→          </div>
+  5071→
+  5072→          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+  5073→            <button
+  5074→              type="button"
+  5075→              className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
+  5076→              onClick={onClose}
+  5077→            >
+  5078→              Cancel
+  5079→            </button>
+  5080→            <button
+  5081→              type="submit"
+  5082→              className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+  5083→              disabled={isLoading}
+  5084→            >
+  5085→              {isLoading ? <><span className="loading loading-spinner loading-sm"></span><span>Saving...</span></> : "Add Vehicle"}
+  5086→            </button>
+  5087→          </div>
+  5088→        </form>
+  5089→      </div>
+  5090→      <div className="modal-backdrop" onClick={onClose}></div>
+  5091→
+  5092→      {/* Nested Add Issue Modal */}
+  5093→      {showAddIssueInVehicleModal && (
+  5094→        <AddIssueModal
+  5095→          issueForm={newIssueForm}
+  5096→          setIssueForm={setNewIssueForm}
+  5097→          onClose={() => {
+  5098→            setShowAddIssueInVehicleModal(false);
+  5099→            setNewIssueForm({
+  5100→              category: "",
+  5101→              subcategory: "",
+  5102→              description: "",
+  5103→              actionNeeded: "",
+  5104→              status: "Outstanding",
+  5105→              notes: "",
+  5106→              photos: [],
+  5107→            });
+  5108→          }}
+  5109→          onSubmit={() => {
+  5110→            // Validate required fields
+  5111→            if (!newIssueForm.category || !newIssueForm.subcategory || !newIssueForm.description) {
+  5112→              return toast.error("Category, subcategory, and description are required");
+  5113→            }
+  5114→
+  5115→            // Add issue to the array
+  5116→            setInitialIssues([...initialIssues, { ...newIssueForm }]);
+  5117→
+  5118→            // Close modal and reset form
+  5119→            setShowAddIssueInVehicleModal(false);
+  5120→            setNewIssueForm({
+  5121→              category: "",
+  5122→              subcategory: "",
+  5123→              description: "",
+  5124→              actionNeeded: "",
+  5125→              status: "Outstanding",
+  5126→              notes: "",
+  5127→              photos: [],
+  5128→            });
+  5129→            toast.success("Issue added");
+  5130→          }}
+  5131→        />
+  5132→      )}
+  5133→    </div>
+  5134→  );
+  5135→}
+  5136→
+  5137→function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
+  5138→  const [isLoading, setIsLoading] = useState(false);
+  5139→  const [photoFiles, setPhotoFiles] = useState([]);
+  5140→  const [photoPreviews, setPhotoPreviews] = useState([]);
+  5141→  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  5142→
+  5143→  const handlePhotoChange = (e) => {
+  5144→    const files = Array.from(e.target.files);
+  5145→    setPhotoFiles(prev => [...prev, ...files]);
+  5146→
+  5147→    // Create previews
+  5148→    files.forEach(file => {
+  5149→      const reader = new FileReader();
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

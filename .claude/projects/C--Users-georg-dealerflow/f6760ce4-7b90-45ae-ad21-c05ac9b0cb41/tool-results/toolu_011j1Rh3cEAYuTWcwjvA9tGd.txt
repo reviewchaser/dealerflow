@@ -1,0 +1,54 @@
+   245→          {/* Vehicle Details */}
+   246→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   247→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
+   248→
+   249→            {/* VRM Lookup - Mobile responsive: stacked on small screens */}
+   250→            <div className="mb-4">
+   251→              <label className="block text-sm font-medium text-slate-700 mb-1">Registration *</label>
+   252→              <div className="flex flex-col sm:flex-row gap-2">
+   253→                <input
+   254→                  type="text"
+   255→                  required
+   256→                  placeholder="AB12 CDE"
+   257→                  className="w-full sm:flex-1 px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono text-lg"
+   258→                  value={formData.vehicleReg}
+   259→                  onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })}
+   260→                />
+   261→                <button
+   262→                  type="button"
+   263→                  onClick={handleVrmLookup}
+   264→                  disabled={isLookingUp || !formData.vehicleReg}
+   265→                  className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+   266→                >
+   267→                  {isLookingUp ? (
+   268→                    <>
+   269→                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+   270→                      Looking up...
+   271→                    </>
+   272→                  ) : (
+   273→                    <>
+   274→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   275→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+   276→                      </svg>
+   277→                      Lookup
+   278→                    </>
+   279→                  )}
+   280→                </button>
+   281→              </div>
+   282→            </div>
+   283→
+   284→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   285→              <div>
+   286→                <label className="block text-sm font-medium text-slate-700 mb-1">Make</label>
+   287→                <input
+   288→                  type="text"
+   289→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   290→                  value={formData.vehicleMake}
+   291→                  onChange={(e) => setFormData({ ...formData, vehicleMake: e.target.value })}
+   292→                />
+   293→              </div>
+   294→              <div>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

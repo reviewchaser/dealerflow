@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\dashboard.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    79→  };
+    80→  return icons[type] || icons.DEFAULT;
+    81→};
+    82→
+    83→// Default priority forms - PDI is always first as it's the most common daily task
+    84→// COURTESY_IN (Courtesy Car Collection) is also prioritized as a frequently used form
+    85→const DEFAULT_PRIORITY_FORM_TYPES = ["PDI", "TEST_DRIVE", "COURTESY_IN"];
+    86→const ALWAYS_FIRST_FORM_TYPE = "PDI";
+    87→// Customer-facing forms that should NOT appear in internal dashboard/quick forms
+    88→const CUSTOMER_FACING_FORM_TYPES = ["WARRANTY_CLAIM"];
+    89→
+    90→// Needs Attention item configurations

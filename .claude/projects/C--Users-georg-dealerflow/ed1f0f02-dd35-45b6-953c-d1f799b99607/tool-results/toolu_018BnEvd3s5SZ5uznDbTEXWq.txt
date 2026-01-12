@@ -1,0 +1,33 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const reviewRequestSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+     7→    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: true },
+     8→    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+     9→    vehicleSaleId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleSale" },
+    10→    channel: { 
+    11→      type: String, 
+    12→      enum: ["email", "sms", "whatsapp"],
+    13→      default: "email"
+    14→    },
+    15→    status: { 
+    16→      type: String, 
+    17→      enum: ["sent", "opened", "responded", "expired"],
+    18→      default: "sent"
+    19→    },
+    20→    uniqueToken: { type: String, required: true, unique: true },
+    21→    sentAt: { type: Date, default: Date.now },
+    22→    respondedAt: { type: Date },
+    23→  },
+    24→  { timestamps: true }
+    25→);
+    26→
+    27→reviewRequestSchema.plugin(toJSON);
+    28→export default mongoose.models.ReviewRequest || mongoose.model("ReviewRequest", reviewRequestSchema);
+    29→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

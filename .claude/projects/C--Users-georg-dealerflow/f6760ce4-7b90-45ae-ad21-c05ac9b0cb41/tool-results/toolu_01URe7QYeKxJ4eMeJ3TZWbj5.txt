@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\pages\_document.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     4→export default function Document() {
+     5→  return (
+     6→    <Html lang="en" data-theme={config.colors.theme}>
+     7→      <Head>
+     8→        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+     9→        <meta name="theme-color" content={config.colors.main} />
+    10→        <meta name="msapplication-TileColor" content={config.colors.main} />
+    11→
+    12→        <link

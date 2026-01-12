@@ -1,0 +1,44 @@
+  3675→                          />
+  3676→                        </div>
+  3677→                        <div className="form-control">
+  3678→                          <label className="label label-text text-xs">VAT Scheme</label>
+  3679→                          <select
+  3680→                            className="select select-sm select-bordered w-full"
+  3681→                            value={selectedVehicle.vatScheme || "MARGIN"}
+  3682→                            onChange={async (e) => {
+  3683→                              const newValue = e.target.value;
+  3684→                              setSelectedVehicle({ ...selectedVehicle, vatScheme: newValue });
+  3685→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3686→                                method: "PUT",
+  3687→                                headers: { "Content-Type": "application/json" },
+  3688→                                body: JSON.stringify({ vatScheme: newValue }),
+  3689→                              });
+  3690→                              fetchVehicles();
+  3691→                            }}
+  3692→                          >
+  3693→                            <option value="MARGIN">Margin Scheme</option>
+  3694→                            <option value="VAT_QUALIFYING">VAT Qualifying</option>
+  3695→                            <option value="NO_VAT">No VAT</option>
+  3696→                          </select>
+  3697→                          <p className="text-xs text-slate-400 mt-1">
+  3698→                            {selectedVehicle.vatScheme === "VAT_QUALIFYING"
+  3699→                              ? "VAT can be reclaimed on purchase and charged on sale"
+  3700→                              : selectedVehicle.vatScheme === "NO_VAT"
+  3701→                              ? "No VAT applicable (e.g. private purchase)"
+  3702→                              : "VAT is calculated on the profit margin only"}
+  3703→                          </p>
+  3704→                        </div>
+  3705→                        <div className="form-control">
+  3706→                          <label className="label label-text text-xs">Purchase Notes</label>
+  3707→                          <textarea
+  3708→                            className="textarea textarea-bordered textarea-sm"
+  3709→                            rows={2}
+  3710→                            placeholder="Any notes about the purchase..."
+  3711→                            value={selectedVehicle.purchase?.purchaseNotes || ""}
+  3712→                            onChange={(e) => setSelectedVehicle({
+  3713→                              ...selectedVehicle,
+  3714→                              purchase: { ...selectedVehicle.purchase, purchaseNotes: e.target.value }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

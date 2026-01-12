@@ -1,0 +1,34 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import CourtesyAllocation from "@/models/CourtesyAllocation";
+     4→import AftercareCase from "@/models/AftercareCase";
+     5→import User from "@/models/User";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→async function handler(req, res, ctx) {
+     9→  await connectMongo();
+    10→  const { dealerId, userId } = ctx;
+    11→
+    12→  // GET - available courtesy vehicles (not currently OUT on any allocation)
+    13→  if (req.method === "GET") {
+    14→    try {
+    15→      // Get all courtesy vehicles for this dealer
+    16→      const courtesyVehicles = await Vehicle.find({
+    17→        dealerId,
+    18→        type: "COURTESY"
+    19→      }).lean();
+    20→
+    21→      // Get all allocations that are currently OUT
+    22→      const outAllocations = await CourtesyAllocation.find({
+    23→        dealerId,
+    24→        status: "OUT"
+    25→      }).lean();
+    26→
+    27→      const outVehicleIds = outAllocations.map(a => a.courtesyVehicleId?.toString());
+    28→
+    29→      // Filter to only available vehicles (not currently OUT)
+    30→      const availableVehicles = courtesyVehicles.filter(v =>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

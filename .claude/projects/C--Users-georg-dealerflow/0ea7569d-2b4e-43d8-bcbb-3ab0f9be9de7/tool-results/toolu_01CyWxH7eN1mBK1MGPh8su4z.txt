@@ -1,0 +1,5 @@
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\contacts.js
+C:\Users\georg\dealerflow\pages\contacts.js
+C:\Users\georg\dealerflow\.next\static\chunks\pages\app\[dealerSlug]\contacts.js
+C:\Users\georg\dealerflow\.next\server\pages\app\[dealerSlug]\contacts.js
+C:\Users\georg\dealerflow\.next\server\pages\api\contacts.js

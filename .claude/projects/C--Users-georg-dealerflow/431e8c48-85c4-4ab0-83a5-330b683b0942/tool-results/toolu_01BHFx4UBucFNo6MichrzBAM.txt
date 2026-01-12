@@ -1,0 +1,2 @@
+C:\Users\georg\dealerflow\pages\onboarding.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\onboarding.js

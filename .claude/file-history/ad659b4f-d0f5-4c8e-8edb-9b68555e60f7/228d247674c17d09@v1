@@ -1,0 +1,203 @@
+import { useState, useEffect } from "react";
+import Head from "next/head";
+import { useRouter } from "next/router";
+
+export default function PublicAppraisalView() {
+  const router = useRouter();
+  const { token } = router.query;
+
+  const [appraisal, setAppraisal] = useState(null);
+  const [dealerInfo, setDealerInfo] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (token) {
+      fetchAppraisal();
+    }
+  }, [token]);
+
+  const fetchAppraisal = async () => {
+    try {
+      const res = await fetch(`/api/public/appraisal/${token}`);
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || "Invalid or expired link");
+        return;
+      }
+      const data = await res.json();
+      setAppraisal(data.appraisal);
+      setDealerInfo(data.dealer);
+    } catch (err) {
+      setError("Failed to load appraisal");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const STATUS_LABELS = {
+    pending: "Pending Review",
+    reviewed: "Reviewed",
+    converted: "Converted to Stock",
+    declined: "Declined",
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <Head><title>Invalid Link</title></Head>
+        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+          <p className="text-slate-600">{error}</p>
+          <p className="text-sm text-slate-500 mt-4">
+            Please contact the dealership for a new link.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 py-8 px-4">
+      <Head>
+        <title>
+          Vehicle Appraisal - {appraisal?.vehicleReg || ""}
+          {dealerInfo?.name ? ` | ${dealerInfo.name}` : ""}
+        </title>
+      </Head>
+
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          {dealerInfo?.logo && (
+            <img src={dealerInfo.logo} alt={dealerInfo.name} className="h-12 mx-auto mb-4" />
+          )}
+          <h1 className="text-3xl font-bold text-slate-900">Vehicle Appraisal</h1>
+          {dealerInfo?.name && (
+            <p className="text-sm text-slate-500 mt-1">
+              Provided by {dealerInfo.name}
+            </p>
+          )}
+        </div>
+
+        {/* Vehicle Summary Card */}
+        <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-xl bg-amber-100 text-amber-800 px-3 py-1 rounded-lg font-bold">
+                  {appraisal.vehicleReg}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  appraisal.decision === "converted"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : appraisal.decision === "reviewed"
+                    ? "bg-amber-100 text-amber-700"
+                    : appraisal.decision === "declined"
+                    ? "bg-slate-100 text-slate-500"
+                    : "bg-blue-100 text-blue-700"
+                }`}>
+                  {STATUS_LABELS[appraisal.decision] || "Pending"}
+                </span>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mt-2">
+                {appraisal.vehicleYear && `${appraisal.vehicleYear} `}
+                {appraisal.vehicleMake || "Unknown"} {appraisal.vehicleModel || "Vehicle"}
+              </h2>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-slate-500">Appraisal Date</p>
+              <p className="font-semibold text-slate-900">{formatDate(appraisal.createdAt)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Vehicle Details */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-sm text-slate-500">Make</p>
+              <p className="font-medium text-slate-900">{appraisal.vehicleMake || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Model</p>
+              <p className="font-medium text-slate-900">{appraisal.vehicleModel || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Year</p>
+              <p className="font-medium text-slate-900">{appraisal.vehicleYear || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Mileage</p>
+              <p className="font-medium text-slate-900">
+                {appraisal.mileage ? `${appraisal.mileage.toLocaleString()} miles` : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Colour</p>
+              <p className="font-medium text-slate-900">{appraisal.colour || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Fuel Type</p>
+              <p className="font-medium text-slate-900">{appraisal.fuelType || "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Condition Notes */}
+        {appraisal.conditionNotes && (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6">
+            <h3 className="text-lg font-semibold text-slate-900 mb-4">Condition Notes</h3>
+            <p className="text-slate-700 whitespace-pre-wrap">{appraisal.conditionNotes}</p>
+          </div>
+        )}
+
+        {/* Proposed Price (if available) */}
+        {appraisal.proposedPurchasePrice && (
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+            <h3 className="text-lg font-semibold mb-2">Proposed Purchase Price</h3>
+            <p className="text-4xl font-bold">
+              £{appraisal.proposedPurchasePrice.toLocaleString()}
+            </p>
+            <p className="text-sm text-white/70 mt-2">
+              This is an estimated value based on our appraisal. Final price subject to physical inspection.
+            </p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-sm text-slate-500">
+          <p>This is a read-only view of the vehicle appraisal.</p>
+          {dealerInfo?.name && (
+            <p className="mt-1">Contact {dealerInfo.name} for more information.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,63 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   533→        </header>
+   534→        <main className="p-4 md:p-6 lg:p-8 pb-24 md:pb-8 min-w-0 max-w-full overflow-x-hidden">{children}</main>
+   535→      </div>
+   536→
+   537→      {/* Mobile Bottom Navigation - Safe area aware with modern styling */}
+   538→      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-slate-100 md:hidden shadow-lg shadow-slate-200/50" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+   539→        <div className="flex items-center justify-around h-16">
+   540→          {[
+   541→            { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
+   542→            { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
+   543→            { name: "Warranty", href: "/warranty", Icon: WrenchIcon },
+   544→            { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
+   545→            { name: "More", href: null, Icon: CogIcon, isMore: true },
+   546→          ].map((item) => {
+   547→            const isActive = item.href && router.pathname.startsWith(item.href);
+   548→
+   549→            if (item.isMore) {
+   550→              return (
+   551→                <div key={item.name} className="dropdown dropdown-top dropdown-end">
+   552→                  <label tabIndex={0} className="flex flex-col items-center justify-center h-full px-2 py-1.5 cursor-pointer group">
+   553→                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC] transition-all">
+   554→                      <item.Icon className="w-5 h-5" />
+   555→                    </div>
+   556→                    <span className="text-[10px] mt-0.5 text-slate-400 group-hover:text-[#0066CC] transition-colors">{item.name}</span>
+   557→                  </label>
+   558→                  <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
+   559→                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">More Options</li>
+   560→                    <li><Link href="/appraisals" className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+   561→                    <li><Link href="/reviews" className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
+   562→                    <li><Link href="/calendar" className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
+   563→                    <div className="divider my-1 px-3"></div>
+   564→                    <li><Link href="/settings" className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+   565→                  </ul>
+   566→                </div>
+   567→              );
+   568→            }
+   569→
+   570→            return (
+   571→              <Link
+   572→                key={item.name}
+   573→                href={item.href}
+   574→                className="flex flex-col items-center justify-center h-full px-2 py-1.5 group"
+   575→              >
+   576→                <div className={`flex items-center justify-center w-10 h-10 rounded-xl transition-all ${
+   577→                  isActive
+   578→                    ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/30"
+   579→                    : "bg-slate-100 text-slate-400 group-hover:bg-[#0066CC]/10 group-hover:text-[#0066CC]"
+   580→                }`}>
+   581→                  <item.Icon className="w-5 h-5" />
+   582→                </div>
+   583→                <span className={`text-[10px] mt-0.5 transition-colors ${
+   584→                  isActive ? "font-semibold text-[#0066CC]" : "text-slate-400 group-hover:text-[#0066CC]"
+   585→                }`}>{item.name}</span>
+   586→              </Link>
+   587→            );
+   588→          })}
+   589→        </div>
+   590→      </nav>
+   591→
+   592→      {/* Dev-only Tenant Debug Panel */}
+   593→      {process.env.NODE_ENV === "development" && debugContext && (
+   594→        <div className="fixed bottom-20 md:bottom-4 right-4 z-[60]">

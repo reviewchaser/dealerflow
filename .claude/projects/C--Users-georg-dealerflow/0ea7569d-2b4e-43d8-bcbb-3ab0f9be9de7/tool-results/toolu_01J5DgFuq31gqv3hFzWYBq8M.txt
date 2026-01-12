@@ -1,0 +1,25 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    90→      setSelectedDealId(router.query.id);
+    91→    }
+    92→  }, [router.query.id]);
+    93→
+    94→  // Load available vehicles when modal opens
+    95→  const fetchAvailableVehicles = useCallback(async () => {
+    96→    setVehiclesLoading(true);
+    97→    try {
+    98→      // Fetch vehicles that can be sold (not sold status, eligible for sale)
+    99→      const res = await fetch("/api/vehicles?forSale=true");
+   100→      if (!res.ok) throw new Error("Failed to fetch vehicles");
+   101→      const data = await res.json();
+   102→      setAvailableVehicles(data.vehicles || data);
+   103→    } catch (error) {
+   104→      console.error(error);
+   105→      toast.error("Failed to load vehicles");
+   106→    } finally {
+   107→      setVehiclesLoading(false);
+   108→    }
+   109→  }, []);
+   110→
+   111→  useEffect(() => {
+   112→    if (showCreateModal) {
+   113→      fetchAvailableVehicles();

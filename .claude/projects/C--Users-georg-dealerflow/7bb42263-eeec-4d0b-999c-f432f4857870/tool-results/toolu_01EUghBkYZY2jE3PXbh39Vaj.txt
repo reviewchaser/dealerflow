@@ -1,0 +1,54 @@
+  3155→                                <option value="In Progress">In Progress</option>
+  3156→                                <option value="Complete">Complete</option>
+  3157→                              </select>
+  3158→                            </div>
+  3159→
+  3160→                            {/* Issue details */}
+  3161→                            <p className="text-sm font-medium">{issue.description}</p>
+  3162→                            {issue.actionNeeded && (
+  3163→                              <p className="text-xs text-base-content/60 mt-1">Action: {issue.actionNeeded}</p>
+  3164→                            )}
+  3165→                            {issue.notes && (
+  3166→                              <p className="text-xs text-base-content/60 mt-1">Notes: {issue.notes}</p>
+  3167→                            )}
+  3168→
+  3169→                            {/* Photos */}
+  3170→                            {issue.photos && issue.photos.length > 0 && (
+  3171→                              <div className="flex flex-wrap gap-2 mt-2">
+  3172→                                {issue.photos.map((photo, idx) => (
+  3173→                                  <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">
+  3174→                                    <img
+  3175→                                      src={photo}
+  3176→                                      alt={`Issue photo ${idx + 1}`}
+  3177→                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity border border-base-300"
+  3178→                                    />
+  3179→                                  </a>
+  3180→                                ))}
+  3181→                              </div>
+  3182→                            )}
+  3183→
+  3184→                            {/* Updates Timeline */}
+  3185→                            <div className="mt-3">
+  3186→                              <button
+  3187→                                className="btn btn-ghost btn-xs w-full justify-between"
+  3188→                                onClick={() => setExpandedIssues(prev => ({
+  3189→                                  ...prev,
+  3190→                                  [issue.id]: !prev[issue.id]
+  3191→                                }))}
+  3192→                              >
+  3193→                                <span>
+  3194→                                  {expandedIssues[issue.id] ? "Hide" : "Show"} Updates
+  3195→                                  {issue.updates?.length > 0 && ` (${issue.updates.length})`}
+  3196→                                </span>
+  3197→                                <span>{expandedIssues[issue.id] ? "▲" : "▼"}</span>
+  3198→                              </button>
+  3199→
+  3200→                              {expandedIssues[issue.id] && (
+  3201→                                <div className="mt-3 space-y-3">
+  3202→                                  {/* Creation timestamp */}
+  3203→                                  <div className="flex gap-2 text-xs">
+  3204→                                    <div className="w-1 bg-base-300 rounded"></div>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

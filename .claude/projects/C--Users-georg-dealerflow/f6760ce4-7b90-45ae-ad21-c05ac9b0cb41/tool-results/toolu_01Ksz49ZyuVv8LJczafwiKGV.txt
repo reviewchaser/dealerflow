@@ -1,0 +1,89 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2822→                </button>
+  2823→              </div>
+  2824→            </div>
+  2825→
+  2826→            {/* Tabs - Styled dropdown on mobile, pills on desktop */}
+  2827→            <div className="bg-base-100 border-b border-base-300 px-4 py-3 overflow-x-hidden">
+  2828→              {/* Mobile: Visible labeled dropdown */}
+  2829→              <div className="md:hidden">
+  2830→                <div className="flex items-center gap-2">
+  2831→                  <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Section:</span>
+  2832→                  <div className="relative flex-1">
+  2833→                    <select
+  2834→                      value={activeTab}
+  2835→                      onChange={(e) => {
+  2836→                        setActiveTab(e.target.value);
+  2837→                        if (e.target.value === "activity" && selectedVehicle?.id) {
+  2838→                          fetchActivity(selectedVehicle.id);
+  2839→                        }
+  2840→                      }}
+  2841→                      className="w-full appearance-none bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 pr-10 font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+  2842→                    >
+  2843→                      <option value="overview">Overview</option>
+  2844→                      <option value="checklist">
+  2845→                        Checklist {selectedVehicle.tasks?.length > 0 ? `(${selectedVehicle.tasks.length})` : ""}
+  2846→                      </option>
+  2847→                      <option value="issues">
+  2848→                        Issues {selectedVehicle.issues?.length > 0 ? `(${selectedVehicle.issues.length})` : ""}
+  2849→                      </option>
+  2850→                      <option value="documents">
+  2851→                        Documents {selectedVehicle.documents?.length > 0 ? `(${selectedVehicle.documents.length})` : ""}
+  2852→                      </option>
+  2853→                      <option value="activity">Activity</option>
+  2854→                    </select>
+  2855→                    {/* Chevron icon */}
+  2856→                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+  2857→                      <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2858→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+  2859→                      </svg>
+  2860→                    </div>
+  2861→                  </div>
+  2862→                </div>
+  2863→              </div>
+  2864→
+  2865→              {/* Desktop: Tab pills */}
+  2866→              <div className="hidden md:block">
+  2867→                <div className="tabs tabs-bordered">
+  2868→                  <button
+  2869→                    className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+  2870→                    onClick={() => setActiveTab("overview")}
+  2871→                  >
+  2872→                    Overview
+  2873→                  </button>
+  2874→                  <button
+  2875→                    className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
+  2876→                    onClick={() => setActiveTab("checklist")}
+  2877→                  >
+  2878→                    Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
+  2879→                  </button>
+  2880→                  <button
+  2881→                    className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
+  2882→                    onClick={() => setActiveTab("issues")}
+  2883→                  >
+  2884→                    Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
+  2885→                  </button>
+  2886→                  <button
+  2887→                    className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
+  2888→                    onClick={() => setActiveTab("documents")}
+  2889→                  >
+  2890→                    Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
+  2891→                  </button>
+  2892→                  <button
+  2893→                    className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
+  2894→                    onClick={() => {
+  2895→                      setActiveTab("activity");
+  2896→                      if (selectedVehicle?.id) {
+  2897→                        fetchActivity(selectedVehicle.id);
+  2898→                      }
+  2899→                    }}
+  2900→                  >
+  2901→                    Activity
+  2902→                  </button>
+  2903→                </div>
+  2904→              </div>
+  2905→            </div>
+  2906→
+  2907→            <div className="p-6 space-y-6">
+  2908→              {/* Overview Tab */}
+  2909→              {activeTab === "overview" && (

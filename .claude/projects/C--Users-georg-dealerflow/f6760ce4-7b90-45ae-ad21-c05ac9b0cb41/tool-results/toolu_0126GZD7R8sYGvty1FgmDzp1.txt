@@ -1,0 +1,105 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const holidayRequestSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true, index: true },
+     7→    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+     8→    userName: { type: String }, // cached for display (full name)
+     9→    userEmail: { type: String }, // cached for fallback display
+    10→    startDate: { type: Date, required: true },
+    11→    endDate: { type: Date, required: true },
+    12→    // AM/PM session support for half-days
+    13→    startSession: {
+    14→      type: String,
+    15→      enum: ["AM", "PM"],
+    16→      default: "AM"
+    17→    },
+    18→    endSession: {
+    19→      type: String,
+    20→      enum: ["AM", "PM"],
+    21→      default: "PM"
+    22→    },
+    23→    totalDaysRequested: { type: Number }, // legacy: user-entered days (no longer required)
+    24→    totalDaysComputed: { type: Number }, // server-computed days based on sessions
+    25→    totalDays: { type: Number }, // legacy field - kept for backwards compat
+    26→    type: {
+    27→      type: String,
+    28→      enum: ["Holiday", "Sick", "Unpaid", "Other"], // Unpaid kept for legacy, removed from UI
+    29→      default: "Holiday"
+    30→    },
+    31→    notes: { type: String },
+    32→    status: {
+    33→      type: String,
+    34→      enum: ["PENDING", "APPROVED", "REJECTED"],
+    35→      default: "PENDING"
+    36→    },
+    37→    reviewedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    38→    reviewedByName: { type: String },
+    39→    reviewedAt: { type: Date },
+    40→    adminNote: { type: String },
+    41→    // Legacy single event ID - kept for backwards compatibility
+    42→    linkedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
+    43→    // Array of daily calendar event IDs (one per day in the range)
+    44→    linkedCalendarEventIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" }],
+    45→  },
+    46→  { timestamps: true }
+    47→);
+    48→
+    49→// Index for efficient queries
+    50→holidayRequestSchema.index({ dealerId: 1, status: 1 });
+    51→holidayRequestSchema.index({ dealerId: 1, userId: 1 });
+    52→
+    53→/**
+    54→ * Compute total days based on start/end dates and AM/PM sessions
+    55→ * Rules:
+    56→ * - Same day: AM→AM = 0.5, AM→PM = 1.0, PM→PM = 0.5, PM→AM = invalid
+    57→ * - Multi-day:
+    58→ *   - Start day: PM = 0.5, AM = 1.0
+    59→ *   - End day: AM = 0.5, PM = 1.0
+    60→ *   - Middle days: 1.0 each
+    61→ */
+    62→holidayRequestSchema.statics.computeTotalDays = function(startDate, endDate, startSession, endSession) {
+    63→  const start = new Date(startDate);
+    64→  const end = new Date(endDate);
+    65→
+    66→  // Normalize to midnight for day calculation
+    67→  start.setHours(0, 0, 0, 0);
+    68→  end.setHours(0, 0, 0, 0);
+    69→
+    70→  // Calculate full days between
+    71→  const msPerDay = 1000 * 60 * 60 * 24;
+    72→  const daysDiff = Math.round((end - start) / msPerDay);
+    73→
+    74→  if (daysDiff < 0) return null; // Invalid: end before start
+    75→
+    76→  // Same day
+    77→  if (daysDiff === 0) {
+    78→    if (startSession === "PM" && endSession === "AM") {
+    79→      return null; // Invalid: PM→AM same day
+    80→    }
+    81→    if (startSession === "AM" && endSession === "PM") {
+    82→      return 1.0; // Full day
+    83→    }
+    84→    // AM→AM or PM→PM = half day
+    85→    return 0.5;
+    86→  }
+    87→
+    88→  // Multi-day
+    89→  // Start day contribution
+    90→  const startDayValue = startSession === "PM" ? 0.5 : 1.0;
+    91→  // End day contribution
+    92→  const endDayValue = endSession === "AM" ? 0.5 : 1.0;
+    93→  // Middle days (full days)
+    94→  const middleDays = daysDiff - 1;
+    95→
+    96→  return startDayValue + middleDays + endDayValue;
+    97→};
+    98→
+    99→holidayRequestSchema.plugin(toJSON);
+   100→export default mongoose.models?.HolidayRequest || mongoose.model("HolidayRequest", holidayRequestSchema);
+   101→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

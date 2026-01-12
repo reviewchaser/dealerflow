@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\models\Vehicle.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   139→    motHistoryFetchedAt: { type: Date },
+   140→
+   141→    // Form integrations
+   142→    testDriveCount: { type: Number, default: 0 },
+   143→    pdiSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   144→    pdiCompletedAt: { type: Date },
+   145→    deliverySubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   146→    serviceReceiptSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+   147→    serviceReceiptCompletedAt: { type: Date },
+   148→    // Sale tracking
+   149→    soldAt: { type: Date },
+   150→    // Audit fields
+   151→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   152→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

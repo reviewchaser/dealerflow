@@ -1,0 +1,19 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2302→                                  {count} {category}
+  2303→                                </span>
+  2304→                              );
+  2305→                            })}
+  2306→                            {vehicle.locationId && (
+  2307→                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#0066CC]/10 text-[#0066CC] border border-[#0066CC]/20">
+  2308→                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2309→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+  2310→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  2311→                                </svg>
+  2312→                                {vehicle.locationId.name}
+  2313→                              </span>
+  2314→                            )}
+  2315→                            {/* Custom Labels */}
+  2316→                            {vehicle.labels?.map((label) => (
+  2317→                              <span
+  2318→                                key={label.id}
+  2319→                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border"

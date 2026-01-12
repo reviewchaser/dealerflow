@@ -1,0 +1,20 @@
+198:  const [vrmSearch, setVrmSearch] = useState("");
+200:  const [vrmSearchResults, setVrmSearchResults] = useState([]);
+201:  const [vrmSearchLoading, setVrmSearchLoading] = useState(false);
+202:  const vrmSearchTimeout = useRef(null);
+1245:  // VRM Search functions - debounced API search
+1266:      console.error("VRM search error:", err);
+1277:    if (vrmSearchTimeout.current) {
+1278:      clearTimeout(vrmSearchTimeout.current);
+1284:      vrmSearchTimeout.current = setTimeout(() => {
+1296:      if (vrmSearchTimeout.current) {
+1297:        clearTimeout(vrmSearchTimeout.current);
+1695:                  value={vrmSearch}
+1698:                    if (vrmSearch.length >= 2) {
+1700:                      if (vrmSearchResults.length === 0) {
+1701:                        searchVehiclesApi(vrmSearch);
+1712:                {vrmSearch && (
+1733:                    {vrmSearchLoading ? (
+1738:                    ) : vrmSearchResults.length > 0 ? (
+1740:                        {vrmSearchResults.map((vehicle, idx) => (
+1751:                                {idx === 0 && vrmSearchResults.filter(v => v.regCurrent === vehicle.regCurrent).length > 1 && (

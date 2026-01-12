@@ -1,0 +1,178 @@
+/**
+ * Tenant Stock Page - /app/[dealerSlug]/stock
+ */
+
+import Head from "next/head";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+import { useState, useEffect, useCallback } from "react";
+import VehicleDrawer from "@/components/VehicleDrawer";
+
+// Status mapping for display
+const STATUS_LABELS = {
+  in_stock: "In Prep",
+  in_prep: "Advertised",
+  live: "Sold In Progress",
+  reserved: "Completed",
+  delivered: "Delivered",
+};
+
+const STATUS_COLORS = {
+  in_stock: "bg-blue-100 text-blue-700",
+  in_prep: "bg-amber-100 text-amber-700",
+  live: "bg-emerald-100 text-emerald-700",
+  reserved: "bg-purple-100 text-purple-700",
+  delivered: "bg-slate-100 text-slate-600",
+};
+
+// Inner component that uses context (rendered AFTER DealerProvider is set up)
+function StockContent({ dealer }) {
+  const { fetchWithTenant } = useDealer();
+  const [vehicles, setVehicles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const loadVehicles = useCallback(async () => {
+    try {
+      const res = await fetchWithTenant("/api/vehicles");
+      if (res.ok) {
+        const data = await res.json();
+        setVehicles(data);
+      }
+    } catch (err) {
+      console.error("Error loading vehicles:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchWithTenant]);
+
+  useEffect(() => {
+    loadVehicles();
+  }, [loadVehicles]);
+
+  const openDrawer = (vehicle) => {
+    setSelectedVehicle(vehicle);
+    setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSelectedVehicle(null);
+  };
+
+  const filteredVehicles = vehicles.filter(v =>
+    statusFilter === "all" || v.status === statusFilter
+  );
+
+  const statusCounts = vehicles.reduce((acc, v) => {
+    acc[v.status] = (acc[v.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <>
+      <Head><title>Stock | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Stock & Prep</h1>
+        <p className="text-slate-600 mt-1">Manage your vehicle inventory</p>
+      </div>
+
+      {/* Status filter tabs */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setStatusFilter("all")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            statusFilter === "all" ? "bg-[#0066CC] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          All ({vehicles.length})
+        </button>
+        {Object.entries(STATUS_LABELS).map(([status, label]) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === status ? "bg-[#0066CC] text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {label} ({statusCounts[status] || 0})
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+        </div>
+      ) : filteredVehicles.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h8m-8 4h8m-8 4h4m-7 4h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No vehicles found</h3>
+          <p className="text-slate-500">Add your first vehicle to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredVehicles.map((vehicle) => (
+            <div
+              key={vehicle.id}
+              onClick={() => openDrawer(vehicle)}
+              className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-lg hover:border-[#0066CC]/30 transition-all cursor-pointer"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="font-mono text-lg font-bold text-slate-900">{vehicle.regCurrent}</p>
+                  <p className="text-sm text-slate-600">{vehicle.make} {vehicle.model}</p>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[vehicle.status]}`}>
+                  {STATUS_LABELS[vehicle.status]}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-sm text-slate-500">
+                {vehicle.year && <span>{vehicle.year}</span>}
+                {vehicle.colour && <span>{vehicle.colour}</span>}
+                {vehicle.mileageCurrent && <span>{Number(vehicle.mileageCurrent).toLocaleString()} mi</span>}
+              </div>
+              {vehicle.dvlaDetails?.fuelType && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">
+                    {vehicle.dvlaDetails.fuelType}
+                  </span>
+                  {vehicle.dvlaDetails.engineCapacity && (
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs">
+                      {vehicle.dvlaDetails.engineCapacity}cc
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Vehicle Drawer */}
+      <VehicleDrawer
+        vehicle={selectedVehicle}
+        isOpen={drawerOpen}
+        onClose={closeDrawer}
+        onUpdate={loadVehicles}
+      />
+    </>
+  );
+}
+
+export default function TenantStock({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <StockContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

@@ -1,0 +1,804 @@
+   500→  const markPartsReceived = async (taskId, orderId) => {
+   501→    try {
+   502→      await fetch(`/api/tasks/${taskId}`, {
+   503→        method: "PUT",
+   504→        headers: { "Content-Type": "application/json" },
+   505→        body: JSON.stringify({
+   506→          updatePartsOrder: {
+   507→            orderId,
+   508→            status: "RECEIVED",
+   509→            receivedAt: new Date().toISOString(),
+   510→          },
+   511→        }),
+   512→      });
+   513→
+   514→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   515→      const data = await res.json();
+   516→      setSelectedVehicle(data);
+   517→      fetchVehicles();
+   518→      toast.success("Parts marked as received");
+   519→    } catch (error) {
+   520→      toast.error("Failed to update parts order");
+   521→    }
+   522→  };
+   523→
+   524→  // Helper to get supplier display name
+   525→  const getSupplierDisplay = (order) => {
+   526→    const labels = {
+   527→      EURO_CAR_PARTS: "Euro Car Parts",
+   528→      TPS: "TPS",
+   529→      MAIN_DEALER: "Main Dealer",
+   530→      LOCAL_FACTOR: "Local Factor",
+   531→      ONLINE: "Online",
+   532→      OTHER: order.supplierName || "Other",
+   533→    };
+   534→    return labels[order.supplierType] || order.supplierType;
+   535→  };
+   536→
+   537→  const updateTaskName = async (taskId, newName) => {
+   538→    if (!newName.trim()) {
+   539→      toast.error("Task name cannot be empty");
+   540→      return;
+   541→    }
+   542→    try {
+   543→      await fetch(`/api/tasks/${taskId}`, {
+   544→        method: "PUT",
+   545→        headers: { "Content-Type": "application/json" },
+   546→        body: JSON.stringify({ name: newName }),
+   547→      });
+   548→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   549→      const data = await res.json();
+   550→      setSelectedVehicle(data);
+   551→      fetchVehicles();
+   552→      setEditingTaskId(null);
+   553→      setEditingTaskName("");
+   554→      toast.success("Task updated");
+   555→    } catch (error) {
+   556→      toast.error("Failed to update task");
+   557→    }
+   558→  };
+   559→
+   560→  const addTask = async () => {
+   561→    if (!newTaskName.trim()) return toast.error("Task name is required");
+   562→    try {
+   563→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/tasks`, {
+   564→        method: "POST",
+   565→        headers: { "Content-Type": "application/json" },
+   566→        body: JSON.stringify({ name: newTaskName }),
+   567→      });
+   568→      if (!res.ok) {
+   569→        const errorData = await res.json();
+   570→        throw new Error(errorData.error || "Failed to add task");
+   571→      }
+   572→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   573→      setSelectedVehicle(updatedVehicle);
+   574→      setNewTaskName("");
+   575→      fetchVehicles();
+   576→      toast.success("Task added");
+   577→    } catch (error) {
+   578→      console.error("Add task error:", error);
+   579→      toast.error(error.message || "Failed to add task");
+   580→    }
+   581→  };
+   582→
+   583→  const deleteTask = async (taskId) => {
+   584→    try {
+   585→      await fetch(`/api/tasks/${taskId}`, { method: "DELETE" });
+   586→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   587→      setSelectedVehicle(updatedVehicle);
+   588→      fetchVehicles();
+   589→      toast.success("Task removed");
+   590→    } catch (error) {
+   591→      toast.error("Failed to delete task");
+   592→    }
+   593→  };
+   594→
+   595→  // Issue functions
+   596→  const addIssue = async (photoUrls = []) => {
+   597→    if (!issueForm.category || !issueForm.subcategory || !issueForm.description) {
+   598→      return toast.error("Category, subcategory, and description are required");
+   599→    }
+   600→    try {
+   601→      const issueData = {
+   602→        ...issueForm,
+   603→        photos: [...(issueForm.photos || []), ...photoUrls],
+   604→      };
+   605→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/issues`, {
+   606→        method: "POST",
+   607→        headers: { "Content-Type": "application/json" },
+   608→        body: JSON.stringify(issueData),
+   609→      });
+   610→      if (!res.ok) {
+   611→        const errorData = await res.json();
+   612→        throw new Error(errorData.error || "Failed to add issue");
+   613→      }
+   614→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   615→      setSelectedVehicle(updatedVehicle);
+   616→      fetchVehicles();
+   617→      setShowAddIssueModal(false);
+   618→      setIssueForm({
+   619→        category: "",
+   620→        subcategory: "",
+   621→        description: "",
+   622→        actionNeeded: "",
+   623→        status: "outstanding",
+   624→        notes: "",
+   625→        photos: [],
+   626→      });
+   627→      toast.success("Issue added");
+   628→    } catch (error) {
+   629→      console.error("Add issue error:", error);
+   630→      toast.error(error.message || "Failed to add issue");
+   631→    }
+   632→  };
+   633→
+   634→  const updateIssue = async (issueId, updates) => {
+   635→    try {
+   636→      const res = await fetch(`/api/issues/${issueId}`, {
+   637→        method: "PUT",
+   638→        headers: { "Content-Type": "application/json" },
+   639→        body: JSON.stringify(updates),
+   640→      });
+   641→      if (!res.ok) throw new Error("Failed to update issue");
+   642→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   643→      setSelectedVehicle(updatedVehicle);
+   644→      fetchVehicles();
+   645→      toast.success("Issue updated");
+   646→    } catch (error) {
+   647→      toast.error("Failed to update issue");
+   648→    }
+   649→  };
+   650→
+   651→  const deleteIssue = async (issueId) => {
+   652→    try {
+   653→      await fetch(`/api/issues/${issueId}`, { method: "DELETE" });
+   654→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   655→      setSelectedVehicle(updatedVehicle);
+   656→      fetchVehicles();
+   657→      toast.success("Issue removed");
+   658→    } catch (error) {
+   659→      toast.error("Failed to delete issue");
+   660→    }
+   661→  };
+   662→
+   663→  const addIssueUpdate = async (issueId, content) => {
+   664→    if (!content?.trim()) {
+   665→      return toast.error("Update content cannot be empty");
+   666→    }
+   667→
+   668→    try {
+   669→      await fetch(`/api/issues/${issueId}`, {
+   670→        method: "POST",
+   671→        headers: { "Content-Type": "application/json" },
+   672→        body: JSON.stringify({
+   673→          content: content.trim(),
+   674→          userName: "Current User" // TODO: Replace with actual user name from auth
+   675→        }),
+   676→      });
+   677→
+   678→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   679→      setSelectedVehicle(updatedVehicle);
+   680→      fetchVehicles();
+   681→      setIssueUpdateContent(prev => ({ ...prev, [issueId]: "" }));
+   682→      toast.success("Update added");
+   683→    } catch (error) {
+   684→      toast.error("Failed to add update");
+   685→    }
+   686→  };
+   687→
+   688→  // Document functions
+   689→  const uploadDocument = async (file, name, type) => {
+   690→    if (!file) return;
+   691→
+   692→    try {
+   693→      // First upload the file
+   694→      const uploadFormData = new FormData();
+   695→      uploadFormData.append("file", file);
+   696→
+   697→      const uploadRes = await fetch("/api/vehicles/upload", {
+   698→        method: "POST",
+   699→        body: uploadFormData,
+   700→      });
+   701→      if (!uploadRes.ok) throw new Error("File upload failed");
+   702→      const uploadData = await uploadRes.json();
+   703→
+   704→      // Then create the document record with the URL
+   705→      const docRes = await fetch(`/api/vehicles/${selectedVehicle.id}/documents`, {
+   706→        method: "POST",
+   707→        headers: { "Content-Type": "application/json" },
+   708→        body: JSON.stringify({ name, type, url: uploadData.url }),
+   709→      });
+   710→      if (!docRes.ok) throw new Error("Document creation failed");
+   711→
+   712→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   713→      setSelectedVehicle(updatedVehicle);
+   714→      fetchVehicles();
+   715→      setShowAddDocumentModal(false);
+   716→      setDocumentForm({ name: "", type: "other", file: null });
+   717→      toast.success("Document uploaded");
+   718→    } catch (error) {
+   719→      console.error("Upload error:", error);
+   720→      toast.error("Failed to upload document");
+   721→    }
+   722→  };
+   723→
+   724→  const deleteDocument = async (documentId) => {
+   725→    try {
+   726→      await fetch(`/api/documents/${documentId}`, { method: "DELETE" });
+   727→      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   728→      setSelectedVehicle(updatedVehicle);
+   729→      fetchVehicles();
+   730→      toast.success("Document removed");
+   731→    } catch (error) {
+   732→      toast.error("Failed to delete document");
+   733→    }
+   734→  };
+   735→
+   736→  const handleDragStart = (e, vehicle) => {
+   737→    setDraggedCard(vehicle);
+   738→    setDragPosition({ x: e.clientX, y: e.clientY });
+   739→    e.dataTransfer.effectAllowed = "move";
+   740→    // Create invisible drag image (we'll render our own preview)
+   741→    const emptyImg = new Image();
+   742→    emptyImg.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+   743→    e.dataTransfer.setDragImage(emptyImg, 0, 0);
+   744→  };
+   745→
+   746→  const handleDrag = (e) => {
+   747→    if (e.clientX !== 0 && e.clientY !== 0) {
+   748→      setDragPosition({ x: e.clientX, y: e.clientY });
+   749→    }
+   750→  };
+   751→
+   752→  const handleDragOver = (e) => {
+   753→    e.preventDefault();
+   754→    e.dataTransfer.dropEffect = "move";
+   755→  };
+   756→
+   757→  const handleDragEnd = () => {
+   758→    setDraggedCard(null);
+   759→  };
+   760→
+   761→  const handleDrop = async (e, newStatus) => {
+   762→    e.preventDefault();
+   763→    if (!draggedCard || draggedCard.status === newStatus) {
+   764→      setDraggedCard(null);
+   765→      return;
+   766→    }
+   767→    const vehicleId = draggedCard.id || draggedCard._id;
+   768→    await updateVehicleStatus(vehicleId, newStatus);
+   769→    setDraggedCard(null);
+   770→  };
+   771→
+   772→  const uploadV5 = async (file) => {
+   773→    if (!file) return;
+   774→
+   775→    try {
+   776→      // First upload the file
+   777→      const formData = new FormData();
+   778→      formData.append("file", file);
+   779→
+   780→      const uploadRes = await fetch("/api/vehicles/upload", {
+   781→        method: "POST",
+   782→        body: formData,
+   783→      });
+   784→      if (!uploadRes.ok) throw new Error("Upload failed");
+   785→      const uploadData = await uploadRes.json();
+   786→
+   787→      // Then update the vehicle with the V5 URL
+   788→      await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+   789→        method: "PUT",
+   790→        headers: { "Content-Type": "application/json" },
+   791→        body: JSON.stringify({ v5Url: uploadData.url }),
+   792→      });
+   793→
+   794→      const updated = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+   795→      setSelectedVehicle(updated);
+   796→      fetchVehicles();
+   797→      toast.success("V5 uploaded");
+   798→    } catch (error) {
+   799→      console.error("V5 upload error:", error);
+   800→      toast.error("Failed to upload V5");
+   801→    }
+   802→  };
+   803→
+   804→  const formatDate = (date) => {
+   805→    if (!date) return "—";
+   806→    return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+   807→  };
+   808→
+   809→  const toggleFilter = (filter) => {
+   810→    setActiveFilters(prev =>
+   811→      prev.includes(filter)
+   812→        ? prev.filter(f => f !== filter)
+   813→        : [...prev, filter]
+   814→    );
+   815→  };
+   816→
+   817→  const getFilteredVehicles = (vehicleList) => {
+   818→    if (activeFilters.length === 0) return vehicleList;
+   819→
+   820→    return vehicleList.filter(vehicle => {
+   821→      return activeFilters.every(filter => {
+   822→        const tasks = vehicle.tasks || [];
+   823→        const issues = vehicle.issues || [];
+   824→        const activeIssues = issues.filter(i => {
+   825→          const status = (i.status || "").toLowerCase();
+   826→          return ["outstanding", "ordered", "in progress", "in_progress"].includes(status);
+   827→        });
+   828→
+   829→        // Prep task filters
+   830→        if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+   831→        if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+   832→        if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+   833→        if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+   834→
+   835→        // Issue filters
+   836→        if (filter === "needs_paint") return activeIssues.some(i => {
+   837→          const cat = (i.category || "").toLowerCase();
+   838→          return cat === "bodywork" || cat === "cosmetic";
+   839→        });
+   840→        if (filter === "needs_mechanical") return activeIssues.some(i => {
+   841→          const cat = (i.category || "").toLowerCase();
+   842→          return cat === "mechanical";
+   843→        });
+   844→        if (filter === "needs_electrical") return activeIssues.some(i => {
+   845→          const cat = (i.category || "").toLowerCase();
+   846→          return cat === "electrical";
+   847→        });
+   848→
+   849→        // Location filter
+   850→        if (filter === "offsite") return vehicle.locationId != null;
+   851→
+   852→        // MOT filters
+   853→        if (filter === "mot_due_soon") {
+   854→          if (!vehicle.motExpiryDate) return false;
+   855→          const expiry = new Date(vehicle.motExpiryDate);
+   856→          const now = new Date();
+   857→          const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+   858→          return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+   859→        }
+   860→        if (filter === "mot_expired") {
+   861→          if (!vehicle.motExpiryDate) return false;
+   862→          const expiry = new Date(vehicle.motExpiryDate);
+   863→          const now = new Date();
+   864→          return expiry < now;
+   865→        }
+   866→
+   867→        // Sale type filters
+   868→        if (filter === "trade_only") return vehicle.saleType === "TRADE";
+   869→        if (filter === "retail_only") return vehicle.saleType === "RETAIL" || !vehicle.saleType;
+   870→
+   871→        // Vehicle type filters
+   872→        if (filter === "type_stock") return vehicle.type === "STOCK" || !vehicle.type;
+   873→        if (filter === "type_courtesy") return vehicle.type === "COURTESY";
+   874→        if (filter === "type_fleet") return vehicle.type === "FLEET_OTHER";
+   875→
+   876→        return true;
+   877→      });
+   878→    });
+   879→  };
+   880→
+   881→  const getVehiclesByStatus = (status) => {
+   882→    const statusVehicles = vehicles.filter(v => v.status === status);
+   883→    const filtered = getFilteredVehicles(statusVehicles);
+   884→
+   885→    // Apply sorting based on columnSortOptions
+   886→    const sortOption = columnSortOptions[status] || "oldest_first";
+   887→
+   888→    return [...filtered].sort((a, b) => {
+   889→      const daysA = a.createdAt ? Math.floor((new Date() - new Date(a.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+   890→      const daysB = b.createdAt ? Math.floor((new Date() - new Date(b.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+   891→
+   892→      switch (sortOption) {
+   893→        case "oldest_first":
+   894→          return daysB - daysA; // More days = older = first
+   895→        case "newest_first":
+   896→          return daysA - daysB; // Fewer days = newer = first
+   897→        case "alphabetical":
+   898→          const nameA = `${a.make || ""} ${a.model || ""}`.toLowerCase();
+   899→          const nameB = `${b.make || ""} ${b.model || ""}`.toLowerCase();
+   900→          return nameA.localeCompare(nameB);
+   901→        default:
+   902→          return daysB - daysA;
+   903→      }
+   904→    });
+   905→  };
+   906→
+   907→  const getFilterCount = (filter) => {
+   908→    const allFiltered = getFilteredVehicles(vehicles.filter(v => {
+   909→      const tasks = v.tasks || [];
+   910→      const issues = v.issues || [];
+   911→      const activeIssues = issues.filter(i => {
+   912→        const status = (i.status || "").toLowerCase();
+   913→        return ["outstanding", "ordered", "in progress", "in_progress"].includes(status);
+   914→      });
+   915→
+   916→      if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+   917→      if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+   918→      if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+   919→      if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+   920→      if (filter === "needs_paint") return activeIssues.some(i => {
+   921→        const cat = (i.category || "").toLowerCase();
+   922→        return cat === "bodywork" || cat === "cosmetic";
+   923→      });
+   924→      if (filter === "needs_mechanical") return activeIssues.some(i => {
+   925→        const cat = (i.category || "").toLowerCase();
+   926→        return cat === "mechanical";
+   927→      });
+   928→      if (filter === "needs_electrical") return activeIssues.some(i => {
+   929→        const cat = (i.category || "").toLowerCase();
+   930→        return cat === "electrical";
+   931→      });
+   932→      if (filter === "offsite") return v.locationId != null;
+   933→      if (filter === "mot_due_soon") {
+   934→        if (!v.motExpiryDate) return false;
+   935→        const expiry = new Date(v.motExpiryDate);
+   936→        const now = new Date();
+   937→        const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+   938→        return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+   939→      }
+   940→      if (filter === "mot_expired") {
+   941→        if (!v.motExpiryDate) return false;
+   942→        const expiry = new Date(v.motExpiryDate);
+   943→        return expiry < new Date();
+   944→      }
+   945→      if (filter === "trade_only") return v.saleType === "TRADE";
+   946→      if (filter === "retail_only") return v.saleType === "RETAIL" || !v.saleType;
+   947→      if (filter === "type_stock") return v.type === "STOCK" || !v.type;
+   948→      if (filter === "type_courtesy") return v.type === "COURTESY";
+   949→      if (filter === "type_fleet") return v.type === "FLEET_OTHER";
+   950→      return false;
+   951→    }));
+   952→    return allFiltered.length;
+   953→  };
+   954→
+   955→  // VRM Search functions
+   956→  const getVrmSearchResults = () => {
+   957→    if (vrmSearch.length < 2) return [];
+   958→    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+   959→    return vehicles.filter(v => {
+   960→      const reg = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+   961→      return reg.includes(searchTerm);
+   962→    }).slice(0, 8); // Limit to 8 results
+   963→  };
+   964→
+   965→  const handleVrmSelect = (vehicle) => {
+   966→    // Close dropdown and clear search
+   967→    setVrmSearch("");
+   968→    setShowVrmDropdown(false);
+   969→
+   970→    // Find which column this vehicle is in and scroll to it
+   971→    const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
+   972→    if (columnIndex >= 0) {
+   973→      // Scroll the column into view
+   974→      const columnElements = document.querySelectorAll('[data-column-key]');
+   975→      if (columnElements[columnIndex]) {
+   976→        columnElements[columnIndex].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+   977→      }
+   978→    }
+   979→
+   980→    // Open the vehicle drawer with full details
+   981→    openVehicleDrawer(vehicle);
+   982→  };
+   983→
+   984→  const getStatusLabel = (statusKey) => {
+   985→    const col = COLUMNS.find(c => c.key === statusKey);
+   986→    return col ? col.label : statusKey;
+   987→  };
+   988→
+   989→  const handlePrintVehicle = () => {
+   990→    if (!selectedVehicle) return;
+   991→
+   992→    const vehicle = selectedVehicle;
+   993→    const tasks = vehicle.tasks || [];
+   994→    const issues = vehicle.issues || [];
+   995→    const documents = vehicle.documents || [];
+   996→    const completedTasks = tasks.filter(t => t.status === "done").length;
+   997→    const daysInStock = vehicle.createdAt
+   998→      ? Math.floor((new Date() - new Date(vehicle.createdAt)) / (1000 * 60 * 60 * 24))
+   999→      : 0;
+  1000→
+  1001→    // Get status label from COLUMNS
+  1002→    const statusColumn = COLUMNS.find(col => col.key === vehicle.status);
+  1003→    const statusLabel = statusColumn ? statusColumn.label : vehicle.status;
+  1004→
+  1005→    // Generate HTML for print
+  1006→    const printContent = `
+  1007→<!DOCTYPE html>
+  1008→<html>
+  1009→<head>
+  1010→  <title>${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.regCurrent}</title>
+  1011→  <style>
+  1012→    * { margin: 0; padding: 0; box-sizing: border-box; }
+  1013→    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+  1014→    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+  1015→    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+  1016→    .reg { font-size: 18px; font-family: monospace; color: #64748b; }
+  1017→    .section { margin-bottom: 30px; }
+  1018→    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  1019→    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  1020→    .field { margin-bottom: 12px; }
+  1021→    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+  1022→    .field-value { font-size: 14px; color: #1e293b; }
+  1023→    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  1024→    .badge-status { background: #e0e7ff; color: #4338ca; }
+  1025→    .badge-days { background: ${daysInStock > 30 ? '#fef2f2' : '#f1f5f9'}; color: ${daysInStock > 30 ? '#dc2626' : '#475569'}; }
+  1026→    .task-list { list-style: none; }
+  1027→    .task-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+  1028→    .task-status { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  1029→    .task-done { background: #dcfce7; color: #16a34a; }
+  1030→    .task-pending { background: #fef3c7; color: #d97706; }
+  1031→    .task-progress { background: #dbeafe; color: #2563eb; }
+  1032→    .issue-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  1033→    .issue-header { display: flex; gap: 8px; margin-bottom: 8px; }
+  1034→    .issue-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  1035→    .issue-desc { font-size: 14px; color: #1e293b; }
+  1036→    .doc-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+  1037→    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+  1038→    @media print {
+  1039→      body { padding: 20px; }
+  1040→      .no-print { display: none; }
+  1041→    }
+  1042→  </style>
+  1043→</head>
+  1044→<body>
+  1045→  <div class="header">
+  1046→    <div class="title">${vehicle.year || ""} ${vehicle.make} ${vehicle.model}</div>
+  1047→    <div class="reg">${vehicle.regCurrent}</div>
+  1048→  </div>
+  1049→
+  1050→  <div class="section">
+  1051→    <div class="section-title">Overview</div>
+  1052→    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+  1053→      <span class="badge badge-status">${statusLabel}</span>
+  1054→      <span class="badge badge-days">Days in Stock: ${daysInStock}</span>
+  1055→      ${vehicle.locationId ? `<span class="badge" style="background:#eef2ff;color:#4f46e5;">📍 ${vehicle.locationId.name || 'Offsite'}</span>` : '<span class="badge" style="background:#f0fdf4;color:#16a34a;">📍 On Site</span>'}
+  1056→    </div>
+  1057→  </div>
+  1058→
+  1059→  <div class="section">
+  1060→    <div class="section-title">Vehicle Details</div>
+  1061→    <div class="grid">
+  1062→      <div class="field">
+  1063→        <div class="field-label">Registration</div>
+  1064→        <div class="field-value">${vehicle.regCurrent || '—'}</div>
+  1065→      </div>
+  1066→      <div class="field">
+  1067→        <div class="field-label">VIN</div>
+  1068→        <div class="field-value">${vehicle.vin || '—'}</div>
+  1069→      </div>
+  1070→      <div class="field">
+  1071→        <div class="field-label">Make</div>
+  1072→        <div class="field-value">${vehicle.make || '—'}</div>
+  1073→      </div>
+  1074→      <div class="field">
+  1075→        <div class="field-label">Model</div>
+  1076→        <div class="field-value">${vehicle.model || '—'}</div>
+  1077→      </div>
+  1078→      <div class="field">
+  1079→        <div class="field-label">Year</div>
+  1080→        <div class="field-value">${vehicle.year || '—'}</div>
+  1081→      </div>
+  1082→      <div class="field">
+  1083→        <div class="field-label">Mileage</div>
+  1084→        <div class="field-value">${vehicle.mileageCurrent ? vehicle.mileageCurrent.toLocaleString() + ' miles' : '—'}</div>
+  1085→      </div>
+  1086→      <div class="field">
+  1087→        <div class="field-label">Colour</div>
+  1088→        <div class="field-value">${vehicle.colour || '—'}</div>
+  1089→      </div>
+  1090→      <div class="field">
+  1091→        <div class="field-label">Fuel Type</div>
+  1092→        <div class="field-value">${vehicle.fuelType || '—'}</div>
+  1093→      </div>
+  1094→      <div class="field">
+  1095→        <div class="field-label">MOT Expiry</div>
+  1096→        <div class="field-value">${vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
+  1097→      </div>
+  1098→    </div>
+  1099→  </div>
+  1100→
+  1101→  <div class="section">
+  1102→    <div class="section-title">Prep Checklist (${completedTasks}/${tasks.length} complete)</div>
+  1103→    ${tasks.length > 0 ? `
+  1104→    <ul class="task-list">
+  1105→      ${tasks.map(task => `
+  1106→        <li class="task-item">
+  1107→          <span class="task-status ${task.status === 'done' ? 'task-done' : task.status === 'in_progress' ? 'task-progress' : 'task-pending'}">
+  1108→            ${task.status === 'done' ? '✓' : task.status === 'in_progress' ? '→' : '○'}
+  1109→          </span>
+  1110→          <span style="${task.status === 'done' ? 'text-decoration: line-through; color: #94a3b8;' : ''}">${task.name}</span>
+  1111→          ${task.completedAt ? `<span style="font-size: 11px; color: #94a3b8; margin-left: auto;">${new Date(task.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>` : ''}
+  1112→        </li>
+  1113→      `).join('')}
+  1114→    </ul>
+  1115→    ` : '<p style="color: #94a3b8; font-size: 14px;">No tasks</p>'}
+  1116→  </div>
+  1117→
+  1118→  <div class="section">
+  1119→    <div class="section-title">Issues (${issues.length})</div>
+  1120→    ${issues.length > 0 ? issues.map(issue => `
+  1121→      <div class="issue-card">
+  1122→        <div class="issue-header">
+  1123→          <span class="issue-badge">${issue.category}</span>
+  1124→          ${issue.subcategory ? `<span class="issue-badge">${issue.subcategory}</span>` : ''}
+  1125→          <span class="issue-badge" style="margin-left: auto;">${issue.status || 'Outstanding'}</span>
+  1126→        </div>
+  1127→        <div class="issue-desc">${issue.description}</div>
+  1128→        ${issue.actionNeeded ? `<div style="font-size: 12px; color: #64748b; margin-top: 6px;">Action: ${issue.actionNeeded}</div>` : ''}
+  1129→      </div>
+  1130→    `).join('') : '<p style="color: #94a3b8; font-size: 14px;">No issues recorded</p>'}
+  1131→  </div>
+  1132→
+  1133→  <div class="section">
+  1134→    <div class="section-title">Documents (${documents.length})</div>
+  1135→    ${documents.length > 0 ? documents.map(doc => `
+  1136→      <div class="doc-item">
+  1137→        <span style="font-weight: 500;">${doc.name}</span>
+  1138→        <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">(${doc.type.replace(/_/g, ' ')})</span>
+  1139→      </div>
+  1140→    `).join('') : '<p style="color: #94a3b8; font-size: 14px;">No documents uploaded</p>'}
+  1141→    ${vehicle.v5Url ? '<div class="doc-item"><span style="font-weight: 500;">V5 Document</span> <span style="font-size: 12px; color: #16a34a;">✓ Uploaded</span></div>' : ''}
+  1142→  </div>
+  1143→
+  1144→  ${vehicle.notes ? `
+  1145→  <div class="section">
+  1146→    <div class="section-title">Notes</div>
+  1147→    <p style="font-size: 14px; white-space: pre-wrap;">${vehicle.notes}</p>
+  1148→  </div>
+  1149→  ` : ''}
+  1150→
+  1151→  <div class="footer">
+  1152→    Printed from DealerFlow on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+  1153→  </div>
+  1154→</body>
+  1155→</html>
+  1156→    `;
+  1157→
+  1158→    // Open in new tab
+  1159→    const printWindow = window.open('', '_blank');
+  1160→    printWindow.document.write(printContent);
+  1161→    printWindow.document.close();
+  1162→  };
+  1163→
+  1164→  // Share utility with fallback chain: Web Share API → Clipboard → Manual modal
+  1165→  // SSR-safe: only runs client-side, with guards for browser API availability
+  1166→  const shareWithFallback = async (url, title, text) => {
+  1167→    // Guard against SSR - this should only run client-side
+  1168→    if (typeof window === "undefined" || typeof navigator === "undefined") {
+  1169→      return false;
+  1170→    }
+  1171→
+  1172→    // 1. Try Web Share API (native sharing on mobile/supported browsers)
+  1173→    if (typeof navigator.share === "function") {
+  1174→      try {
+  1175→        await navigator.share({ title, text, url });
+  1176→        return true;
+  1177→      } catch (error) {
+  1178→        // User cancelled or share failed - continue to fallback
+  1179→        if (error.name !== "AbortError") {
+  1180→          console.log("Web Share API failed, trying clipboard fallback");
+  1181→        }
+  1182→      }
+  1183→    }
+  1184→
+  1185→    // 2. Try Clipboard API
+  1186→    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+  1187→      try {
+  1188→        await navigator.clipboard.writeText(url);
+  1189→        toast.success("Link copied to clipboard!");
+  1190→        return true;
+  1191→      } catch (error) {
+  1192→        console.log("Clipboard API failed, showing manual modal");
+  1193→      }
+  1194→    }
+  1195→
+  1196→    // 3. Fallback to manual modal
+  1197→    setManualShareUrl(url);
+  1198→    setShowManualShareModal(true);
+  1199→    return false;
+  1200→  };
+  1201→
+  1202→  // Job sheet share handlers
+  1203→  const handleGenerateJobSheet = async () => {
+  1204→    if (!selectedVehicle) return;
+  1205→    setIsGeneratingJobSheet(true);
+  1206→    try {
+  1207→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/job-sheet`, {
+  1208→        method: "POST",
+  1209→        headers: { "Content-Type": "application/json" },
+  1210→        body: JSON.stringify({ expiresInDays: 60 }),
+  1211→      });
+  1212→      if (!res.ok) throw new Error("Failed to generate share link");
+  1213→      const data = await res.json();
+  1214→      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+  1215→      setJobSheetLink({
+  1216→        url: fullUrl,
+  1217→        expiresAt: data.expiresAt,
+  1218→      });
+  1219→      setShowJobSheetModal(true);
+  1220→    } catch (error) {
+  1221→      toast.error(error.message);
+  1222→    } finally {
+  1223→      setIsGeneratingJobSheet(false);
+  1224→    }
+  1225→  };
+  1226→
+  1227→  const copyJobSheetLink = async () => {
+  1228→    if (jobSheetLink?.url) {
+  1229→      await shareWithFallback(
+  1230→        jobSheetLink.url,
+  1231→        `Job Sheet - ${selectedVehicle?.regCurrent || "Vehicle"}`,
+  1232→        `Job sheet for ${selectedVehicle?.regCurrent}: ${jobSheetLink.url}`
+  1233→      );
+  1234→    }
+  1235→  };
+  1236→
+  1237→  const shareViaWhatsApp = () => {
+  1238→    if (typeof window === "undefined") return;
+  1239→    if (jobSheetLink?.url) {
+  1240→      const text = `Job sheet for ${selectedVehicle?.regCurrent || "Vehicle"}: ${jobSheetLink.url}`;
+  1241→      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  1242→    }
+  1243→  };
+  1244→
+  1245→  // Prep summary share handlers
+  1246→  const handleGeneratePrepSummary = async () => {
+  1247→    if (!selectedVehicle) return;
+  1248→    setIsGeneratingPrepSummary(true);
+  1249→    try {
+  1250→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/prep-summary`, {
+  1251→        method: "POST",
+  1252→        headers: { "Content-Type": "application/json" },
+  1253→        body: JSON.stringify({ expiresInDays: 60 }),
+  1254→      });
+  1255→      if (!res.ok) throw new Error("Failed to generate share link");
+  1256→      const data = await res.json();
+  1257→      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+  1258→      setPrepSummaryLink({
+  1259→        url: fullUrl,
+  1260→        expiresAt: data.expiresAt,
+  1261→      });
+  1262→      setShowPrepSummaryModal(true);
+  1263→    } catch (error) {
+  1264→      toast.error(error.message);
+  1265→    } finally {
+  1266→      setIsGeneratingPrepSummary(false);
+  1267→    }
+  1268→  };
+  1269→
+  1270→  const copyPrepSummaryLink = async () => {
+  1271→    if (prepSummaryLink?.url) {
+  1272→      await shareWithFallback(
+  1273→        prepSummaryLink.url,
+  1274→        `Prep Summary - ${selectedVehicle?.regCurrent || "Vehicle"}`,
+  1275→        `Prep summary for ${selectedVehicle?.regCurrent}: ${prepSummaryLink.url}`
+  1276→      );
+  1277→    }
+  1278→  };
+  1279→
+  1280→  const sharePrepSummaryViaWhatsApp = () => {
+  1281→    if (typeof window === "undefined") return;
+  1282→    if (prepSummaryLink?.url) {
+  1283→      const text = `Prep summary for ${selectedVehicle?.regCurrent || "Vehicle"}: ${prepSummaryLink.url}`;
+  1284→      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  1285→    }
+  1286→  };
+  1287→
+  1288→  const getMOTStatus = (motExpiryDate) => {
+  1289→    if (!motExpiryDate) {
+  1290→      return { type: "unknown", label: "Unknown", days: null, class: "bg-slate-100 text-slate-500 border border-slate-200" };
+  1291→    }
+  1292→    const expiry = new Date(motExpiryDate);
+  1293→    const now = new Date();
+  1294→    const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+  1295→
+  1296→    if (daysUntilExpiry < 0) {
+  1297→      const daysOverdue = Math.abs(daysUntilExpiry);
+  1298→      return { type: "expired", label: `Expired ${daysOverdue}d`, days: daysOverdue, class: "bg-red-50 text-red-700 border border-red-200" };
+  1299→    }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,61 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const vehicleIssueSchema = new mongoose.Schema(
+     5→  {
+     6→    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", required: true },
+     7→    category: {
+     8→      type: String,
+     9→      enum: ["Cosmetic", "Mechanical", "Electrical", "Other"],
+    10→      required: true
+    11→    },
+    12→    subcategory: { type: String, required: true },
+    13→    description: { type: String, required: true },
+    14→    photos: [{ type: String }], // Legacy: simple URLs to photos
+    15→    attachments: [{
+    16→      key: { type: String },      // S3 key
+    17→      url: { type: String },      // Full URL
+    18→      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    19→      uploadedAt: { type: Date, default: Date.now },
+    20→      caption: { type: String },  // Optional caption/description
+    21→    }],
+    22→    actionNeeded: { type: String },
+    23→    priority: {
+    24→      type: String,
+    25→      enum: ["low", "medium", "high"],
+    26→      default: "medium"
+    27→    },
+    28→    location: { type: String }, // e.g. "Front Left", "Rear Bumper", "Interior Dashboard"
+    29→    status: {
+    30→      type: String,
+    31→      enum: ["Outstanding", "Ordered", "In Progress", "Complete"],
+    32→      default: "Outstanding"
+    33→    },
+    34→    notes: { type: String },
+    35→    updates: [{
+    36→      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    37→      userName: { type: String }, // Cache user name for display
+    38→      content: { type: String, required: true },
+    39→      createdAt: { type: Date, default: Date.now }
+    40→    }],
+    41→    completedAt: { type: Date },
+    42→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    43→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    44→    // Source tracking for PDI automation (idempotency - prevents duplicate issues on re-save)
+    45→    sourceSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
+    46→    // Field key for checklist-driven issues (e.g. "pdi:road_test:gear_change") - enables per-field deduplication
+    47→    sourceFieldKey: { type: String },
+    48→    // Parts tracking
+    49→    partsRequired: { type: Boolean, default: false },
+    50→    partsDetails: { type: String }, // supplier, part no, ordered by, ETA
+    51→  },
+    52→  { timestamps: true }
+    53→);
+    54→
+    55→vehicleIssueSchema.plugin(toJSON);
+    56→export default mongoose.models?.VehicleIssue || mongoose.model("VehicleIssue", vehicleIssueSchema);
+    57→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

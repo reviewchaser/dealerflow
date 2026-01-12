@@ -1,0 +1,32 @@
+The file C:\Users\georg\dealerflow\styles\globals.css has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   519→.input-modern::placeholder {
+   520→  color: #94a3b8;
+   521→}
+   522→
+   523→/* Drawer lock - prevent horizontal scroll */
+   524→.drawer-locked {
+   525→  overflow-x: hidden !important;
+   526→  touch-action: pan-y !important;
+   527→  overscroll-behavior-x: none !important;
+   528→}
+   529→
+   530→/* Modal/drawer open state - complete horizontal scroll prevention */
+   531→body.modal-open,
+   532→html:has(body.modal-open) {
+   533→  overflow: hidden !important;
+   534→  overflow-x: hidden !important;
+   535→  overscroll-behavior: none !important;
+   536→  touch-action: none !important;
+   537→  position: fixed !important;
+   538→  width: 100% !important;
+   539→  max-width: 100vw !important;
+   540→}
+   541→
+   542→body.modal-open #__next {
+   543→  overflow: hidden !important;
+   544→  overflow-x: hidden !important;
+   545→}
+   546→
+   547→/* Issue card modern style */
+   548→.issue-card {
+   549→  background: white;

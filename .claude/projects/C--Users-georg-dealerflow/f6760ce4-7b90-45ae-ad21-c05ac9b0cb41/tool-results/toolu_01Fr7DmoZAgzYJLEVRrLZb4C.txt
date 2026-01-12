@@ -1,0 +1,187 @@
+     1→/**
+     2→ * MobileModal Component - Full-screen modal optimized for mobile
+     3→ *
+     4→ * Features:
+     5→ * - Uses 100dvh for dynamic viewport height (iOS Safari URL bar)
+     6→ * - Sticky header and footer with safe area insets
+     7→ * - Scrollable content area
+     8→ * - Portal rendering for fixed positioning
+     9→ * - Scroll lock to prevent background scrolling
+    10→ *
+    11→ * Usage:
+    12→ *   <MobileModal isOpen={isOpen} onClose={handleClose} title="Add Vehicle">
+    13→ *     <form>...</form>
+    14→ *     <MobileModal.Footer>
+    15→ *       <button onClick={handleClose}>Cancel</button>
+    16→ *       <button type="submit">Save</button>
+    17→ *     </MobileModal.Footer>
+    18→ *   </MobileModal>
+    19→ */
+    20→
+    21→import { useEffect, useRef, Children, isValidElement } from "react";
+    22→import { Portal } from "./Portal";
+    23→
+    24→export function MobileModal({
+    25→  isOpen,
+    26→  onClose,
+    27→  title,
+    28→  children,
+    29→  maxWidth = "max-w-4xl", // Tailwind max-width class for desktop
+    30→  className = "",
+    31→}) {
+    32→  const modalRef = useRef(null);
+    33→
+    34→  // Lock body scroll and prevent horizontal pan when open
+    35→  useEffect(() => {
+    36→    if (isOpen) {
+    37→      const scrollY = window.scrollY;
+    38→      const html = document.documentElement;
+    39→
+    40→      // Lock both html and body to prevent any horizontal movement
+    41→      document.body.style.position = "fixed";
+    42→      document.body.style.top = `-${scrollY}px`;
+    43→      document.body.style.left = "0";
+    44→      document.body.style.right = "0";
+    45→      document.body.style.width = "100%";
+    46→      document.body.style.overflow = "hidden";
+    47→      document.body.style.overflowX = "hidden";
+    48→      document.body.style.touchAction = "none";
+    49→
+    50→      html.style.overflow = "hidden";
+    51→      html.style.overflowX = "hidden";
+    52→
+    53→      // Add class for additional CSS-based locking
+    54→      document.body.classList.add("modal-open");
+    55→
+    56→      return () => {
+    57→        document.body.style.position = "";
+    58→        document.body.style.top = "";
+    59→        document.body.style.left = "";
+    60→        document.body.style.right = "";
+    61→        document.body.style.width = "";
+    62→        document.body.style.overflow = "";
+    63→        document.body.style.overflowX = "";
+    64→        document.body.style.touchAction = "";
+    65→
+    66→        html.style.overflow = "";
+    67→        html.style.overflowX = "";
+    68→
+    69→        document.body.classList.remove("modal-open");
+    70→        window.scrollTo(0, scrollY);
+    71→      };
+    72→    }
+    73→  }, [isOpen]);
+    74→
+    75→  // Handle escape key
+    76→  useEffect(() => {
+    77→    const handleEscape = (e) => {
+    78→      if (e.key === "Escape" && isOpen) {
+    79→        onClose();
+    80→      }
+    81→    };
+    82→    window.addEventListener("keydown", handleEscape);
+    83→    return () => window.removeEventListener("keydown", handleEscape);
+    84→  }, [isOpen, onClose]);
+    85→
+    86→  if (!isOpen) return null;
+    87→
+    88→  // Separate footer from other children
+    89→  let footerContent = null;
+    90→  const contentChildren = Children.toArray(children).filter((child) => {
+    91→    if (isValidElement(child) && child.type === MobileModalFooter) {
+    92→      footerContent = child;
+    93→      return false;
+    94→    }
+    95→    return true;
+    96→  });
+    97→
+    98→  return (
+    99→    <Portal>
+   100→      <div
+   101→        className="fixed inset-0 z-[9999]"
+   102→        style={{ touchAction: "none", overscrollBehavior: "contain" }}
+   103→      >
+   104→        {/* Backdrop - prevent touch events from reaching background */}
+   105→        <div
+   106→          className="fixed inset-0 bg-black/50"
+   107→          onClick={onClose}
+   108→          onTouchMove={(e) => e.preventDefault()}
+   109→          aria-hidden="true"
+   110→          style={{ touchAction: "none" }}
+   111→        />
+   112→
+   113→        {/* Modal Container - Centered on desktop, full screen on mobile */}
+   114→        <div className="fixed inset-0 flex items-start md:items-center justify-center p-0 md:p-4">
+   115→          {/* Modal */}
+   116→          <div
+   117→            ref={modalRef}
+   118→            role="dialog"
+   119→            aria-modal="true"
+   120→            aria-labelledby="mobile-modal-title"
+   121→            className={`
+   122→              relative bg-white shadow-2xl flex flex-col
+   123→              w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:rounded-xl
+   124→              ${maxWidth}
+   125→              ${className}
+   126→            `}
+   127→          >
+   128→            {/* Header - Sticky with safe area padding on mobile */}
+   129→            <div
+   130→              className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white md:rounded-t-xl"
+   131→              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+   132→            >
+   133→              <h2
+   134→                id="mobile-modal-title"
+   135→                className="text-lg md:text-xl font-bold text-slate-900"
+   136→              >
+   137→                {title}
+   138→              </h2>
+   139→              <button
+   140→                type="button"
+   141→                onClick={onClose}
+   142→                className="p-2 -mr-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+   143→                aria-label="Close"
+   144→              >
+   145→                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   146→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   147→                </svg>
+   148→              </button>
+   149→            </div>
+   150→
+   151→            {/* Content - Scrollable vertically only */}
+   152→            <div
+   153→              className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6 min-h-0"
+   154→              style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+   155→            >
+   156→              {contentChildren}
+   157→            </div>
+   158→
+   159→            {/* Footer - Sticky with safe area padding on mobile */}
+   160→            {footerContent && (
+   161→              <div
+   162→                className="shrink-0 border-t border-slate-200 bg-white px-4 md:px-6 py-4 md:rounded-b-xl"
+   163→                style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+   164→              >
+   165→                {footerContent.props.children}
+   166→              </div>
+   167→            )}
+   168→          </div>
+   169→        </div>
+   170→      </div>
+   171→    </Portal>
+   172→  );
+   173→}
+   174→
+   175→// Footer component for extracting footer content
+   176→function MobileModalFooter({ children }) {
+   177→  return <>{children}</>;
+   178→}
+   179→
+   180→MobileModal.Footer = MobileModalFooter;
+   181→
+   182→export default MobileModal;
+   183→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

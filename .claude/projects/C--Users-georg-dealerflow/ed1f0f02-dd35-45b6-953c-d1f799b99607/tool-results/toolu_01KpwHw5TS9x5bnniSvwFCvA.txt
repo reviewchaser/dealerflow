@@ -1,0 +1,48 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const courtesyAllocationSchema = new mongoose.Schema(
+     5→  {
+     6→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true },
+     7→    courtesyVehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", required: true }, // where Vehicle.type = COURTESY
+     8→    aftercareCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "AftercareCase" },
+     9→    customerVehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" }, // optional link to customer's vehicle
+    10→    customerVehicleRegNormalized: { type: String, uppercase: true }, // reg of customer's car being repaired
+    11→    dateOut: { type: Date, required: true },
+    12→    dateDueBack: { type: Date },
+    13→    dateReturned: { type: Date },
+    14→    mileageOut: { type: Number },
+    15→    mileageIn: { type: Number },
+    16→    fuelLevelOut: { type: String }, // e.g. "Full", "3/4", "Half", "1/4", "Empty"
+    17→    fuelLevelIn: { type: String },
+    18→    driverName: { type: String },
+    19→    driverLicenceUrl: { type: String },
+    20→    notes: { type: String },
+    21→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    22→    source: {
+    23→      type: String,
+    24→      enum: ["MANUAL", "FORM"],
+    25→      default: "MANUAL"
+    26→    },
+    27→    status: {
+    28→      type: String,
+    29→      enum: ["OUT", "RETURNED"],
+    30→      default: "OUT"
+    31→    },
+    32→  },
+    33→  { timestamps: true }
+    34→);
+    35→
+    36→courtesyAllocationSchema.plugin(toJSON);
+    37→
+    38→// Indexes for dashboard and courtesy queries
+    39→courtesyAllocationSchema.index({ dealerId: 1, dateDueBack: 1, dateReturned: 1 });
+    40→courtesyAllocationSchema.index({ dealerId: 1, status: 1 });
+    41→courtesyAllocationSchema.index({ courtesyVehicleId: 1, status: 1 });
+    42→
+    43→export default mongoose.models.CourtesyAllocation || mongoose.model("CourtesyAllocation", courtesyAllocationSchema);
+    44→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

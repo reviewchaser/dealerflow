@@ -1,0 +1,325 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";
+     8→  return new Intl.NumberFormat("en-GB", {
+     9→    style: "currency",
+    10→    currency: "GBP",
+    11→  }).format(amount);
+    12→};
+    13→
+    14→// Format date
+    15→const formatDate = (date) => {
+    16→  if (!date) return "";
+    17→  return new Date(date).toLocaleDateString("en-GB", {
+    18→    day: "numeric",
+    19→    month: "long",
+    20→    year: "numeric",
+    21→  });
+    22→};
+    23→
+    24→export default function DepositReceiptPage() {
+    25→  const router = useRouter();
+    26→  const { token } = router.query;
+    27→  const [document, setDocument] = useState(null);
+    28→  const [isLoading, setIsLoading] = useState(true);
+    29→  const [error, setError] = useState(null);
+    30→
+    31→  useEffect(() => {
+    32→    if (!token) return;
+    33→
+    34→    const fetchDocument = async () => {
+    35→      setIsLoading(true);
+    36→      try {
+    37→        const res = await fetch(`/api/public/deposit-receipt/${token}`);
+    38→        if (!res.ok) {
+    39→          const err = await res.json();
+    40→          throw new Error(err.error || "Document not found");
+    41→        }
+    42→        const data = await res.json();
+    43→        setDocument(data);
+    44→      } catch (error) {
+    45→        setError(error.message);
+    46→      } finally {
+    47→        setIsLoading(false);
+    48→      }
+    49→    };
+    50→
+    51→    fetchDocument();
+    52→  }, [token]);
+    53→
+    54→  const handlePrint = () => {
+    55→    window.print();
+    56→  };
+    57→
+    58→  if (isLoading) {
+    59→    return (
+    60→      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+    61→        <div className="loading loading-spinner loading-lg text-blue-600"></div>
+    62→      </div>
+    63→    );
+    64→  }
+    65→
+    66→  if (error) {
+    67→    return (
+    68→      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+    69→        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+    70→          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    71→            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    72→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    73→            </svg>
+    74→          </div>
+    75→          <h1 className="text-xl font-bold text-slate-900 mb-2">Document Not Found</h1>
+    76→          <p className="text-slate-500">{error}</p>
+    77→        </div>
+    78→      </div>
+    79→    );
+    80→  }
+    81→
+    82→  const snap = document.snapshotData;
+    83→  const deposit = snap.payments?.[0];
+    84→
+    85→  return (
+    86→    <>
+    87→      <Head>
+    88→        <title>Deposit Receipt {document.documentNumber} | DealerHQ</title>
+    89→      </Head>
+    90→
+    91→      {/* Print controls - hidden when printing */}
+    92→      <div className="print:hidden bg-slate-100 p-4 sticky top-0 z-10 border-b border-slate-200">
+    93→        <div className="max-w-[800px] mx-auto flex items-center justify-between">
+    94→          <h1 className="text-lg font-bold text-slate-900">Deposit Receipt</h1>
+    95→          <button
+    96→            onClick={handlePrint}
+    97→            className="btn bg-blue-600 hover:bg-blue-700 text-white border-none"
+    98→          >
+    99→            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   100→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+   101→            </svg>
+   102→            Print / Download PDF
+   103→          </button>
+   104→        </div>
+   105→      </div>
+   106→
+   107→      {/* Document */}
+   108→      <div className="min-h-screen bg-slate-100 print:bg-white p-4 print:p-0">
+   109→        <div className="max-w-[800px] mx-auto bg-white shadow-xl print:shadow-none rounded-2xl print:rounded-none overflow-hidden">
+   110→          {/* Header */}
+   111→          <div className="bg-white p-6 print:p-6 border-b border-slate-200">
+   112→            <div className="flex items-start justify-between">
+   113→              <div className="flex items-center gap-4">
+   114→                {snap.dealer?.logoUrl && (
+   115→                  <img
+   116→                    src={snap.dealer.logoUrl}
+   117→                    alt={snap.dealer.companyName || snap.dealer.name}
+   118→                    className="h-16 w-auto object-contain"
+   119→                  />
+   120→                )}
+   121→                <div>
+   122→                  <p className="font-bold text-xl text-slate-900">{snap.dealer?.companyName || snap.dealer?.name}</p>
+   123→                  {snap.dealer?.address && (
+   124→                    <p className="text-slate-500 text-sm mt-1 whitespace-pre-line">{snap.dealer.address}</p>
+   125→                  )}
+   126→                </div>
+   127→              </div>
+   128→              <div className="text-right">
+   129→                <h1 className="text-2xl font-bold text-blue-600">DEPOSIT RECEIPT</h1>
+   130→                <p className="text-slate-500 mt-1">{document.documentNumber}</p>
+   131→                <p className="text-slate-500 text-sm mt-2">{formatDate(document.issuedAt)}</p>
+   132→              </div>
+   133→            </div>
+   134→          </div>
+   135→
+   136→          {/* Details */}
+   137→          <div className="p-8 print:p-6 space-y-8 print:space-y-6">
+   138→            {/* Date and Receipt Info */}
+   139→            <div className="grid grid-cols-2 gap-8">
+   140→              <div>
+   141→                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Date</p>
+   142→                <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(document.issuedAt)}</p>
+   143→              </div>
+   144→              <div>
+   145→                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Receipt Number</p>
+   146→                <p className="text-lg font-semibold text-slate-900 mt-1">{document.documentNumber}</p>
+   147→              </div>
+   148→            </div>
+   149→
+   150→            {/* Received From */}
+   151→            <div className="bg-slate-50 rounded-xl p-5 print:bg-slate-50">
+   152→              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-2">Received From</p>
+   153→              <p className="text-lg font-bold text-slate-900">{snap.customer?.name}</p>
+   154→              {snap.customer?.companyName && (
+   155→                <p className="text-slate-600">{snap.customer.companyName}</p>
+   156→              )}
+   157→              {snap.customer?.email && <p className="text-slate-500 text-sm">{snap.customer.email}</p>}
+   158→              {snap.customer?.phone && <p className="text-slate-500 text-sm">{snap.customer.phone}</p>}
+   159→            </div>
+   160→
+   161→            {/* Vehicle Details */}
+   162→            <div>
+   163→              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Vehicle</p>
+   164→              <div className="border border-slate-200 rounded-xl overflow-hidden">
+   165→                <table className="w-full">
+   166→                  <tbody className="divide-y divide-slate-100">
+   167→                    <tr>
+   168→                      <td className="px-4 py-3 text-slate-500 bg-slate-50 w-1/3">Registration</td>
+   169→                      <td className="px-4 py-3 font-bold text-slate-900 font-mono tracking-wider">{snap.vehicle?.regCurrent}</td>
+   170→                    </tr>
+   171→                    <tr>
+   172→                      <td className="px-4 py-3 text-slate-500 bg-slate-50">Make / Model</td>
+   173→                      <td className="px-4 py-3 font-semibold text-slate-900">{snap.vehicle?.make} {snap.vehicle?.model}</td>
+   174→                    </tr>
+   175→                    {snap.vehicle?.derivative && (
+   176→                      <tr>
+   177→                        <td className="px-4 py-3 text-slate-500 bg-slate-50">Variant</td>
+   178→                        <td className="px-4 py-3 text-slate-900">{snap.vehicle.derivative}</td>
+   179→                      </tr>
+   180→                    )}
+   181→                    {snap.vehicle?.year && (
+   182→                      <tr>
+   183→                        <td className="px-4 py-3 text-slate-500 bg-slate-50">Year</td>
+   184→                        <td className="px-4 py-3 text-slate-900">{snap.vehicle.year}</td>
+   185→                      </tr>
+   186→                    )}
+   187→                    {snap.vehicle?.colour && (
+   188→                      <tr>
+   189→                        <td className="px-4 py-3 text-slate-500 bg-slate-50">Colour</td>
+   190→                        <td className="px-4 py-3 text-slate-900">{snap.vehicle.colour}</td>
+   191→                      </tr>
+   192→                    )}
+   193→                    {snap.vehicle?.mileage && (
+   194→                      <tr>
+   195→                        <td className="px-4 py-3 text-slate-500 bg-slate-50">Mileage</td>
+   196→                        <td className="px-4 py-3 text-slate-900">{snap.vehicle.mileage.toLocaleString()} miles</td>
+   197→                      </tr>
+   198→                    )}
+   199→                    {snap.vehicle?.vin && (
+   200→                      <tr>
+   201→                        <td className="px-4 py-3 text-slate-500 bg-slate-50">VIN</td>
+   202→                        <td className="px-4 py-3 text-slate-900 font-mono text-sm">{snap.vehicle.vin}</td>
+   203→                      </tr>
+   204→                    )}
+   205→                  </tbody>
+   206→                </table>
+   207→              </div>
+   208→            </div>
+   209→
+   210→            {/* Payment Details */}
+   211→            <div className="bg-emerald-50 rounded-xl p-6 print:bg-emerald-50">
+   212→              <p className="text-sm text-emerald-600 uppercase tracking-wide font-medium mb-4">Deposit Payment</p>
+   213→              <div className="grid grid-cols-2 gap-6">
+   214→                <div>
+   215→                  <p className="text-sm text-emerald-600">Amount</p>
+   216→                  <p className="text-3xl font-bold text-emerald-700">{formatCurrency(deposit?.amount)}</p>
+   217→                </div>
+   218→                <div>
+   219→                  <p className="text-sm text-emerald-600">Payment Method</p>
+   220→                  <p className="text-lg font-semibold text-emerald-700">{deposit?.method}</p>
+   221→                  {deposit?.reference && (
+   222→                    <p className="text-sm text-emerald-600">Ref: {deposit.reference}</p>
+   223→                  )}
+   224→                </div>
+   225→              </div>
+   226→            </div>
+   227→
+   228→            {/* Summary */}
+   229→            <div className="border border-slate-200 rounded-xl overflow-hidden">
+   230→              <table className="w-full">
+   231→                <tbody className="divide-y divide-slate-100">
+   232→                  <tr>
+   233→                    <td className="px-4 py-3 text-slate-600">Vehicle Price</td>
+   234→                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.grandTotal)}</td>
+   235→                  </tr>
+   236→                  <tr>
+   237→                    <td className="px-4 py-3 text-slate-600">Deposit Paid</td>
+   238→                    <td className="px-4 py-3 text-right font-semibold text-emerald-600">-{formatCurrency(snap.totalPaid)}</td>
+   239→                  </tr>
+   240→                  <tr className="bg-slate-50">
+   241→                    <td className="px-4 py-3 font-semibold text-slate-900">Balance Due</td>
+   242→                    <td className="px-4 py-3 text-right text-xl font-bold text-slate-900">{formatCurrency(snap.balanceDue)}</td>
+   243→                  </tr>
+   244→                </tbody>
+   245→              </table>
+   246→            </div>
+   247→
+   248→            {/* Agreed Work Items */}
+   249→            {snap.requests?.length > 0 && (
+   250→              <div className="bg-orange-50 rounded-xl p-5 print:bg-orange-50 border border-orange-200">
+   251→                <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-3">Agreed Work - Dealer Commitments</p>
+   252→                <ul className="space-y-2">
+   253→                  {snap.requests.map((req, idx) => (
+   254→                    <li key={idx} className="flex items-start gap-2">
+   255→                      <svg className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   256→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   257→                      </svg>
+   258→                      <div>
+   259→                        <span className="text-slate-900 font-medium">{req.title}</span>
+   260→                        {req.details && <span className="text-slate-500"> - {req.details}</span>}
+   261→                      </div>
+   262→                    </li>
+   263→                  ))}
+   264→                </ul>
+   265→                <p className="text-xs text-orange-600 mt-3 italic">
+   266→                  The above items have been agreed between the dealer and customer as part of this sale.
+   267→                </p>
+   268→              </div>
+   269→            )}
+   270→
+   271→            {/* Taken By */}
+   272→            {snap.takenBy && (
+   273→              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+   274→                <div className="flex-1">
+   275→                  <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Deposit Taken By</p>
+   276→                  <p className="text-slate-900 font-medium mt-1">{snap.takenBy.name}</p>
+   277→                </div>
+   278→                <div className="text-right text-sm text-slate-500">
+   279→                  {formatDate(document.issuedAt)}
+   280→                </div>
+   281→              </div>
+   282→            )}
+   283→
+   284→            {/* Terms */}
+   285→            {snap.termsText && (
+   286→              <div className="border-t border-slate-200 pt-6">
+   287→                <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-2">Terms & Conditions</p>
+   288→                <p className="text-xs text-slate-500 whitespace-pre-line">{snap.termsText}</p>
+   289→              </div>
+   290→            )}
+   291→
+   292→            {/* Footer */}
+   293→            <div className="border-t border-slate-200 pt-6 text-center">
+   294→              {snap.dealer?.vatNumber && (
+   295→                <p className="text-sm text-slate-500">VAT Registration: {snap.dealer.vatNumber}</p>
+   296→              )}
+   297→              {snap.dealer?.companyNumber && (
+   298→                <p className="text-sm text-slate-500">Company Registration: {snap.dealer.companyNumber}</p>
+   299→              )}
+   300→              <p className="text-xs text-slate-400 mt-4">Thank you for your deposit. This receipt is your proof of payment.</p>
+   301→            </div>
+   302→          </div>
+   303→        </div>
+   304→      </div>
+   305→
+   306→      <style jsx global>{`
+   307→        @media print {
+   308→          @page {
+   309→            size: A4;
+   310→            margin: 0;
+   311→          }
+   312→          body {
+   313→            print-color-adjust: exact;
+   314→            -webkit-print-color-adjust: exact;
+   315→          }
+   316→        }
+   317→      `}</style>
+   318→    </>
+   319→  );
+   320→}
+   321→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

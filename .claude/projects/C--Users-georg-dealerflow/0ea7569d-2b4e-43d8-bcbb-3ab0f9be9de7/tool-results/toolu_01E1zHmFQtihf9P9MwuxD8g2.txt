@@ -1,0 +1,118 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Contact from "@/models/Contact";
+     3→import { withDealerContext } from "@/libs/authContext";
+     4→
+     5→/**
+     6→ * Individual Contact API
+     7→ * GET /api/contacts/[id] - Get single contact
+     8→ * PUT /api/contacts/[id] - Update contact
+     9→ * DELETE /api/contacts/[id] - Soft delete (set isActive: false)
+    10→ */
+    11→async function handler(req, res, ctx) {
+    12→  await connectMongo();
+    13→  const { dealerId, userId } = ctx;
+    14→  const { id } = req.query;
+    15→
+    16→  // Validate ID format
+    17→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    18→    return res.status(400).json({ error: "Invalid contact ID" });
+    19→  }
+    20→
+    21→  if (req.method === "GET") {
+    22→    const contact = await Contact.findOne({ _id: id, dealerId }).lean();
+    23→
+    24→    if (!contact) {
+    25→      return res.status(404).json({ error: "Contact not found" });
+    26→    }
+    27→
+    28→    return res.status(200).json({
+    29→      ...contact,
+    30→      id: contact._id.toString(),
+    31→      name: contact.displayName || contact.name, // Backward compat
+    32→      _id: undefined,
+    33→      __v: undefined,
+    34→    });
+    35→  }
+    36→
+    37→  if (req.method === "PUT") {
+    38→    const {
+    39→      displayName,
+    40→      name, // Backward compat
+    41→      companyName,
+    42→      email,
+    43→      phone,
+    44→      mobile,
+    45→      address,
+    46→      notes,
+    47→      typeTags,
+    48→      isProspect,
+    49→      isActive,
+    50→      companyNumber,
+    51→      vatNumber,
+    52→      accountReference,
+    53→      financeSettings,
+    54→    } = req.body;
+    55→
+    56→    const updateData = {
+    57→      updatedByUserId: userId,
+    58→    };
+    59→
+    60→    // Handle name (support both old and new field names)
+    61→    if (displayName !== undefined) updateData.displayName = displayName;
+    62→    else if (name !== undefined) updateData.displayName = name;
+    63→
+    64→    // Update fields if provided
+    65→    if (companyName !== undefined) updateData.companyName = companyName;
+    66→    if (email !== undefined) updateData.email = email;
+    67→    if (phone !== undefined) updateData.phone = phone;
+    68→    if (mobile !== undefined) updateData.mobile = mobile;
+    69→    if (address !== undefined) updateData.address = address;
+    70→    if (notes !== undefined) updateData.notes = notes;
+    71→    if (typeTags !== undefined) updateData.typeTags = typeTags;
+    72→    if (isProspect !== undefined) updateData.isProspect = isProspect;
+    73→    if (isActive !== undefined) updateData.isActive = isActive;
+    74→    if (companyNumber !== undefined) updateData.companyNumber = companyNumber;
+    75→    if (vatNumber !== undefined) updateData.vatNumber = vatNumber;
+    76→    if (accountReference !== undefined) updateData.accountReference = accountReference;
+    77→    if (financeSettings !== undefined) updateData.financeSettings = financeSettings;
+    78→
+    79→    const contact = await Contact.findOneAndUpdate(
+    80→      { _id: id, dealerId },
+    81→      { $set: updateData },
+    82→      { new: true, runValidators: true }
+    83→    );
+    84→
+    85→    if (!contact) {
+    86→      return res.status(404).json({ error: "Contact not found" });
+    87→    }
+    88→
+    89→    return res.status(200).json({
+    90→      ...contact.toJSON(),
+    91→      name: contact.displayName, // Backward compat
+    92→    });
+    93→  }
+    94→
+    95→  if (req.method === "DELETE") {
+    96→    // Soft delete by setting isActive to false
+    97→    const contact = await Contact.findOneAndUpdate(
+    98→      { _id: id, dealerId },
+    99→      { $set: { isActive: false, updatedByUserId: userId } },
+   100→      { new: true }
+   101→    );
+   102→
+   103→    if (!contact) {
+   104→      return res.status(404).json({ error: "Contact not found" });
+   105→    }
+   106→
+   107→    return res.status(200).json({ success: true, message: "Contact archived" });
+   108→  }
+   109→
+   110→  return res.status(405).json({ error: "Method not allowed" });
+   111→}
+   112→
+   113→export default withDealerContext(handler);
+   114→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

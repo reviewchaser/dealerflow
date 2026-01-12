@@ -1,0 +1,246 @@
+     1→import { useState } from "react";
+     2→import Image from "next/image";
+     3→import { toast } from "react-hot-toast";
+     4→
+     5→/**
+     6→ * VehicleImageGallery Component
+     7→ *
+     8→ * Displays vehicle images in a gallery format with:
+     9→ * - Thumbnail grid view
+    10→ * - Lightbox for larger preview
+    11→ * - Delete functionality
+    12→ * - Set as primary functionality
+    13→ *
+    14→ * Props:
+    15→ * - vehicleId: The vehicle ID
+    16→ * - images: Array of { url, key, uploadedAt }
+    17→ * - primaryImageUrl: The current primary image URL
+    18→ * - onUpdate: Callback when images are modified (receives updated vehicle)
+    19→ * - editable: Whether to show edit controls (default true)
+    20→ */
+    21→export default function VehicleImageGallery({
+    22→  vehicleId,
+    23→  images = [],
+    24→  primaryImageUrl,
+    25→  onUpdate,
+    26→  editable = true,
+    27→}) {
+    28→  const [lightboxImage, setLightboxImage] = useState(null);
+    29→  const [isDeleting, setIsDeleting] = useState(null);
+    30→  const [isSettingPrimary, setIsSettingPrimary] = useState(null);
+    31→
+    32→  const handleDelete = async (image) => {
+    33→    if (!confirm("Are you sure you want to delete this image?")) return;
+    34→
+    35→    setIsDeleting(image.key);
+    36→    try {
+    37→      const res = await fetch(`/api/vehicles/${vehicleId}/images`, {
+    38→        method: "DELETE",
+    39→        headers: { "Content-Type": "application/json" },
+    40→        body: JSON.stringify({ key: image.key }),
+    41→      });
+    42→
+    43→      if (!res.ok) {
+    44→        const err = await res.json();
+    45→        throw new Error(err.error || "Failed to delete image");
+    46→      }
+    47→
+    48→      const result = await res.json();
+    49→      toast.success("Image deleted");
+    50→      if (onUpdate) onUpdate(result.vehicle);
+    51→    } catch (error) {
+    52→      toast.error(error.message);
+    53→    } finally {
+    54→      setIsDeleting(null);
+    55→    }
+    56→  };
+    57→
+    58→  const handleSetPrimary = async (image) => {
+    59→    if (primaryImageUrl === image.url) return;
+    60→
+    61→    setIsSettingPrimary(image.key);
+    62→    try {
+    63→      const res = await fetch(`/api/vehicles/${vehicleId}/primary-image`, {
+    64→        method: "PUT",
+    65→        headers: { "Content-Type": "application/json" },
+    66→        body: JSON.stringify({ url: image.url }),
+    67→      });
+    68→
+    69→      if (!res.ok) {
+    70→        const err = await res.json();
+    71→        throw new Error(err.error || "Failed to set primary image");
+    72→      }
+    73→
+    74→      const result = await res.json();
+    75→      toast.success("Primary image updated");
+    76→      if (onUpdate) onUpdate(result.vehicle);
+    77→    } catch (error) {
+    78→      toast.error(error.message);
+    79→    } finally {
+    80→      setIsSettingPrimary(null);
+    81→    }
+    82→  };
+    83→
+    84→  if (images.length === 0) {
+    85→    return (
+    86→      <div className="text-center py-8 text-slate-500">
+    87→        <svg className="w-12 h-12 mx-auto mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    88→          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    89→        </svg>
+    90→        <p className="text-sm">No images uploaded</p>
+    91→      </div>
+    92→    );
+    93→  }
+    94→
+    95→  return (
+    96→    <>
+    97→      {/* Image Grid */}
+    98→      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+    99→        {images.map((image, idx) => {
+   100→          const isPrimary = primaryImageUrl === image.url;
+   101→          const isLoading = isDeleting === image.key || isSettingPrimary === image.key;
+   102→
+   103→          return (
+   104→            <div
+   105→              key={image.key || idx}
+   106→              className={`relative aspect-square rounded-lg overflow-hidden group cursor-pointer border-2 transition-all ${
+   107→                isPrimary ? "border-blue-500 ring-2 ring-blue-200" : "border-transparent hover:border-slate-300"
+   108→              }`}
+   109→              onClick={() => setLightboxImage(image)}
+   110→            >
+   111→              {/* Image */}
+   112→              <Image
+   113→                src={image.url}
+   114→                alt={`Vehicle image ${idx + 1}`}
+   115→                fill
+   116→                className="object-cover"
+   117→                sizes="(max-width: 768px) 33vw, 25vw"
+   118→                unoptimized
+   119→              />
+   120→
+   121→              {/* Primary Badge */}
+   122→              {isPrimary && (
+   123→                <div className="absolute top-1 left-1 bg-blue-500 text-white text-[10px] px-1.5 py-0.5 rounded font-medium">
+   124→                  Primary
+   125→                </div>
+   126→              )}
+   127→
+   128→              {/* Loading Overlay */}
+   129→              {isLoading && (
+   130→                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+   131→                  <span className="loading loading-spinner loading-sm text-white"></span>
+   132→                </div>
+   133→              )}
+   134→
+   135→              {/* Hover Actions */}
+   136→              {editable && !isLoading && (
+   137→                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+   138→                  {/* Set as Primary */}
+   139→                  {!isPrimary && (
+   140→                    <button
+   141→                      onClick={(e) => {
+   142→                        e.stopPropagation();
+   143→                        handleSetPrimary(image);
+   144→                      }}
+   145→                      className="p-2 bg-white rounded-full shadow hover:bg-blue-50 transition-colors"
+   146→                      title="Set as primary"
+   147→                    >
+   148→                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   149→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+   150→                      </svg>
+   151→                    </button>
+   152→                  )}
+   153→
+   154→                  {/* Delete */}
+   155→                  <button
+   156→                    onClick={(e) => {
+   157→                      e.stopPropagation();
+   158→                      handleDelete(image);
+   159→                    }}
+   160→                    className="p-2 bg-white rounded-full shadow hover:bg-red-50 transition-colors"
+   161→                    title="Delete image"
+   162→                  >
+   163→                    <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   164→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+   165→                    </svg>
+   166→                  </button>
+   167→                </div>
+   168→              )}
+   169→            </div>
+   170→          );
+   171→        })}
+   172→      </div>
+   173→
+   174→      {/* Lightbox Modal */}
+   175→      {lightboxImage && (
+   176→        <div
+   177→          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+   178→          onClick={() => setLightboxImage(null)}
+   179→        >
+   180→          <button
+   181→            className="absolute top-4 right-4 text-white hover:text-slate-300 transition-colors"
+   182→            onClick={() => setLightboxImage(null)}
+   183→          >
+   184→            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   185→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   186→            </svg>
+   187→          </button>
+   188→
+   189→          <div className="relative max-w-4xl max-h-[80vh] w-full h-full" onClick={(e) => e.stopPropagation()}>
+   190→            <Image
+   191→              src={lightboxImage.url}
+   192→              alt="Vehicle image"
+   193→              fill
+   194→              className="object-contain"
+   195→              sizes="100vw"
+   196→              unoptimized
+   197→            />
+   198→          </div>
+   199→
+   200→          {/* Navigation */}
+   201→          {images.length > 1 && (
+   202→            <>
+   203→              <button
+   204→                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 transition-colors p-2"
+   205→                onClick={(e) => {
+   206→                  e.stopPropagation();
+   207→                  const currentIdx = images.findIndex((img) => img.key === lightboxImage.key);
+   208→                  const prevIdx = (currentIdx - 1 + images.length) % images.length;
+   209→                  setLightboxImage(images[prevIdx]);
+   210→                }}
+   211→              >
+   212→                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   213→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   214→                </svg>
+   215→              </button>
+   216→
+   217→              <button
+   218→                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300 transition-colors p-2"
+   219→                onClick={(e) => {
+   220→                  e.stopPropagation();
+   221→                  const currentIdx = images.findIndex((img) => img.key === lightboxImage.key);
+   222→                  const nextIdx = (currentIdx + 1) % images.length;
+   223→                  setLightboxImage(images[nextIdx]);
+   224→                }}
+   225→              >
+   226→                <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   227→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   228→                </svg>
+   229→              </button>
+   230→            </>
+   231→          )}
+   232→
+   233→          {/* Image counter */}
+   234→          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-3 py-1 rounded-full">
+   235→            {images.findIndex((img) => img.key === lightboxImage.key) + 1} / {images.length}
+   236→          </div>
+   237→        </div>
+   238→      )}
+   239→    </>
+   240→  );
+   241→}
+   242→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

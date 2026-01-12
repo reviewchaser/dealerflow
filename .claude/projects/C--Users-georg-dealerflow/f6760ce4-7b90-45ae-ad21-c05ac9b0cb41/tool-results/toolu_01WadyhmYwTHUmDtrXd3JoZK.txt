@@ -1,0 +1,204 @@
+     1→import { useEffect, useState, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { MobileStageSelector } from "@/components/ui/PageShell";
+     9→import { toast } from "react-hot-toast";
+    10→
+    11→// Column config matching Sales & Prep style
+    12→// NOTE: Internal keys are legacy names - keep stable for database compatibility
+    13→// Display labels have been updated for clarity
+    14→const COLUMNS = [
+    15→  { key: "not_booked_in", label: "Not Booked In", gradient: "from-red-100/60", accent: "border-l-red-400", accentBg: "bg-red-400" },
+    16→  { key: "on_site", label: "Booked In", gradient: "from-amber-100/60", accent: "border-l-amber-400", accentBg: "bg-amber-400" }, // Legacy key: "on_site" displays as "Booked In"
+    17→  { key: "work_complete", label: "Work Complete", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    18→  { key: "collected", label: "Closed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" }, // Legacy key: "collected" displays as "Closed"
+    19→];
+    20→
+    21→const PRIORITIES = {
+    22→  low: { bg: "bg-slate-100", text: "text-slate-600", border: "border-slate-200" },
+    23→  normal: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-100" },
+    24→  high: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100" },
+    25→  critical: { bg: "bg-red-50", text: "text-red-700", border: "border-red-100" },
+    26→};
+    27→
+    28→const SOURCE_LABELS = {
+    29→  warranty_claim_form: "Warranty Claim",
+    30→  low_review: "Low Review",
+    31→  complaint_form: "Complaint",
+    32→  manual: "Manual",
+    33→};
+    34→
+    35→// Timeline event icons
+    36→const EVENT_ICONS = {
+    37→  CASE_CREATED: "📋",
+    38→  SUBMISSION_LINKED: "🔗",
+    39→  COMMENT_ADDED: "💬",
+    40→  STATUS_CHANGED: "🔄",
+    41→  AI_REVIEW_GENERATED: "🤖",
+    42→  ATTACHMENT_ADDED: "📎",
+    43→  LOCATION_UPDATED: "📍",
+    44→  BOOKING_UPDATED: "📅",
+    45→  PARTS_UPDATED: "🔧",
+    46→  COURTESY_REQUIRED_TOGGLED: "🚗",
+    47→  COURTESY_ALLOCATED: "🚗",
+    48→  COURTESY_RETURNED: "🚗",
+    49→  COURTESY_OUT_RECORDED: "🚗",
+    50→  COURTESY_IN_RECORDED: "🚗",
+    51→  // Warranty booking auto-move events
+    52→  WARRANTY_BOOKED_IN: "📅",
+    53→  WARRANTY_BOOKING_UPDATED: "📅",
+    54→  WARRANTY_BOOKING_CANCELLED: "❌",
+    55→  WARRANTY_STAGE_MOVED: "🔀",
+    56→};
+    57→
+    58→// Timeline grouping constant
+    59→const STATUS_FLIP_GROUP_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+    60→
+    61→// Group consecutive STATUS_CHANGED events within the time window
+    62→const groupTimelineEvents = (events) => {
+    63→  if (!events || events.length === 0) return [];
+    64→
+    65→  const sorted = [...events].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    66→  const grouped = [];
+    67→  let currentGroup = null;
+    68→
+    69→  for (const event of sorted) {
+    70→    if (event.type === "STATUS_CHANGED") {
+    71→      if (currentGroup) {
+    72→        // Check if this event is within the time window of the last event in the group
+    73→        const lastEventTime = new Date(currentGroup.events[currentGroup.events.length - 1].createdAt).getTime();
+    74→        const thisEventTime = new Date(event.createdAt).getTime();
+    75→
+    76→        if (lastEventTime - thisEventTime <= STATUS_FLIP_GROUP_WINDOW_MS) {
+    77→          currentGroup.events.push(event);
+    78→          continue;
+    79→        } else {
+    80→          // Close current group and start new one
+    81→          grouped.push(currentGroup);
+    82→          currentGroup = { isGroup: true, type: "STATUS_CHANGED_GROUP", events: [event] };
+    83→        }
+    84→      } else {
+    85→        currentGroup = { isGroup: true, type: "STATUS_CHANGED_GROUP", events: [event] };
+    86→      }
+    87→    } else {
+    88→      // Non-status event - close any current group and add this event
+    89→      if (currentGroup) {
+    90→        grouped.push(currentGroup);
+    91→        currentGroup = null;
+    92→      }
+    93→      grouped.push(event);
+    94→    }
+    95→  }
+    96→
+    97→  // Don't forget to add the last group if exists
+    98→  if (currentGroup) {
+    99→    grouped.push(currentGroup);
+   100→  }
+   101→
+   102→  return grouped;
+   103→};
+   104→
+   105→// Repair location type labels
+   106→const REPAIR_LOCATION_LABELS = {
+   107→  WITH_CUSTOMER: "With customer",
+   108→  ON_SITE: "On-site",
+   109→  THIRD_PARTY: "Third-party",
+   110→};
+   111→
+   112→// Repair location type badge styles
+   113→const REPAIR_LOCATION_STYLES = {
+   114→  WITH_CUSTOMER: { bg: "bg-slate-100", text: "text-slate-600" },
+   115→  ON_SITE: { bg: "bg-emerald-100", text: "text-emerald-700" },
+   116→  THIRD_PARTY: { bg: "bg-[#14B8A6]/10", text: "text-[#14B8A6]" },
+   117→};
+   118→
+   119→// Format booked date/time for display
+   120→const formatBookedDate = (date) => {
+   121→  if (!date) return null;
+   122→  const d = new Date(date);
+   123→  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
+   124→    " " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+   125→};
+   126→
+   127→// Helper to calculate days since date
+   128→const daysSince = (date) => {
+   129→  if (!date) return 0;
+   130→  const diff = Date.now() - new Date(date).getTime();
+   131→  return Math.floor(diff / (1000 * 60 * 60 * 24));
+   132→};
+   133→
+   134→// Helper for relative time display
+   135→const relativeTime = (date) => {
+   136→  const days = daysSince(date);
+   137→  if (days === 0) {
+   138→    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+   139→    if (hours === 0) {
+   140→      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+   141→      return mins <= 1 ? "Just now" : `${mins}m ago`;
+   142→    }
+   143→    return `${hours}h ago`;
+   144→  }
+   145→  if (days === 1) return "Yesterday";
+   146→  if (days < 7) return `${days}d ago`;
+   147→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+   148→  return `${Math.floor(days / 30)}mo ago`;
+   149→};
+   150→
+   151→export default function Warranty() {
+   152→  const router = useRouter();
+   153→  const [cases, setCases] = useState([]);
+   154→  const [isLoading, setIsLoading] = useState(true);
+   155→  const [selectedCase, setSelectedCase] = useState(null);
+   156→  const [showAddModal, setShowAddModal] = useState(false);
+   157→  const [newComment, setNewComment] = useState("");
+   158→  const [commentAttachments, setCommentAttachments] = useState([]);
+   159→  const [isUploadingCaseMedia, setIsUploadingCaseMedia] = useState(false);
+   160→  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+   161→  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+   162→  const [aiDiagnostics, setAiDiagnostics] = useState(null);
+   163→  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+   164→  const [expandedTimelineGroups, setExpandedTimelineGroups] = useState({});
+   165→  const [isVehicleDrawerOpen, setIsVehicleDrawerOpen] = useState(false);
+   166→  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
+   167→  const fileInputRef = useRef(null);
+   168→
+   169→  // Drag state - matching Sales & Prep
+   170→  const [draggedCard, setDraggedCard] = useState(null);
+   171→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+   172→
+   173→  // Courtesy car state
+   174→  const [courtesyVehicles, setCourtesyVehicles] = useState([]);
+   175→  const [isLoadingCourtesy, setIsLoadingCourtesy] = useState(false);
+   176→
+   177→  // Column sorting state
+   178→  const [columnSortOptions, setColumnSortOptions] = useState({});
+   179→
+   180→  // Search filter state
+   181→  const [searchQuery, setSearchQuery] = useState("");
+   182→
+   183→  // Filter state (matching stock board style)
+   184→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   185→  const [showMobileFilters, setShowMobileFilters] = useState(false);
+   186→  const [filters, setFilters] = useState({
+   187→    location: "all",      // "all" | "ON_SITE" | "THIRD_PARTY"
+   188→    booked: "all",        // "all" | "booked" | "not_booked"
+   189→    partsRequired: "all", // "all" | "yes" | "no"
+   190→    priority: "all",      // "all" | "low" | "normal" | "high" | "critical"
+   191→  });
+   192→
+   193→  // Mobile column selection
+   194→  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+   195→
+   196→  // Job sheet share state
+   197→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+   198→  const [jobSheetLink, setJobSheetLink] = useState(null);
+   199→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+   200→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

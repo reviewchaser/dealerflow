@@ -1,0 +1,58 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import SalesDocument from "@/models/SalesDocument";
+     3→import crypto from "crypto";
+     4→
+     5→/**
+     6→ * Public Deposit Receipt API
+     7→ * GET /api/public/deposit-receipt/[token]
+     8→ *
+     9→ * Returns deposit receipt data for public viewing (no auth required).
+    10→ * Uses share token hash for lookup.
+    11→ */
+    12→export default async function handler(req, res) {
+    13→  if (req.method !== "GET") {
+    14→    return res.status(405).json({ error: "Method not allowed" });
+    15→  }
+    16→
+    17→  await connectMongo();
+    18→
+    19→  const { token } = req.query;
+    20→
+    21→  if (!token) {
+    22→    return res.status(400).json({ error: "Token is required" });
+    23→  }
+    24→
+    25→  // Hash the token for lookup
+    26→  const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    27→
+    28→  // Find the document
+    29→  const document = await SalesDocument.findOne({
+    30→    shareTokenHash: tokenHash,
+    31→    type: "DEPOSIT_RECEIPT",
+    32→    status: { $ne: "VOID" },
+    33→  }).lean();
+    34→
+    35→  if (!document) {
+    36→    return res.status(404).json({ error: "Document not found or has expired" });
+    37→  }
+    38→
+    39→  // Check expiry
+    40→  if (document.shareExpiresAt && new Date(document.shareExpiresAt) < new Date()) {
+    41→    return res.status(410).json({ error: "This link has expired" });
+    42→  }
+    43→
+    44→  // Return document data (sanitize sensitive fields)
+    45→  return res.status(200).json({
+    46→    id: document._id.toString(),
+    47→    type: document.type,
+    48→    documentNumber: document.documentNumber,
+    49→    status: document.status,
+    50→    issuedAt: document.issuedAt,
+    51→    snapshotData: document.snapshotData,
+    52→  });
+    53→}
+    54→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

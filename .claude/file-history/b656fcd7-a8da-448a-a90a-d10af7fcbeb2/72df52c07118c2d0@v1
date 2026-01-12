@@ -1,0 +1,305 @@
+# DealerFlow Quick Start Guide
+
+## 🚀 Getting Started in 5 Minutes
+
+### Step 1: Install Dependencies
+
+```bash
+npm install
+```
+
+This will install the newly added packages:
+- `qrcode.react` - For QR code generation in form sharing
+- `next-auth` - For authentication (if not already installed)
+
+### Step 2: Set Up Environment Variables
+
+Create or update `.env.local`:
+
+```env
+# MongoDB
+MONGODB_URI=your_mongodb_connection_string
+
+# NextAuth
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your_secret_key_here
+
+# OpenAI API (Optional - will work without it using generic hints)
+OPENAI_API_KEY=sk-xxxxx
+```
+
+### Step 3: Start the Development Server
+
+```bash
+npm run dev
+```
+
+### Step 4: Seed the Forms (One-Time Setup)
+
+You have two options:
+
+#### Option A: Via API Call
+
+Use Postman, Insomnia, or curl:
+
+```bash
+curl -X POST http://localhost:3000/api/seed-forms \
+  -H "Content-Type: application/json" \
+  -d '{"dealerId": "YOUR_DEALER_ID"}'
+```
+
+#### Option B: Create a Setup Button (Recommended)
+
+Add this to your dashboard or settings page:
+
+```javascript
+const seedForms = async () => {
+  const res = await fetch('/api/seed-forms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dealerId: yourDealerId }),
+  });
+  const data = await res.json();
+  console.log(data);
+};
+```
+
+### Step 5: Access the Forms Dashboard
+
+Navigate to: `http://localhost:3000/forms`
+
+You should see:
+- **Templates Tab**: 9 pre-configured forms
+- **Submissions Tab**: Empty (waiting for submissions)
+
+---
+
+## 📱 Testing Public Forms
+
+### Example Public Form URLs
+
+After seeding, these URLs will work:
+
+1. **Warranty Claim**: `http://localhost:3000/public/forms/warranty-claim`
+2. **Test Drive**: `http://localhost:3000/public/forms/test-drive`
+3. **Courtesy Out**: `http://localhost:3000/public/forms/courtesy-out`
+4. **PDI**: `http://localhost:3000/public/forms/pdi`
+5. **Customer PX**: `http://localhost:3000/public/forms/px-appraisal`
+
+### Test Form Submission
+
+1. Open any public form URL
+2. Fill in the required fields (marked with *)
+3. Click Submit
+4. You'll be redirected to a thank-you page
+5. Check the Submissions tab in `/forms` to see your submission
+
+---
+
+## 🎨 Sharing Forms
+
+1. Go to `/forms`
+2. Click "Share" next to any public form
+3. You'll see options for:
+   - **Copy Link** - One click to clipboard
+   - **Email** - Opens email client with pre-filled message
+   - **WhatsApp** - Opens WhatsApp with share link
+   - **SMS** - Copy the text to send via SMS
+   - **QR Code** - Scannable code for mobile access
+
+---
+
+## 🤖 Testing AI Hints
+
+The AI hints feature is ready to use. To test:
+
+### 1. Via API Call
+
+```bash
+curl -X POST http://localhost:3000/api/ai-hints \
+  -H "Content-Type: application/json" \
+  -H "Cookie: your-auth-cookie" \
+  -d '{
+    "make": "BMW",
+    "model": "3 Series",
+    "year": 2018,
+    "engineSize": "2.0",
+    "fuelType": "Diesel",
+    "mileage": 45000
+  }'
+```
+
+### 2. Response Format
+
+```json
+{
+  "hints": "• Check timing chain for stretch (common on N47 engines)\n• Inspect DPF and EGR valve\n• Test all electric windows and sunroof\n...",
+  "source": "ai", // or "cache" if previously generated
+  "isDummy": false // true if no API key configured
+}
+```
+
+### 3. Without API Key
+
+If you haven't set `ANTHROPIC_API_KEY`, you'll get generic hints:
+- Service history and MOT history
+- Brake pads and discs condition
+- Tyre tread depth and condition
+- etc.
+
+---
+
+## 🔧 Common Tasks
+
+### Add a New Form Manually
+
+```javascript
+POST /api/forms
+
+{
+  "dealerId": "your_dealer_id",
+  "name": "Vehicle Service Booking",
+  "type": "OTHER",
+  "isPublic": true,
+  "publicSlug": "service-booking",
+  "fields": [
+    {
+      "label": "Customer Name",
+      "fieldName": "name",
+      "type": "TEXT",
+      "required": true,
+      "order": 1
+    },
+    // Add more fields...
+  ]
+}
+```
+
+### Query Submissions
+
+```javascript
+GET /api/forms/submissions?dealerId=xxx&formType=WARRANTY_CLAIM&search=john
+
+// Filter by:
+// - dealerId (required)
+// - formId
+// - formType
+// - search (searches name, email, phone, reg)
+// - startDate / endDate
+```
+
+### Get Submission Details
+
+```javascript
+GET /api/forms/submissions/[submissionId]
+
+// Returns:
+// - submission (with populated form and related records)
+// - files (uploaded files)
+// - fields (form field definitions)
+```
+
+---
+
+## 🗂️ File Structure
+
+```
+dealerflow/
+├── models/                      # MongoDB Mongoose models
+│   ├── Vehicle.js              ✅ Updated
+│   ├── VehicleAttachment.js    ✅ NEW
+│   ├── VehicleTask.js          ✅ Updated
+│   ├── VehicleTaskTemplate*.js ✅ NEW
+│   ├── Form.js                 ✅ Updated
+│   ├── FormField.js            ✅ Updated
+│   ├── FormSubmission.js       ✅ Updated
+│   ├── FormSubmissionFile.js   ✅ NEW
+│   ├── CourtesyAllocation.js   ✅ NEW
+│   ├── Notification.js         ✅ NEW
+│   └── AIHintCache.js          ✅ NEW
+│
+├── pages/
+│   ├── forms.js                ✅ NEW - Main forms dashboard
+│   ├── public/forms/
+│   │   ├── [slug].js           ✅ NEW - Dynamic public form
+│   │   └── thank-you.js        ✅ NEW - Success page
+│   └── api/
+│       ├── forms/
+│       │   ├── index.js        ✅ NEW - Forms CRUD
+│       │   └── submissions/
+│       │       ├── index.js    ✅ NEW - Submissions API
+│       │       └── [id].js     ✅ NEW - Single submission
+│       ├── seed-forms.js       ✅ NEW - Seed standard forms
+│       └── ai-hints.js         ✅ UPDATED - AI hints with Claude
+│
+└── components/
+    ├── ShareFormModal.js       ✅ NEW - Share modal with QR
+    ├── SubmissionDrawer.js     ✅ NEW - View submission details
+    ├── DashboardLayout.js       (existing)
+    └── StatsCard.js             (existing)
+```
+
+---
+
+## ❓ Troubleshooting
+
+### Forms not showing up?
+- Make sure you ran the seed endpoint
+- Check that `dealerId` matches your authenticated user's dealer
+
+### QR code not rendering?
+- Run `npm install` to ensure `qrcode.react` is installed
+- Check browser console for errors
+
+### AI hints returning generic hints?
+- Check that `ANTHROPIC_API_KEY` is set in `.env.local`
+- Restart the dev server after adding the env variable
+
+### Public forms showing "Form Not Found"?
+- Verify the form has `isPublic: true`
+- Check that `publicSlug` matches the URL
+
+### Can't submit forms?
+- Check browser console and network tab
+- Verify MongoDB connection is working
+- Check that all required fields are filled
+
+---
+
+## 📊 What's Implemented vs. What's Next
+
+### ✅ DONE (Ready to Use)
+- [x] Complete forms system with 9 templates
+- [x] Public shareable forms with QR codes
+- [x] Forms dashboard with Templates & Submissions tabs
+- [x] AI hints for vehicle appraisals (Claude integration)
+- [x] All necessary database models
+- [x] Forms API endpoints
+- [x] Share functionality (email, WhatsApp, SMS, QR)
+
+### 🚧 STILL TO DO (From Original Requirements)
+- [ ] Update buying appraisal page to use forms engine
+- [ ] Add image uploads to buying appraisal
+- [ ] Sales & Prep board enhancements (file uploads, labels, checklist)
+- [ ] Customer/Warranty board improvements (courtesy allocation)
+- [ ] Notifications system (service to create, UI to display)
+- [ ] Dashboard widgets (courtesy fleet, reminders, quick links)
+- [ ] Settings page for task template management
+- [ ] Automatic MOT label management
+- [ ] Courtesy car management pages
+
+**Priority**: The forms system is complete and production-ready. The remaining features build on this foundation.
+
+---
+
+## 🎯 Next Steps
+
+1. **Test the forms system** - Create submissions, share forms
+2. **Configure Claude API** (optional) - For AI hints
+3. **Customize form templates** - Adjust fields as needed
+4. **Integrate into existing pages** - Link from dashboard, etc.
+5. **Set up file storage** - For actual file uploads (S3, Cloudinary, etc.)
+
+---
+
+**Need Help?** Check `IMPLEMENTATION-SUMMARY.md` for detailed technical documentation.

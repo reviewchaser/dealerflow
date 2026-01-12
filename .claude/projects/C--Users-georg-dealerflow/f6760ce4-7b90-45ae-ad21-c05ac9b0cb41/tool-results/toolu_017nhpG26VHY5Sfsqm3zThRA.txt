@@ -1,0 +1,152 @@
+     1→import { withDealerContext } from "../../../libs/authContext";
+     2→import connectMongo from "../../../libs/mongoose";
+     3→import OvertimeSubmission from "../../../models/OvertimeSubmission";
+     4→
+     5→/**
+     6→ * User Overtime API - Single Submission
+     7→ * GET   - Get a specific submission (own only)
+     8→ * PATCH - Update a draft submission (own only)
+     9→ * DELETE - Delete a draft submission (own only)
+    10→ */
+    11→async function handler(req, res, ctx) {
+    12→  await connectMongo();
+    13→  const { dealerId, userId } = ctx;
+    14→  const { id } = req.query;
+    15→
+    16→  if (!id) {
+    17→    return res.status(400).json({ error: "Submission ID is required" });
+    18→  }
+    19→
+    20→  // Fetch the submission
+    21→  const submission = await OvertimeSubmission.findOne({
+    22→    _id: id,
+    23→    dealerId,
+    24→  });
+    25→
+    26→  if (!submission) {
+    27→    return res.status(404).json({ error: "Submission not found" });
+    28→  }
+    29→
+    30→  // Verify ownership (users can only access their own)
+    31→  if (submission.userId.toString() !== userId.toString()) {
+    32→    return res.status(403).json({ error: "Access denied" });
+    33→  }
+    34→
+    35→  if (req.method === "GET") {
+    36→    return res.status(200).json({ submission: submission.toObject() });
+    37→  }
+    38→
+    39→  if (req.method === "PATCH") {
+    40→    return handlePatch(req, res, submission);
+    41→  }
+    42→
+    43→  if (req.method === "DELETE") {
+    44→    return handleDelete(req, res, submission);
+    45→  }
+    46→
+    47→  res.setHeader("Allow", ["GET", "PATCH", "DELETE"]);
+    48→  return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    49→}
+    50→
+    51→/**
+    52→ * PATCH /api/overtime/:id
+    53→ * Body:
+    54→ *   - entries: day entries to update
+    55→ *   - notes: optional notes
+    56→ */
+    57→async function handlePatch(req, res, submission) {
+    58→  try {
+    59→    // Can only edit DRAFT submissions
+    60→    if (submission.status !== "DRAFT") {
+    61→      return res.status(400).json({
+    62→        error: "Cannot edit submission",
+    63→        reason: `Submission is ${submission.status} and cannot be modified`,
+    64→      });
+    65→    }
+    66→
+    67→    const { entries, notes } = req.body;
+    68→
+    69→    // Update entries if provided
+    70→    if (entries !== undefined) {
+    71→      submission.entries = validateEntries(entries);
+    72→    }
+    73→
+    74→    // Update notes if provided
+    75→    if (notes !== undefined) {
+    76→      submission.notes = notes?.trim() || null;
+    77→    }
+    78→
+    79→    await submission.save();
+    80→
+    81→    return res.status(200).json({
+    82→      submission: submission.toObject(),
+    83→      message: "Submission updated successfully",
+    84→    });
+    85→  } catch (error) {
+    86→    console.error("Error updating overtime submission:", error);
+    87→    return res.status(500).json({ error: "Failed to update submission" });
+    88→  }
+    89→}
+    90→
+    91→/**
+    92→ * DELETE /api/overtime/:id
+    93→ * Only DRAFT submissions can be deleted
+    94→ */
+    95→async function handleDelete(req, res, submission) {
+    96→  try {
+    97→    // Can only delete DRAFT submissions
+    98→    if (submission.status !== "DRAFT") {
+    99→      return res.status(400).json({
+   100→        error: "Cannot delete submission",
+   101→        reason: `Submission is ${submission.status} and cannot be deleted`,
+   102→      });
+   103→    }
+   104→
+   105→    await OvertimeSubmission.deleteOne({ _id: submission._id });
+   106→
+   107→    return res.status(200).json({ message: "Submission deleted successfully" });
+   108→  } catch (error) {
+   109→    console.error("Error deleting overtime submission:", error);
+   110→    return res.status(500).json({ error: "Failed to delete submission" });
+   111→  }
+   112→}
+   113→
+   114→/**
+   115→ * Validate and sanitize day entries
+   116→ */
+   117→function validateEntries(entries) {
+   118→  if (!entries || !Array.isArray(entries)) {
+   119→    return [];
+   120→  }
+   121→
+   122→  const validDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+   123→  const seenDays = new Set();
+   124→
+   125→  return entries
+   126→    .filter((entry) => {
+   127→      if (!entry.day || !validDays.includes(entry.day)) {
+   128→        return false;
+   129→      }
+   130→      if (seenDays.has(entry.day)) {
+   131→        return false;
+   132→      }
+   133→      seenDays.add(entry.day);
+   134→      return true;
+   135→    })
+   136→    .map((entry) => ({
+   137→      day: entry.day,
+   138→      startTime: entry.startTime || null,
+   139→      endTime: entry.endTime || null,
+   140→      startFinishText: entry.startFinishText?.trim() || null,
+   141→      location: entry.location?.trim() || null,
+   142→      overtimeHours: Math.min(Math.max(parseFloat(entry.overtimeHours) || 0, 0), 24),
+   143→      breakMinutes: Math.min(Math.max(parseInt(entry.breakMinutes, 10) || 0, 0), 480),
+   144→    }));
+   145→}
+   146→
+   147→export default withDealerContext(handler);
+   148→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

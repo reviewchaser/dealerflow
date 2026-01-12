@@ -1,0 +1,44 @@
+  1755→      </div>
+  1756→    );
+  1757→  }
+  1758→
+  1759→  return (
+  1760→    <DashboardLayout>
+  1761→      <Head><title>Stock & Prep | DealerFlow</title></Head>
+  1762→
+  1763→      <div className="flex justify-between items-center mb-6">
+  1764→        <div>
+  1765→          <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
+  1766→          <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; Drag cards to move between stages</p>
+  1767→        </div>
+  1768→        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+  1769→          + Add Vehicle
+  1770→        </button>
+  1771→      </div>
+  1772→
+  1773→      {/* Consolidated Filters */}
+  1774→      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-3">
+  1775→        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
+  1776→            {/* VRM Search */}
+  1777→            <div className="relative shrink-0">
+  1778→              <div className="relative">
+  1779→                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1780→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1781→                </svg>
+  1782→                <input
+  1783→                  ref={vrmSearchInputRef}
+  1784→                  type="text"
+  1785→                  placeholder="Search VRM..."
+  1786→                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-48 font-mono uppercase"
+  1787→                  value={vrmSearch}
+  1788→                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+  1789→                  onFocus={() => {
+  1790→                    if (vrmSearch.length >= 2) {
+  1791→                      setShowVrmDropdown(true);
+  1792→                    }
+  1793→                  }}
+  1794→                  onKeyDown={handleVrmKeyDown}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,454 @@
+Quick review of Claude’s response (what needs amending)
+
+Reports 404 “already fixed” is not true
+
+You’re still seeing VAT & Inventory reports as Page Not Found, so either:
+
+links point to the wrong route, or
+
+the pages were created in the wrong folder/segment, or
+
+middleware/slug redirect is rewriting them incorrectly.
+This must be treated as not fixed.
+
+Invoice/deposit PDF “logo + T&Cs + signatures already present” is not true
+
+You’re reporting:
+
+no logo
+
+no terms & conditions
+
+signatures overflow A4 (layout not constrained)
+So this needs a proper PDF layout pass and verification.
+
+Agreed Work is not behaving as specified
+
+UI says “will appear on deposit receipt” but it doesn’t.
+
+Sale cancellation leaves sale-created vehicle issues behind.
+
+If agreed work is not linked to issues, it’s invisible to workshop/prep unless they open the sale.
+So the “Agreed Work → stock prep visibility” logic needs redesign.
+
+Part Exchange exists but is missing key fields + workflow
+Your screenshot shows a minimal PX modal; you need:
+
+VRM lookup
+
+settlement finance company (contact)
+
+“settlement in writing” evidence/status + outstanding indicator
+
+“settlement paid” confirmation + where it lives
+
+“Import from appraisals” (customer PX form submissions) + bring issues across at finalisation
+
+enforce “PX appraisal required before completing sale” (but still allow deposit first)
+
+Roles are incomplete
+
+You need a Sales staff category/role with access:
+
+Sales, Submissions, Stock & Prep, Calendar, Appraisals
+
+can submit their own Holiday + Overtime (self-serve)
+Claude added SALES/VIEWER roles, but your “staff categories” UI doesn’t show Sales yet (so the role system isn’t wired into staff category management properly).
+
+Signup + marketing site not aligned to new pricing model
+Your public landing PDF currently shows “one plan £79/month everything included” 
+
+DealerHQ — Dealer Operations Ma…
+
+, but you now want:
+
+Free: invoicing + basic stock + basic reporting
+
+Pro: all modules £49/mo, annual £490 toggle
+Also signup form is too basic; needs plan selection + dealership details + “await activation” messaging.
+
+Warranty Claim form naming + UX
+Your current form language is quite “warranty-claim heavy” and includes strict statements about only purchaser etc. 
+
+Warranty Claim _ DealerHQ
+
+
+You want external title: “Report a Problem”, keep internal tagging as Warranty Claim.
+
+Handover pack selection safeguards
+You want PDI optional + show submission dates to avoid picking an old PDI/service receipt for the same VRM.
+
+Next Claude Code Instruction (send this)
+Goal
+
+Fix regressions that are still broken despite previous claims (Reports, PDFs), finish Sales + PX workflow, and align onboarding + marketing to the new Free/Pro plan strategy. Keep drawer-first UX and do not break existing modules.
+
+P0 — Fix what is still broken (verify, don’t assume)
+P0.1 Reports pages still 404 (VAT + Inventory)
+
+Task
+
+Reproduce by clicking the sidebar report links.
+
+Identify whether the problem is:
+
+wrong hrefs in sidebar
+
+missing Next.js App Router pages
+
+middleware/slug redirect rewriting the path incorrectly
+
+Fix routes so both load reliably under tenant routes.
+
+Acceptance
+
+/app/[dealerSlug]/reports/vat and /app/[dealerSlug]/reports/inventory (or whatever the canonical paths are in this codebase) load without 404.
+
+Navigation does not flicker or double-rewrite.
+
+P0.2 PDFs: invoice + deposit receipt missing logo/T&Cs and layout breaks A4
+
+Task
+
+Open the generated PDFs and confirm:
+
+logo appears
+
+terms and conditions appear
+
+signature boxes are on-page and do NOT push onto a partial extra page
+
+Fix PDF generation layout so it is strict A4 and consistent.
+
+Requirements
+
+Add dealer logo (from settings) with safe sizing on white background.
+
+Add T&Cs (page 2 if needed) — but ensure signature blocks remain neatly on page 2 and do not overflow.
+
+Add bank details + VAT number + company details if set.
+
+Add mileage and VIN where available.
+
+Acceptance
+
+Both documents render correctly on A4 with no overflow.
+
+Logo + T&Cs visible.
+
+P1 — Warranty “Report a Problem” public form improvements
+
+Current public form text and framing is “Warranty Claim” heavy. 
+
+Warranty Claim _ DealerHQ
+
+Task
+
+Public-facing name: Report a Problem
+
+Keep internal template/type naming as “Warranty Claim” so submissions routing + internal workflows remain unchanged.
+
+Additions
+
+Short, friendly explainer at top:
+
+“Use this to report any issue with your vehicle. We’ll review and tell you next steps. Not all issues are warranty-covered.”
+
+Add a Category selector (radio or dropdown) before description, e.g.:
+
+Engine / Drivetrain
+
+Electrical
+
+Brakes / Suspension
+
+Noise / Warning light
+
+Body / Trim
+
+Other
+
+Keep existing warning about not authorising work without approval, but make it clearer and less confrontational.
+
+Acceptance
+
+Public form header shows “Report a Problem”.
+
+Submissions still appear internally as Warranty Claim category/type.
+
+P2 — Handover Pack: PDI optional + safer selection
+
+Task
+
+In “Generate Handover Pack”:
+
+PDI should be optional
+
+Service receipt optional
+
+When listing selectable submissions for a VRM/vehicle:
+
+show submitted date/time
+
+show key identifier (submission id or short ref)
+
+default-select the most recent submission (but allow change)
+
+Guardrails
+
+Prevent accidentally selecting an old submission:
+
+clearly show date
+
+optionally show “Most recent” badge
+
+Acceptance
+
+Multiple PDIs/service receipts for same VRM show as separate options with dates.
+
+PDI can be left unselected and pack still generates.
+
+P3 — Roles: add “Sales” staff category properly (not just enum)
+
+Task
+
+Ensure Staff Categories UI includes a Sales category and it maps to the correct permissions.
+
+Sales role permissions
+
+Can access: Sales, Submissions, Stock & Prep, Calendar, Appraisals
+
+Can submit: Holiday request (self), Overtime (self)
+
+Cannot manage global settings unless admin
+
+Acceptance
+
+Sales role is selectable in staff UI.
+
+A Sales user can open required modules and submit holiday/overtime.
+
+Workshop users still blocked from Sales.
+
+P4 — Sale cancellation cleanup + “Agreed Work” visibility + deposit receipt inclusion
+P4.1 Sale cancellation should clean up sale-created vehicle issues (where appropriate)
+
+Problem
+
+When sale is cancelled, issues created via “Agreed Work → also add to vehicle issues” persist.
+
+Task
+
+Implement provenance tracking:
+
+When an issue is created from a sale agreed-work item, tag it with:
+
+source: "SALE_AGREED_WORK"
+
+saleId
+
+agreedWorkId
+
+On sale cancellation:
+
+delete (or archive) issues that were created by that sale only if they still match and were not manually edited/converted into a real prep issue (use simple rule: if issue has source=SALE_AGREED_WORK and no additional manual updates flag, remove it)
+
+If safer, “archive” instead of hard delete.
+
+Acceptance
+
+Cancelling a sale removes/archives sale-created issues.
+
+Normal vehicle issues remain unaffected.
+
+P4.2 Agreed Work must show on deposit receipt
+
+Task
+
+Deposit receipt PDF must include an “Agreed Work” section listing:
+
+Title
+
+Details (if present)
+
+Type (Prep/Cosmetic/Accessory/Admin/Other)
+
+Acceptance
+
+Add agreed work → generate deposit receipt → items appear.
+
+P4.3 Make agreed work visible to workshop/prep without opening the sale
+
+Goal
+Workshop manager should see promised items from the stock board/card.
+
+Implement
+
+When agreed work is created:
+
+If “add to vehicle issues” is checked, it already shows (good).
+
+If not checked, still surface it by creating a lightweight “Promised Work” entry in the vehicle checklist or a dedicated “Promised” badge/count on the vehicle card.
+
+Recommended: create a Vehicle Checklist group “Promised to Customer” that is read-only and auto-populated from active sales. This avoids polluting Issues but still makes it visible.
+
+Acceptance
+
+Stock card shows a badge/count for promised work OR checklist section exists in vehicle drawer.
+
+Prep users can see what’s promised without opening the deal.
+
+P5 — Part Exchange upgrade (fields + settlement workflow + appraisal integration)
+P5.1 Add PX VRM lookup
+
+Add DVLA lookup button similar to stock add flow.
+
+Autofill make/model/year where possible.
+
+P5.2 Settlement finance company contact
+
+Add “Settlement with” contact picker (finance company).
+
+P5.3 Settlement in writing + outstanding tracking
+
+Add checkbox: “Settlement confirmation received in writing”
+
+If unchecked, show “Outstanding” badge in:
+
+Sale summary
+
+PX panel
+
+optionally on dashboard “Needs attention”
+
+P5.4 Settlement paid tracking
+
+Add status: settlementPaidAt + “Mark settlement paid” action.
+
+Show this status prominently in PX panel.
+
+P5.5 Import from appraisals (customer PX submissions)
+
+Add button: “Import from Appraisal”
+
+Search customer PX appraisals by VRM; select one.
+
+Prefill PX fields from submission.
+
+Also import issues/notes raised on the appraisal into:
+
+PX record
+
+and on finalisation, into stock prep vehicle issues for the PX stock card (if converting PX to stock).
+
+P5.6 Enforce appraisal completion before sale completion (but not before deposit)
+
+Allow deposit without PX appraisal.
+
+But before marking sale “Completed/Delivered”:
+
+if PX exists and no appraisal linked/completed → block completion with a clear call-to-action to complete appraisal (dealer appraisal or imported).
+
+Acceptance
+
+PX modal contains the new fields and statuses.
+
+You can mark settlement outstanding/paid.
+
+You can import from customer PX appraisal.
+
+Sale cannot complete if PX exists without appraisal completion.
+
+P6 — Sales list: archive/delete cancelled deals + quick actions
+
+Task
+
+Add per-row quick actions (⋯ menu) in Sales list:
+
+Open
+
+Copy link
+
+Archive (recommended instead of delete)
+
+Delete (admin-only, optional)
+
+For cancelled deals:
+
+show “Archive” and optionally allow permanent delete if admin.
+
+Acceptance
+
+Cancelled deals can be removed from default view via Archive.
+
+Archived view filter exists.
+
+P7 — Public site redesign + new pricing + signup flow aligned to Free/Pro
+P7.1 Landing page must reflect new pricing + free tier emphasis
+
+Your current marketing PDF still shows one plan at £79/month. 
+
+DealerHQ — Dealer Operations Ma…
+
+
+Update to:
+
+Free: invoicing + basic stock management + basic reporting
+
+Pro: all modules £49/mo; annual toggle £490/yr
+
+Strong CTA to Free + clear “upgrade anytime”
+
+P7.2 Signup form needs plan selection + dealership details + approval messaging
+
+Current signup form is too basic.
+
+Add fields
+
+Plan selection: Free vs Pro (radio)
+
+Dealership name
+
+Address fields (line1, city, postcode, etc.)
+
+Phone
+
+VAT number optional
+
+Logo optional upload later
+
+Flow
+
+On submit:
+
+create dealer + user
+
+set approvalStatus=PENDING
+
+show confirmation screen: “Thanks — your account is pending activation. We’ll email you once it’s approved.”
+
+Prevent access until approved (already implemented) but ensure the messaging is polished.
+
+Acceptance
+
+Signup includes plan + dealership details.
+
+New account shows pending activation message.
+
+Admin can approve and user can log in after.
+
+Final validation checklist (Claude must do before marking complete)
+
+Confirm reports pages no longer 404.
+
+Generate invoice + deposit PDF and confirm: logo, T&Cs, A4 layout.
+
+Create agreed work → shows on deposit receipt and visible to prep without opening sale.
+
+Cancel sale → sale-created issues cleaned up safely.
+
+PX: lookup, settlement, import appraisal, enforce appraisal before completion.
+
+Sales role appears in staff categories UI and has correct access.
+
+Landing page + pricing + signup updated as specified.

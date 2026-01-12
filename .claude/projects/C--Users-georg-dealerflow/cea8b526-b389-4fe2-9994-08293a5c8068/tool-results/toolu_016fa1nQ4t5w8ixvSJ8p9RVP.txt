@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\models\Vehicle.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    70→  },
+    71→  { timestamps: true }
+    72→);
+    73→
+    74→vehicleSchema.plugin(toJSON);
+    75→
+    76→// Indexes for dashboard and common queries
+    77→vehicleSchema.index({ dealerId: 1, status: 1 });
+    78→vehicleSchema.index({ dealerId: 1, createdAt: -1 });
+    79→vehicleSchema.index({ dealerId: 1, motExpiryDate: 1, status: 1 });
+    80→vehicleSchema.index({ dealerId: 1, type: 1 });
+    81→
+    82→export default mongoose.models.Vehicle || mongoose.model("Vehicle", vehicleSchema);
+    83→

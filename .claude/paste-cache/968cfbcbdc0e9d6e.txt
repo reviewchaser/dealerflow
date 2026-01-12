@@ -1,0 +1,201 @@
+Instruction for Claude Code — Submission attachments: inline preview + thumbnails in PDF/print
+Problem
+
+On Submissions → view submission, upload fields are currently displayed as raw file paths (e.g. uploads/1767...jpg). Users need to be able to click and preview attachments within the page (image lightbox / PDF viewer). Also when Export PDF / Print, we need thumbnail previews embedded (not file paths).
+
+Goal
+
+In the submission detail view, every attachment field renders as a clickable thumbnail/filename that opens a viewer (modal/drawer) inline.
+
+In PDF export + print, attachment fields render as thumbnails (images) and links (for PDFs/other files), not raw strings.
+
+Works for multiple files per field.
+
+Step 1 — Identify attachment fields in submissions
+
+In the submission renderer, locate where field values are mapped/rendered (e.g. SubmissionDetail, SubmissionViewer, or wherever it loops through submission.data and outputs label/value).
+
+Implement a robust attachment detector:
+
+If value is:
+
+a string that looks like a file path/URL (uploads/..., http(s)://..., /api/files/...)
+
+OR an array of such strings
+
+OR an object like { url, name, type } (if used anywhere)
+→ treat it as attachments.
+
+Create helper:
+
+normalizeAttachments(value): Attachment[]
+
+Returns [{ url, name, ext, type }]
+
+type derived from extension/MIME (image, pdf, other)
+
+Also ensure URLs are valid in prod:
+
+If stored as uploads/<file> (relative), convert to absolute using process.env.NEXT_PUBLIC_APP_URL or the current origin at runtime.
+
+Step 2 — Build a reusable AttachmentField component (UI)
+
+Create components/attachments/AttachmentField.tsx:
+
+Display rules
+
+Images (jpg/png/webp/heic):
+
+show small thumbnails in a grid (e.g. 64–96px)
+
+clicking opens viewer modal with:
+
+large image
+
+next/prev if multiple images
+
+download/open in new tab buttons
+
+PDFs:
+
+show a PDF icon card + filename
+
+clicking opens modal with embedded PDF viewer:
+
+simplest: <iframe src="...#view=FitH" /> (works well)
+
+Other files:
+
+show file icon + filename
+
+clicking opens new tab or triggers download
+
+Modal
+
+Use existing modal system / shadcn Dialog if present.
+Ensure:
+
+keyboard close (Esc)
+
+background scroll lock
+
+mobile friendly (full height viewer)
+
+Step 3 — Replace raw rendering in Submission view
+
+Wherever you currently show:
+
+value as string (raw path)
+Replace with:
+
+If attachment → <AttachmentField attachments={normalizeAttachments(value)} />
+
+Else → render as normal text
+
+This should fix the in-app view immediately.
+
+Step 4 — Fix print and Export PDF output to show thumbnails (not paths)
+A) Print (browser print)
+
+Add a print-friendly layout for submission view:
+
+Use @media print CSS:
+
+hide nav/sidebar/buttons
+
+ensure attachment thumbnails are visible
+
+prevent thumbnails from being too large
+
+page-break-inside: avoid; on attachment grids/cards
+
+For print rendering:
+
+Images should be real <img src="absoluteUrl" /> tags (NOT Next <Image> only, unless it renders to <img> anyway).
+
+If an image is behind auth/signed URLs, ensure print can access it (see Step 5).
+
+B) Export PDF
+
+Find your current export logic (likely one of these):
+
+server-side generation (Puppeteer/Playwright)
+
+client-side window.print() or html-to-pdf
+
+react-pdf / pdfkit style rendering
+
+Preferred approach (highest fidelity):
+If you’re using Puppeteer/Playwright to render the submission page as PDF:
+
+Ensure the export uses a “print view” route, e.g.:
+
+/app/[dealer]/submissions/[id]/print
+
+That route uses the same renderer but:
+
+no sidebars
+
+attachments rendered as thumbnails (same AttachmentField but in “print mode”)
+
+Puppeteer generates PDF from that route.
+
+If you’re using a React/PDF generator:
+
+For image fields, embed the image thumbnails in the PDF (as base64 or fetched buffer) rather than text.
+
+For non-image attachments, include a filename + URL line.
+
+Critical: images must load before PDF is captured.
+
+Add a “wait for images” step in Puppeteer (or implement await document.fonts.ready + custom window.__ALL_IMAGES_READY__).
+
+Step 5 — Ensure attachments are accessible (auth + absolute URLs)
+
+Right now we see stored paths like uploads/.... On Vercel/prod, these often break or require auth.
+
+Implement one of these (choose based on current architecture):
+
+Option 1 (simple): Public uploads
+
+Serve /uploads/* from a public static host (S3/R2/etc) and store full public URLs in DB.
+
+Best for print/PDF reliability.
+
+Option 2 (secure): Signed URLs for viewing
+
+Create API endpoint: GET /api/files/:key that:
+
+checks dealer access + permissions
+
+streams the file
+
+For printing/PDF generation, ensure Puppeteer uses an authenticated session/cookies so it can fetch images.
+
+At minimum:
+
+Submission view must be able to render thumbnails without 401/403.
+
+Step 6 — Acceptance tests
+
+Claude must test these scenarios end-to-end:
+
+Submission contains single image → thumbnail shows, click opens full viewer.
+
+Submission contains multiple images → grid shows, viewer can navigate.
+
+Submission contains PDF → opens in modal iframe.
+
+Print view shows thumbnails (not file paths).
+
+Export PDF includes thumbnails and does not miss images (no blank boxes).
+
+Works on mobile + desktop.
+
+Output expectation
+
+After this change:
+
+On the submissions detail view, the “UPLOAD DRIVING LICENCE (FRONT)” field shows a thumbnail of the image, clickable to preview.
+
+Printing/exporting PDF shows the thumbnail inside the document.

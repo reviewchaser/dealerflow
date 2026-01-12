@@ -1,0 +1,233 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   352→                  )}
+   353→                </div>
+   354→              )}
+   355→
+   356→              {/* Issues Tab */}
+   357→              {activeTab === "issues" && (
+   358→                <div className="space-y-4">
+   359→                  {vehicle.issues?.length > 0 ? (
+   360→                    vehicle.issues.map((issue) => (
+   361→                      <div
+   362→                        key={issue.id}
+   363→                        className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+   364→                      >
+   365→                        {/* Issue Card Header */}
+   366→                        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100">
+   367→                          <div className="flex items-center justify-between gap-3">
+   368→                            {/* Category & Subcategory Badges */}
+   369→                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+   370→                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+   371→                                {issue.category}
+   372→                              </span>
+   373→                              {issue.subcategory && (
+   374→                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+   375→                                  {issue.subcategory}
+   376→                                </span>
+   377→                              )}
+   378→                            </div>
+   379→                            {/* Status Badge */}
+   380→                            <span
+   381→                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+   382→                                issue.status === "Complete"
+   383→                                  ? "bg-emerald-100 text-emerald-700"
+   384→                                  : issue.status === "In Progress"
+   385→                                  ? "bg-amber-100 text-amber-700"
+   386→                                  : issue.status === "Ordered"
+   387→                                  ? "bg-blue-100 text-blue-700"
+   388→                                  : "bg-red-100 text-red-700"
+   389→                              }`}
+   390→                            >
+   391→                              {issue.status || "Outstanding"}
+   392→                            </span>
+   393→                          </div>
+   394→                        </div>
+   395→
+   396→                        {/* Issue Card Body */}
+   397→                        <div className="p-4 space-y-3">
+   398→                          {/* Description */}
+   399→                          <p className="text-sm font-medium text-slate-900">{issue.description}</p>
+   400→
+   401→                          {/* Details Grid */}
+   402→                          <div className="space-y-2">
+   403→                            {issue.actionNeeded && (
+   404→                              <div className="flex items-start gap-2">
+   405→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   406→                                  Action
+   407→                                </span>
+   408→                                <p className="text-sm text-slate-600">{issue.actionNeeded}</p>
+   409→                              </div>
+   410→                            )}
+   411→                            {issue.priority && (
+   412→                              <div className="flex items-center gap-2">
+   413→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+   414→                                  Priority
+   415→                                </span>
+   416→                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+   417→                                  issue.priority === "high" ? "bg-red-50 text-red-700" :
+   418→                                  issue.priority === "medium" ? "bg-amber-50 text-amber-700" :
+   419→                                  "bg-slate-100 text-slate-600"
+   420→                                }`}>
+   421→                                  {issue.priority}
+   422→                                </span>
+   423→                              </div>
+   424→                            )}
+   425→                            {issue.location && (
+   426→                              <div className="flex items-center gap-2">
+   427→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+   428→                                  Location
+   429→                                </span>
+   430→                                <p className="text-sm text-slate-600">{issue.location}</p>
+   431→                              </div>
+   432→                            )}
+   433→                            {issue.partsRequired && (
+   434→                              <div className="flex items-center gap-2">
+   435→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+   436→                                  Parts
+   437→                                </span>
+   438→                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">
+   439→                                  Required
+   440→                                </span>
+   441→                              </div>
+   442→                            )}
+   443→                            {issue.partsDetails && (
+   444→                              <div className="flex items-start gap-2">
+   445→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   446→                                  Parts Info
+   447→                                </span>
+   448→                                <p className="text-sm text-slate-600">{issue.partsDetails}</p>
+   449→                              </div>
+   450→                            )}
+   451→                            {issue.notes && (
+   452→                              <div className="flex items-start gap-2">
+   453→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   454→                                  Notes
+   455→                                </span>
+   456→                                <p className="text-sm text-slate-600">{issue.notes}</p>
+   457→                              </div>
+   458→                            )}
+   459→                          </div>
+   460→
+   461→                          {/* Photos */}
+   462→                          {issue.photos?.length > 0 && (
+   463→                            <div className="pt-2">
+   464→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+   465→                                Photos ({issue.photos.length})
+   466→                              </p>
+   467→                              <div className="flex flex-wrap gap-2">
+   468→                                {issue.photos.map((photo, idx) => (
+   469→                                  <a
+   470→                                    key={idx}
+   471→                                    href={photo}
+   472→                                    target="_blank"
+   473→                                    rel="noopener noreferrer"
+   474→                                    className="block"
+   475→                                  >
+   476→                                    <img
+   477→                                      src={photo}
+   478→                                      alt={`Issue photo ${idx + 1}`}
+   479→                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-80 hover:scale-105 transition-all border-2 border-slate-200 hover:border-indigo-400"
+   480→                                    />
+   481→                                  </a>
+   482→                                ))}
+   483→                              </div>
+   484→                            </div>
+   485→                          )}
+   486→
+   487→                          {/* Attachments */}
+   488→                          {issue.attachments?.length > 0 && (
+   489→                            <div className="pt-2">
+   490→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+   491→                                Attachments ({issue.attachments.length})
+   492→                              </p>
+   493→                              <div className="flex flex-wrap gap-2">
+   494→                                {issue.attachments.map((attachment, idx) => (
+   495→                                  <a
+   496→                                    key={idx}
+   497→                                    href={attachment}
+   498→                                    target="_blank"
+   499→                                    rel="noopener noreferrer"
+   500→                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors"
+   501→                                  >
+   502→                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   503→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+   504→                                    </svg>
+   505→                                    File {idx + 1}
+   506→                                  </a>
+   507→                                ))}
+   508→                              </div>
+   509→                            </div>
+   510→                          )}
+   511→                        </div>
+   512→
+   513→                        {/* Updates Accordion */}
+   514→                        {issue.updates?.length > 0 && (
+   515→                          <div className="border-t border-slate-100">
+   516→                            <button
+   517→                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+   518→                              onClick={() =>
+   519→                                setExpandedIssues((prev) => ({
+   520→                                  ...prev,
+   521→                                  [issue.id]: !prev[issue.id],
+   522→                                }))
+   523→                              }
+   524→                            >
+   525→                              <span className="flex items-center gap-2">
+   526→                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   527→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+   528→                                </svg>
+   529→                                {issue.updates.length} Update{issue.updates.length !== 1 ? "s" : ""}
+   530→                              </span>
+   531→                              <svg
+   532→                                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+   533→                                  expandedIssues[issue.id] ? "rotate-180" : ""
+   534→                                }`}
+   535→                                fill="none"
+   536→                                stroke="currentColor"
+   537→                                viewBox="0 0 24 24"
+   538→                              >
+   539→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+   540→                              </svg>
+   541→                            </button>
+   542→
+   543→                            {expandedIssues[issue.id] && (
+   544→                              <div className="px-4 pb-4 space-y-3 bg-slate-50/50">
+   545→                                {issue.updates.map((update, idx) => (
+   546→                                  <div
+   547→                                    key={idx}
+   548→                                    className="pl-4 border-l-2 border-indigo-200"
+   549→                                  >
+   550→                                    <div className="flex items-center gap-2 mb-1">
+   551→                                      <p className="text-sm font-semibold text-slate-700">
+   552→                                        {update.userName || "User"}
+   553→                                      </p>
+   554→                                      <span className="text-xs text-slate-400">
+   555→                                        {formatDate(update.createdAt)}
+   556→                                      </span>
+   557→                                    </div>
+   558→                                    <p className="text-sm text-slate-600">{update.content}</p>
+   559→                                  </div>
+   560→                                ))}
+   561→                              </div>
+   562→                            )}
+   563→                          </div>
+   564→                        )}
+   565→                      </div>
+   566→                    ))
+   567→                  ) : (
+   568→                    <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
+   569→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+   570→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   571→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   572→                        </svg>
+   573→                      </div>
+   574→                      <p className="text-sm font-medium text-slate-600">No issues recorded</p>
+   575→                      <p className="text-xs text-slate-400 mt-1">This vehicle has no reported issues</p>
+   576→                    </div>
+   577→                  )}
+   578→                </div>
+   579→              )}
+   580→
+   581→              {/* Documents Tab */}
+   582→              {activeTab === "documents" && (
+   583→                <div className="space-y-3">

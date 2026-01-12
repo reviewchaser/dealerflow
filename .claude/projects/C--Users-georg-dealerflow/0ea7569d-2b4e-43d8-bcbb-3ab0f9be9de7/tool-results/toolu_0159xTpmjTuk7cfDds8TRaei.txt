@@ -1,0 +1,249 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import VehicleTask from "@/models/VehicleTask";
+     4→import VehicleLabel from "@/models/VehicleLabel";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import VehicleLocation from "@/models/VehicleLocation";
+     7→import VehicleDocument from "@/models/VehicleDocument";
+     8→import VehicleActivity from "@/models/VehicleActivity";
+     9→import Deal from "@/models/Deal";
+    10→import User from "@/models/User";
+    11→import { withDealerContext } from "@/libs/authContext";
+    12→
+    13→const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+    14→
+    15→// Helper to safely transform MongoDB _id to id
+    16→const transformId = (obj) => {
+    17→  if (!obj) return null;
+    18→  const result = { ...obj };
+    19→  if (result._id) {
+    20→    result.id = result._id.toString();
+    21→    delete result._id;
+    22→  }
+    23→  delete result.__v;
+    24→  return result;
+    25→};
+    26→
+    27→async function handler(req, res, ctx) {
+    28→  await connectMongo();
+    29→  const { dealerId } = ctx;
+    30→
+    31→  if (req.method === "GET") {
+    32→    const { status, forSale } = req.query;
+    33→    let query = { dealerId };
+    34→
+    35→    // For sale filter: exclude sold vehicles and those already on a deal
+    36→    if (forSale === "true") {
+    37→      // Exclude sold/delivered/archived vehicles
+    38→      query.status = { $nin: ["sold", "delivered", "archived"] };
+    39→
+    40→      // Get vehicle IDs that already have active deals
+    41→      const activeDealVehicleIds = await Deal.distinct("vehicleId", {
+    42→        dealerId,
+    43→        status: { $nin: ["CANCELLED", "COMPLETED"] },
+    44→      });
+    45→
+    46→      if (activeDealVehicleIds.length > 0) {
+    47→        query._id = { $nin: activeDealVehicleIds };
+    48→      }
+    49→    } else if (status && status !== "all") {
+    50→      query.status = status;
+    51→    }
+    52→
+    53→    const vehicles = await Vehicle.find(query)
+    54→      .sort({ createdAt: -1 })
+    55→      .lean();
+    56→
+    57→    if (!vehicles || vehicles.length === 0) {
+    58→      return res.status(200).json([]);
+    59→    }
+    60→
+    61→    // Get all vehicle IDs
+    62→    const vehicleIds = vehicles.map(v => v._id);
+    63→
+    64→    // Fetch all related data in parallel - scoped by dealerId
+    65→    const [allTasks, allIssues, allDocuments, allLocations, allLabels] = await Promise.all([
+    66→      VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    67→      VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    68→      VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    69→      VehicleLocation.find({ dealerId }).lean(),
+    70→      VehicleLabel.find({ dealerId }).lean(),
+    71→    ]);
+    72→
+    73→    // Create lookup maps
+    74→    const tasksByVehicle = {};
+    75→    const issuesByVehicle = {};
+    76→    const documentsByVehicle = {};
+    77→    const locationsById = {};
+    78→    const labelsById = {};
+    79→
+    80→    // Build location lookup
+    81→    for (const loc of allLocations) {
+    82→      locationsById[loc._id.toString()] = {
+    83→        id: loc._id.toString(),
+    84→        name: loc.name,
+    85→      };
+    86→    }
+    87→
+    88→    // Build labels lookup
+    89→    for (const label of allLabels) {
+    90→      labelsById[label._id.toString()] = {
+    91→        id: label._id.toString(),
+    92→        name: label.name,
+    93→        colour: label.colour,
+    94→      };
+    95→    }
+    96→
+    97→    // Build tasks lookup
+    98→    for (const task of allTasks) {
+    99→      const vid = task.vehicleId.toString();
+   100→      if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+   101→      tasksByVehicle[vid].push(transformId(task));
+   102→    }
+   103→
+   104→    // Build issues lookup
+   105→    for (const issue of allIssues) {
+   106→      const vid = issue.vehicleId.toString();
+   107→      if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+   108→      issuesByVehicle[vid].push(transformId(issue));
+   109→    }
+   110→
+   111→    // Build documents lookup
+   112→    for (const doc of allDocuments) {
+   113→      const vid = doc.vehicleId.toString();
+   114→      if (!documentsByVehicle[vid]) documentsByVehicle[vid] = [];
+   115→      documentsByVehicle[vid].push(transformId(doc));
+   116→    }
+   117→
+   118→    // Transform vehicles
+   119→    const result = vehicles.map(vehicle => {
+   120→      const vid = vehicle._id.toString();
+   121→
+   122→      // Get location data
+   123→      let locationData = null;
+   124→      if (vehicle.locationId) {
+   125→        const locId = vehicle.locationId.toString();
+   126→        locationData = locationsById[locId] || null;
+   127→      }
+   128→
+   129→      return {
+   130→        id: vid,
+   131→        dealerId: vehicle.dealerId,
+   132→        type: vehicle.type,
+   133→        saleType: vehicle.saleType,
+   134→        regCurrent: vehicle.regCurrent,
+   135→        vin: vehicle.vin,
+   136→        make: vehicle.make,
+   137→        model: vehicle.model,
+   138→        derivative: vehicle.derivative,
+   139→        year: vehicle.year,
+   140→        mileageCurrent: vehicle.mileageCurrent,
+   141→        bodyType: vehicle.bodyType,
+   142→        fuelType: vehicle.fuelType,
+   143→        transmission: vehicle.transmission,
+   144→        colour: vehicle.colour,
+   145→        status: vehicle.status,
+   146→        soldAt: vehicle.soldAt, // For "Sold X days" display
+   147→        locationId: locationData,
+   148→        motExpiryDate: vehicle.motExpiryDate,
+   149→        motStatus: vehicle.motStatus,
+   150→        taxExpiryDate: vehicle.taxExpiryDate,
+   151→        serviceDueDate: vehicle.serviceDueDate,
+   152→        v5Url: vehicle.v5Url,
+   153→        serviceHistoryUrl: vehicle.serviceHistoryUrl,
+   154→        faultCodesUrl: vehicle.faultCodesUrl,
+   155→        websiteUrl: vehicle.websiteUrl,
+   156→        notes: vehicle.notes,
+   157→        createdAt: vehicle.createdAt,
+   158→        updatedAt: vehicle.updatedAt,
+   159→        tasks: tasksByVehicle[vid] || [],
+   160→        issues: issuesByVehicle[vid] || [],
+   161→        documents: documentsByVehicle[vid] || [],
+   162→        labels: (vehicle.labels || []).map(labelId => labelsById[labelId.toString()]).filter(Boolean),
+   163→      };
+   164→    });
+   165→
+   166→    return res.status(200).json(result);
+   167→  }
+   168→
+   169→  if (req.method === "POST") {
+   170→    const { userId, user } = ctx;
+   171→    const {
+   172→      regCurrent, vin, make, model, derivative, year,
+   173→      mileageCurrent, bodyType, fuelType, transmission, colour,
+   174→      status = "in_stock", notes, locationId, skipDefaultTasks,
+   175→      type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
+   176→      saleType = "RETAIL", // RETAIL, TRADE - only for STOCK vehicles
+   177→      motExpiryDate,
+   178→      dvlaDetails, // DVLA VES data
+   179→      lastDvlaFetchAt,
+   180→    } = req.body;
+   181→
+   182→    if (!regCurrent || !make || !model) {
+   183→      return res.status(400).json({ error: "Reg, make and model required" });
+   184→    }
+   185→
+   186→    const vehicleData = {
+   187→      dealerId, // Add dealer context
+   188→      regCurrent: regCurrent.toUpperCase().replace(/\s/g, ""),
+   189→      vin, make, model, derivative, year,
+   190→      mileageCurrent, bodyType, fuelType, transmission, colour,
+   191→      status, notes, type,
+   192→      createdByUserId: userId,
+   193→      // Only set saleType for STOCK vehicles
+   194→      ...(type === "STOCK" && { saleType }),
+   195→      // MOT expiry from DVSA lookup
+   196→      ...(motExpiryDate && { motExpiryDate: new Date(motExpiryDate) }),
+   197→      // DVLA VES details
+   198→      ...(dvlaDetails && { dvlaDetails }),
+   199→      ...(lastDvlaFetchAt && { lastDvlaFetchAt: new Date(lastDvlaFetchAt) }),
+   200→    };
+   201→
+   202→    // Only add locationId if it's not empty
+   203→    if (locationId) {
+   204→      vehicleData.locationId = locationId;
+   205→    }
+   206→
+   207→    const vehicle = await Vehicle.create(vehicleData);
+   208→
+   209→    // Create default tasks only if not skipped (for backwards compatibility)
+   210→    if (!skipDefaultTasks) {
+   211→      for (const taskName of DEFAULT_TASKS) {
+   212→        await VehicleTask.create({
+   213→          vehicleId: vehicle._id,
+   214→          name: taskName,
+   215→          status: "pending",
+   216→          source: "system_default",
+   217→        });
+   218→      }
+   219→    }
+   220→
+   221→    // Log VEHICLE_CREATED activity
+   222→    const actor = await User.findById(userId).lean();
+   223→    const actorName = actor?.name || user?.name || user?.email || "System";
+   224→    const typeLabel = { STOCK: "Stock", COURTESY: "Courtesy", FLEET_OTHER: "Fleet" }[type] || type;
+   225→
+   226→    await VehicleActivity.log({
+   227→      dealerId,
+   228→      vehicleId: vehicle._id,
+   229→      actorId: userId,
+   230→      actorName,
+   231→      type: "VEHICLE_CREATED",
+   232→      message: `Added ${typeLabel} vehicle: ${make} ${model} (${regCurrent.toUpperCase()})`,
+   233→      meta: { type, make, model, regCurrent: regCurrent.toUpperCase() },
+   234→    });
+   235→
+   236→    // Transform to include id field
+   237→    const vehicleJson = vehicle.toJSON();
+   238→    return res.status(201).json(vehicleJson);
+   239→  }
+   240→
+   241→  return res.status(405).json({ error: "Method not allowed" });
+   242→}
+   243→
+   244→export default withDealerContext(handler);
+   245→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

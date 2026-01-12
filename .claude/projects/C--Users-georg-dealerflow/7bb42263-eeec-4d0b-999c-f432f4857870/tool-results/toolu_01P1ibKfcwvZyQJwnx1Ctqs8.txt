@@ -1,0 +1,54 @@
+   460→          {/* Issues Section */}
+   461→          <Card>
+   462→            <CardHeader
+   463→              title="Issues & Damage"
+   464→              icon="⚠️"
+   465→              subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
+   466→              action={
+   467→                <button
+   468→                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 transition-colors"
+   469→                  onClick={() => setShowIssueModal(true)}
+   470→                >
+   471→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   472→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   473→                  </svg>
+   474→                  Add Issue
+   475→                </button>
+   476→              }
+   477→            />
+   478→            <CardContent>
+   479→              {issues.length === 0 ? (
+   480→                <div className="text-center py-8">
+   481→                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+   482→                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   483→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   484→                    </svg>
+   485→                  </div>
+   486→                  <p className="text-slate-600 font-medium">No issues recorded</p>
+   487→                  <p className="text-sm text-slate-400 mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
+   488→                </div>
+   489→              ) : (
+   490→                <div className="space-y-3">
+   491→                  {issues.map((issue) => (
+   492→                    <div key={issue.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+   493→                      <div className="flex items-start justify-between gap-2 mb-2">
+   494→                        <div className="flex items-center gap-2 flex-wrap">
+   495→                          <Badge variant={
+   496→                            issue.category === 'mechanical' ? 'danger' :
+   497→                            issue.category === 'electrical' ? 'warning' :
+   498→                            issue.category === 'bodywork' ? 'info' :
+   499→                            issue.category === 'fault_codes' ? 'danger' :
+   500→                            issue.category === 'mot' ? 'secondary' : 'default'
+   501→                          }>
+   502→                            {CATEGORY_LABELS[issue.category] || issue.category}
+   503→                          </Badge>
+   504→                          <span className="font-semibold text-slate-800">{issue.subcategory}</span>
+   505→                        </div>
+   506→                        <button
+   507→                          className="text-xs text-red-500 hover:text-red-700 hover:underline transition-colors"
+   508→                          onClick={() => handleDeleteIssue(issue.id)}
+   509→                        >
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

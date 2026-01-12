@@ -1,0 +1,52 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   131→      fetchAvailableVehicles();
+   132→    }
+   133→  }, [showCreateModal, fetchAvailableVehicles]);
+   134→
+   135→  // Create a deal for a vehicle, or open existing deal
+   136→  const handleSelectVehicle = async (vehicle) => {
+   137→    const vehicleId = vehicle.id || vehicle._id;
+   138→    setCreatingDealForVehicle(vehicleId);
+   139→
+   140→    try {
+   141→      // If vehicle already has an active deal, open it directly via URL
+   142→      if (vehicle.activeDeal) {
+   143→        const targetId = vehicle.activeDeal.id;
+   144→        toast.success("Opening existing deal");
+   145→        setShowCreateModal(false);
+   146→        setVehicleSearch("");
+   147→        await router.push(`/sales?id=${targetId}`, undefined, { shallow: true });
+   148→        return;
+   149→      }
+   150→
+   151→      // Create new deal
+   152→      const res = await fetch("/api/deals", {
+   153→        method: "POST",
+   154→        headers: { "Content-Type": "application/json" },
+   155→        body: JSON.stringify({ vehicleId }),
+   156→      });
+   157→
+   158→      const data = await res.json();
+   159→
+   160→      if (!res.ok) {
+   161→        // Check if the error is because vehicle already has a deal
+   162→        if (data.existingDealId) {
+   163→          toast.success("Opening existing deal");
+   164→          setShowCreateModal(false);
+   165→          setVehicleSearch("");
+   166→          await router.push(`/sales?id=${data.existingDealId}`, undefined, { shallow: true });
+   167→          fetchDeals();
+   168→          return;
+   169→        }
+   170→        throw new Error(data.error || "Failed to create deal");
+   171→      }
+   172→
+   173→      const newDealId = data.id || data._id;
+   174→      toast.success("Deal created");
+   175→      setShowCreateModal(false);
+   176→      setVehicleSearch("");
+   177→      await router.push(`/sales?id=${newDealId}`, undefined, { shallow: true });
+   178→      console.log("[Sales] Navigation complete for new deal, refreshing list");
+   179→      fetchDeals(); // Refresh list after navigation
+   180→    } catch (error) {
+   181→      console.error("[Sales] Create deal error:", error);

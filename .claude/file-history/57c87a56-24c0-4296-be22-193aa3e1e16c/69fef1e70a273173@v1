@@ -1,0 +1,332 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import StatsCard from "@/components/StatsCard";
+
+// Human-readable form type labels
+const FORM_TYPE_LABELS = {
+  PDI: "PDI",
+  TEST_DRIVE: "Test Drive",
+  WARRANTY_CLAIM: "Warranty Claim",
+  COURTESY_OUT: "Courtesy Out",
+  COURTESY_IN: "Courtesy In",
+  SERVICE_RECEIPT: "Service",
+  REVIEW_FEEDBACK: "Feedback",
+  OTHER: "Other",
+};
+
+// Priority forms to show as quick buttons
+const PRIORITY_FORM_TYPES = ["PDI", "SERVICE_RECEIPT", "TEST_DRIVE"];
+
+export default function Dashboard() {
+  const router = useRouter();
+  const [stats, setStats] = useState(null);
+  const [forms, setForms] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/dashboard/stats").then(res => {
+        if (!res.ok) throw new Error("Failed to fetch stats");
+        return res.json();
+      }),
+      fetch("/api/forms").then(res => {
+        if (!res.ok) throw new Error("Failed to fetch forms");
+        return res.json();
+      }),
+    ])
+      .then(([statsData, formsData]) => {
+        // Check for error response from API
+        if (statsData.error) {
+          console.error("Dashboard stats error:", statsData.error);
+          setStats(null);
+        } else {
+          setStats(statsData);
+        }
+        setForms(Array.isArray(formsData) ? formsData : []);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Dashboard fetch error:", err);
+        setIsLoading(false);
+      });
+  }, []);
+
+  const handleFormClick = (form) => {
+    if (form.isPublic && form.publicSlug) {
+      window.open(`/public/forms/${form.publicSlug}`, '_blank');
+    } else {
+      router.push(`/forms/fill/${form.id || form._id}`);
+    }
+  };
+
+  // Get priority forms and other forms
+  const priorityForms = forms.filter(f => PRIORITY_FORM_TYPES.includes(f.type)).slice(0, 3);
+  const otherForms = forms.filter(f => !PRIORITY_FORM_TYPES.includes(f.type) || !priorityForms.find(pf => pf.id === f.id));
+
+  return (
+    <DashboardLayout>
+      <Head><title>Dashboard | DealerFlow</title></Head>
+
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+        <p className="text-slate-500 mt-2">Welcome to DealerFlow</p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Top Row - KPI Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard
+              title="Total Stock"
+              value={(stats?.vehicles?.inStock || 0) + (stats?.vehicles?.inPrep || 0)}
+              trend="+2% from last week"
+              icon="🚗"
+              color="primary"
+            />
+            <StatsCard
+              title="Pending Appraisals"
+              value={stats?.appraisals?.pending || 0}
+              trend={`${stats?.appraisals?.total || 0} total appraisals`}
+              icon="📋"
+              color="warning"
+            />
+            <StatsCard
+              title="Live Vehicles"
+              value={stats?.vehicles?.live || 0}
+              trend={`${stats?.vehicles?.inPrep || 0} in prep`}
+              icon="✨"
+              color="success"
+            />
+            <StatsCard
+              title="Avg Rating"
+              value={stats?.reviews?.avgRating || "N/A"}
+              trend={`${stats?.reviews?.count || 0} reviews`}
+              icon="⭐"
+              color="info"
+            />
+          </div>
+
+          {/* Quick Forms Section */}
+          {forms.length > 0 && (
+            <div className="bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <h3 className="text-lg font-semibold text-slate-800">Quick Forms</h3>
+                </div>
+                <Link href="/forms" className="text-sm text-blue-600 hover:text-blue-700 font-semibold">All Forms →</Link>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {/* Priority form buttons */}
+                {priorityForms.map((form) => (
+                  <button
+                    key={form.id || form._id}
+                    onClick={() => handleFormClick(form)}
+                    className="flex items-center gap-2 px-4 py-3 bg-gradient-to-br from-white to-blue-50/50 border border-slate-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all"
+                  >
+                    <span className="text-lg">📋</span>
+                    <span className="font-medium text-slate-700">{FORM_TYPE_LABELS[form.type] || form.name}</span>
+                  </button>
+                ))}
+
+                {/* More dropdown for other forms */}
+                {otherForms.length > 0 && (
+                  <div className="dropdown dropdown-end">
+                    <label tabIndex={0} className="flex items-center gap-2 px-4 py-3 bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl hover:border-slate-300 hover:shadow-md transition-all cursor-pointer">
+                      <span className="font-medium text-slate-600">More</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </label>
+                    <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-56 max-h-64 overflow-y-auto">
+                      {otherForms.map((form) => (
+                        <li key={form.id || form._id}>
+                          <button onClick={() => handleFormClick(form)} className="flex justify-between">
+                            <span>{form.name}</span>
+                            <span className="badge badge-ghost badge-xs">{FORM_TYPE_LABELS[form.type] || form.type}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Middle Row - Activity Overview + Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Activity Overview - 2/3 width */}
+            <div className="lg:col-span-2 bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                <h3 className="text-lg font-semibold text-slate-800">Activity Overview</h3>
+              </div>
+              <div className="flex items-center justify-center h-64 bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-2xl">
+                <div className="text-center">
+                  <p className="text-slate-400 text-sm mb-2">📊 Chart Placeholder</p>
+                  <p className="text-xs text-slate-400">Appraisals vs Sales</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions - 1/3 width */}
+            <div className="bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                <h3 className="text-lg font-semibold text-slate-800">Quick Actions</h3>
+              </div>
+              <div className="space-y-3">
+                <Link href="/appraisals/new" className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-white to-blue-50/30 shadow-md shadow-blue-900/5 hover:shadow-lg hover:shadow-blue-900/10 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-xl flex items-center justify-center text-sm shadow-lg">
+                      ➕
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">New Appraisal</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                <Link href="/sales-prep" className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-white to-blue-50/30 shadow-md shadow-blue-900/5 hover:shadow-lg hover:shadow-blue-900/10 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-xl flex items-center justify-center text-sm shadow-lg">
+                      🚗
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">Add Vehicle</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                <Link href="/forms" className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-br from-white to-blue-50/30 shadow-md shadow-blue-900/5 hover:shadow-lg hover:shadow-blue-900/10 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 text-white rounded-xl flex items-center justify-center text-sm shadow-lg">
+                      📝
+                    </div>
+                    <span className="text-sm font-semibold text-slate-700">View Forms</span>
+                  </div>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Row - Recent Lists */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Appraisals */}
+            <div className="bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <h3 className="text-lg font-semibold text-slate-800">Recent Appraisals</h3>
+                </div>
+                <Link href="/appraisals" className="text-sm text-blue-600 hover:text-blue-700 font-semibold">View All →</Link>
+              </div>
+
+              {stats?.recent?.appraisals?.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Vehicle</th>
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Contact</th>
+                        <th className="text-right py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.recent.appraisals.map((a) => (
+                        <tr key={a.id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="py-3 px-2">
+                            <p className="text-sm font-semibold text-slate-900 font-mono">{a.vehicleReg}</p>
+                          </td>
+                          <td className="py-3 px-2">
+                            <p className="text-sm text-slate-500">{a.contactId?.name || "—"}</p>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              a.decision === "purchased"
+                                ? "bg-green-100 text-green-800"
+                                : a.decision === "not_purchased"
+                                ? "bg-red-100 text-red-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {a.decision}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-sm py-4">No appraisals yet</p>
+              )}
+            </div>
+
+            {/* Pending Prep */}
+            <div className="bg-white shadow-[0_4px_20px_-4px_rgba(0,0,0,0.1)] rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                  <h3 className="text-lg font-semibold text-slate-800">Pending Prep</h3>
+                </div>
+                <Link href="/sales-prep" className="text-sm text-blue-600 hover:text-blue-700 font-semibold">View All →</Link>
+              </div>
+
+              {stats?.recent?.vehicles?.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100">
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Vehicle</th>
+                        <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Reg</th>
+                        <th className="text-right py-2 px-2 text-xs font-semibold text-slate-500 uppercase">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.recent.vehicles.map((v) => (
+                        <tr key={v.id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="py-3 px-2">
+                            <p className="text-sm font-semibold text-slate-900">{v.make} {v.model}</p>
+                          </td>
+                          <td className="py-3 px-2">
+                            <p className="text-sm text-slate-500 font-mono">{v.regCurrent}</p>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              v.status === "delivered"
+                                ? "bg-green-100 text-green-800"
+                                : v.status === "live"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-yellow-100 text-yellow-800"
+                            }`}>
+                              {v.status.replace("_", " ")}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-slate-500 text-sm py-4">No vehicles yet</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

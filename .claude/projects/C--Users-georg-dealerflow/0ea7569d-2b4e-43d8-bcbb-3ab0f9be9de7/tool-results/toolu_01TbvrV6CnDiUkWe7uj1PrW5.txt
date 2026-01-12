@@ -1,0 +1,34 @@
+    60→  const selectedDealId = router.isReady ? (router.query.id || null) : null;
+    61→  const isDrawerOpen = !!selectedDealId;
+    62→
+    63→  // DEBUG: Log whenever drawer state changes
+    64→  useEffect(() => {
+    65→    console.log("[Sales] Drawer state:", {
+    66→      selectedDealId,
+    67→      isDrawerOpen,
+    68→      query: router.query,
+    69→      isReady: router.isReady,
+    70→      asPath: router.asPath
+    71→    });
+    72→  }, [selectedDealId, isDrawerOpen, router.query, router.isReady, router.asPath]);
+    73→
+    74→  // DEBUG: Log component mount/unmount
+    75→  useEffect(() => {
+    76→    console.log("[Sales] Component MOUNTED");
+    77→    return () => console.log("[Sales] Component UNMOUNTED");
+    78→  }, []);
+    79→
+    80→  // Create sale modal state
+    81→  const [showCreateModal, setShowCreateModal] = useState(false);
+    82→  const [availableVehicles, setAvailableVehicles] = useState([]);
+    83→  const [vehiclesLoading, setVehiclesLoading] = useState(false);
+    84→  const [vehiclesError, setVehiclesError] = useState(null);
+    85→  const [vehicleSearch, setVehicleSearch] = useState("");
+    86→  const [creatingDealForVehicle, setCreatingDealForVehicle] = useState(null); // Track which vehicle is being processed
+    87→
+    88→  // Load deals
+    89→  const fetchDeals = useCallback(async () => {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

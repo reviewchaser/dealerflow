@@ -1,0 +1,204 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import { showDummyNotification } from "@/utils/notifications";
+     7→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     8→
+     9→export default function Settings() {
+    10→  const { isRedirecting } = useDealerRedirect();
+    11→  const [labels, setLabels] = useState([]);
+    12→  const [categories, setCategories] = useState([]);
+    13→  const [locations, setLocations] = useState([]);
+    14→  const [prepTasks, setPrepTasks] = useState([]);
+    15→  const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
+    16→  const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
+    17→  const [newLocation, setNewLocation] = useState("");
+    18→  const [newPrepTask, setNewPrepTask] = useState("");
+    19→
+    20→  // Dealer branding state
+    21→  const [dealer, setDealer] = useState(null);
+    22→  const [dealerForm, setDealerForm] = useState({
+    23→    name: "",
+    24→    companyName: "",
+    25→    companyAddress: "",
+    26→    companyPhone: "",
+    27→    companyEmail: "",
+    28→    googleReviewUrl: "",
+    29→    slug: "",
+    30→  });
+    31→  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    32→  const [isSavingDealer, setIsSavingDealer] = useState(false);
+    33→
+    34→  // Sales settings state
+    35→  const [salesSettings, setSalesSettings] = useState({
+    36→    invoiceNumberPrefix: "INV",
+    37→    nextInvoiceNumber: 1,
+    38→    depositReceiptPrefix: "DEP",
+    39→    nextDepositReceiptNumber: 1,
+    40→    vatRate: 20,
+    41→    defaultVatScheme: "MARGIN",
+    42→    vatNumber: "",
+    43→    vatRegistered: false,
+    44→    companyNumber: "",
+    45→    bankDetails: {
+    46→      accountName: "",
+    47→      sortCode: "",
+    48→      accountNumber: "",
+    49→    },
+    50→    terms: {
+    51→      consumerInPerson: "",
+    52→      consumerDistance: "",
+    53→      businessInPerson: "",
+    54→      businessDistance: "",
+    55→    },
+    56→  });
+    57→  const [isSavingSales, setIsSavingSales] = useState(false);
+    58→  const [activeTermsTab, setActiveTermsTab] = useState("consumerInPerson");
+    59→
+    60→  // Theme state
+    61→  const [theme, setTheme] = useState("light");
+    62→
+    63→  // Integration status state
+    64→  const [integrationStatus, setIntegrationStatus] = useState({
+    65→    openai: null, // null = loading, true = configured, false = not configured
+    66→    dvla: null,
+    67→  });
+    68→
+    69→  // Load theme from localStorage on mount
+    70→  useEffect(() => {
+    71→    const savedTheme = localStorage.getItem("theme") || "system";
+    72→    setTheme(savedTheme);
+    73→    applyTheme(savedTheme);
+    74→  }, []);
+    75→
+    76→  const applyTheme = (selectedTheme) => {
+    77→    const root = document.documentElement;
+    78→    if (selectedTheme === "system") {
+    79→      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    80→      root.setAttribute("data-theme", prefersDark ? "dark" : "dealerflow");
+    81→      root.classList.toggle("dark", prefersDark);
+    82→    } else if (selectedTheme === "light" || selectedTheme === "dealerflow") {
+    83→      // Use dealerflow theme for light mode (blue primary color)
+    84→      root.setAttribute("data-theme", "dealerflow");
+    85→      root.classList.remove("dark");
+    86→    } else {
+    87→      root.setAttribute("data-theme", selectedTheme);
+    88→      root.classList.toggle("dark", selectedTheme === "dark");
+    89→    }
+    90→  };
+    91→
+    92→  const handleThemeChange = (newTheme) => {
+    93→    setTheme(newTheme);
+    94→    localStorage.setItem("theme", newTheme);
+    95→    applyTheme(newTheme);
+    96→    toast.success(`Theme changed to ${newTheme}`);
+    97→  };
+    98→
+    99→  useEffect(() => {
+   100→    fetchLabels();
+   101→    fetchCategories();
+   102→    fetchLocations();
+   103→    fetchPrepTasks();
+   104→    fetchDealer();
+   105→    fetchIntegrationStatus();
+   106→  }, []);
+   107→
+   108→  const fetchIntegrationStatus = async () => {
+   109→    try {
+   110→      // Check OpenAI status
+   111→      const openaiRes = await fetch("/api/ai/health");
+   112→      const openaiData = await openaiRes.json();
+   113→
+   114→      setIntegrationStatus(prev => ({
+   115→        ...prev,
+   116→        openai: openaiData.ok === true,
+   117→        dvla: true, // DVLA is always configured if env var exists (checked server-side)
+   118→      }));
+   119→    } catch (error) {
+   120→      console.error("Failed to fetch integration status:", error);
+   121→    }
+   122→  };
+   123→
+   124→  const fetchLabels = async () => {
+   125→    try {
+   126→      const res = await fetch("/api/labels");
+   127→      const data = await res.json();
+   128→      setLabels(data);
+   129→    } catch (error) {
+   130→      console.error("Failed to load labels");
+   131→    }
+   132→  };
+   133→
+   134→  const fetchCategories = async () => {
+   135→    try {
+   136→      const res = await fetch("/api/calendar/categories");
+   137→      const data = await res.json();
+   138→      // Ensure data is an array and normalize fields
+   139→      const categoriesArray = Array.isArray(data) ? data : (data?.categories ?? []);
+   140→      setCategories(
+   141→        categoriesArray.map((c) => ({
+   142→          id: c.id ?? c._id,
+   143→          name: c.name ?? "",
+   144→          colour: c.colour ?? c.color ?? "#6366f1",
+   145→        }))
+   146→      );
+   147→    } catch (error) {
+   148→      console.error("Failed to load categories");
+   149→      setCategories([]); // Reset to empty array on error
+   150→    }
+   151→  };
+   152→
+   153→  const addLabel = async (e) => {
+   154→    e.preventDefault();
+   155→    if (!newLabel.name) return toast.error("Label name required");
+   156→    try {
+   157→      await fetch("/api/labels", {
+   158→        method: "POST",
+   159→        headers: { "Content-Type": "application/json" },
+   160→        body: JSON.stringify(newLabel),
+   161→      });
+   162→      setNewLabel({ name: "", colour: "#6366f1" });
+   163→      fetchLabels();
+   164→      toast.success("Label added");
+   165→    } catch (error) {
+   166→      toast.error("Failed to add label");
+   167→    }
+   168→  };
+   169→
+   170→  const deleteLabel = async (labelId) => {
+   171→    if (!confirm("Delete this label?")) return;
+   172→    try {
+   173→      await fetch(`/api/labels/${labelId}`, { method: "DELETE" });
+   174→      fetchLabels();
+   175→      toast.success("Label deleted");
+   176→    } catch (error) {
+   177→      toast.error("Failed to delete label");
+   178→    }
+   179→  };
+   180→
+   181→  const addCategory = async (e) => {
+   182→    e.preventDefault();
+   183→    if (!newCategory.name) return toast.error("Category name required");
+   184→    try {
+   185→      await fetch("/api/calendar/categories", {
+   186→        method: "POST",
+   187→        headers: { "Content-Type": "application/json" },
+   188→        body: JSON.stringify(newCategory),
+   189→      });
+   190→      setNewCategory({ name: "", colour: "#3b82f6" });
+   191→      fetchCategories();
+   192→      toast.success("Category added");
+   193→    } catch (error) {
+   194→      toast.error("Failed to add category");
+   195→    }
+   196→  };
+   197→
+   198→  const fetchLocations = async () => {
+   199→    try {
+   200→      const res = await fetch("/api/locations");
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

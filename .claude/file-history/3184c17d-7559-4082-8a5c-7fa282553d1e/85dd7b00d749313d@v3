@@ -1,0 +1,297 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const STATUS_LABELS = {
+  pending: "New",
+  reviewed: "Reviewed",
+  converted: "Converted",
+  declined: "Declined",
+};
+
+const STATUS_COLORS = {
+  pending: "badge-warning",
+  reviewed: "badge-info",
+  converted: "badge-success",
+  declined: "badge-error",
+};
+
+export default function Appraisals() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("buying"); // "buying" or "px"
+  const [appraisals, setAppraisals] = useState([]);
+  const [pxAppraisals, setPxAppraisals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [isConverting, setIsConverting] = useState(null);
+
+  useEffect(() => {
+    fetchAppraisals();
+    fetchPxAppraisals();
+  }, [filter]);
+
+  const fetchAppraisals = async () => {
+    try {
+      const res = await fetch(`/api/appraisals?decision=${filter}`);
+      const data = await res.json();
+      setAppraisals(data);
+    } catch (error) {
+      toast.error("Failed to load buying appraisals");
+    }
+  };
+
+  const fetchPxAppraisals = async () => {
+    try {
+      const res = await fetch(`/api/customer-px?decision=${filter}`);
+      const data = await res.json();
+      setPxAppraisals(data);
+    } catch (error) {
+      console.error("Failed to load PX appraisals", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id, type = "buying") => {
+    if (!confirm("Delete this appraisal?")) return;
+    try {
+      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+      await fetch(endpoint, { method: "DELETE" });
+      toast.success("Deleted");
+      if (type === "px") fetchPxAppraisals();
+      else fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleConvertToStock = async (appraisal, type = "buying") => {
+    if (!confirm(`Convert "${appraisal.vehicleReg}" to stock? All issues and documents will be transferred.`)) return;
+
+    setIsConverting(appraisal.id || appraisal._id);
+    try {
+      const endpoint = type === "px"
+        ? `/api/customer-px/${appraisal.id || appraisal._id}/convert`
+        : `/api/appraisals/${appraisal.id || appraisal._id}/convert`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialStatus: "in_stock" }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to convert");
+      }
+
+      toast.success("Vehicle added to stock with all issues and documents!");
+      if (type === "px") fetchPxAppraisals();
+      else fetchAppraisals();
+
+      if (confirm("Vehicle created. View it on Sales & Prep board?")) {
+        router.push("/sales-prep");
+      }
+    } catch (error) {
+      console.error("Convert error:", error);
+      toast.error(error.message || "Failed to convert to stock");
+    } finally {
+      setIsConverting(null);
+    }
+  };
+
+  const handleUpdateStatus = async (id, status, type = "buying") => {
+    try {
+      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+      await fetch(endpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: status, decidedAt: new Date() }),
+      });
+      toast.success(`Marked as ${STATUS_LABELS[status]}`);
+      if (type === "px") fetchPxAppraisals();
+      else fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  const currentAppraisals = activeTab === "buying" ? appraisals : pxAppraisals;
+
+  return (
+    <DashboardLayout>
+      <Head><title>Appraisals | DealerFlow</title></Head>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Appraisals</h1>
+          <p className="text-base-content/60 mt-2">Track vehicle purchase assessments</p>
+        </div>
+        <Link href="/appraisals/new" className="btn btn-primary">+ New Appraisal</Link>
+      </div>
+
+      {/* Tabs */}
+      <div className="tabs tabs-boxed mb-6 bg-base-200 p-1 w-fit">
+        <button
+          className={`tab ${activeTab === "buying" ? "tab-active bg-base-100" : ""}`}
+          onClick={() => setActiveTab("buying")}
+        >
+          Buying Appraisals
+          {appraisals.length > 0 && (
+            <span className="badge badge-sm ml-2">{appraisals.length}</span>
+          )}
+        </button>
+        <button
+          className={`tab ${activeTab === "px" ? "tab-active bg-base-100" : ""}`}
+          onClick={() => setActiveTab("px")}
+        >
+          Customer PX
+          {pxAppraisals.length > 0 && (
+            <span className="badge badge-sm ml-2">{pxAppraisals.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {["all", "pending", "reviewed", "converted", "declined"].map((status) => (
+          <button
+            key={status}
+            className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setFilter(status)}
+          >
+            {status === "all" ? "All" : STATUS_LABELS[status] || status}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : currentAppraisals.length === 0 ? (
+        <div className="card bg-base-200">
+          <div className="card-body text-center py-16">
+            <p className="text-lg text-base-content/60">
+              {activeTab === "buying"
+                ? "No buying appraisals found"
+                : "No customer PX appraisals found"}
+            </p>
+            {activeTab === "buying" && (
+              <div className="mt-6">
+                <Link href="/appraisals/new" className="btn btn-primary">Create First Appraisal</Link>
+              </div>
+            )}
+            {activeTab === "px" && (
+              <p className="text-sm text-base-content/50 mt-2">
+                Customer PX appraisals are created when customers submit the PX Appraisal form
+              </p>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Registration</th>
+                <th>Vehicle</th>
+                {activeTab === "px" && <th>Customer</th>}
+                <th>Mileage</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentAppraisals.map((a) => (
+                <tr key={a.id || a._id} className="hover">
+                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
+                  <td><span className="font-mono font-semibold">{a.vehicleReg}</span></td>
+                  <td>
+                    {a.vehicleMake && a.vehicleModel ? (
+                      <span>{a.vehicleMake} {a.vehicleModel} {a.vehicleYear ? `(${a.vehicleYear})` : ""}</span>
+                    ) : "—"}
+                  </td>
+                  {activeTab === "px" && (
+                    <td>
+                      <div className="text-sm">
+                        <p className="font-medium">{a.customerName || a.contactId?.name || "—"}</p>
+                        {(a.customerEmail || a.contactId?.email) && (
+                          <p className="text-base-content/60 text-xs">{a.customerEmail || a.contactId?.email}</p>
+                        )}
+                      </div>
+                    </td>
+                  )}
+                  <td>{a.mileage?.toLocaleString() || "—"}</td>
+                  <td>
+                    <div className={`badge ${STATUS_COLORS[a.decision] || "badge-ghost"}`}>
+                      {STATUS_LABELS[a.decision] || a.decision}
+                    </div>
+                    {a.vehicleId && (
+                      <Link href="/sales-prep" className="badge badge-outline badge-sm ml-2">
+                        In Stock
+                      </Link>
+                    )}
+                  </td>
+                  <td>
+                    <div className="flex gap-1 flex-wrap">
+                      <Link
+                        href={activeTab === "px" ? `/appraisals/px/${a.id || a._id}` : `/appraisals/${a.id || a._id}`}
+                        className="btn btn-ghost btn-xs"
+                      >
+                        View
+                      </Link>
+
+                      {a.decision === "pending" && (
+                        <>
+                          <button
+                            className="btn btn-success btn-xs"
+                            onClick={() => handleConvertToStock(a, activeTab === "px" ? "px" : "buying")}
+                            disabled={isConverting === (a.id || a._id)}
+                          >
+                            {isConverting === (a.id || a._id) ? (
+                              <span className="loading loading-spinner loading-xs"></span>
+                            ) : "Convert"}
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => handleUpdateStatus(a.id || a._id, "declined", activeTab === "px" ? "px" : "buying")}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+
+                      {a.decision === "reviewed" && !a.vehicleId && (
+                        <button
+                          className="btn btn-success btn-xs"
+                          onClick={() => handleConvertToStock(a, activeTab === "px" ? "px" : "buying")}
+                          disabled={isConverting === (a.id || a._id)}
+                        >
+                          {isConverting === (a.id || a._id) ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : "Convert"}
+                        </button>
+                      )}
+
+                      <button
+                        className="btn btn-ghost btn-xs text-error"
+                        onClick={() => handleDelete(a.id || a._id, activeTab === "px" ? "px" : "buying")}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

@@ -1,0 +1,343 @@
+A) Fix routing so Sales page never 404s
+
+Identify the routing structure in this project
+
+Confirm whether we’re using app/ router (Next.js App Router) or pages/.
+
+Confirm org routes look like:
+
+/app/[orgSlug]/stock
+
+/app/[orgSlug]/aftersales
+
+etc.
+
+Make Sales page route match navigation
+
+If nav shows “Sales”, link must match the actual file path.
+
+Standardise to:
+/app/[orgSlug]/sales
+
+Ensure there is a page.tsx (or page.jsx) at:
+
+app/app/[orgSlug]/sales/page.tsx (or the equivalent path used by the project)
+
+Add redirect/alias
+
+If any previous route was /deals, implement a redirect to /sales so old links don’t break.
+
+Test
+
+localhost and Vercel: clicking “Sales” in sidebar must open the page reliably with no 404.
+
+B) Add “Create Sale/Deal” entry points (this is the missing core)
+1) Stock board card quick action
+
+On each vehicle card menu (or a new button in the card actions):
+
+If vehicle already has an active deal (not cancelled): show “Open Sale”
+
+Otherwise show “Start Sale”
+
+Clicking should:
+
+Create a deal for that vehicle (status DRAFT)
+
+Open the DealDrawer immediately (or navigate to Sales and open it)
+
+2) Open vehicle drawer: add a Sales tab
+
+In the vehicle drawer tabs (Overview / Checklist / Issues / Documents / Activity):
+
+Add Sales tab.
+
+Inside it:
+
+If no deal exists: show summary + CTA button: Start Sale
+
+If a deal exists: show deal status, key amounts, deposit/invoice buttons, and Open full deal drawer (or embed deal sections)
+
+This is where users expect it to live, because Sales is tied to the vehicle.
+
+3) Sales page empty state
+
+On the Sales page when there are 0 deals:
+
+Add a primary CTA:
+
+“Start a sale from a vehicle”
+
+Clicking opens a modal:
+
+searchable vehicle picker (VRM, make, model, stock number)
+
+selecting vehicle creates deal + opens drawer
+
+4) Test scenarios
+
+Start sale from stock card
+
+Start sale from vehicle drawer Sales tab
+
+Start sale from Sales page empty state
+
+Verify duplicates prevented: one active sale per vehicle unless cancelled/completed.
+
+C) Contacts module (required)
+1) Add Contacts page + navigation
+
+Add Contacts under Management (near Appraisals/Submissions)
+
+Route: /app/[orgSlug]/contacts
+
+2) Contact schema (minimum viable but correct)
+
+Implement:
+
+Contact:
+
+type: PERSON | BUSINESS
+
+name / companyName
+
+email, phone
+
+address fields (line1/line2/town/postcode/country)
+
+vatNumber (optional)
+
+notes
+
+audit: createdAt/updatedAt
+
+3) Contact picker everywhere sales needs it
+
+In DealDrawer:
+
+Sold To: required
+
+Invoice To: optional (defaults to Sold To)
+
+Finance company: optional (contact)
+
+Part exchange “purchased from”: contact reference (optional)
+
+4) Auto-create contacts policy (answering your earlier question)
+
+Do NOT auto-create contacts from test drives by default (it becomes messy fast).
+
+Instead:
+
+Add a button on a submission: “Create Contact from Submission”
+
+Or an optional setting: “Auto-create contacts from Test Drive submissions: On/Off” default OFF.
+
+D) Sales Settings (must be added to Settings page)
+
+Add a “Sales” section in Settings with:
+
+1) Company identity for documents
+
+Trading name
+
+Address
+
+Email/phone
+
+Company reg
+
+VAT reg
+
+Logo upload (use existing file storage)
+
+2) Numbering
+
+Invoice numbering: starting number (default 1), prefix optional (e.g. INV-)
+
+Deposit receipt numbering: similar, or share sequence with invoice (your choice—default separate)
+
+3) VAT settings
+
+VAT rate (default 20%)
+
+Default display preference for KPIs: Ex VAT (recommended)
+
+4) Default terms templates
+
+Four templates (editable):
+
+B2C distance sale
+
+B2C in-person
+
+B2B distance sale
+
+B2B in-person
+
+These attach to PDFs automatically based on the sale selections.
+
+5) Test
+
+Generate deposit receipt / invoice should include correct company details + correct terms based on toggles.
+
+E) Sales KPI logic corrections (and your “cost allocated to last year” issue but for sales)
+
+You explicitly want KPIs based on when money/cost is recorded, not when the record was created.
+
+So implement these rules:
+
+1) Sales KPIs should be driven by “completion date” and “payment dates”
+
+“This month sales” should use:
+
+deal completed date OR delivered date (choose one consistently; I recommend completed date)
+
+Deposits count in month of deposit payment date
+
+Invoice value can be grouped by invoice issued date if you want accounting-style reports
+
+2) Profit reporting
+
+For all vehicles (VAT qualifying + margin scheme):
+
+Show:
+
+Sale price
+
+Purchase price (SIV)
+
+Add-ons revenue
+
+Costs (prep, aftersales, refurb etc if you decide to link later)
+
+Gross profit
+
+VAT component (where applicable)
+
+Net profit
+
+3) On-screen KPI defaults
+
+Default KPI cards should show Ex VAT totals (best operational indicator)
+
+Add a toggle to switch Ex VAT / Inc VAT.
+
+F) Amendments requested on Stock VRM search + DVLA/MOT fields
+1) Stock search placeholder text
+
+Change placeholder from “VRM…” to something like:
+
+“Search VRM, make, model…”
+Because it now supports more than VRM.
+
+2) VIN + Recall + MOT history enhancements
+VIN population
+
+When doing the existing lookup:
+
+If the API response includes VIN, write it into vehicle.vin
+
+If not available:
+
+keep VIN editable/manual
+
+add “VIN not available from lookup” helper text
+
+Recall status field
+
+Add to vehicle model:
+
+recallStatus: UNKNOWN | NO_OUTSTANDING | OUTSTANDING | CHECK_REQUIRED
+
+recallLastCheckedAt date
+
+recallNotes text
+
+UI:
+
+In vehicle drawer, under identity/specs:
+
+Recall status pill + “Last checked” + notes
+
+Button: “Mark checked today” (sets date)
+
+Optional future: automated check
+
+MOT history view (button under MOT expiry date)
+
+Add button: “View MOT history”
+
+Open a modal/drawer with a clean table:
+
+Date
+
+Result (Pass/Fail)
+
+Mileage
+
+Expiry (if pass)
+
+Advisory count + expand row for advisories
+
+Keep it tidy:
+
+default show last 5
+
+“Show all” expands
+
+Test
+
+Vehicle with MOT records shows table
+
+Vehicle with none shows empty state
+
+Mobile formatting is correct and scrollable
+
+G) Improve Sales page UX (what you showed is close, but incomplete)
+
+Keep the layout Claude made, but add:
+
+“Create Sale” button (opens vehicle picker)
+
+If deal cards exist, show:
+
+customer
+
+status
+
+key numbers (deposit paid, balance due)
+
+last updated
+
+Sorting options:
+
+newest, oldest, next action needed (recommended default)
+
+H) Testing checklist Claude must run before saying “done”
+
+Sales page loads from sidebar on localhost + Vercel
+
+Can create deal from:
+
+Stock card action
+
+Vehicle drawer Sales tab
+
+Sales page “Create Sale”
+
+Deal lifecycle works end-to-end:
+
+deposit → invoice → delivered → completed
+
+Contacts page CRUD works and contact pickers save properly
+
+Settings save and reflect on generated docs
+
+Stock search placeholder updated
+
+VIN population works when available; manual entry otherwise
+
+Recall field present + persisted
+
+MOT history modal renders properly on mobile and desktop

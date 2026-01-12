@@ -1,0 +1,27 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\search.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    87→      .sort({ updatedAt: -1, createdAt: -1 }) // Sort by most recent activity first
+    88→      .limit(parseInt(limit))
+    89→      .lean();
+    90→
+    91→    // Transform for form use
+    92→    const results = vehicles.map((v) => ({
+    93→      id: v._id.toString(),
+    94→      vrm: v.regCurrent,
+    95→      regCurrent: v.regCurrent,
+    96→      make: v.make,
+    97→      model: v.model,
+    98→      year: v.year,
+    99→      colour: v.colour,
+   100→      fuelType: v.fuelType,
+   101→      transmission: v.transmission,
+   102→      mileage: v.mileageCurrent,
+   103→      status: v.status,
+   104→      type: v.type,
+   105→      updatedAt: v.updatedAt,
+   106→      createdAt: v.createdAt,
+   107→      displayName: `${v.regCurrent} - ${v.make} ${v.model}${v.year ? ` (${v.year})` : ""}`,
+   108→    }));
+   109→
+   110→    return res.status(200).json(results);
+   111→  } catch (error) {
+   112→    console.error("Vehicle search error:", error);

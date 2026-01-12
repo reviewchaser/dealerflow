@@ -1,0 +1,204 @@
+  1680→      </div>
+  1681→
+  1682→      {/* Consolidated Filters */}
+  1683→      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-3">
+  1684→        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
+  1685→            {/* VRM Search */}
+  1686→            <div className="relative shrink-0">
+  1687→              <div className="relative">
+  1688→                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1689→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1690→                </svg>
+  1691→                <input
+  1692→                  type="text"
+  1693→                  placeholder="Search VRM..."
+  1694→                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
+  1695→                  value={vrmSearch}
+  1696→                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+  1697→                  onFocus={() => {
+  1698→                    if (vrmSearch.length >= 2) {
+  1699→                      setShowVrmDropdown(true);
+  1700→                      if (vrmSearchResults.length === 0) {
+  1701→                        searchVehiclesApi(vrmSearch);
+  1702→                      }
+  1703→                    }
+  1704→                  }}
+  1705→                  onKeyDown={(e) => {
+  1706→                    if (e.key === "Escape") {
+  1707→                      setShowVrmDropdown(false);
+  1708→                      e.target.blur();
+  1709→                    }
+  1710→                  }}
+  1711→                />
+  1712→                {vrmSearch && (
+  1713→                  <button
+  1714→                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+  1715→                    onClick={() => {
+  1716→                      setVrmSearch("");
+  1717→                      setShowVrmDropdown(false);
+  1718→                      setVrmSearchResults([]);
+  1719→                    }}
+  1720→                  >
+  1721→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1722→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1723→                    </svg>
+  1724→                  </button>
+  1725→                )}
+  1726→              </div>
+  1727→
+  1728→              {/* VRM Search Dropdown */}
+  1729→              {showVrmDropdown && (
+  1730→                <>
+  1731→                  <div className="fixed inset-0 z-10" onClick={() => setShowVrmDropdown(false)}></div>
+  1732→                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-20 overflow-hidden">
+  1733→                    {vrmSearchLoading ? (
+  1734→                      <div className="px-4 py-6 text-center">
+  1735→                        <span className="loading loading-spinner loading-sm text-slate-400"></span>
+  1736→                        <p className="text-sm text-slate-500 mt-2">Searching...</p>
+  1737→                      </div>
+  1738→                    ) : vrmSearchResults.length > 0 ? (
+  1739→                      <ul className="py-1 max-h-64 overflow-y-auto">
+  1740→                        {vrmSearchResults.map((vehicle, idx) => (
+  1741→                          <li key={vehicle.id || vehicle._id}>
+  1742→                            <button
+  1743→                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
+  1744→                              onClick={() => handleVrmSelect(vehicle)}
+  1745→                            >
+  1746→                              <div className="flex items-center gap-3 min-w-0">
+  1747→                                <span className="font-mono font-bold text-slate-900">{vehicle.regCurrent || vehicle.vrm}</span>
+  1748→                                <span className="text-sm text-slate-500 truncate">{vehicle.make} {vehicle.model}</span>
+  1749→                              </div>
+  1750→                              <div className="flex items-center gap-1.5 shrink-0">
+  1751→                                {idx === 0 && vrmSearchResults.filter(v => v.regCurrent === vehicle.regCurrent).length > 1 && (
+  1752→                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">
+  1753→                                    Latest
+  1754→                                  </span>
+  1755→                                )}
+  1756→                                <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+  1757→                                  {getStatusLabel(vehicle.status)}
+  1758→                                </span>
+  1759→                              </div>
+  1760→                            </button>
+  1761→                          </li>
+  1762→                        ))}
+  1763→                      </ul>
+  1764→                    ) : (
+  1765→                      <div className="px-4 py-6 text-center">
+  1766→                        <svg className="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1767→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1768→                        </svg>
+  1769→                        <p className="text-sm text-slate-500">No vehicles found</p>
+  1770→                        <p className="text-xs text-slate-400 mt-1">Try a different registration</p>
+  1771→                      </div>
+  1772→                    )}
+  1773→                  </div>
+  1774→                </>
+  1775→              )}
+  1776→            </div>
+  1777→
+  1778→            <div className="divider divider-horizontal mx-1 shrink-0 hidden sm:flex"></div>
+  1779→
+  1780→            {/* All Vehicles Button */}
+  1781→            <button
+  1782→              className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+  1783→              onClick={() => setActiveFilters([])}
+  1784→            >
+  1785→              <span className="hidden sm:inline">All Vehicles</span>
+  1786→              <span className="sm:hidden">All</span>
+  1787→              <span className="text-xs opacity-70">({vehicles.length})</span>
+  1788→            </button>
+  1789→
+  1790→            <div className="divider divider-horizontal mx-1 shrink-0 hidden sm:flex"></div>
+  1791→
+  1792→            {/* Consolidated Filters - Strictly Separated Desktop/Mobile */}
+  1793→            <div className="shrink-0">
+  1794→              {/* Trigger Button */}
+  1795→              <button
+  1796→                ref={filterButtonRef}
+  1797→                className={`flex items-center gap-2 px-3 py-2 rounded-lg shrink-0 whitespace-nowrap text-sm font-medium transition-all ${
+  1798→                  activeFilters.length > 0
+  1799→                    ? "bg-blue-600 text-white"
+  1800→                    : "bg-white border border-slate-200 text-slate-700 hover:border-slate-300"
+  1801→                }`}
+  1802→                onClick={() => showFiltersDropdown ? setShowFiltersDropdown(false) : openFiltersDropdown()}
+  1803→              >
+  1804→                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1805→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+  1806→                </svg>
+  1807→                <span className="hidden sm:inline">Filters</span>
+  1808→                {activeFilters.length > 0 && (
+  1809→                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+  1810→                    activeFilters.length > 0 ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+  1811→                  }`}>{activeFilters.length}</span>
+  1812→                )}
+  1813→              </button>
+  1814→
+  1815→              {/* ═══════════════════════════════════════════════════════════════ */}
+  1816→              {/* DESKTOP: Fixed Popover via Portal (lg: and up) */}
+  1817→              {/* ═══════════════════════════════════════════════════════════════ */}
+  1818→              {showFiltersDropdown && (
+  1819→                <Portal>
+  1820→                  <div className="hidden lg:block fixed inset-0 z-[9998]">
+  1821→                    {/* Backdrop */}
+  1822→                    <div
+  1823→                      className="fixed inset-0"
+  1824→                      onClick={() => setShowFiltersDropdown(false)}
+  1825→                    />
+  1826→
+  1827→                    {/* Desktop Filter Panel - Fixed position, viewport-clamped */}
+  1828→                    <div
+  1829→                      className="fixed w-[360px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+  1830→                      style={{ top: filterPopoverPos.top, right: filterPopoverPos.right }}
+  1831→                    >
+  1832→                      {/* Sticky Header */}
+  1833→                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shrink-0">
+  1834→                        <h3 className="font-semibold text-slate-900">Filters</h3>
+  1835→                        <button
+  1836→                          onClick={() => setShowFiltersDropdown(false)}
+  1837→                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+  1838→                        >
+  1839→                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1840→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1841→                          </svg>
+  1842→                        </button>
+  1843→                      </div>
+  1844→
+  1845→                      {/* Scrollable Content */}
+  1846→                      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+  1847→                        {/* Prep Tasks Section */}
+  1848→                        <div>
+  1849→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Prep Tasks</h5>
+  1850→                          <div className="space-y-1.5">
+  1851→                            {[
+  1852→                              { key: "awaiting_pdi", label: "Awaiting PDI" },
+  1853→                              { key: "awaiting_valet", label: "Awaiting Valet" },
+  1854→                              { key: "awaiting_photos", label: "Awaiting Photos" },
+  1855→                              { key: "awaiting_mot", label: "Awaiting MOT" },
+  1856→                            ].map(filter => {
+  1857→                              const isActive = activeFilters.includes(filter.key);
+  1858→                              const count = getFilterCount(filter.key);
+  1859→                              return (
+  1860→                                <button
+  1861→                                  key={filter.key}
+  1862→                                  onClick={() => toggleFilter(filter.key)}
+  1863→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  1864→                                    isActive
+  1865→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  1866→                                      : "text-slate-600 hover:bg-slate-50"
+  1867→                                  }`}
+  1868→                                >
+  1869→                                  <span>{filter.label}</span>
+  1870→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  1871→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1872→                                  }`}>{count}</span>
+  1873→                                </button>
+  1874→                              );
+  1875→                            })}
+  1876→                          </div>
+  1877→                        </div>
+  1878→
+  1879→                        {/* Issues Section */}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   130→      setIsLoading(false);
+   131→    }
+   132→  };
+   133→
+   134→  if (!isOpen) return null;
+   135→
+   136→  return (
+   137→    <div
+   138→      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
+   139→      style={{
+   140→        touchAction: "none",

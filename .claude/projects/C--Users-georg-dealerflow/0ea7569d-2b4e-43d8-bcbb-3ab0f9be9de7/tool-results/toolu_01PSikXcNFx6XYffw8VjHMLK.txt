@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   715→        label: "Sale type set",
+   716→        passed: !!deal.saleType,
+   717→        tab: "overview",
+   718→      },
+   719→      {
+   720→        id: "paymentType",
+   721→        label: "Settlement plan set",
+   722→        passed: !!deal.paymentType,
+   723→        tab: "overview",
+   724→      },
+   725→      {
+   726→        id: "price",
+   727→        label: "Vehicle price set",
+   728→        passed: deal.vehiclePriceGross > 0,

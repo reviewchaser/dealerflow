@@ -1,0 +1,29 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   513→                  </button>
+   514→                </div>
+   515→              </div>
+   516→
+   517→              {/* Type Tags */}
+   518→              <div>
+   519→                <label className="block text-sm font-medium text-slate-700 mb-2">Categories</label>
+   520→                <div className="flex flex-wrap gap-2">
+   521→                  {[
+   522→                    { key: "CUSTOMER", label: "Customer" },
+   523→                    { key: "SUPPLIER", label: "Supplier" },
+   524→                    { key: "FINANCE", label: "Finance Company" },
+   525→                  ].map(tag => (
+   526→                    <button
+   527→                      key={tag.key}
+   528→                      type="button"
+   529→                      onClick={() => toggleTypeTag(tag.key)}
+   530→                      className={`btn btn-sm ${formData.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
+   531→                    >
+   532→                      {tag.label}
+   533→                    </button>
+   534→                  ))}
+   535→                </div>
+   536→              </div>
+   537→
+   538→              {/* Name Fields */}
+   539→              {formData.contactType === "individual" ? (
+   540→                <div className="grid grid-cols-2 gap-3">

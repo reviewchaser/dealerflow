@@ -1,0 +1,671 @@
+     1→import { useEffect, useState, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     7→
+     8→// Contact type configuration
+     9→const TYPE_TABS = [
+    10→  { key: "all", label: "All" },
+    11→  { key: "customer", label: "Customers" },
+    12→  { key: "supplier", label: "Suppliers" },
+    13→  { key: "finance_company", label: "Finance" },
+    14→  { key: "trade_buyer", label: "Trade" },
+    15→];
+    16→
+    17→// Format date helper
+    18→const formatDate = (date) => {
+    19→  if (!date) return "";
+    20→  return new Date(date).toLocaleDateString("en-GB", {
+    21→    day: "numeric",
+    22→    month: "short",
+    23→    year: "numeric",
+    24→  });
+    25→};
+    26→
+    27→export default function Contacts() {
+    28→  const router = useRouter();
+    29→  const { isRedirecting } = useDealerRedirect();
+    30→  const [contacts, setContacts] = useState([]);
+    31→  const [isLoading, setIsLoading] = useState(true);
+    32→  const [activeType, setActiveType] = useState("all");
+    33→  const [searchQuery, setSearchQuery] = useState("");
+    34→
+    35→  // Modal state
+    36→  const [showModal, setShowModal] = useState(false);
+    37→  const [editingContact, setEditingContact] = useState(null);
+    38→  const [formData, setFormData] = useState({
+    39→    contactType: "individual",
+    40→    firstName: "",
+    41→    lastName: "",
+    42→    companyName: "",
+    43→    email: "",
+    44→    phone: "",
+    45→    addressLine1: "",
+    46→    addressLine2: "",
+    47→    town: "",
+    48→    postcode: "",
+    49→    country: "United Kingdom",
+    50→    vatNumber: "",
+    51→    notes: "",
+    52→    typeTags: ["customer"],
+    53→  });
+    54→  const [isSaving, setIsSaving] = useState(false);
+    55→
+    56→  // Load contacts
+    57→  const fetchContacts = useCallback(async () => {
+    58→    setIsLoading(true);
+    59→    try {
+    60→      let url = "/api/contacts?";
+    61→      if (activeType !== "all") {
+    62→        url += `typeTag=${activeType}&`;
+    63→      }
+    64→      const response = await fetch(url);
+    65→      if (!response.ok) throw new Error("Failed to fetch contacts");
+    66→      const data = await response.json();
+    67→      setContacts(data);
+    68→    } catch (error) {
+    69→      console.error(error);
+    70→      toast.error("Failed to load contacts");
+    71→    } finally {
+    72→      setIsLoading(false);
+    73→    }
+    74→  }, [activeType]);
+    75→
+    76→  useEffect(() => {
+    77→    if (!isRedirecting) {
+    78→      fetchContacts();
+    79→    }
+    80→  }, [isRedirecting, fetchContacts]);
+    81→
+    82→  // Filter contacts by search
+    83→  const filteredContacts = contacts.filter((contact) => {
+    84→    if (!searchQuery) return true;
+    85→    const query = searchQuery.toLowerCase();
+    86→    return (
+    87→      contact.displayName?.toLowerCase().includes(query) ||
+    88→      contact.companyName?.toLowerCase().includes(query) ||
+    89→      contact.email?.toLowerCase().includes(query) ||
+    90→      contact.phone?.includes(query)
+    91→    );
+    92→  });
+    93→
+    94→  // Count by type
+    95→  const typeCounts = contacts.reduce((acc, contact) => {
+    96→    (contact.typeTags || []).forEach(tag => {
+    97→      acc[tag] = (acc[tag] || 0) + 1;
+    98→    });
+    99→    return acc;
+   100→  }, {});
+   101→
+   102→  // Open modal for new contact
+   103→  const handleNewContact = () => {
+   104→    setEditingContact(null);
+   105→    setFormData({
+   106→      contactType: "individual",
+   107→      firstName: "",
+   108→      lastName: "",
+   109→      companyName: "",
+   110→      email: "",
+   111→      phone: "",
+   112→      addressLine1: "",
+   113→      addressLine2: "",
+   114→      town: "",
+   115→      postcode: "",
+   116→      country: "United Kingdom",
+   117→      vatNumber: "",
+   118→      notes: "",
+   119→      typeTags: ["customer"],
+   120→    });
+   121→    setShowModal(true);
+   122→  };
+   123→
+   124→  // Open modal for editing
+   125→  const handleEditContact = (contact) => {
+   126→    setEditingContact(contact);
+   127→    setFormData({
+   128→      contactType: contact.contactType || (contact.companyName ? "company" : "individual"),
+   129→      firstName: contact.firstName || "",
+   130→      lastName: contact.lastName || "",
+   131→      companyName: contact.companyName || "",
+   132→      email: contact.email || "",
+   133→      phone: contact.phone || "",
+   134→      addressLine1: contact.address?.line1 || "",
+   135→      addressLine2: contact.address?.line2 || "",
+   136→      town: contact.address?.town || "",
+   137→      postcode: contact.address?.postcode || "",
+   138→      country: contact.address?.country || "United Kingdom",
+   139→      vatNumber: contact.vatNumber || "",
+   140→      notes: contact.notes || "",
+   141→      typeTags: contact.typeTags || ["customer"],
+   142→    });
+   143→    setShowModal(true);
+   144→  };
+   145→
+   146→  // Save contact
+   147→  const handleSaveContact = async (e) => {
+   148→    e.preventDefault();
+   149→    setIsSaving(true);
+   150→
+   151→    try {
+   152→      const payload = {
+   153→        contactType: formData.contactType,
+   154→        firstName: formData.firstName,
+   155→        lastName: formData.lastName,
+   156→        companyName: formData.companyName,
+   157→        email: formData.email,
+   158→        phone: formData.phone,
+   159→        address: {
+   160→          line1: formData.addressLine1,
+   161→          line2: formData.addressLine2,
+   162→          town: formData.town,
+   163→          postcode: formData.postcode,
+   164→          country: formData.country,
+   165→        },
+   166→        vatNumber: formData.vatNumber,
+   167→        notes: formData.notes,
+   168→        typeTags: formData.typeTags,
+   169→      };
+   170→
+   171→      const url = editingContact
+   172→        ? `/api/contacts/${editingContact.id}`
+   173→        : "/api/contacts";
+   174→      const method = editingContact ? "PUT" : "POST";
+   175→
+   176→      const res = await fetch(url, {
+   177→        method,
+   178→        headers: { "Content-Type": "application/json" },
+   179→        body: JSON.stringify(payload),
+   180→      });
+   181→
+   182→      if (!res.ok) {
+   183→        const err = await res.json();
+   184→        throw new Error(err.error || "Failed to save contact");
+   185→      }
+   186→
+   187→      toast.success(editingContact ? "Contact updated" : "Contact created");
+   188→      setShowModal(false);
+   189→      fetchContacts();
+   190→    } catch (error) {
+   191→      toast.error(error.message);
+   192→    } finally {
+   193→      setIsSaving(false);
+   194→    }
+   195→  };
+   196→
+   197→  // Delete contact
+   198→  const handleDeleteContact = async (contactId) => {
+   199→    if (!confirm("Are you sure you want to delete this contact?")) return;
+   200→
+   201→    try {
+   202→      const res = await fetch(`/api/contacts/${contactId}`, {
+   203→        method: "DELETE",
+   204→      });
+   205→
+   206→      if (!res.ok) {
+   207→        const err = await res.json();
+   208→        throw new Error(err.error || "Failed to delete contact");
+   209→      }
+   210→
+   211→      toast.success("Contact deleted");
+   212→      fetchContacts();
+   213→    } catch (error) {
+   214→      toast.error(error.message);
+   215→    }
+   216→  };
+   217→
+   218→  // Toggle type tag
+   219→  const toggleTypeTag = (tag) => {
+   220→    setFormData(prev => ({
+   221→      ...prev,
+   222→      typeTags: prev.typeTags.includes(tag)
+   223→        ? prev.typeTags.filter(t => t !== tag)
+   224→        : [...prev.typeTags, tag],
+   225→    }));
+   226→  };
+   227→
+   228→  if (isRedirecting) {
+   229→    return (
+   230→      <DashboardLayout>
+   231→        <div className="flex items-center justify-center min-h-screen">
+   232→          <span className="loading loading-spinner loading-lg"></span>
+   233→        </div>
+   234→      </DashboardLayout>
+   235→    );
+   236→  }
+   237→
+   238→  return (
+   239→    <DashboardLayout>
+   240→      <Head>
+   241→        <title>Contacts | DealerHQ</title>
+   242→      </Head>
+   243→
+   244→      <div className="min-h-screen bg-slate-50 pb-20">
+   245→        {/* Header */}
+   246→        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+   247→          <div className="px-4 py-4 md:px-6 md:py-5">
+   248→            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+   249→              <div>
+   250→                <h1 className="text-xl md:text-2xl font-bold text-slate-900">Contacts</h1>
+   251→                <p className="text-sm text-slate-500 mt-0.5">
+   252→                  {contacts.length} contact{contacts.length !== 1 ? "s" : ""} total
+   253→                </p>
+   254→              </div>
+   255→
+   256→              <div className="flex items-center gap-3">
+   257→                {/* Search */}
+   258→                <div className="relative flex-1 md:w-72">
+   259→                  <svg
+   260→                    className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+   261→                    fill="none"
+   262→                    stroke="currentColor"
+   263→                    viewBox="0 0 24 24"
+   264→                  >
+   265→                    <path
+   266→                      strokeLinecap="round"
+   267→                      strokeLinejoin="round"
+   268→                      strokeWidth={2}
+   269→                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+   270→                    />
+   271→                  </svg>
+   272→                  <input
+   273→                    type="text"
+   274→                    placeholder="Search name, email, phone..."
+   275→                    value={searchQuery}
+   276→                    onChange={(e) => setSearchQuery(e.target.value)}
+   277→                    className="input input-bordered w-full pl-10 h-10"
+   278→                  />
+   279→                </div>
+   280→
+   281→                {/* Add Contact Button */}
+   282→                <button
+   283→                  onClick={handleNewContact}
+   284→                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   285→                >
+   286→                  <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   287→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   288→                  </svg>
+   289→                  <span className="hidden sm:inline">Add Contact</span>
+   290→                </button>
+   291→              </div>
+   292→            </div>
+   293→
+   294→            {/* Type Tabs */}
+   295→            <div className="mt-4 -mb-px flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+   296→              {TYPE_TABS.map((tab) => {
+   297→                const count = tab.key === "all" ? contacts.length : typeCounts[tab.key] || 0;
+   298→                return (
+   299→                  <button
+   300→                    key={tab.key}
+   301→                    onClick={() => setActiveType(tab.key)}
+   302→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   303→                      activeType === tab.key
+   304→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   305→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   306→                    }`}
+   307→                  >
+   308→                    {tab.label}
+   309→                    {count > 0 && (
+   310→                      <span
+   311→                        className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   312→                          activeType === tab.key
+   313→                            ? "bg-white/20 text-white"
+   314→                            : "bg-slate-200 text-slate-600"
+   315→                        }`}
+   316→                      >
+   317→                        {count}
+   318→                      </span>
+   319→                    )}
+   320→                  </button>
+   321→                );
+   322→              })}
+   323→            </div>
+   324→          </div>
+   325→        </div>
+   326→
+   327→        {/* Content */}
+   328→        <div className="p-4 md:p-6">
+   329→          {isLoading ? (
+   330→            <div className="flex items-center justify-center py-20">
+   331→              <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   332→            </div>
+   333→          ) : filteredContacts.length === 0 ? (
+   334→            <div className="bg-white rounded-2xl border border-slate-200 p-8 md:p-12 text-center">
+   335→              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+   336→                <svg
+   337→                  className="w-8 h-8 text-slate-400"
+   338→                  fill="none"
+   339→                  stroke="currentColor"
+   340→                  viewBox="0 0 24 24"
+   341→                >
+   342→                  <path
+   343→                    strokeLinecap="round"
+   344→                    strokeLinejoin="round"
+   345→                    strokeWidth={2}
+   346→                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+   347→                  />
+   348→                </svg>
+   349→              </div>
+   350→              <h3 className="text-lg font-semibold text-slate-900 mb-1">No contacts found</h3>
+   351→              <p className="text-slate-500 mb-4">
+   352→                {searchQuery
+   353→                  ? "Try adjusting your search terms"
+   354→                  : "Add your first contact to get started"}
+   355→              </p>
+   356→              {!searchQuery && (
+   357→                <button
+   358→                  onClick={handleNewContact}
+   359→                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   360→                >
+   361→                  Add Contact
+   362→                </button>
+   363→              )}
+   364→            </div>
+   365→          ) : (
+   366→            <div className="space-y-3">
+   367→              {filteredContacts.map((contact) => (
+   368→                <div
+   369→                  key={contact.id}
+   370→                  className="bg-white rounded-xl border border-slate-200 hover:border-[#0066CC]/30 hover:shadow-md transition-all overflow-hidden"
+   371→                >
+   372→                  <div className="p-4 md:p-5">
+   373→                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+   374→                      {/* Avatar & Name */}
+   375→                      <div className="flex items-center gap-4 flex-1 min-w-0">
+   376→                        <div className="w-12 h-12 md:w-14 md:h-14 bg-[#0066CC]/10 rounded-full flex items-center justify-center shrink-0">
+   377→                          <span className="text-lg md:text-xl font-bold text-[#0066CC]">
+   378→                            {(contact.displayName || "?")[0].toUpperCase()}
+   379→                          </span>
+   380→                        </div>
+   381→
+   382→                        <div className="min-w-0 flex-1">
+   383→                          <div className="flex items-center gap-2 flex-wrap">
+   384→                            <p className="font-semibold text-slate-900 truncate">
+   385→                              {contact.displayName}
+   386→                            </p>
+   387→                            {contact.typeTags?.map(tag => (
+   388→                              <span
+   389→                                key={tag}
+   390→                                className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+   391→                                  tag === "customer" ? "bg-emerald-100 text-emerald-700" :
+   392→                                  tag === "supplier" ? "bg-blue-100 text-blue-700" :
+   393→                                  tag === "finance_company" ? "bg-purple-100 text-purple-700" :
+   394→                                  tag === "trade_buyer" ? "bg-amber-100 text-amber-700" :
+   395→                                  "bg-slate-100 text-slate-600"
+   396→                                }`}
+   397→                              >
+   398→                                {tag.replace("_", " ")}
+   399→                              </span>
+   400→                            ))}
+   401→                          </div>
+   402→                          {contact.companyName && (
+   403→                            <p className="text-sm text-slate-500 truncate mt-0.5">
+   404→                              {contact.companyName}
+   405→                            </p>
+   406→                          )}
+   407→                          <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+   408→                            {contact.email && (
+   409→                              <span className="truncate">{contact.email}</span>
+   410→                            )}
+   411→                            {contact.phone && (
+   412→                              <span>{contact.phone}</span>
+   413→                            )}
+   414→                          </div>
+   415→                        </div>
+   416→                      </div>
+   417→
+   418→                      {/* Actions */}
+   419→                      <div className="flex items-center gap-2 border-t border-slate-100 pt-3 md:border-0 md:pt-0">
+   420→                        <button
+   421→                          onClick={() => handleEditContact(contact)}
+   422→                          className="btn btn-sm btn-ghost text-slate-600"
+   423→                        >
+   424→                          Edit
+   425→                        </button>
+   426→                        <button
+   427→                          onClick={() => handleDeleteContact(contact.id)}
+   428→                          className="btn btn-sm btn-ghost text-red-500"
+   429→                        >
+   430→                          Delete
+   431→                        </button>
+   432→                      </div>
+   433→                    </div>
+   434→                  </div>
+   435→                </div>
+   436→              ))}
+   437→            </div>
+   438→          )}
+   439→        </div>
+   440→      </div>
+   441→
+   442→      {/* Contact Modal */}
+   443→      {showModal && (
+   444→        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+   445→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
+   446→          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+   447→            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+   448→              <h3 className="text-lg font-bold text-slate-900">
+   449→                {editingContact ? "Edit Contact" : "New Contact"}
+   450→              </h3>
+   451→              <button
+   452→                onClick={() => setShowModal(false)}
+   453→                className="btn btn-sm btn-ghost btn-circle"
+   454→              >
+   455→                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   456→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   457→                </svg>
+   458→              </button>
+   459→            </div>
+   460→
+   461→            <form onSubmit={handleSaveContact} className="p-6 space-y-4">
+   462→              {/* Contact Type */}
+   463→              <div>
+   464→                <label className="block text-sm font-medium text-slate-700 mb-2">Type</label>
+   465→                <div className="flex gap-2">
+   466→                  <button
+   467→                    type="button"
+   468→                    onClick={() => setFormData(p => ({ ...p, contactType: "individual" }))}
+   469→                    className={`flex-1 btn btn-sm ${formData.contactType === "individual" ? "btn-primary" : "btn-ghost"}`}
+   470→                  >
+   471→                    Individual
+   472→                  </button>
+   473→                  <button
+   474→                    type="button"
+   475→                    onClick={() => setFormData(p => ({ ...p, contactType: "company" }))}
+   476→                    className={`flex-1 btn btn-sm ${formData.contactType === "company" ? "btn-primary" : "btn-ghost"}`}
+   477→                  >
+   478→                    Business
+   479→                  </button>
+   480→                </div>
+   481→              </div>
+   482→
+   483→              {/* Type Tags */}
+   484→              <div>
+   485→                <label className="block text-sm font-medium text-slate-700 mb-2">Categories</label>
+   486→                <div className="flex flex-wrap gap-2">
+   487→                  {[
+   488→                    { key: "customer", label: "Customer" },
+   489→                    { key: "supplier", label: "Supplier" },
+   490→                    { key: "finance_company", label: "Finance Company" },
+   491→                    { key: "trade_buyer", label: "Trade Buyer" },
+   492→                  ].map(tag => (
+   493→                    <button
+   494→                      key={tag.key}
+   495→                      type="button"
+   496→                      onClick={() => toggleTypeTag(tag.key)}
+   497→                      className={`btn btn-sm ${formData.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
+   498→                    >
+   499→                      {tag.label}
+   500→                    </button>
+   501→                  ))}
+   502→                </div>
+   503→              </div>
+   504→
+   505→              {/* Name Fields */}
+   506→              {formData.contactType === "individual" ? (
+   507→                <div className="grid grid-cols-2 gap-3">
+   508→                  <div>
+   509→                    <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+   510→                    <input
+   511→                      type="text"
+   512→                      value={formData.firstName}
+   513→                      onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))}
+   514→                      className="input input-bordered w-full"
+   515→                      required
+   516→                    />
+   517→                  </div>
+   518→                  <div>
+   519→                    <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+   520→                    <input
+   521→                      type="text"
+   522→                      value={formData.lastName}
+   523→                      onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))}
+   524→                      className="input input-bordered w-full"
+   525→                      required
+   526→                    />
+   527→                  </div>
+   528→                </div>
+   529→              ) : (
+   530→                <div>
+   531→                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+   532→                  <input
+   533→                    type="text"
+   534→                    value={formData.companyName}
+   535→                    onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
+   536→                    className="input input-bordered w-full"
+   537→                    required
+   538→                  />
+   539→                </div>
+   540→              )}
+   541→
+   542→              {/* Company Name for Individuals */}
+   543→              {formData.contactType === "individual" && (
+   544→                <div>
+   545→                  <label className="block text-sm font-medium text-slate-700 mb-1">Company (optional)</label>
+   546→                  <input
+   547→                    type="text"
+   548→                    value={formData.companyName}
+   549→                    onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
+   550→                    className="input input-bordered w-full"
+   551→                  />
+   552→                </div>
+   553→              )}
+   554→
+   555→              {/* Contact Details */}
+   556→              <div className="grid grid-cols-2 gap-3">
+   557→                <div>
+   558→                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+   559→                  <input
+   560→                    type="email"
+   561→                    value={formData.email}
+   562→                    onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))}
+   563→                    className="input input-bordered w-full"
+   564→                  />
+   565→                </div>
+   566→                <div>
+   567→                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+   568→                  <input
+   569→                    type="tel"
+   570→                    value={formData.phone}
+   571→                    onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))}
+   572→                    className="input input-bordered w-full"
+   573→                  />
+   574→                </div>
+   575→              </div>
+   576→
+   577→              {/* Address */}
+   578→              <div className="space-y-3">
+   579→                <label className="block text-sm font-medium text-slate-700">Address</label>
+   580→                <input
+   581→                  type="text"
+   582→                  placeholder="Address Line 1"
+   583→                  value={formData.addressLine1}
+   584→                  onChange={(e) => setFormData(p => ({ ...p, addressLine1: e.target.value }))}
+   585→                  className="input input-bordered w-full"
+   586→                />
+   587→                <input
+   588→                  type="text"
+   589→                  placeholder="Address Line 2"
+   590→                  value={formData.addressLine2}
+   591→                  onChange={(e) => setFormData(p => ({ ...p, addressLine2: e.target.value }))}
+   592→                  className="input input-bordered w-full"
+   593→                />
+   594→                <div className="grid grid-cols-2 gap-3">
+   595→                  <input
+   596→                    type="text"
+   597→                    placeholder="Town/City"
+   598→                    value={formData.town}
+   599→                    onChange={(e) => setFormData(p => ({ ...p, town: e.target.value }))}
+   600→                    className="input input-bordered w-full"
+   601→                  />
+   602→                  <input
+   603→                    type="text"
+   604→                    placeholder="Postcode"
+   605→                    value={formData.postcode}
+   606→                    onChange={(e) => setFormData(p => ({ ...p, postcode: e.target.value }))}
+   607→                    className="input input-bordered w-full"
+   608→                  />
+   609→                </div>
+   610→              </div>
+   611→
+   612→              {/* VAT Number */}
+   613→              {formData.contactType === "company" && (
+   614→                <div>
+   615→                  <label className="block text-sm font-medium text-slate-700 mb-1">VAT Number</label>
+   616→                  <input
+   617→                    type="text"
+   618→                    value={formData.vatNumber}
+   619→                    onChange={(e) => setFormData(p => ({ ...p, vatNumber: e.target.value }))}
+   620→                    className="input input-bordered w-full"
+   621→                    placeholder="GB123456789"
+   622→                  />
+   623→                </div>
+   624→              )}
+   625→
+   626→              {/* Notes */}
+   627→              <div>
+   628→                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+   629→                <textarea
+   630→                  value={formData.notes}
+   631→                  onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
+   632→                  className="textarea textarea-bordered w-full"
+   633→                  rows={3}
+   634→                />
+   635→              </div>
+   636→
+   637→              {/* Actions */}
+   638→              <div className="flex gap-3 pt-4 border-t border-slate-100">
+   639→                <button
+   640→                  type="button"
+   641→                  onClick={() => setShowModal(false)}
+   642→                  className="btn btn-ghost flex-1"
+   643→                >
+   644→                  Cancel
+   645→                </button>
+   646→                <button
+   647→                  type="submit"
+   648→                  disabled={isSaving}
+   649→                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
+   650→                >
+   651→                  {isSaving ? (
+   652→                    <span className="loading loading-spinner loading-sm"></span>
+   653→                  ) : editingContact ? (
+   654→                    "Save Changes"
+   655→                  ) : (
+   656→                    "Create Contact"
+   657→                  )}
+   658→                </button>
+   659→              </div>
+   660→            </form>
+   661→          </div>
+   662→        </div>
+   663→      )}
+   664→    </DashboardLayout>
+   665→  );
+   666→}
+   667→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

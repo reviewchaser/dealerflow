@@ -1,0 +1,380 @@
+import connectMongo from "@/libs/mongoose";
+import AftercareCase from "@/models/AftercareCase";
+import AftercareCaseComment from "@/models/AftercareCaseComment";
+import FormSubmission from "@/models/FormSubmission";
+import FormSubmissionFile from "@/models/FormSubmissionFile";
+import CourtesyAllocation from "@/models/CourtesyAllocation";
+import Vehicle from "@/models/Vehicle";
+import User from "@/models/User";
+import CalendarEvent from "@/models/CalendarEvent";
+import CalendarCategory from "@/models/CalendarCategory";
+import { withDealerContext } from "@/libs/authContext";
+
+// Human-readable board status labels
+const BOARD_STATUS_LABELS = {
+  not_booked_in: "Not Booked In",
+  on_site: "On Site",
+  work_complete: "Work Complete",
+  collected: "Collected"
+};
+
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+
+  if (req.method === "GET") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+      .populate("contactId")
+      .populate("vehicleId")
+      .populate("vehicleSaleId")
+      .lean();
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    aftercareCase.comments = await AftercareCaseComment.find({ aftercareCaseId: id })
+      .sort({ createdAt: 1 }).lean();
+
+    // Count submission attachments if linked
+    let submissionAttachmentCount = 0;
+    if (aftercareCase.linkedSubmissionIds?.length > 0) {
+      submissionAttachmentCount = await FormSubmissionFile.countDocuments({
+        formSubmissionId: { $in: aftercareCase.linkedSubmissionIds }
+      });
+    }
+    aftercareCase.submissionAttachmentCount = submissionAttachmentCount;
+
+    // Count comment attachments
+    let commentAttachmentCount = 0;
+    aftercareCase.comments.forEach(c => {
+      if (c.attachments?.length) commentAttachmentCount += c.attachments.length;
+    });
+    aftercareCase.commentAttachmentCount = commentAttachmentCount;
+
+    // Populate courtesy allocation with vehicle details
+    if (aftercareCase.courtesyAllocationId) {
+      const allocation = await CourtesyAllocation.findOne({
+        _id: aftercareCase.courtesyAllocationId,
+        dealerId
+      }).lean();
+      if (allocation) {
+        // Populate the courtesy vehicle
+        const courtesyVehicle = await Vehicle.findById(allocation.courtesyVehicleId).lean();
+        aftercareCase.courtesyAllocation = {
+          ...allocation,
+          courtesyVehicle
+        };
+      }
+    }
+
+    return res.status(200).json(aftercareCase);
+  }
+
+  if (req.method === "PUT") {
+    const { boardStatus, _eventType, _eventMetadata, ...otherUpdates } = req.body;
+
+    // Get user name for event tracking
+    let userName = null;
+    if (userId) {
+      const user = await User.findById(userId).lean();
+      userName = user?.name || null;
+    }
+
+    // Build events array
+    const events = [];
+
+    // Check if boardStatus is changing
+    if (boardStatus) {
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+      if (currentCase && currentCase.boardStatus !== boardStatus) {
+        events.push({
+          type: "STATUS_CHANGED",
+          createdAt: new Date(),
+          createdByUserId: userId,
+          createdByName: userName,
+          summary: `Status changed from "${BOARD_STATUS_LABELS[currentCase.boardStatus] || currentCase.boardStatus}" to "${BOARD_STATUS_LABELS[boardStatus] || boardStatus}"`,
+          metadata: {
+            fromStatus: currentCase.boardStatus,
+            toStatus: boardStatus
+          }
+        });
+      }
+    }
+
+    // Location type labels for event summaries
+    const LOCATION_LABELS = {
+      WITH_CUSTOMER: "With customer",
+      ON_SITE: "On-site",
+      THIRD_PARTY: "Third-party"
+    };
+
+    // Handle custom event types (LOCATION_UPDATED, BOOKING_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED)
+    if (_eventType && ["LOCATION_UPDATED", "BOOKING_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED"].includes(_eventType)) {
+      let summary = "";
+      switch (_eventType) {
+        case "LOCATION_UPDATED":
+          const fromLoc = _eventMetadata?.fromLocation || "WITH_CUSTOMER";
+          const toLoc = _eventMetadata?.toLocation || "WITH_CUSTOMER";
+          summary = `Repair location changed from "${LOCATION_LABELS[fromLoc] || fromLoc}" to "${LOCATION_LABELS[toLoc] || toLoc}"`;
+          break;
+        case "BOOKING_UPDATED":
+          if (_eventMetadata?.newBookedAt) {
+            const bookedDate = new Date(_eventMetadata.newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+            summary = `Booking set: ${bookedDate}`;
+          } else {
+            summary = "Booking date cleared";
+          }
+          break;
+        case "PARTS_UPDATED":
+          if (_eventMetadata?.partsRequired !== undefined) {
+            summary = _eventMetadata.partsRequired ? "Parts required marked" : "Parts no longer required";
+          } else if (_eventMetadata?.partsNotes !== undefined) {
+            summary = "Parts notes updated";
+          }
+          break;
+        case "COURTESY_REQUIRED_TOGGLED":
+          summary = _eventMetadata?.courtesyRequired ? "Courtesy car marked as required" : "Courtesy car no longer required";
+          break;
+      }
+
+      events.push({
+        type: _eventType,
+        createdAt: new Date(),
+        createdByUserId: userId,
+        createdByName: userName,
+        summary,
+        metadata: _eventMetadata || {}
+      });
+    }
+
+    // Build update object
+    const updateObj = { ...otherUpdates };
+    if (boardStatus) updateObj.boardStatus = boardStatus;
+
+    // If events exist, push them
+    if (events.length > 0) {
+      updateObj.$push = { events: { $each: events } };
+    }
+
+    // ===== Calendar Event & Auto-Move Automation for Warranty Bookings =====
+    // Stages in order: not_booked_in → on_site (Booked In) → work_complete → collected
+    // Auto-move rules:
+    // - When booking set: if in not_booked_in, move to on_site
+    // - When booking cleared: if in on_site, move back to previous status
+    // - Never move backwards from work_complete or collected
+
+    // Track if auto-move happened for UI feedback
+    let autoMoved = false;
+    let autoMovedFrom = null;
+    let autoMovedTo = null;
+
+    if (_eventType === "BOOKING_UPDATED") {
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId })
+        .populate("contactId")
+        .populate("vehicleId")
+        .lean();
+
+      if (currentCase) {
+        const oldBookedAt = currentCase.bookedInAt;
+        const newBookedAt = _eventMetadata?.newBookedAt ? new Date(_eventMetadata.newBookedAt) : null;
+        const currentStatus = currentCase.boardStatus;
+
+        // Define stage ordering for comparison
+        const STAGE_ORDER = ["not_booked_in", "on_site", "work_complete", "collected"];
+        const PRE_BOOKING_STAGES = ["not_booked_in"]; // Stages that can auto-move to on_site
+        const POST_BOOKING_STAGES = ["work_complete", "collected"]; // Stages that should never move backwards
+
+        // Determine booking transition type
+        const wasNull = !oldBookedAt;
+        const isNull = !newBookedAt;
+
+        if (!isNull) {
+          // Booking is being SET or UPDATED
+
+          if (wasNull) {
+            // === CASE A: Booking SET (null → Date) ===
+            // Add WARRANTY_BOOKED_IN event
+            events.push({
+              type: "WARRANTY_BOOKED_IN",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Booking set: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+              metadata: { bookingDateTime: newBookedAt }
+            });
+
+            // Auto-move if in pre-booking stage and NOT in closed/later stages
+            if (PRE_BOOKING_STAGES.includes(currentStatus) && !POST_BOOKING_STAGES.includes(currentStatus)) {
+              // Store previous status for potential restore
+              updateObj.previousBoardStatusBeforeBookedIn = currentStatus;
+              updateObj.boardStatus = "on_site";
+              autoMoved = true;
+              autoMovedFrom = currentStatus;
+              autoMovedTo = "on_site";
+
+              // Add auto-move timeline event
+              events.push({
+                type: "WARRANTY_STAGE_MOVED",
+                createdAt: new Date(),
+                createdByUserId: userId,
+                createdByName: userName,
+                summary: `Auto-moved from "${BOARD_STATUS_LABELS[currentStatus]}" to "Booked In" (booking set)`,
+                metadata: {
+                  fromStatus: currentStatus,
+                  toStatus: "on_site",
+                  source: "SYSTEM",
+                  reason: "BOOKING_SET"
+                }
+              });
+            }
+          } else {
+            // === CASE B: Booking CHANGED (Date → Date) ===
+            // Just update, don't move
+            events.push({
+              type: "WARRANTY_BOOKING_UPDATED",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Booking updated: ${new Date(newBookedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`,
+              metadata: {
+                oldBookingDateTime: oldBookedAt,
+                newBookingDateTime: newBookedAt
+              }
+            });
+          }
+
+          // === Calendar event create/update ===
+          let warrantyCategory = await CalendarCategory.findOne({
+            dealerId,
+            name: "Warranty",
+          });
+          if (!warrantyCategory) {
+            warrantyCategory = await CalendarCategory.create({
+              dealerId,
+              name: "Warranty",
+              colour: "#f59e0b", // Amber color
+            });
+          }
+
+          const vrm = currentCase.currentReg || currentCase.vehicleId?.vrm || currentCase.regAtPurchase || "Unknown";
+          const customerName = currentCase.contactId?.name || "Customer";
+          const title = `Warranty: ${vrm} – ${customerName}`;
+
+          const repairLocLabel = LOCATION_LABELS[currentCase.repairLocationType] || currentCase.repairLocationType;
+          let description = `Repair location: ${repairLocLabel}`;
+          if (currentCase.repairLocationName) {
+            description += ` (${currentCase.repairLocationName})`;
+          }
+          if (currentCase.summary) {
+            description += `\n\nIssue: ${currentCase.summary}`;
+          }
+
+          const startDatetime = newBookedAt;
+          const endDatetime = new Date(newBookedAt.getTime() + 2 * 60 * 60 * 1000);
+
+          if (currentCase.linkedCalendarEventId) {
+            await CalendarEvent.findByIdAndUpdate(currentCase.linkedCalendarEventId, {
+              title,
+              description,
+              categoryId: warrantyCategory._id,
+              startDatetime,
+              endDatetime,
+            });
+          } else {
+            const calendarEvent = await CalendarEvent.create({
+              dealerId,
+              title,
+              description,
+              categoryId: warrantyCategory._id,
+              startDatetime,
+              endDatetime,
+              createdByUserId: userId,
+              linkedAftercareCaseId: id,
+            });
+            updateObj.linkedCalendarEventId = calendarEvent._id;
+          }
+        } else if (!wasNull && isNull) {
+          // === CASE C: Booking CANCELLED (Date → null) ===
+          events.push({
+            type: "WARRANTY_BOOKING_CANCELLED",
+            createdAt: new Date(),
+            createdByUserId: userId,
+            createdByName: userName,
+            summary: "Booking cancelled",
+            metadata: { previousBookingDateTime: oldBookedAt }
+          });
+
+          // Auto-move back if currently in on_site (Booked In) stage
+          if (currentStatus === "on_site") {
+            const restoreStatus = currentCase.previousBoardStatusBeforeBookedIn || "not_booked_in";
+            updateObj.boardStatus = restoreStatus;
+            updateObj.previousBoardStatusBeforeBookedIn = null; // Clear the stored status
+            autoMoved = true;
+            autoMovedFrom = "on_site";
+            autoMovedTo = restoreStatus;
+
+            events.push({
+              type: "WARRANTY_STAGE_MOVED",
+              createdAt: new Date(),
+              createdByUserId: userId,
+              createdByName: userName,
+              summary: `Auto-moved from "Booked In" to "${BOARD_STATUS_LABELS[restoreStatus]}" (booking cancelled)`,
+              metadata: {
+                fromStatus: "on_site",
+                toStatus: restoreStatus,
+                source: "SYSTEM",
+                reason: "BOOKING_CANCELLED"
+              }
+            });
+          }
+
+          // Delete linked calendar event
+          if (currentCase.linkedCalendarEventId) {
+            await CalendarEvent.findByIdAndDelete(currentCase.linkedCalendarEventId);
+            updateObj.linkedCalendarEventId = null;
+          }
+        }
+      }
+    }
+
+    // Use updateOne to get modifiedCount, then fetch the updated document
+    const updateResult = await AftercareCase.updateOne(
+      { _id: id, dealerId },
+      updateObj
+    );
+
+    // Check if document was found and updated
+    if (updateResult.matchedCount === 0) {
+      return res.status(404).json({ ok: false, error: "Case not found for dealer", modifiedCount: 0 });
+    }
+
+    // Fetch the updated document
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId })
+      .populate("contactId")
+      .populate("vehicleId")
+      .lean();
+
+    return res.status(200).json({
+      ok: true,
+      modifiedCount: updateResult.modifiedCount,
+      case: aftercareCase
+    });
+  }
+
+  if (req.method === "DELETE") {
+    const aftercareCase = await AftercareCase.findOne({ _id: id, dealerId });
+    if (!aftercareCase) return res.status(404).json({ error: "Not found" });
+
+    // Delete linked calendar event if exists
+    if (aftercareCase.linkedCalendarEventId) {
+      await CalendarEvent.findByIdAndDelete(aftercareCase.linkedCalendarEventId);
+    }
+
+    await AftercareCaseComment.deleteMany({ aftercareCaseId: id });
+    await AftercareCase.findByIdAndDelete(id);
+    return res.status(200).json({ message: "Deleted" });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

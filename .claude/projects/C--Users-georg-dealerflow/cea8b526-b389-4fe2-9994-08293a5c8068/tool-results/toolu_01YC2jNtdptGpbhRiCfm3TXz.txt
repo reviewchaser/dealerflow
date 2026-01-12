@@ -1,0 +1,134 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import CustomerPXAppraisal from "@/models/CustomerPXAppraisal";
+     3→import Dealer from "@/models/Dealer";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import Contact from "@/models/Contact";
+     6→import { withDealerContext, requireDealerContext } from "@/libs/authContext";
+     7→import { getServerSession } from "next-auth";
+     8→import { authOptions } from "../auth/[...nextauth]";
+     9→
+    10→// This endpoint supports both authenticated (GET/admin POST) and public (POST from forms)
+    11→export default async function handler(req, res) {
+    12→  await connectMongo();
+    13→
+    14→  // GET requires authentication
+    15→  if (req.method === "GET") {
+    16→    try {
+    17→      const ctx = await requireDealerContext(req, res);
+    18→      const { dealerId } = ctx;
+    19→      const { decision } = req.query;
+    20→      let query = { dealerId };
+    21→      if (decision && decision !== "all") query.decision = decision;
+    22→
+    23→      const appraisals = await CustomerPXAppraisal.find(query)
+    24→        .populate("contactId")
+    25→        .populate("vehicleId")
+    26→        .sort({ createdAt: -1 })
+    27→        .lean();
+    28→
+    29→      return res.status(200).json(appraisals);
+    30→    } catch (error) {
+    31→      return res.status(error.status || 500).json({ error: error.message });
+    32→    }
+    33→  }
+    34→
+    35→  // POST can be public (from form submissions) or authenticated
+    36→  if (req.method === "POST") {
+    37→    const {
+    38→      vehicleReg, vehicleMake, vehicleModel, vehicleYear,
+    39→      mileage, colour, fuelType, conditionNotes, proposedPurchasePrice,
+    40→      outstandingFinanceAmount, aiHintText, v5Url, serviceHistoryUrl,
+    41→      otherDocuments, prepTemplateId, customerName, customerEmail, customerPhone,
+    42→      conditionRating, formSubmissionId, interestedInVehicle, dealerSlug, dealerId: bodyDealerId,
+    43→      photos
+    44→    } = req.body;
+    45→
+    46→    if (!vehicleReg) {
+    47→      return res.status(400).json({ error: "Vehicle registration is required" });
+    48→    }
+    49→
+    50→    // Determine dealer ID - check if authenticated first
+    51→    let dealerId = null;
+    52→    const session = await getServerSession(req, res, authOptions);
+    53→
+    54→    if (session?.user?.id) {
+    55→      // Authenticated user - use their dealer context
+    56→      try {
+    57→        const ctx = await requireDealerContext(req, res);
+    58→        dealerId = ctx.dealerId;
+    59→      } catch (e) {
+    60→        // Fall through to public dealer lookup
+    61→      }
+    62→    }
+    63→
+    64→    // If no authenticated dealer, try to find by slug/ID (public form submission)
+    65→    if (!dealerId) {
+    66→      let dealer = null;
+    67→      if (dealerSlug) {
+    68→        dealer = await Dealer.findOne({ slug: dealerSlug }).lean();
+    69→        if (!dealer) {
+    70→          dealer = await Dealer.findById(dealerSlug).lean();
+    71→        }
+    72→      } else if (bodyDealerId) {
+    73→        dealer = await Dealer.findById(bodyDealerId).lean();
+    74→      }
+    75→
+    76→      if (!dealer) {
+    77→        return res.status(400).json({ error: "Dealer not found" });
+    78→      }
+    79→      dealerId = dealer._id;
+    80→    }
+    81→
+    82→    const appraisalData = {
+    83→      vehicleReg: vehicleReg.toUpperCase().replace(/\s/g, ""),
+    84→      dealerId,
+    85→    };
+    86→
+    87→    // Add optional fields only if they have values
+    88→    if (vehicleMake) appraisalData.vehicleMake = vehicleMake;
+    89→    if (vehicleModel) appraisalData.vehicleModel = vehicleModel;
+    90→    if (vehicleYear) appraisalData.vehicleYear = vehicleYear;
+    91→    if (mileage) appraisalData.mileage = Number(mileage);
+    92→    if (colour) appraisalData.colour = colour;
+    93→    if (fuelType) appraisalData.fuelType = fuelType;
+    94→    if (conditionNotes) appraisalData.conditionNotes = conditionNotes;
+    95→    if (proposedPurchasePrice) appraisalData.proposedPurchasePrice = Number(proposedPurchasePrice);
+    96→    if (outstandingFinanceAmount) appraisalData.outstandingFinanceAmount = Number(outstandingFinanceAmount);
+    97→    if (aiHintText) appraisalData.aiHintText = aiHintText;
+    98→    if (v5Url) appraisalData.v5Url = v5Url;
+    99→    if (serviceHistoryUrl) appraisalData.serviceHistoryUrl = serviceHistoryUrl;
+   100→    if (otherDocuments) appraisalData.otherDocuments = otherDocuments;
+   101→    if (prepTemplateId && prepTemplateId !== "default") appraisalData.prepTemplateId = prepTemplateId;
+   102→    if (customerName) appraisalData.customerName = customerName;
+   103→    if (customerEmail) appraisalData.customerEmail = customerEmail;
+   104→    if (customerPhone) appraisalData.customerPhone = customerPhone;
+   105→    if (conditionRating) appraisalData.conditionRating = conditionRating;
+   106→    if (formSubmissionId) appraisalData.formSubmissionId = formSubmissionId;
+   107→    if (interestedInVehicle) appraisalData.interestedInVehicle = interestedInVehicle;
+   108→    if (photos) {
+   109→      appraisalData.photos = {
+   110→        exterior: photos.exterior || [],
+   111→        interior: photos.interior || [],
+   112→        dashboard: photos.dashboard || null,
+   113→        odometer: photos.odometer || null,
+   114→      };
+   115→    }
+   116→
+   117→    const appraisal = await CustomerPXAppraisal.create(appraisalData);
+   118→
+   119→    const populated = await CustomerPXAppraisal.findById(appraisal._id).populate("contactId").lean();
+   120→    const result = {
+   121→      ...populated,
+   122→      id: populated._id.toString(),
+   123→      _id: undefined,
+   124→    };
+   125→    return res.status(201).json(result);
+   126→  }
+   127→
+   128→  return res.status(405).json({ error: "Method not allowed" });
+   129→}
+   130→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

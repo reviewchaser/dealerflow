@@ -1,0 +1,14 @@
+  2955→              </div>
+  2956→            </div>
+  2957→
+  2958→            <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 space-y-6">
+  2959→              {/* Overview Tab */}
+  2960→              {activeTab === "overview" && (
+  2961→                <div className="space-y-6">
+  2962→                  {/* Identity Section */}
+  2963→                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  2964→                    <h3 className="text-sm font-semibold text-slate-900 mb-4">Identity</h3>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

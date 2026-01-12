@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   115→            </button>
+   116→          </div>
+   117→        ) : (
+   118→          <>
+   119→            {/* Header - Sticky with proper z-index */}
+   120→            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10 shrink-0">
+   121→              <div className="flex items-center gap-3">
+   122→                <button
+   123→                  className="btn btn-ghost btn-sm btn-circle"
+   124→                  onClick={onClose}

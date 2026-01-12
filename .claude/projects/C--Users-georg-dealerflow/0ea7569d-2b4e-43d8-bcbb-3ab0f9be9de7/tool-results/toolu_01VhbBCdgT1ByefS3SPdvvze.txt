@@ -1,0 +1,64 @@
+C:\Users\georg\dealerflow\pages\admin-setup.js:66:              <h1 className="text-3xl font-bold mb-6">Admin Setup</h1>
+C:\Users\georg\dealerflow\pages\admin\index.js:180:          <h1 className="text-xl font-bold text-white mb-2">Access Denied</h1>
+C:\Users\georg\dealerflow\pages\admin\index.js:210:                <h1 className="text-lg font-bold text-white">Platform Admin</h1>
+C:\Users\georg\dealerflow\pages\calendar.js:288:        <h1 className="text-xl md:text-2xl font-bold text-slate-800">Calendar</h1>
+C:\Users\georg\dealerflow\pages\appraisal\[dealerSlug].js:145:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+C:\Users\georg\dealerflow\pages\appraisal\[dealerSlug].js:163:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Thank You!</h1>
+C:\Users\georg\dealerflow\pages\appraisal\[dealerSlug].js:190:              <h1 className="text-2xl font-bold text-slate-900">Vehicle Appraisal</h1>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:6:import { MobileStageSelector } from "@/components/ui/PageShell";
+C:\Users\georg\dealerflow\pages\appraisals\index.js:262:          <h1 className="text-2xl font-bold text-slate-900">Appraisals</h1>
+C:\Users\georg\dealerflow\pages\auth\signup.js:135:              <h1 className="text-2xl font-bold">Create Your Account</h1>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:267:        <h1 className="text-3xl font-bold">New Buying Appraisal</h1>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:416:            <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+C:\Users\georg\dealerflow\pages\auth\signin.js:69:              <h1 className="text-2xl font-bold">Welcome Back</h1>
+C:\Users\georg\dealerflow\pages\choose-dealer.js:107:            <h1 className="text-2xl font-bold text-slate-900">Choose Dealership</h1>
+C:\Users\georg\dealerflow\pages\contacts\index.js:5:import { MobileStageSelector } from "@/components/ui/PageShell";
+C:\Users\georg\dealerflow\pages\contacts\index.js:83:          <h1 className="text-3xl font-bold">Contacts</h1>
+C:\Users\georg\dealerflow\pages\index.js:107:          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-[1.1] tracking-tight mb-6">
+C:\Users\georg\dealerflow\pages\appraisals\px\[id].js:294:              <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+C:\Users\georg\dealerflow\pages\overtime.js:319:            <h1 className="text-2xl font-bold text-slate-900">Overtime</h1>
+C:\Users\georg\dealerflow\pages\holidays.js:394:            <h1 className="text-3xl font-bold">Holiday Requests</h1>
+C:\Users\georg\dealerflow\pages\dashboard.js:323:              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+C:\Users\georg\dealerflow\pages\forms.js:683:            <h1>${formName}</h1>
+C:\Users\georg\dealerflow\pages\forms.js:790:          <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
+C:\Users\georg\dealerflow\pages\sales-prep.js:10:import { MobileStageSelector } from "@/components/ui/PageShell";
+C:\Users\georg\dealerflow\pages\sales-prep.js:1765:          <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
+C:\Users\georg\dealerflow\pages\onboarding\create-dealer.js:179:              <h1 className="text-2xl font-bold">Create Your Dealership</h1>
+C:\Users\georg\dealerflow\pages\warranty.js:8:import { MobileStageSelector } from "@/components/ui/PageShell";
+C:\Users\georg\dealerflow\pages\warranty.js:1128:              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Aftersales / Warranty</h1>
+C:\Users\georg\dealerflow\pages\settings.js:424:        <h1 className="text-3xl font-bold">Settings</h1>
+C:\Users\georg\dealerflow\pages\sales\index.js:114:          <h1 className="text-3xl font-bold">Sales</h1>
+C:\Users\georg\dealerflow\pages\px\[dealerSlug].js:262:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Valuation Request Received</h1>
+C:\Users\georg\dealerflow\pages\px\[dealerSlug].js:293:          <h1 className="text-3xl font-bold text-slate-900">Part Exchange Valuation</h1>
+C:\Users\georg\dealerflow\pages\reviews.js:106:          <h1 className="text-3xl font-bold text-slate-900">Reviews & Reputation</h1>
+C:\Users\georg\dealerflow\pages\settings\team.js:264:            <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Team</h1>
+C:\Users\georg\dealerflow\pages\vehicles\[id].js:132:            <h1 className="text-3xl font-bold">{vehicle.make} {vehicle.model}</h1>
+C:\Users\georg\dealerflow\pages\px\a\[token].js:144:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+C:\Users\georg\dealerflow\pages\px\a\[token].js:168:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Appraisal Submitted</h1>
+C:\Users\georg\dealerflow\pages\px\a\[token].js:196:          <h1 className="text-3xl font-bold text-slate-900">Vehicle Appraisal</h1>
+C:\Users\georg\dealerflow\pages\settings\forms.js:151:          <h1 className="text-3xl font-bold">Form Templates</h1>
+C:\Users\georg\dealerflow\pages\settings\forms\[id].js:276:            <h1 className="text-3xl font-bold">{form?.name || "Form Fields"}</h1>
+C:\Users\georg\dealerflow\pages\tos.js:51:        <h1 className="text-3xl font-bold pb-6">Privacy Policy for ShipFast</h1>
+C:\Users\georg\dealerflow\pages\vehicles\new.js:257:        <h1 className="text-3xl font-bold">Add New Vehicle</h1>
+C:\Users\georg\dealerflow\pages\vehicles\index.js:5:import { MobileStageSelector } from "@/components/ui/PageShell";
+C:\Users\georg\dealerflow\pages\vehicles\index.js:79:          <h1 className="text-3xl font-bold">Vehicles</h1>
+C:\Users\georg\dealerflow\pages\public\warranty-claim.js:68:            <h1 className="text-2xl font-bold">Claim Submitted</h1>
+C:\Users\georg\dealerflow\pages\public\warranty-claim.js:88:          <h1 className="text-3xl font-bold">Warranty Claim Form</h1>
+C:\Users\georg\dealerflow\pages\public\review\[token].js:73:            <h1 className="text-2xl font-bold">Thank You!</h1>
+C:\Users\georg\dealerflow\pages\public\review\[token].js:91:            <h1 className="text-2xl font-bold">How was your experience?</h1>
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:223:            <h1 className="text-2xl font-bold">Valuation Request Received</h1>
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:243:          <h1 className="text-3xl font-bold">Part Exchange Valuation</h1>
+C:\Users\georg\dealerflow\pages\public\prep-summary\[token].js:115:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+C:\Users\georg\dealerflow\pages\public\prep-summary\[token].js:158:              <h1 className="text-2xl font-bold text-slate-900">Vehicle Prep Summary</h1>
+C:\Users\georg\dealerflow\pages\privacy-policy.js:51:        <h1 className="text-3xl font-bold pb-6">Privacy Policy for ShipFast</h1>
+C:\Users\georg\dealerflow\pages\public\job\[token].js:91:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+C:\Users\georg\dealerflow\pages\public\job\[token].js:131:              <h1 className="text-2xl font-bold text-slate-900">
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:1200:              <h1 className="text-2xl font-bold text-center uppercase">Service Receipt</h1>
+C:\Users\georg\dealerflow\pages\forms\fill\[id].js:1218:              <h1 className="text-3xl font-bold">{form?.name}</h1>
+C:\Users\georg\dealerflow\pages\public\appraisal\[token].js:74:          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+C:\Users\georg\dealerflow\pages\public\appraisal\[token].js:101:          <h1 className="text-3xl font-bold text-slate-900">Vehicle Appraisal</h1>
+C:\Users\georg\dealerflow\pages\api\forms\share-email.js:57:      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">${dealerName}</h1>
+C:\Users\georg\dealerflow\pages\public\forms\thank-you.js:14:            <h1 className="text-3xl font-bold mb-4">Thank You!</h1>
+C:\Users\georg\dealerflow\pages\api\customer-px\[id]\share-email.js:102:      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 600;">${dealerName}</h1>
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:195:          <h1 className="text-4xl font-bold mb-4">Form Not Found</h1>
+C:\Users\georg\dealerflow\pages\public\forms\[slug].js:1050:              <h1 className="text-3xl font-bold text-center">{form.name}</h1>

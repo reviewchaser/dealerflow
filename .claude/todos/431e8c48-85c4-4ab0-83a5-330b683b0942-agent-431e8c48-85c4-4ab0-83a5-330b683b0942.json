@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Debug and fix fuel type not populating from DVLA API",
+    "status": "in_progress",
+    "activeForm": "Debugging fuel type issue"
+  },
+  {
+    "content": "Fix AI features - Case Review, Diagnostics, Suggestions asking for key",
+    "status": "pending",
+    "activeForm": "Fixing AI features"
+  },
+  {
+    "content": "Transfer warranty form images to aftersales cards + add media option",
+    "status": "pending",
+    "activeForm": "Fixing warranty image transfer"
+  },
+  {
+    "content": "Add media upload, mileage, address to new aftercare case form",
+    "status": "pending",
+    "activeForm": "Adding fields to aftercare form"
+  }
+]

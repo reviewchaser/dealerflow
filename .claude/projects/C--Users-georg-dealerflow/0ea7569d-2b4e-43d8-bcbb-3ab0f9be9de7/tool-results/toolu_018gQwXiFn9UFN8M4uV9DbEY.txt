@@ -1,0 +1,64 @@
+   130→    if (showCreateModal) {
+   131→      fetchAvailableVehicles();
+   132→    }
+   133→  }, [showCreateModal, fetchAvailableVehicles]);
+   134→
+   135→  // Create a deal for a vehicle, or open existing deal
+   136→  const handleSelectVehicle = async (vehicle) => {
+   137→    const vehicleId = vehicle.id || vehicle._id;
+   138→    console.log("[Sales] handleSelectVehicle called:", { vehicleId, activeDeal: vehicle.activeDeal });
+   139→    setCreatingDealForVehicle(vehicleId);
+   140→
+   141→    try {
+   142→      // If vehicle already has an active deal, open it directly via URL
+   143→      if (vehicle.activeDeal) {
+   144→        const targetId = vehicle.activeDeal.id;
+   145→        console.log("[Sales] Opening existing deal:", targetId);
+   146→        toast.success("Opening existing deal");
+   147→        setShowCreateModal(false);
+   148→        setVehicleSearch("");
+   149→        // Navigate to open drawer - URL drives the state
+   150→        // IMPORTANT: Do NOT call fetchDeals before this - it can cause re-render issues
+   151→        await router.push(`/sales?id=${targetId}`, undefined, { shallow: true });
+   152→        console.log("[Sales] Navigation complete for existing deal");
+   153→        return;
+   154→      }
+   155→
+   156→      // Create new deal
+   157→      console.log("[Sales] Creating new deal for vehicle:", vehicleId);
+   158→      const res = await fetch("/api/deals", {
+   159→        method: "POST",
+   160→        headers: { "Content-Type": "application/json" },
+   161→        body: JSON.stringify({ vehicleId }),
+   162→      });
+   163→
+   164→      const data = await res.json();
+   165→      console.log("[Sales] Create deal response:", { ok: res.ok, data });
+   166→
+   167→      if (!res.ok) {
+   168→        // Check if the error is because vehicle already has a deal
+   169→        if (data.existingDealId) {
+   170→          console.log("[Sales] Vehicle has existing deal, opening:", data.existingDealId);
+   171→          toast.success("Opening existing deal");
+   172→          setShowCreateModal(false);
+   173→          setVehicleSearch("");
+   174→          // Navigate FIRST, then refresh list in background
+   175→          await router.push(`/sales?id=${data.existingDealId}`, undefined, { shallow: true });
+   176→          console.log("[Sales] Navigation complete, refreshing list");
+   177→          fetchDeals(); // Refresh list after navigation
+   178→          return;
+   179→        }
+   180→        throw new Error(data.error || "Failed to create deal");
+   181→      }
+   182→
+   183→      const newDealId = data.id || data._id;
+   184→      console.log("[Sales] Deal created successfully:", newDealId);
+   185→      toast.success("Deal created");
+   186→      setShowCreateModal(false);
+   187→      setVehicleSearch("");
+   188→      // Navigate FIRST to open drawer, then refresh list in background
+   189→      await router.push(`/sales?id=${newDealId}`, undefined, { shallow: true });
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

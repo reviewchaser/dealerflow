@@ -1,0 +1,218 @@
+import connectMongo from "@/libs/mongoose";
+import Deal from "@/models/Deal";
+import Vehicle from "@/models/Vehicle";
+import VehicleIssue from "@/models/VehicleIssue";
+import { withDealerContext } from "@/libs/authContext";
+
+/**
+ * Individual Deal API
+ * GET /api/deals/[id] - Get single deal with full details
+ * PUT /api/deals/[id] - Update deal
+ * DELETE /api/deals/[id] - Cancel deal (soft delete)
+ */
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+
+  // Validate ID format
+  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({ error: "Invalid deal ID" });
+  }
+
+  if (req.method === "GET") {
+    const deal = await Deal.findOne({ _id: id, dealerId })
+      .populate("vehicleId")
+      .populate("soldToContactId")
+      .populate("invoiceToContactId")
+      .populate("salesPersonId", "name email")
+      .populate("partExchangeId")
+      .lean();
+
+    if (!deal) {
+      return res.status(404).json({ error: "Deal not found" });
+    }
+
+    return res.status(200).json({
+      ...deal,
+      id: deal._id.toString(),
+      vehicle: deal.vehicleId,
+      customer: deal.soldToContactId,
+      invoiceTo: deal.invoiceToContactId,
+      salesPerson: deal.salesPersonId,
+      partExchange: deal.partExchangeId,
+      _id: undefined,
+      __v: undefined,
+    });
+  }
+
+  if (req.method === "PUT") {
+    const deal = await Deal.findOne({ _id: id, dealerId });
+    if (!deal) {
+      return res.status(404).json({ error: "Deal not found" });
+    }
+
+    // Don't allow editing completed or cancelled deals
+    if (deal.status === "COMPLETED" || deal.status === "CANCELLED") {
+      return res.status(400).json({ error: "Cannot edit a completed or cancelled deal" });
+    }
+
+    const {
+      soldToContactId,
+      invoiceToContactId,
+      saleType,
+      buyerUse,
+      buyerType, // backward compat
+      saleChannel,
+      businessDetails,
+      paymentType,
+      finance,
+      vatScheme,
+      vehiclePriceNet,
+      vehicleVatAmount,
+      vehiclePriceGross,
+      partExchangeId,
+      partExchangeAllowance,
+      partExchangeSettlement,
+      addOns,
+      requests,
+      notes,
+      internalNotes,
+      warrantyMonths,
+      deliveryAddress,
+      termsKey,
+      termsSnapshotText,
+    } = req.body;
+
+    // Build update object
+    const updateData = { updatedByUserId: userId };
+
+    if (soldToContactId !== undefined) updateData.soldToContactId = soldToContactId;
+    if (invoiceToContactId !== undefined) updateData.invoiceToContactId = invoiceToContactId;
+    if (saleType !== undefined) updateData.saleType = saleType;
+    if (buyerUse !== undefined) updateData.buyerUse = buyerUse;
+    if (buyerType !== undefined) updateData.buyerType = buyerType;
+    if (saleChannel !== undefined) updateData.saleChannel = saleChannel;
+    if (businessDetails !== undefined) updateData.businessDetails = businessDetails;
+
+    // Handle null values to allow clearing fields
+    if (buyerUse === null) updateData.buyerUse = null;
+    if (saleChannel === null) updateData.saleChannel = null;
+    if (paymentType !== undefined) updateData.paymentType = paymentType;
+    if (finance !== undefined) updateData.finance = finance;
+    if (vatScheme !== undefined) updateData.vatScheme = vatScheme;
+    if (vehiclePriceNet !== undefined) updateData.vehiclePriceNet = vehiclePriceNet;
+    if (vehicleVatAmount !== undefined) updateData.vehicleVatAmount = vehicleVatAmount;
+    if (vehiclePriceGross !== undefined) updateData.vehiclePriceGross = vehiclePriceGross;
+    if (partExchangeId !== undefined) updateData.partExchangeId = partExchangeId || null;
+    if (partExchangeAllowance !== undefined) updateData.partExchangeAllowance = partExchangeAllowance;
+    if (partExchangeSettlement !== undefined) updateData.partExchangeSettlement = partExchangeSettlement;
+    if (addOns !== undefined) updateData.addOns = addOns;
+    if (requests !== undefined) updateData.requests = requests;
+    if (notes !== undefined) updateData.notes = notes;
+    if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
+    if (warrantyMonths !== undefined) updateData.warrantyMonths = warrantyMonths;
+    if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
+    if (termsKey !== undefined) updateData.termsKey = termsKey;
+    if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
+
+    const updatedDeal = await Deal.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
+      .populate("vehicleId", "regCurrent make model year")
+      .populate("soldToContactId", "displayName email phone")
+      .lean();
+
+    return res.status(200).json({
+      ...updatedDeal,
+      id: updatedDeal._id.toString(),
+      _id: undefined,
+      __v: undefined,
+    });
+  }
+
+  if (req.method === "DELETE") {
+    const deal = await Deal.findOne({ _id: id, dealerId });
+    if (!deal) {
+      return res.status(404).json({ error: "Deal not found" });
+    }
+
+    const { hardDelete, cancelReason } = req.body || {};
+
+    // Hard delete is only allowed for DRAFT deals
+    if (hardDelete) {
+      if (deal.status !== "DRAFT") {
+        return res.status(400).json({ error: "Only draft deals can be deleted. Use cancel for other deals." });
+      }
+
+      // Release the vehicle back to available
+      await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+        salesStatus: "AVAILABLE",
+      });
+
+      // Hard delete the deal
+      await Deal.findByIdAndDelete(id);
+
+      return res.status(200).json({
+        success: true,
+        message: "Draft deleted",
+        dealId: id,
+      });
+    }
+
+    // Default: Cancel the deal instead of hard delete
+    deal.status = "CANCELLED";
+    deal.cancelledAt = new Date();
+    deal.cancelReason = cancelReason || "Cancelled by user";
+    deal.updatedByUserId = userId;
+
+    // Cancel all pending/in-progress agreed work (requests)
+    if (deal.requests && deal.requests.length > 0) {
+      deal.requests.forEach((request) => {
+        if (request.status === "REQUESTED" || request.status === "IN_PROGRESS") {
+          request.status = "CANCELLED";
+        }
+      });
+
+      // Also cancel any linked vehicle issues that were created from this deal
+      const linkedIssueIds = deal.requests
+        .filter((r) => r.linkToIssueId)
+        .map((r) => r.linkToIssueId);
+
+      if (linkedIssueIds.length > 0) {
+        await VehicleIssue.updateMany(
+          {
+            _id: { $in: linkedIssueIds },
+            status: { $in: ["OPEN", "IN_PROGRESS"] },
+          },
+          {
+            $set: {
+              status: "WONT_FIX",
+              resolution: "Deal cancelled",
+              resolvedAt: new Date(),
+            },
+          }
+        );
+      }
+    }
+
+    await deal.save();
+
+    // Release the vehicle back to available
+    await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+      salesStatus: "AVAILABLE",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Deal cancelled",
+      dealId: id,
+    });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+export default withDealerContext(handler);

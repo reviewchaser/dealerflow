@@ -1,0 +1,48 @@
+     1→{
+     2→  "name": "dealerflow-app",
+     3→  "version": "1.0.0",
+     4→  "private": true,
+     5→  "scripts": {
+     6→    "dev": "next dev",
+     7→    "build": "next build",
+     8→    "start": "next start",
+     9→    "lint": "next lint"
+    10→  },
+    11→  "dependencies": {
+    12→    "@auth/mongodb-adapter": "^3.11.1",
+    13→    "@aws-sdk/client-s3": "^3.958.0",
+    14→    "@aws-sdk/s3-request-presigner": "^3.958.0",
+    15→    "bcryptjs": "^3.0.3",
+    16→    "crisp-sdk-web": "^1.0.26",
+    17→    "dotenv": "^17.2.3",
+    18→    "form-data": "^4.0.5",
+    19→    "formidable": "^3.5.4",
+    20→    "mailgun.js": "^12.4.0",
+    21→    "micro": "^10.0.1",
+    22→    "mongodb": "^6.21.0",
+    23→    "mongoose": "^8.0.3",
+    24→    "nanoid": "^5.1.6",
+    25→    "next": "^14.2.35",
+    26→    "next-auth": "^4.24.7",
+    27→    "nodemailer": "^7.0.11",
+    28→    "openai": "^6.15.0",
+    29→    "prop-types": "^15.8.1",
+    30→    "qrcode.react": "^3.2.0",
+    31→    "react": "^18",
+    32→    "react-dom": "^18",
+    33→    "react-hot-toast": "^2.4.1",
+    34→    "signature_pad": "^5.1.3",
+    35→    "stripe": "^20.1.0"
+    36→  },
+    37→  "devDependencies": {
+    38→    "autoprefixer": "^10.0.1",
+    39→    "daisyui": "^4.12.24",
+    40→    "postcss": "^8",
+    41→    "tailwindcss": "^3.3.0"
+    42→  }
+    43→}
+    44→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

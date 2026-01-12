@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    91→    }
+    92→  }, [isRedirecting, fetchDeals]);
+    93→
+    94→  // Handle create=1 query param to open create modal
+    95→  useEffect(() => {
+    96→    if (router.query.create === "1") {
+    97→      setShowCreateModal(true);
+    98→      // Remove ONLY the create param, preserve id if present
+    99→      const { create, ...restQuery } = router.query;
+   100→      const queryString = Object.keys(restQuery).length > 0
+   101→        ? "?" + new URLSearchParams(restQuery).toString()

@@ -1,0 +1,73 @@
+import connectMongo from "@/libs/mongoose";
+import Appraisal from "@/models/Appraisal";
+import Contact from "@/models/Contact";
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { decision } = req.query;
+      let query = {};
+      if (decision && decision !== "all") query.decision = decision;
+      
+      const appraisals = await Appraisal.find(query)
+        .populate("contactId")
+        .populate("vehicleId")
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      return res.status(200).json(appraisals);
+    }
+
+    if (req.method === "POST") {
+      const {
+        vehicleReg, vehicleMake, vehicleModel, vehicleYear,
+        mileage, colour, fuelType, conditionNotes, proposedPurchasePrice, aiHintText,
+        damagePhotos, faultCodePhotos, v5Url, serviceHistoryUrl, otherDocuments, prepTemplateId
+      } = req.body;
+
+      if (!vehicleReg) {
+        return res.status(400).json({ error: "Vehicle registration is required" });
+      }
+
+      // Build appraisal data - only include fields that have values
+      const appraisalData = {
+        vehicleReg: vehicleReg.toUpperCase().replace(/\s/g, ""),
+        damagePhotos: damagePhotos || [],
+        faultCodePhotos: faultCodePhotos || [],
+      };
+
+      // Add optional fields only if they have values
+      if (vehicleMake) appraisalData.vehicleMake = vehicleMake;
+      if (vehicleModel) appraisalData.vehicleModel = vehicleModel;
+      if (vehicleYear) appraisalData.vehicleYear = vehicleYear;
+      if (mileage) appraisalData.mileage = Number(mileage);
+      if (colour) appraisalData.colour = colour;
+      if (fuelType) appraisalData.fuelType = fuelType;
+      if (conditionNotes) appraisalData.conditionNotes = conditionNotes;
+      if (proposedPurchasePrice) appraisalData.proposedPurchasePrice = Number(proposedPurchasePrice);
+      if (aiHintText) appraisalData.aiHintText = aiHintText;
+      if (v5Url) appraisalData.v5Url = v5Url;
+      if (serviceHistoryUrl) appraisalData.serviceHistoryUrl = serviceHistoryUrl;
+      if (otherDocuments) appraisalData.otherDocuments = otherDocuments;
+      if (prepTemplateId && prepTemplateId !== "default") appraisalData.prepTemplateId = prepTemplateId;
+
+      const appraisal = await Appraisal.create(appraisalData);
+
+      const populated = await Appraisal.findById(appraisal._id).populate("contactId").lean();
+      // Transform _id to id for frontend
+      const result = {
+        ...populated,
+        id: populated._id.toString(),
+        _id: undefined,
+      };
+      return res.status(201).json(result);
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    console.error("API Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

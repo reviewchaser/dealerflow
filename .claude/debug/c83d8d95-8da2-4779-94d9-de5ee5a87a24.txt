@@ -1,0 +1,874 @@
+2025-12-08T00:11:01.102Z [DEBUG] Watching for changes in setting files C:\Users\georg\dealerflow\.claude\settings.local.json...
+2025-12-08T00:11:01.158Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2025-12-08T00:11:01.193Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-12-08T00:11:01.193Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-12-08T00:11:01.193Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-12-08T00:11:01.193Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-12-08T00:11:01.193Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()
+2025-12-08T00:11:01.203Z [DEBUG] Applying permission update: Adding 6 allow rule(s) to destination 'localSettings': ["Bash(npm run dev:*)","Bash(npm install)","Bash(npm install:*)","Bash(node scripts/seed-forms-standalone.js:*)","Bash(taskkill:*)","Bash(rm:*)"]
+2025-12-08T00:11:01.219Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-12-08T00:11:01.221Z [DEBUG] Total LSP servers loaded: 0
+2025-12-08T00:11:01.221Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2025-12-08T00:11:01.221Z [DEBUG] LSP manager initialized with 0 servers
+2025-12-08T00:11:01.221Z [DEBUG] LSP server manager initialized successfully
+2025-12-08T00:11:01.221Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-12-08T00:11:01.235Z [DEBUG] Loading skills from directories: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\georg\.claude\skills, project=C:\Users\georg\dealerflow\.claude\skills
+2025-12-08T00:11:01.235Z [DEBUG] >>>>> getPluginSkills CALLED <<<<<
+2025-12-08T00:11:01.640Z [DEBUG] installed_plugins.json doesn't exist yet at C:\Users\georg\.claude\plugins\installed_plugins.json, returning empty object
+2025-12-08T00:11:01.783Z [DEBUG] Creating shell snapshot for bash (C:\Program Files\Git\bin\bash.exe)
+2025-12-08T00:11:01.783Z [DEBUG] Looking for shell config file: C:\Users\georg\.bashrc
+2025-12-08T00:11:01.783Z [DEBUG] Shell config file not found: C:\Users\georg\.bashrc, creating snapshot with Claude Code defaults only
+2025-12-08T00:11:01.783Z [DEBUG] Snapshots directory: C:\Users\georg\.claude\shell-snapshots
+2025-12-08T00:11:01.802Z [DEBUG] Creating snapshot at: C:\Users\georg\.claude\shell-snapshots\snapshot-bash-1765152661783-rq9cdw.sh
+2025-12-08T00:11:01.802Z [DEBUG] Shell binary exists: true
+2025-12-08T00:11:01.802Z [DEBUG] Execution timeout: 10000ms
+2025-12-08T00:11:01.810Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765152661810
+2025-12-08T00:11:01.812Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-08T00:11:01.812Z [DEBUG] Renaming C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765152661810 to C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json
+2025-12-08T00:11:01.813Z [DEBUG] File C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json written atomically
+2025-12-08T00:11:01.817Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-12-08T00:11:01.817Z [DEBUG] Total plugin skills loaded: 0
+2025-12-08T00:11:01.817Z [DEBUG] Total plugin commands loaded: 0
+2025-12-08T00:11:01.817Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-12-08T00:11:01.857Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-12-08T00:11:01.885Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2025-12-08T00:11:01.886Z [DEBUG] Total plugin agents loaded: 0
+2025-12-08T00:11:01.911Z [DEBUG] Git remote URL: null
+2025-12-08T00:11:01.912Z [DEBUG] No git remote URL found
+2025-12-08T00:11:01.912Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2025-12-08T00:11:01.959Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=C:\Users\georg\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\vendor\ripgrep\x64-win32\rg.exe)
+2025-12-08T00:11:02.074Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662074
+2025-12-08T00:11:02.074Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.076Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.077Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.077Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662074 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.078Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.083Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662083
+2025-12-08T00:11:02.083Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.085Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.085Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.085Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662083 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.086Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.091Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662091
+2025-12-08T00:11:02.091Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.093Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.093Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.093Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662091 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.094Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.099Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662099
+2025-12-08T00:11:02.099Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.101Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.101Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.101Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662099 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.102Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.408Z [DEBUG] Shell snapshot created successfully (342 bytes)
+2025-12-08T00:11:02.760Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662760
+2025-12-08T00:11:02.760Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.762Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.762Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.762Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662760 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.763Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.776Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662776
+2025-12-08T00:11:02.776Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.777Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.778Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.778Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662776 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.779Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.781Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-12-08T00:11:02.781Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:02.781Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-12-08T00:11:02.796Z [DEBUG] Skills and commands included in Skill tool:
+2025-12-08T00:11:02.796Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-12-08T00:11:02.871Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662871
+2025-12-08T00:11:02.871Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.873Z [DEBUG] Temp file written successfully, size: 45335 bytes
+2025-12-08T00:11:02.874Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.874Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662871 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.874Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.882Z [DEBUG] performStartupChecks called
+2025-12-08T00:11:02.882Z [DEBUG] Starting background plugin installations
+2025-12-08T00:11:02.882Z [DEBUG] performBackgroundPluginInstallations called
+2025-12-08T00:11:02.902Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T00:11:02.909Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152662909
+2025-12-08T00:11:02.909Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:02.911Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:02.911Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:02.911Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152662909 to C:\Users\georg\.claude.json
+2025-12-08T00:11:02.911Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:02.912Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2025-12-08T00:11:02.912Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2025-12-08T00:11:02.929Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-12-08T00:11:02.929Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:02.929Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-12-08T00:11:02.968Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-12-08T00:11:02.968Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:02.968Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-12-08T00:11:03.639Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:04.160Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:05.375Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-08T00:11:05.375Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:05.375Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:11:05.726Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.35268.1765152665726
+2025-12-08T00:11:05.726Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:11:05.728Z [DEBUG] Temp file written successfully, size: 45440 bytes
+2025-12-08T00:11:05.728Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:11:05.728Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.35268.1765152665726 to C:\Users\georg\.claude.json
+2025-12-08T00:11:05.729Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T00:11:11.855Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-08T00:11:11.855Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:11.855Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:11:25.964Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:11:25.964Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:11:25.964Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:11:25.964Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:11:25.965Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:11:25.965Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:11:26.203Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T00:11:26.203Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:26.203Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:11:26.209Z [DEBUG] FileHistory: Added snapshot for 8f3e7bd3-d925-45ef-a17d-30c3519f9987, tracking 0 files
+2025-12-08T00:11:26.256Z [DEBUG] Total plugin output styles loaded: 0
+2025-12-08T00:11:27.115Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:27.707Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:35.259Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:11:35.272Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:11:35.272Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:35.272Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:11:36.862Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:11:36.862Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:36.862Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:11:36.887Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:11:36.887Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:11:36.887Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:11:36.887Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:11:36.887Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:11:36.887Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:11:39.343Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:41.631Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:11:41.649Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:11:41.649Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:41.649Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:11:41.709Z [DEBUG] tree-sitter: loaded from disk
+2025-12-08T00:11:41.900Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:11:42.146Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-08T00:11:42.146Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:42.146Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:11:42.175Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:11:42.175Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:11:42.175Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:11:42.175Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:11:42.176Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:11:42.176Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:11:43.149Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:44.350Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:45.661Z [DEBUG] executePreToolHooks called for tool: BashOutput
+2025-12-08T00:11:45.677Z [DEBUG] Getting matching hook commands for PreToolUse with query: BashOutput
+2025-12-08T00:11:45.677Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:45.677Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:11:45.754Z [DEBUG] Getting matching hook commands for PostToolUse with query: BashOutput
+2025-12-08T00:11:45.754Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:45.754Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:11:45.783Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:11:45.783Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:11:45.783Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:11:45.783Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:11:45.783Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:11:45.783Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:11:46.915Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:48.694Z [DEBUG] executePreToolHooks called for tool: BashOutput
+2025-12-08T00:11:48.709Z [DEBUG] Getting matching hook commands for PreToolUse with query: BashOutput
+2025-12-08T00:11:48.709Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:48.709Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:11:48.788Z [DEBUG] Getting matching hook commands for PostToolUse with query: BashOutput
+2025-12-08T00:11:48.788Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:48.788Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:11:48.814Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:11:48.814Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:11:48.814Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:11:48.814Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:11:48.815Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:11:48.815Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:11:52.711Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:11:56.345Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-08T00:11:56.345Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:11:56.345Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:13:15.355Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:13:15.355Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:13:15.355Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:13:15.355Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:13:15.355Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:13:15.355Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:13:15.393Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T00:13:15.394Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:15.394Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:13:15.399Z [DEBUG] FileHistory: Making snapshot for message f372fb8f-b99f-4bca-9f7b-4610a3221074
+2025-12-08T00:13:15.399Z [DEBUG] FileHistory: Added snapshot for f372fb8f-b99f-4bca-9f7b-4610a3221074, tracking 0 files
+2025-12-08T00:13:16.333Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:13:16.950Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:13:21.059Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:13:21.060Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:13:21.079Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:13:21.079Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:21.079Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:13:21.079Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:13:21.079Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:21.079Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:13:24.435Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:13:24.435Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:24.435Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:13:24.435Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:13:24.435Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:24.435Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:13:24.469Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:13:24.469Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:13:24.469Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:13:24.469Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:13:24.469Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:13:24.469Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:13:27.103Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:13:36.684Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-08T00:13:36.684Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:13:36.685Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:14:10.963Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:14:10.963Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:14:10.963Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:14:10.963Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:14:10.963Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:14:10.963Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:14:11.015Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T00:14:11.015Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:11.015Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:14:11.019Z [DEBUG] FileHistory: Making snapshot for message e1385a3a-bd21-4868-a207-f2dc0d9e679b
+2025-12-08T00:14:11.020Z [DEBUG] FileHistory: Added snapshot for e1385a3a-bd21-4868-a207-f2dc0d9e679b, tracking 0 files
+2025-12-08T00:14:11.781Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:14:13.467Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:14:19.509Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:14:19.509Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:14:19.523Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:14:19.523Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:19.523Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:14:19.524Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:14:19.524Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:19.524Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:14:22.694Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:14:22.694Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:22.694Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:14:22.694Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:14:22.694Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:22.694Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:14:22.719Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:14:22.719Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:14:22.719Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:14:22.719Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:14:22.719Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:14:22.719Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:14:24.809Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:14:32.206Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-08T00:14:32.206Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:32.206Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:14:57.378Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:14:57.378Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:14:57.378Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:14:57.378Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:14:57.378Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:14:57.379Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:14:57.411Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T00:14:57.411Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:14:57.411Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:14:57.415Z [DEBUG] FileHistory: Making snapshot for message a0815649-b44d-4e57-bcdd-fa0dbf089d32
+2025-12-08T00:14:57.416Z [DEBUG] FileHistory: Added snapshot for a0815649-b44d-4e57-bcdd-fa0dbf089d32, tracking 0 files
+2025-12-08T00:14:58.146Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:14:59.806Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:02.096Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:15:02.108Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:15:02.108Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:02.108Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:15:03.637Z [ERROR] Error: Error: EISDIR: illegal operation on a directory, read
+    at Module.readFileSync (node:fs:440:20)
+    at Object.readFileSync (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:9:299)
+    at W12 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4456:17608)
+    at Object.call (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:1455:909)
+    at fx7 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:3094:16957)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+2025-12-08T00:15:03.670Z [DEBUG] Getting matching hook commands for PostToolUseFailure with query: Read
+2025-12-08T00:15:03.670Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:03.670Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:15:03.693Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:15:03.693Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:15:03.693Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:15:03.693Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:15:03.693Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:15:03.693Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:15:05.479Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:07.142Z [DEBUG] executePreToolHooks called for tool: Glob
+2025-12-08T00:15:07.157Z [DEBUG] Getting matching hook commands for PreToolUse with query: Glob
+2025-12-08T00:15:07.157Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:07.157Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-08T00:15:09.023Z [DEBUG] Getting matching hook commands for PostToolUse with query: Glob
+2025-12-08T00:15:09.023Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:09.023Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-08T00:15:09.045Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:15:09.045Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:15:09.045Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:15:09.045Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:15:09.045Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:15:09.045Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:15:10.584Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:11.985Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:15:11.998Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:15:11.998Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:11.998Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:15:13.623Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:15:13.623Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:13.623Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:15:13.644Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:15:13.644Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:15:13.644Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:15:13.644Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:15:13.644Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:15:13.644Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:15:15.295Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:18.843Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:15:18.859Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:15:18.859Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:18.859Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:15:19.109Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:15:50.530Z [DEBUG] Getting matching hook commands for PostToolUseFailure with query: Bash
+2025-12-08T00:15:50.530Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:50.530Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:15:50.556Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:15:50.556Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:15:50.556Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:15:50.556Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:15:50.556Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:15:50.556Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:15:52.666Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:55.627Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:15:55.639Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:15:55.640Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:55.640Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:15:56.719Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:15:57.070Z [DEBUG] Permission suggestions for Bash: [
+  {
+    "type": "addRules",
+    "rules": [
+      {
+        "toolName": "Bash",
+        "ruleContent": "ls:*"
+      }
+    ],
+    "behavior": "allow",
+    "destination": "localSettings"
+  }
+]
+2025-12-08T00:15:57.110Z [DEBUG] executePermissionRequestHooks called for tool: Bash
+2025-12-08T00:15:57.133Z [DEBUG] Getting matching hook commands for PermissionRequest with query: Bash
+2025-12-08T00:15:57.133Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:15:57.133Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:16:01.101Z [DEBUG] Persisting permission update: addRules to source 'localSettings'
+2025-12-08T00:16:01.101Z [DEBUG] Persisting 1 allow rule(s) to localSettings
+2025-12-08T00:16:01.105Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\.claude\settings.local.json.tmp.35268.1765152961105
+2025-12-08T00:16:01.106Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:16:01.109Z [DEBUG] Temp file written successfully, size: 284 bytes
+2025-12-08T00:16:01.109Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:16:01.109Z [DEBUG] Renaming C:\Users\georg\dealerflow\.claude\settings.local.json.tmp.35268.1765152961105 to C:\Users\georg\dealerflow\.claude\settings.local.json
+2025-12-08T00:16:01.110Z [DEBUG] File C:\Users\georg\dealerflow\.claude\settings.local.json written atomically
+2025-12-08T00:16:01.118Z [DEBUG] Applying permission update: Adding 1 allow rule(s) to destination 'localSettings': ["Bash(ls:*)"]
+2025-12-08T00:16:01.265Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:16:01.291Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T00:16:02.159Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-08T00:16:02.159Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:02.159Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:16:02.183Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:02.183Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:02.183Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:02.183Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:02.184Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:02.184Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:02.873Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:04.440Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:06.148Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:16:06.160Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:16:06.160Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:06.160Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:07.851Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:16:07.851Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:07.851Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:07.874Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:07.874Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:07.874Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:07.874Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:07.874Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:07.874Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:10.571Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:13.079Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:16:13.091Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:16:13.091Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:13.091Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:14.694Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:16:14.694Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:14.694Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:14.715Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:14.715Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:14.715Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:14.715Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:14.715Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:14.715Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:17.427Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:24.225Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:16:24.238Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:16:24.238Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:24.238Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:16:25.375Z [DEBUG] Permission suggestions for Edit: [
+  {
+    "type": "setMode",
+    "mode": "acceptEdits",
+    "destination": "session"
+  }
+]
+2025-12-08T00:16:25.614Z [DEBUG] executePermissionRequestHooks called for tool: Edit
+2025-12-08T00:16:25.827Z [DEBUG] Getting matching hook commands for PermissionRequest with query: Edit
+2025-12-08T00:16:25.827Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:25.827Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:16:31.628Z [DEBUG] Getting matching hook commands for Notification with query: permission_prompt
+2025-12-08T00:16:31.628Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:31.628Z [DEBUG] Matched 0 unique hooks for query "permission_prompt" (0 before deduplication)
+2025-12-08T00:16:35.105Z [DEBUG] Applying permission update: Setting mode to 'acceptEdits'
+2025-12-08T00:16:35.114Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\scripts\seed-forms-standalone.js.tmp.35268.1765152995114
+2025-12-08T00:16:35.115Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:16:35.116Z [DEBUG] Temp file written successfully, size: 14403 bytes
+2025-12-08T00:16:35.116Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:16:35.116Z [DEBUG] Renaming C:\Users\georg\dealerflow\scripts\seed-forms-standalone.js.tmp.35268.1765152995114 to C:\Users\georg\dealerflow\scripts\seed-forms-standalone.js
+2025-12-08T00:16:35.117Z [DEBUG] File C:\Users\georg\dealerflow\scripts\seed-forms-standalone.js written atomically
+2025-12-08T00:16:35.141Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\scripts\seed-forms-standalone.js
+2025-12-08T00:16:35.158Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T00:16:35.175Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:16:35.175Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:35.175Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:16:35.241Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:35.241Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:35.241Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:35.241Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:35.241Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:35.241Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:36.915Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:38.796Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:16:38.814Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:16:38.814Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:38.814Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:16:39.049Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:16:40.843Z [DEBUG] Getting matching hook commands for PostToolUseFailure with query: Bash
+2025-12-08T00:16:40.843Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:40.843Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:16:40.868Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:40.868Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:40.868Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:40.868Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:40.868Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:40.868Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:42.996Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:46.551Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:16:46.552Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:16:46.564Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:16:46.564Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:46.564Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:46.564Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:16:46.564Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:46.564Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:48.931Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:16:48.931Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:48.931Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:48.931Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:16:48.931Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:48.931Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:16:48.956Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:48.956Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:48.956Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:48.956Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:48.956Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:48.956Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:51.549Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:16:55.239Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:16:55.254Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:16:55.254Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:55.254Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:16:56.334Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\models\Form.js.tmp.35268.1765153016334
+2025-12-08T00:16:56.334Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:16:56.335Z [DEBUG] Temp file written successfully, size: 924 bytes
+2025-12-08T00:16:56.336Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:16:56.336Z [DEBUG] Renaming C:\Users\georg\dealerflow\models\Form.js.tmp.35268.1765153016334 to C:\Users\georg\dealerflow\models\Form.js
+2025-12-08T00:16:56.337Z [DEBUG] File C:\Users\georg\dealerflow\models\Form.js written atomically
+2025-12-08T00:16:56.360Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\models\Form.js
+2025-12-08T00:16:56.388Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:16:56.388Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:16:56.388Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:16:56.416Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:16:56.416Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:16:56.416Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:16:56.416Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:16:56.416Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:16:56.416Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:16:58.340Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:00.195Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:17:00.207Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:17:00.207Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:00.207Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:17:01.477Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:17:01.477Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:01.477Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:17:01.500Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:17:01.500Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:17:01.501Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:17:01.501Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:17:01.501Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:17:01.501Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:17:03.682Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:06.524Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:17:06.537Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:17:06.537Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:06.537Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:17:07.587Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\models\FormField.js.tmp.35268.1765153027587
+2025-12-08T00:17:07.587Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:17:07.588Z [DEBUG] Temp file written successfully, size: 870 bytes
+2025-12-08T00:17:07.588Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:17:07.588Z [DEBUG] Renaming C:\Users\georg\dealerflow\models\FormField.js.tmp.35268.1765153027587 to C:\Users\georg\dealerflow\models\FormField.js
+2025-12-08T00:17:07.589Z [DEBUG] File C:\Users\georg\dealerflow\models\FormField.js written atomically
+2025-12-08T00:17:07.615Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\models\FormField.js
+2025-12-08T00:17:07.643Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:17:07.643Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:07.643Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:17:07.778Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:17:07.792Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:17:07.792Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:07.792Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:17:08.998Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:17:08.998Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:08.998Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:17:09.025Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:17:09.025Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:17:09.025Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:17:09.025Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:17:09.025Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:17:09.026Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:17:11.153Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:12.995Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:17:13.008Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:17:13.008Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:13.008Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:17:13.979Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\models\Dealer.js.tmp.35268.1765153033979
+2025-12-08T00:17:13.979Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:17:13.981Z [DEBUG] Temp file written successfully, size: 557 bytes
+2025-12-08T00:17:13.981Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:17:13.981Z [DEBUG] Renaming C:\Users\georg\dealerflow\models\Dealer.js.tmp.35268.1765153033979 to C:\Users\georg\dealerflow\models\Dealer.js
+2025-12-08T00:17:13.982Z [DEBUG] File C:\Users\georg\dealerflow\models\Dealer.js written atomically
+2025-12-08T00:17:14.004Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\models\Dealer.js
+2025-12-08T00:17:14.040Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:17:14.040Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:14.040Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:17:14.068Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:17:14.068Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:17:14.068Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:17:14.068Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:17:14.068Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:17:14.068Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:17:16.516Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:18.321Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:17:18.334Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:17:18.334Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:18.334Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:17:18.558Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:17:22.632Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-08T00:17:22.632Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:22.632Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:17:22.664Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:17:22.664Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:17:22.664Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:17:22.664Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:17:22.664Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:17:22.664Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:17:23.645Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:25.263Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:17:30.432Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-08T00:17:30.432Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:17:30.432Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:20:11.631Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:20:11.631Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:20:11.631Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:20:11.631Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:20:11.631Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:20:11.631Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:20:12.043Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T00:20:12.043Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:12.043Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T00:20:12.049Z [DEBUG] FileHistory: Making snapshot for message 4bfb5a06-ea25-4cc5-a732-87e5d33e25af
+2025-12-08T00:20:12.051Z [DEBUG] FileHistory: Added snapshot for 4bfb5a06-ea25-4cc5-a732-87e5d33e25af, tracking 4 files
+2025-12-08T00:20:13.059Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:20:14.228Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:20:20.083Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-08T00:20:20.102Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-08T00:20:20.102Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:20.102Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:20:20.163Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153220163
+2025-12-08T00:20:20.163Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:20:20.164Z [DEBUG] Temp file written successfully, size: 622 bytes
+2025-12-08T00:20:20.164Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:20:20.164Z [DEBUG] Renaming C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153220163 to C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json
+2025-12-08T00:20:20.165Z [DEBUG] File C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json written atomically
+2025-12-08T00:20:20.195Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-08T00:20:20.195Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:20.195Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:20:20.302Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:20:20.315Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:20:20.315Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:20.315Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:21.603Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:20:21.603Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:21.603Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:21.625Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:20:21.625Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:20:21.625Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:20:21.625Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:20:21.626Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:20:21.626Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:20:23.956Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:20:29.417Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:20:29.433Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:20:29.433Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:29.433Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:20:30.430Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\_app.js.tmp.35268.1765153230430
+2025-12-08T00:20:30.430Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:20:30.432Z [DEBUG] Temp file written successfully, size: 587 bytes
+2025-12-08T00:20:30.433Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:20:30.433Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\_app.js.tmp.35268.1765153230430 to C:\Users\georg\dealerflow\pages\_app.js
+2025-12-08T00:20:30.433Z [DEBUG] File C:\Users\georg\dealerflow\pages\_app.js written atomically
+2025-12-08T00:20:30.457Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\pages\_app.js
+2025-12-08T00:20:30.493Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:20:30.494Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:30.494Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:20:30.737Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:20:30.738Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:20:30.755Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:20:30.755Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:30.755Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:30.756Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:20:30.756Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:30.756Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:33.766Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:20:33.766Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:33.767Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:33.767Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:20:33.767Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:33.767Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:33.803Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:20:33.803Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:20:33.803Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:20:33.803Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:20:33.804Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:20:33.804Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:20:37.705Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:20:44.016Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-08T00:20:44.031Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-08T00:20:44.031Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:44.031Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:20:44.095Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153244095
+2025-12-08T00:20:44.095Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:20:44.096Z [DEBUG] Temp file written successfully, size: 628 bytes
+2025-12-08T00:20:44.097Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:20:44.097Z [DEBUG] Renaming C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153244095 to C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json
+2025-12-08T00:20:44.097Z [DEBUG] File C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json written atomically
+2025-12-08T00:20:44.123Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-08T00:20:44.123Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:44.123Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:20:44.250Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-08T00:20:44.264Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-08T00:20:44.264Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:44.264Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:45.578Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-08T00:20:45.578Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:20:45.578Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-08T00:20:45.600Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:20:45.600Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:20:45.600Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:20:45.600Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:20:45.600Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:20:45.600Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:20:47.974Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:21:01.667Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:01.687Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:01.688Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:01.688Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:02.725Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153262725
+2025-12-08T00:21:02.725Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:02.727Z [DEBUG] Temp file written successfully, size: 2146 bytes
+2025-12-08T00:21:02.727Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:02.727Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153262725 to C:\Users\georg\dealerflow\pages\api\dashboard\stats.js
+2025-12-08T00:21:02.728Z [DEBUG] File C:\Users\georg\dealerflow\pages\api\dashboard\stats.js written atomically
+2025-12-08T00:21:02.750Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\pages\api\dashboard\stats.js
+2025-12-08T00:21:02.782Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:02.782Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:02.782Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:02.905Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:02.920Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:02.920Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:02.920Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:03.953Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153263953
+2025-12-08T00:21:03.953Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:03.954Z [DEBUG] Temp file written successfully, size: 2249 bytes
+2025-12-08T00:21:03.955Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:03.955Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153263953 to C:\Users\georg\dealerflow\pages\api\dashboard\stats.js
+2025-12-08T00:21:03.956Z [DEBUG] File C:\Users\georg\dealerflow\pages\api\dashboard\stats.js written atomically
+2025-12-08T00:21:04.000Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:04.000Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:04.000Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:04.154Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:04.174Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:04.174Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:04.174Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:05.253Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153265253
+2025-12-08T00:21:05.253Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:05.254Z [DEBUG] Temp file written successfully, size: 2496 bytes
+2025-12-08T00:21:05.255Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:05.255Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\api\dashboard\stats.js.tmp.35268.1765153265253 to C:\Users\georg\dealerflow\pages\api\dashboard\stats.js
+2025-12-08T00:21:05.256Z [DEBUG] File C:\Users\georg\dealerflow\pages\api\dashboard\stats.js written atomically
+2025-12-08T00:21:05.307Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:05.307Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:05.307Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:05.369Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:21:05.369Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:21:05.369Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:21:05.369Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:21:05.369Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:21:05.369Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:21:08.115Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:21:41.768Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:41.783Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:41.783Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:41.783Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:42.681Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153302681
+2025-12-08T00:21:42.681Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:42.683Z [DEBUG] Temp file written successfully, size: 5957 bytes
+2025-12-08T00:21:42.683Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:42.683Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153302681 to C:\Users\georg\dealerflow\pages\dashboard.js
+2025-12-08T00:21:42.684Z [DEBUG] File C:\Users\georg\dealerflow\pages\dashboard.js written atomically
+2025-12-08T00:21:42.709Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\pages\dashboard.js
+2025-12-08T00:21:42.741Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:42.741Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:42.741Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:42.917Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:42.977Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:42.977Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:42.977Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:44.249Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153304249
+2025-12-08T00:21:44.249Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:44.254Z [DEBUG] Temp file written successfully, size: 6271 bytes
+2025-12-08T00:21:44.254Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:44.254Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153304249 to C:\Users\georg\dealerflow\pages\dashboard.js
+2025-12-08T00:21:44.256Z [DEBUG] File C:\Users\georg\dealerflow\pages\dashboard.js written atomically
+2025-12-08T00:21:44.319Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:44.319Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:44.319Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:44.554Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-08T00:21:44.642Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-08T00:21:44.642Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:44.643Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:45.917Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153305917
+2025-12-08T00:21:45.917Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:45.918Z [DEBUG] Temp file written successfully, size: 7566 bytes
+2025-12-08T00:21:45.919Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:45.919Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\dashboard.js.tmp.35268.1765153305917 to C:\Users\georg\dealerflow\pages\dashboard.js
+2025-12-08T00:21:45.919Z [DEBUG] File C:\Users\georg\dealerflow\pages\dashboard.js written atomically
+2025-12-08T00:21:46.033Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-08T00:21:46.033Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:46.033Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-08T00:21:46.129Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:21:46.129Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:21:46.129Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:21:46.130Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:21:46.130Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:21:46.130Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:21:48.751Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:21:52.174Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-08T00:21:52.196Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-08T00:21:52.196Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:52.196Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:21:52.247Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153312247
+2025-12-08T00:21:52.247Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T00:21:52.249Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-08T00:21:52.250Z [DEBUG] Applied original permissions to temp file
+2025-12-08T00:21:52.250Z [DEBUG] Renaming C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json.tmp.35268.1765153312247 to C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json
+2025-12-08T00:21:52.250Z [DEBUG] File C:\Users\georg\.claude\todos\c83d8d95-8da2-4779-94d9-de5ee5a87a24-agent-c83d8d95-8da2-4779-94d9-de5ee5a87a24.json written atomically
+2025-12-08T00:21:52.275Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-08T00:21:52.275Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:52.275Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-08T00:21:52.309Z [DEBUG] executePreToolHooks called for tool: BashOutput
+2025-12-08T00:21:52.322Z [DEBUG] Getting matching hook commands for PreToolUse with query: BashOutput
+2025-12-08T00:21:52.322Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:52.322Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:21:52.401Z [DEBUG] Getting matching hook commands for PostToolUse with query: BashOutput
+2025-12-08T00:21:52.401Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:52.401Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:21:52.428Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:21:52.428Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:21:52.428Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:21:52.428Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:21:52.428Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:21:52.428Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:21:54.762Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:21:57.504Z [DEBUG] executePreToolHooks called for tool: KillShell
+2025-12-08T00:21:57.526Z [DEBUG] Getting matching hook commands for PreToolUse with query: KillShell
+2025-12-08T00:21:57.526Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:57.526Z [DEBUG] Matched 0 unique hooks for query "KillShell" (0 before deduplication)
+2025-12-08T00:21:57.569Z [DEBUG] BackgroundShell 849357 kill requested
+2025-12-08T00:21:57.616Z [DEBUG] Getting matching hook commands for PostToolUse with query: KillShell
+2025-12-08T00:21:57.616Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:21:57.616Z [DEBUG] Matched 0 unique hooks for query "KillShell" (0 before deduplication)
+2025-12-08T00:21:57.644Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:21:57.644Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:21:57.644Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:21:57.644Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:21:57.644Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:21:57.644Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:22:00.574Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:22:02.484Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:22:02.508Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:22:02.508Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:02.508Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:22:02.742Z [DEBUG] Session environment not yet supported on Windows
+2025-12-08T00:22:02.991Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-08T00:22:02.991Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:02.991Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-08T00:22:03.021Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:22:03.021Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:22:03.021Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:22:03.021Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:22:03.021Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:22:03.021Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:22:04.351Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:22:06.956Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:22:08.126Z [DEBUG] executePreToolHooks called for tool: BashOutput
+2025-12-08T00:22:08.140Z [DEBUG] Getting matching hook commands for PreToolUse with query: BashOutput
+2025-12-08T00:22:08.140Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:08.140Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:22:08.210Z [DEBUG] Getting matching hook commands for PostToolUse with query: BashOutput
+2025-12-08T00:22:08.210Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:08.210Z [DEBUG] Matched 0 unique hooks for query "BashOutput" (0 before deduplication)
+2025-12-08T00:22:08.233Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T00:22:08.233Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T00:22:08.233Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T00:22:08.233Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T00:22:08.234Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T00:22:08.234Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T00:22:10.665Z [DEBUG] Stream started - received first chunk
+2025-12-08T00:22:14.457Z [DEBUG] executePreToolHooks called for tool: KillShell
+2025-12-08T00:22:14.471Z [DEBUG] Getting matching hook commands for PreToolUse with query: KillShell
+2025-12-08T00:22:14.471Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:14.471Z [DEBUG] Matched 0 unique hooks for query "KillShell" (0 before deduplication)
+2025-12-08T00:22:14.518Z [DEBUG] BackgroundShell 882988 kill requested
+2025-12-08T00:22:14.569Z [DEBUG] Getting matching hook commands for PostToolUse with query: KillShell
+2025-12-08T00:22:14.569Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:14.569Z [DEBUG] Matched 0 unique hooks for query "KillShell" (0 before deduplication)
+2025-12-08T00:22:14.584Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-08T00:22:14.611Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-08T00:22:14.611Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T00:22:14.611Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)

@@ -1,0 +1,18 @@
+The file C:\Users\georg\dealerflow\pages\px\[dealerSlug].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   275→      </div>
+   276→    );
+   277→  }
+   278→
+   279→  return (
+   280→    <div className="min-h-screen bg-slate-50 py-8 px-4 overflow-x-hidden">
+   281→      <Head>
+   282→        <title>Part Exchange Valuation{dealerInfo?.name ? ` | ${dealerInfo.name}` : ""}</title>
+   283→        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+   284→      </Head>
+   285→      <Toaster position="top-center" />
+   286→
+   287→      <div className="max-w-2xl mx-auto overflow-x-hidden">
+   288→        {/* Header */}
+   289→        <div className="text-center mb-8">
+   290→          {dealerInfo?.logo && (
+   291→            <img src={dealerInfo.logo} alt={dealerInfo.name} className="h-12 mx-auto mb-4" />

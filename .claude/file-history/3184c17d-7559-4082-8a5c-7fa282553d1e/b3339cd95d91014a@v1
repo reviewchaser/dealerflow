@@ -1,0 +1,605 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+import { showDummyNotification } from "@/utils/notifications";
+
+export default function Settings() {
+  const [labels, setLabels] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [locations, setLocations] = useState([]);
+  const [prepTasks, setPrepTasks] = useState([]);
+  const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
+  const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
+  const [newLocation, setNewLocation] = useState("");
+  const [newPrepTask, setNewPrepTask] = useState("");
+
+  // Dealer branding state
+  const [dealer, setDealer] = useState(null);
+  const [dealerForm, setDealerForm] = useState({ name: "", googleReviewUrl: "" });
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isSavingDealer, setIsSavingDealer] = useState(false);
+
+  useEffect(() => {
+    fetchLabels();
+    fetchCategories();
+    fetchLocations();
+    fetchPrepTasks();
+    fetchDealer();
+  }, []);
+
+  const fetchLabels = async () => {
+    try {
+      const res = await fetch("/api/labels");
+      const data = await res.json();
+      setLabels(data);
+    } catch (error) {
+      console.error("Failed to load labels");
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("/api/calendar/categories");
+      const data = await res.json();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to load categories");
+    }
+  };
+
+  const addLabel = async (e) => {
+    e.preventDefault();
+    if (!newLabel.name) return toast.error("Label name required");
+    try {
+      await fetch("/api/labels", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newLabel),
+      });
+      setNewLabel({ name: "", colour: "#6366f1" });
+      fetchLabels();
+      toast.success("Label added");
+    } catch (error) {
+      toast.error("Failed to add label");
+    }
+  };
+
+  const addCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategory.name) return toast.error("Category name required");
+    try {
+      await fetch("/api/calendar/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newCategory),
+      });
+      setNewCategory({ name: "", colour: "#3b82f6" });
+      fetchCategories();
+      toast.success("Category added");
+    } catch (error) {
+      toast.error("Failed to add category");
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const res = await fetch("/api/locations");
+      const data = await res.json();
+      setLocations(data);
+    } catch (error) {
+      console.error("Failed to load locations");
+    }
+  };
+
+  const fetchPrepTasks = async () => {
+    try {
+      const res = await fetch("/api/prep-tasks");
+      const data = await res.json();
+      setPrepTasks(data);
+    } catch (error) {
+      console.error("Failed to load prep tasks");
+    }
+  };
+
+  const fetchDealer = async () => {
+    try {
+      const res = await fetch("/api/dealer");
+      const data = await res.json();
+      setDealer(data);
+      setDealerForm({ name: data.name || "", googleReviewUrl: data.googleReviewUrl || "" });
+    } catch (error) {
+      console.error("Failed to load dealer");
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Please upload PNG, JPG, or SVG");
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be under 2MB");
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/vehicles/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+
+      // Save logo URL to dealer
+      const dealerRes = await fetch("/api/dealer", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: uploadData.url }),
+      });
+
+      if (!dealerRes.ok) throw new Error("Failed to save logo");
+      const updatedDealer = await dealerRes.json();
+      setDealer(updatedDealer);
+      toast.success("Logo uploaded");
+    } catch (error) {
+      toast.error(error.message || "Failed to upload logo");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    try {
+      const res = await fetch("/api/dealer", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logoUrl: "" }),
+      });
+      if (!res.ok) throw new Error("Failed to remove logo");
+      const updatedDealer = await res.json();
+      setDealer(updatedDealer);
+      toast.success("Logo removed");
+    } catch (error) {
+      toast.error("Failed to remove logo");
+    }
+  };
+
+  const saveDealer = async (e) => {
+    e.preventDefault();
+    setIsSavingDealer(true);
+    try {
+      const res = await fetch("/api/dealer", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dealerForm),
+      });
+      if (!res.ok) throw new Error("Failed to save");
+      const updatedDealer = await res.json();
+      setDealer(updatedDealer);
+      toast.success("Profile saved");
+    } catch (error) {
+      toast.error("Failed to save profile");
+    } finally {
+      setIsSavingDealer(false);
+    }
+  };
+
+  const addLocation = async (e) => {
+    e.preventDefault();
+    if (!newLocation.trim()) return toast.error("Location name required");
+    try {
+      await fetch("/api/locations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newLocation }),
+      });
+      setNewLocation("");
+      fetchLocations();
+      toast.success("Location added");
+    } catch (error) {
+      toast.error("Failed to add location");
+    }
+  };
+
+  const deleteLocation = async (locationId) => {
+    if (!confirm("Delete this location?")) return;
+    try {
+      await fetch(`/api/locations/${locationId}`, { method: "DELETE" });
+      fetchLocations();
+      toast.success("Location deleted");
+    } catch (error) {
+      toast.error("Failed to delete location");
+    }
+  };
+
+  const addPrepTask = async (e) => {
+    e.preventDefault();
+    if (!newPrepTask.trim()) return toast.error("Task name required");
+    try {
+      await fetch("/api/prep-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newPrepTask }),
+      });
+      setNewPrepTask("");
+      fetchPrepTasks();
+      toast.success("Task added");
+    } catch (error) {
+      toast.error("Failed to add task");
+    }
+  };
+
+  const deletePrepTask = async (taskId) => {
+    if (!confirm("Delete this task from template?")) return;
+    try {
+      await fetch(`/api/prep-tasks/${taskId}`, { method: "DELETE" });
+      fetchPrepTasks();
+      toast.success("Task deleted");
+    } catch (error) {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  const reorderPrepTask = async (taskId, direction) => {
+    try {
+      await fetch(`/api/prep-tasks/${taskId}/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ direction }),
+      });
+      fetchPrepTasks();
+    } catch (error) {
+      toast.error("Failed to reorder task");
+    }
+  };
+
+  const resetPrepTasksToDefaults = async () => {
+    if (!confirm("Reset prep checklist to defaults? This will replace all current tasks.")) return;
+    try {
+      const res = await fetch("/api/prep-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resetToDefaults: true }),
+      });
+      const data = await res.json();
+      setPrepTasks(data);
+      toast.success("Reset to defaults");
+    } catch (error) {
+      toast.error("Failed to reset");
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <Head><title>Settings | DealerFlow</title></Head>
+
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-base-content/60 mt-2">Configure your dealership</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Form Templates Card */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Form Templates</h2>
+            <p className="text-sm text-base-content/60">Customize form fields for PDI, Appraisals, Delivery checklists, and more</p>
+            <div className="mt-4">
+              <Link href="/settings/forms" className="btn btn-primary">
+                Manage Form Templates
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Dealer Branding */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Dealer Branding</h2>
+            <p className="text-sm text-base-content/60">Your logo appears in the sidebar and on public forms</p>
+
+            {/* Logo Upload */}
+            <div className="mt-4">
+              <label className="label"><span className="label-text">Dealership Logo</span></label>
+              <div className="flex items-center gap-4">
+                {dealer?.logoUrl ? (
+                  <div className="relative">
+                    <img
+                      src={dealer.logoUrl}
+                      alt="Dealer Logo"
+                      className="w-24 h-24 object-contain bg-white rounded-lg border border-base-300 p-2"
+                    />
+                    <button
+                      onClick={removeLogo}
+                      className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 bg-base-300 rounded-lg flex items-center justify-center text-base-content/40 text-xs">
+                    No logo
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <label className="btn btn-sm btn-outline">
+                    {isUploadingLogo ? (
+                      <span className="loading loading-spinner loading-sm"></span>
+                    ) : (
+                      <>Upload Logo</>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      disabled={isUploadingLogo}
+                    />
+                  </label>
+                  <span className="text-xs text-base-content/50">PNG, JPG, SVG (max 2MB)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dealer Profile */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Dealer Profile</h2>
+            <form onSubmit={saveDealer}>
+              <div className="form-control mt-4">
+                <label className="label"><span className="label-text">Dealership Name</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  placeholder="Your Dealership Name"
+                  value={dealerForm.name}
+                  onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value })}
+                />
+              </div>
+              <div className="form-control mt-2">
+                <label className="label"><span className="label-text">Google Review URL</span></label>
+                <input
+                  type="url"
+                  className="input input-bordered"
+                  placeholder="https://g.page/..."
+                  value={dealerForm.googleReviewUrl}
+                  onChange={(e) => setDealerForm({ ...dealerForm, googleReviewUrl: e.target.value })}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary mt-4" disabled={isSavingDealer}>
+                {isSavingDealer ? <span className="loading loading-spinner loading-sm"></span> : "Save Profile"}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Vehicle Labels */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Vehicle Labels</h2>
+            <p className="text-sm text-base-content/60">Create labels for vehicle cards (e.g. "MOT Expired", "High Priority")</p>
+            
+            <div className="space-y-2 mt-4">
+              {labels.map((label) => (
+                <div key={label.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: label.colour }}></div>
+                  <span className="flex-1">{label.name}</span>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={addLabel} className="flex gap-2 mt-4">
+              <input type="text" className="input input-bordered input-sm flex-1" placeholder="Label name"
+                value={newLabel.name} onChange={(e) => setNewLabel({ ...newLabel, name: e.target.value })} />
+              <input type="color" className="w-10 h-10 rounded cursor-pointer"
+                value={newLabel.colour} onChange={(e) => setNewLabel({ ...newLabel, colour: e.target.value })} />
+              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Calendar Categories */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Calendar Categories</h2>
+            <p className="text-sm text-base-content/60">Event types for calendar (e.g. "Handover", "Test Drive")</p>
+            
+            <div className="space-y-2 mt-4">
+              {categories.map((cat) => (
+                <div key={cat.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: cat.colour }}></div>
+                  <span className="flex-1">{cat.name}</span>
+                </div>
+              ))}
+            </div>
+
+            <form onSubmit={addCategory} className="flex gap-2 mt-4">
+              <input type="text" className="input input-bordered input-sm flex-1" placeholder="Category name"
+                value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} />
+              <input type="color" className="w-10 h-10 rounded cursor-pointer"
+                value={newCategory.colour} onChange={(e) => setNewCategory({ ...newCategory, colour: e.target.value })} />
+              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Integrations */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Integrations</h2>
+            <p className="text-sm text-base-content/60">Configure external services</p>
+            
+            <div className="space-y-4 mt-4">
+              <div className="p-3 bg-base-100 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">DVLA API</p>
+                    <p className="text-xs text-base-content/60">Vehicle lookup service</p>
+                  </div>
+                  <span className="badge badge-warning">Not configured</span>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-base-100 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">AI Hints (OpenAI/Claude)</p>
+                    <p className="text-xs text-base-content/60">Vehicle condition suggestions</p>
+                  </div>
+                  <span className="badge badge-warning">Not configured</span>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-base-100 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">Email (SendGrid/Resend)</p>
+                    <p className="text-xs text-base-content/60">Review requests & notifications</p>
+                  </div>
+                  <span className="badge badge-warning">Not configured</span>
+                </div>
+              </div>
+              
+              <div className="p-3 bg-base-100 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">SMS (Twilio)</p>
+                    <p className="text-xs text-base-content/60">Review requests via SMS</p>
+                  </div>
+                  <span className="badge badge-warning">Not configured</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Offsite Locations */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Offsite Locations</h2>
+            <p className="text-sm text-base-content/60">Manage offsite location names (e.g., "MOT Centre", "Paint Shop")</p>
+
+            <div className="space-y-2 mt-4">
+              {locations.length === 0 ? (
+                <p className="text-sm text-base-content/50 text-center py-4">No locations added yet</p>
+              ) : (
+                locations.map((location) => (
+                  <div key={location.id} className="flex items-center justify-between p-2 bg-base-100 rounded">
+                    <span>{location.name}</span>
+                    <button
+                      className="btn btn-xs btn-error btn-ghost"
+                      onClick={() => deleteLocation(location.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={addLocation} className="flex gap-2 mt-4">
+              <input
+                type="text"
+                className="input input-bordered input-sm flex-1"
+                placeholder="Location name (e.g., A1 MOT Centre)"
+                value={newLocation}
+                onChange={(e) => setNewLocation(e.target.value)}
+              />
+              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Prep Checklist Template */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Prep Checklist Template</h2>
+            <p className="text-sm text-base-content/60">Default tasks auto-created for new vehicles</p>
+
+            <div className="space-y-2 mt-4">
+              {prepTasks.length === 0 ? (
+                <p className="text-sm text-base-content/50 text-center py-4">No tasks in template</p>
+              ) : (
+                prepTasks.map((task, idx) => (
+                  <div key={task.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
+                    <div className="flex flex-col gap-1">
+                      <button
+                        className="btn btn-xs btn-ghost h-3 min-h-0 p-0"
+                        onClick={() => reorderPrepTask(task.id, "up")}
+                        disabled={idx === 0}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        className="btn btn-xs btn-ghost h-3 min-h-0 p-0"
+                        onClick={() => reorderPrepTask(task.id, "down")}
+                        disabled={idx === prepTasks.length - 1}
+                      >
+                        ▼
+                      </button>
+                    </div>
+                    <span className="flex-1">{task.name}</span>
+                    <button
+                      className="btn btn-xs btn-error btn-ghost"
+                      onClick={() => deletePrepTask(task.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={addPrepTask} className="flex gap-2 mt-4">
+              <input
+                type="text"
+                className="input input-bordered input-sm flex-1"
+                placeholder="Task name (e.g., PDI, Valet, Photos)"
+                value={newPrepTask}
+                onChange={(e) => setNewPrepTask(e.target.value)}
+              />
+              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Data Management */}
+        <div className="card bg-base-200 lg:col-span-2">
+          <div className="card-body">
+            <h2 className="card-title text-error">Danger Zone</h2>
+            <p className="text-sm text-base-content/60">Data management actions</p>
+            
+            <div className="flex gap-4 mt-4">
+              <button className="btn btn-outline btn-error" onClick={() => showDummyNotification("Data export")}>
+                Export All Data
+              </button>
+              <button className="btn btn-outline btn-error" onClick={() => {
+                if (confirm("This would delete all data. Are you sure?")) {
+                  showDummyNotification("Data deletion");
+                }
+              }}>
+                Delete All Data
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

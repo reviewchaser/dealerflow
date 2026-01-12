@@ -1,0 +1,187 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→/**
+     5→ * SalesDocument Model
+     6→ *
+     7→ * Stores deposit receipts and invoices with snapshots of deal data.
+     8→ * Supports signature capture and PDF storage.
+     9→ */
+    10→
+    11→const salesDocumentSchema = new mongoose.Schema(
+    12→  {
+    13→    dealerId: {
+    14→      type: mongoose.Schema.Types.ObjectId,
+    15→      ref: "Dealer",
+    16→      required: true,
+    17→    },
+    18→    dealId: {
+    19→      type: mongoose.Schema.Types.ObjectId,
+    20→      ref: "Deal",
+    21→      required: true,
+    22→    },
+    23→
+    24→    // Document type and number
+    25→    type: {
+    26→      type: String,
+    27→      enum: ["DEPOSIT_RECEIPT", "INVOICE"],
+    28→      required: true,
+    29→    },
+    30→    documentNumber: { type: String, required: true },
+    31→
+    32→    // Status
+    33→    status: {
+    34→      type: String,
+    35→      enum: ["DRAFT", "ISSUED", "VOID"],
+    36→      default: "DRAFT",
+    37→    },
+    38→    issuedAt: { type: Date },
+    39→    voidedAt: { type: Date },
+    40→    voidReason: { type: String },
+    41→
+    42→    // === SNAPSHOT DATA ===
+    43→    // Captured at time of document generation for immutability
+    44→    snapshotData: {
+    45→      // Vehicle
+    46→      vehicle: {
+    47→        regCurrent: { type: String },
+    48→        vin: { type: String },
+    49→        make: { type: String },
+    50→        model: { type: String },
+    51→        derivative: { type: String },
+    52→        year: { type: Number },
+    53→        mileage: { type: Number },
+    54→        colour: { type: String },
+    55→      },
+    56→
+    57→      // Customer (sold to)
+    58→      customer: {
+    59→        name: { type: String },
+    60→        companyName: { type: String },
+    61→        email: { type: String },
+    62→        phone: { type: String },
+    63→        address: {
+    64→          line1: { type: String },
+    65→          line2: { type: String },
+    66→          town: { type: String },
+    67→          county: { type: String },
+    68→          postcode: { type: String },
+    69→        },
+    70→      },
+    71→
+    72→      // Invoice to (if different - e.g., finance company)
+    73→      invoiceTo: {
+    74→        name: { type: String },
+    75→        companyName: { type: String },
+    76→        email: { type: String },
+    77→        address: {
+    78→          line1: { type: String },
+    79→          line2: { type: String },
+    80→          town: { type: String },
+    81→          county: { type: String },
+    82→          postcode: { type: String },
+    83→        },
+    84→      },
+    85→
+    86→      // Pricing
+    87→      vatScheme: { type: String },
+    88→      vehiclePriceNet: { type: Number },
+    89→      vehicleVatAmount: { type: Number },
+    90→      vehiclePriceGross: { type: Number },
+    91→
+    92→      // Add-ons
+    93→      addOns: [{
+    94→        name: { type: String },
+    95→        qty: { type: Number },
+    96→        unitPriceNet: { type: Number },
+    97→        vatTreatment: { type: String },
+    98→        vatRate: { type: Number },
+    99→      }],
+   100→      addOnsNetTotal: { type: Number },
+   101→      addOnsVatTotal: { type: Number },
+   102→
+   103→      // Part exchange
+   104→      partExchange: {
+   105→        vrm: { type: String },
+   106→        make: { type: String },
+   107→        model: { type: String },
+   108→        allowance: { type: Number },
+   109→        settlement: { type: Number },
+   110→      },
+   111→
+   112→      // Payments (for deposit receipt or invoice showing deposits paid)
+   113→      payments: [{
+   114→        type: { type: String },
+   115→        amount: { type: Number },
+   116→        method: { type: String },
+   117→        paidAt: { type: Date },
+   118→        reference: { type: String },
+   119→      }],
+   120→
+   121→      // Totals
+   122→      subtotal: { type: Number },
+   123→      totalVat: { type: Number },
+   124→      grandTotal: { type: Number },
+   125→      totalPaid: { type: Number },
+   126→      partExchangeNet: { type: Number },
+   127→      balanceDue: { type: Number },
+   128→
+   129→      // Terms
+   130→      termsText: { type: String },
+   131→
+   132→      // Dealer details
+   133→      dealer: {
+   134→        name: { type: String },
+   135→        companyName: { type: String },
+   136→        address: { type: String },
+   137→        phone: { type: String },
+   138→        email: { type: String },
+   139→        vatNumber: { type: String },
+   140→        companyNumber: { type: String },
+   141→      },
+   142→
+   143→      // Bank details (for invoice)
+   144→      bankDetails: {
+   145→        accountName: { type: String },
+   146→        sortCode: { type: String },
+   147→        accountNumber: { type: String },
+   148→        iban: { type: String },
+   149→      },
+   150→    },
+   151→
+   152→    // === SIGNATURES ===
+   153→    signature: {
+   154→      required: { type: Boolean, default: false },
+   155→      buyerSignatureImageKey: { type: String }, // R2 storage key
+   156→      dealerSignatureImageKey: { type: String },
+   157→      signedAt: { type: Date },
+   158→    },
+   159→
+   160→    // PDF storage
+   161→    pdfStorageKey: { type: String }, // R2/S3 object key
+   162→
+   163→    // Share link
+   164→    shareToken: { type: String },
+   165→    shareTokenHash: { type: String },
+   166→    shareExpiresAt: { type: Date },
+   167→
+   168→    // Audit
+   169→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   170→  },
+   171→  { timestamps: true }
+   172→);
+   173→
+   174→salesDocumentSchema.plugin(toJSON);
+   175→
+   176→// Indexes
+   177→salesDocumentSchema.index({ dealerId: 1, type: 1, documentNumber: 1 }, { unique: true });
+   178→salesDocumentSchema.index({ dealerId: 1, dealId: 1, type: 1 });
+   179→salesDocumentSchema.index({ dealerId: 1, createdAt: -1 });
+   180→salesDocumentSchema.index({ shareTokenHash: 1 }, { sparse: true });
+   181→
+   182→export default mongoose.models?.SalesDocument || mongoose.model("SalesDocument", salesDocumentSchema);
+   183→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

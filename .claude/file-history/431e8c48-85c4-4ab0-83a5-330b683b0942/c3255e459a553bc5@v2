@@ -1,0 +1,39 @@
+/**
+ * AI Health Check Endpoint
+ *
+ * GET /api/ai/health
+ *
+ * Returns the status of the OpenAI configuration.
+ * Used for diagnostics and debugging.
+ */
+
+export default function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(200).json({
+      ok: false,
+      error: "missing OPENAI_API_KEY",
+      message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
+    });
+  }
+
+  // Check key format (should start with sk-)
+  if (!apiKey.startsWith("sk-")) {
+    return res.status(200).json({
+      ok: false,
+      error: "invalid OPENAI_API_KEY format",
+      message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
+    });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    message: "OpenAI is configured and ready",
+    keyPrefix: apiKey.slice(0, 7) + "...",
+  });
+}

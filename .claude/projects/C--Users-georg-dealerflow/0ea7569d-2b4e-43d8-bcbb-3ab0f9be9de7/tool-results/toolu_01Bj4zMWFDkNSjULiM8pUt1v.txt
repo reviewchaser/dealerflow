@@ -1,0 +1,82 @@
+     1→/**
+     2→ * appPath - Link generation helper for multi-tenant routes
+     3→ *
+     4→ * Generates URLs for navigation within the app, supporting both:
+     5→ * - Tenant-aware routes: /app/[dealerSlug]/dashboard
+     6→ * - Legacy routes: /dashboard (when no slug provided)
+     7→ *
+     8→ * Usage:
+     9→ *   import { appPath } from "@/libs/appPath";
+    10→ *   import { useDealer } from "@/contexts/DealerContext";
+    11→ *
+    12→ *   const { dealerSlug } = useDealer();
+    13→ *   const dashboardUrl = appPath(dealerSlug, "/dashboard");
+    14→ *   // Returns: "/app/my-dealer/dashboard" or "/dashboard" if no slug
+    15→ */
+    16→
+    17→/**
+    18→ * Generate an app path, optionally scoped to a dealer
+    19→ *
+    20→ * @param {string|null} dealerSlug - The dealer's URL slug, or null for legacy routes
+    21→ * @param {string} path - The path within the app (e.g., "/dashboard", "/sales-prep")
+    22→ * @returns {string} The full path
+    23→ *
+    24→ * @example
+    25→ * appPath("my-dealer", "/dashboard") // "/app/my-dealer/dashboard"
+    26→ * appPath(null, "/dashboard") // "/dashboard"
+    27→ * appPath("my-dealer", "/vehicles/123") // "/app/my-dealer/vehicles/123"
+    28→ */
+    29→export function appPath(dealerSlug, path) {
+    30→  // Ensure path starts with /
+    31→  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    32→
+    33→  // If no dealer slug, return legacy path
+    34→  if (!dealerSlug) {
+    35→    return normalizedPath;
+    36→  }
+    37→
+    38→  // Return tenant-aware path
+    39→  return `/app/${dealerSlug}${normalizedPath}`;
+    40→}
+    41→
+    42→/**
+    43→ * Hook-friendly version that returns a function bound to the current dealer
+    44→ * Use this in components to avoid passing dealerSlug everywhere
+    45→ *
+    46→ * @param {string|null} dealerSlug - The dealer's URL slug
+    47→ * @returns {function} A function that takes a path and returns the full URL
+    48→ *
+    49→ * @example
+    50→ * const { dealerSlug } = useDealer();
+    51→ * const getPath = useAppPath(dealerSlug);
+    52→ * const dashboardUrl = getPath("/dashboard");
+    53→ */
+    54→export function useAppPath(dealerSlug) {
+    55→  return (path) => appPath(dealerSlug, path);
+    56→}
+    57→
+    58→/**
+    59→ * Common app routes as constants
+    60→ * Helps with autocomplete and prevents typos
+    61→ */
+    62→export const APP_ROUTES = {
+    63→  DASHBOARD: "/dashboard",
+    64→  SALES_PREP: "/sales-prep",
+    65→  SALES: "/sales",
+    66→  WARRANTY: "/warranty",
+    67→  APPRAISALS: "/appraisals",
+    68→  FORMS: "/forms",
+    69→  REVIEWS: "/reviews",
+    70→  CALENDAR: "/calendar",
+    71→  SETTINGS: "/settings",
+    72→  VEHICLES: "/vehicles",
+    73→  CONTACTS: "/contacts",
+    74→  ONBOARDING: "/onboarding",
+    75→};
+    76→
+    77→export default appPath;
+    78→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

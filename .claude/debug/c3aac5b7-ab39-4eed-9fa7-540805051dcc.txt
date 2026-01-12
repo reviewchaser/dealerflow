@@ -1,0 +1,256 @@
+2025-12-14T21:33:54.685Z [DEBUG] Watching for changes in setting files C:\Users\georg\.claude\settings.json, C:\Users\georg\dealerflow\.claude\settings.local.json...
+2025-12-14T21:33:54.764Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2025-12-14T21:33:54.807Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-12-14T21:33:54.807Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-12-14T21:33:54.807Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-12-14T21:33:54.814Z [DEBUG] LSP server manager initialized successfully
+2025-12-14T21:33:54.814Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-12-14T21:33:54.821Z [DEBUG] Applying permission update: Adding 24 allow rule(s) to destination 'localSettings': ["Bash(npm run dev:*)","Bash(npm install)","Bash(npm install:*)","Bash(node scripts/seed-forms-standalone.js:*)","Bash(taskkill:*)","Bash(rm:*)","Bash(ls:*)","Bash(cat:*)","Bash(python:*)","Bash(lsof:*)","Bash(npm run build:*)","Bash(timeout 5 bash:*)","Bash(mkdir:*)","Bash(node scripts/fix-appraisal-schema.js:*)","Bash(tasklist:*)","Bash(node:*)","Bash(curl:*)","Bash(netstat:*)","Bash(while read pid)","Bash(do taskkill //F //PID $pid)","Bash(done)","Bash(npx eslint:*)","Bash(grep:*)","Bash(head:*)"]
+2025-12-14T21:33:54.845Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-12-14T21:33:54.861Z [DEBUG] Stats cache is up to date
+2025-12-14T21:33:54.870Z [DEBUG] Loading skills from directories: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\georg\.claude\skills, project=[]
+2025-12-14T21:33:54.871Z [DEBUG] Passes: Cache stale, returning cached data and refreshing in background
+2025-12-14T21:33:55.313Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults (430.8ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2025-12-14T21:33:55.317Z [DEBUG] Loaded 0 installed plugins from C:\Users\georg\.claude\plugins\installed_plugins.json
+2025-12-14T21:33:55.318Z [DEBUG] Official marketplace auto-install already attempted, skipping
+2025-12-14T21:33:55.411Z [DEBUG] Creating shell snapshot for bash (C:\Program Files\Git\bin\bash.exe)
+2025-12-14T21:33:55.411Z [DEBUG] Looking for shell config file: C:\Users\georg\.bashrc
+2025-12-14T21:33:55.411Z [DEBUG] Shell config file not found: C:\Users\georg\.bashrc, creating snapshot with Claude Code defaults only
+2025-12-14T21:33:55.412Z [DEBUG] Snapshots directory: C:\Users\georg\.claude\shell-snapshots
+2025-12-14T21:33:55.431Z [DEBUG] Creating snapshot at: C:\Users\georg\.claude\shell-snapshots\snapshot-bash-1765748035411-3sdb0z.sh
+2025-12-14T21:33:55.431Z [DEBUG] Shell binary exists: true
+2025-12-14T21:33:55.431Z [DEBUG] Execution timeout: 10000ms
+2025-12-14T21:33:55.440Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\c3aac5b7-ab39-4eed-9fa7-540805051dcc-agent-c3aac5b7-ab39-4eed-9fa7-540805051dcc.json.tmp.23516.1765748035440
+2025-12-14T21:33:55.442Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-14T21:33:55.442Z [DEBUG] Renaming C:\Users\georg\.claude\todos\c3aac5b7-ab39-4eed-9fa7-540805051dcc-agent-c3aac5b7-ab39-4eed-9fa7-540805051dcc.json.tmp.23516.1765748035440 to C:\Users\georg\.claude\todos\c3aac5b7-ab39-4eed-9fa7-540805051dcc-agent-c3aac5b7-ab39-4eed-9fa7-540805051dcc.json
+2025-12-14T21:33:55.444Z [DEBUG] File C:\Users\georg\.claude\todos\c3aac5b7-ab39-4eed-9fa7-540805051dcc-agent-c3aac5b7-ab39-4eed-9fa7-540805051dcc.json written atomically
+2025-12-14T21:33:55.453Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-12-14T21:33:55.453Z [DEBUG] Total plugin skills loaded: 0
+2025-12-14T21:33:55.453Z [DEBUG] Total plugin commands loaded: 0
+2025-12-14T21:33:55.453Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-12-14T21:33:55.497Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-12-14T21:33:55.545Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2025-12-14T21:33:55.551Z [DEBUG] Total plugin agents loaded: 0
+2025-12-14T21:33:55.588Z [DEBUG] Git remote URL: null
+2025-12-14T21:33:55.588Z [DEBUG] No git remote URL found
+2025-12-14T21:33:55.588Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2025-12-14T21:33:55.589Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=C:\Users\georg\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\vendor\ripgrep\x64-win32\rg.exe)
+2025-12-14T21:33:55.781Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748035781
+2025-12-14T21:33:55.781Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:55.785Z [DEBUG] Temp file written successfully, size: 52317 bytes
+2025-12-14T21:33:55.785Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:55.785Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748035781 to C:\Users\georg\.claude.json
+2025-12-14T21:33:55.787Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:55.808Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748035808
+2025-12-14T21:33:55.808Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:55.811Z [DEBUG] Temp file written successfully, size: 52317 bytes
+2025-12-14T21:33:55.811Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:55.811Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748035808 to C:\Users\georg\.claude.json
+2025-12-14T21:33:55.812Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:55.832Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748035832
+2025-12-14T21:33:55.833Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:55.835Z [DEBUG] Temp file written successfully, size: 52347 bytes
+2025-12-14T21:33:55.835Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:55.835Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748035832 to C:\Users\georg\.claude.json
+2025-12-14T21:33:55.837Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:55.936Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748035936
+2025-12-14T21:33:55.936Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:55.938Z [DEBUG] Temp file written successfully, size: 52347 bytes
+2025-12-14T21:33:55.939Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:55.939Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748035936 to C:\Users\georg\.claude.json
+2025-12-14T21:33:55.940Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:55.940Z [DEBUG] Passes eligibility cached for org 699d4f16-11b2-4e60-ac34-7adf033da48d: true
+2025-12-14T21:33:56.068Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748036068
+2025-12-14T21:33:56.068Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:56.070Z [DEBUG] Temp file written successfully, size: 52347 bytes
+2025-12-14T21:33:56.070Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:56.070Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748036068 to C:\Users\georg\.claude.json
+2025-12-14T21:33:56.071Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:56.076Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748036076
+2025-12-14T21:33:56.076Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:33:56.078Z [DEBUG] Temp file written successfully, size: 52350 bytes
+2025-12-14T21:33:56.078Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:33:56.078Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748036076 to C:\Users\georg\.claude.json
+2025-12-14T21:33:56.079Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:33:56.113Z [DEBUG] Shell snapshot created successfully (342 bytes)
+2025-12-14T21:34:00.609Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748040609
+2025-12-14T21:34:00.609Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:00.612Z [DEBUG] Temp file written successfully, size: 52751 bytes
+2025-12-14T21:34:00.612Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:00.612Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748040609 to C:\Users\georg\.claude.json
+2025-12-14T21:34:00.613Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.386Z [DEBUG] Passes: Using fresh cached eligibility data
+2025-12-14T21:34:01.462Z [DEBUG] Initialized versioned plugins system with 0 plugins
+2025-12-14T21:34:01.476Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041476
+2025-12-14T21:34:01.476Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.478Z [DEBUG] Temp file written successfully, size: 52751 bytes
+2025-12-14T21:34:01.479Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.479Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041476 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.480Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.498Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-12-14T21:34:01.498Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:34:01.498Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-12-14T21:34:01.517Z [DEBUG] Skills and commands included in Skill tool:
+2025-12-14T21:34:01.517Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-12-14T21:34:01.578Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041578
+2025-12-14T21:34:01.579Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.585Z [DEBUG] [SLOW OPERATION DETECTED] fs.writeFileSync (5.9ms)
+2025-12-14T21:34:01.585Z [DEBUG] Temp file written successfully, size: 52678 bytes
+2025-12-14T21:34:01.585Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.585Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041578 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.586Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.592Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041592
+2025-12-14T21:34:01.592Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.594Z [DEBUG] Temp file written successfully, size: 52678 bytes
+2025-12-14T21:34:01.594Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.594Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041592 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.595Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.602Z [DEBUG] performStartupChecks called
+2025-12-14T21:34:01.602Z [DEBUG] Starting background plugin installations
+2025-12-14T21:34:01.603Z [DEBUG] performBackgroundPluginInstallations called
+2025-12-14T21:34:01.615Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-14T21:34:01.623Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041623
+2025-12-14T21:34:01.623Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.624Z [DEBUG] Temp file written successfully, size: 52751 bytes
+2025-12-14T21:34:01.625Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.625Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041623 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.626Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.631Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2025-12-14T21:34:01.634Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2025-12-14T21:34:01.654Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-12-14T21:34:01.654Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:34:01.654Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-12-14T21:34:01.667Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-12-14T21:34:01.667Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:34:01.667Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-12-14T21:34:01.761Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041761
+2025-12-14T21:34:01.762Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.763Z [DEBUG] Temp file written successfully, size: 52751 bytes
+2025-12-14T21:34:01.764Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.764Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041761 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.765Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.778Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041778
+2025-12-14T21:34:01.778Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.780Z [DEBUG] Temp file written successfully, size: 52932 bytes
+2025-12-14T21:34:01.780Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.780Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041778 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.782Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:01.864Z [DEBUG] Summarizing all 314 messages (~136930 tokens)
+2025-12-14T21:34:01.893Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748041893
+2025-12-14T21:34:01.894Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:34:01.898Z [DEBUG] Temp file written successfully, size: 52932 bytes
+2025-12-14T21:34:01.898Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:34:01.898Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748041893 to C:\Users\georg\.claude.json
+2025-12-14T21:34:01.899Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:34:02.722Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:34:02.852Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:34:03.156Z [DEBUG] Summarizing all 166 messages (~109184 tokens)
+2025-12-14T21:34:03.719Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:34:03.723Z [ERROR] Error streaming, falling back to non-streaming mode: {"type":"error","error":{"details":null,"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CW7JAzNimCYznELMuPrTs"}
+2025-12-14T21:34:05.033Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-14T21:34:05.033Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:34:05.033Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:35:00.796Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-14T21:35:00.796Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-14T21:35:00.796Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-14T21:35:00.796Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-14T21:35:01.093Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-14T21:35:01.093Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:35:01.093Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:35:01.096Z [DEBUG] FileHistory: Added snapshot for d3509203-5818-41bf-a6f4-40c0578842bd, tracking 0 files
+2025-12-14T21:35:01.122Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748101122
+2025-12-14T21:35:01.122Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:35:01.124Z [DEBUG] Temp file written successfully, size: 52977 bytes
+2025-12-14T21:35:01.125Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:35:01.125Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748101122 to C:\Users\georg\.claude.json
+2025-12-14T21:35:01.127Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:35:01.170Z [DEBUG] Total plugin output styles loaded: 0
+2025-12-14T21:35:02.076Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:35:02.953Z [ERROR] Error streaming, falling back to non-streaming mode: {"type":"error","error":{"details":null,"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CW7JFNHSxe79wgP3XMaWh"}
+2025-12-14T21:36:40.731Z [DEBUG] [SLOW OPERATION DETECTED] fs.existsSync (8.0ms)
+2025-12-14T21:37:55.725Z [ERROR] Error in non-streaming fallback: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+2025-12-14T21:37:55.726Z [ERROR] Error: Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+    at I9.generate (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:458:10621)
+    at pR.makeStatusError (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:2195)
+    at pR.makeRequest (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:5419)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async feA.model (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11207)
+    at async feA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:1220:18703)
+    at async xg2 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11361)
+    at async file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3787
+    at async yd1 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:945:2037)
+    at async dYA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3757)
+2025-12-14T21:37:55.776Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-14T21:37:55.776Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:37:55.776Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:38:27.151Z [ERROR] Error in non-streaming fallback: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+2025-12-14T21:38:27.152Z [ERROR] Error: Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+    at I9.generate (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:458:10621)
+    at pR.makeStatusError (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:2195)
+    at pR.makeRequest (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:5419)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async feA.model (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11207)
+    at async feA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:1220:18703)
+    at async xg2 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11361)
+    at async file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3787
+    at async yd1 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:945:2037)
+    at async dYA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3757)
+2025-12-14T21:38:27.179Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-14T21:38:27.179Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:38:27.179Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:38:27.603Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults (411.2ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2025-12-14T21:38:28.009Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults (396.6ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2025-12-14T21:38:28.044Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.23516.1765748308044
+2025-12-14T21:38:28.044Z [DEBUG] Preserving file permissions: 100666
+2025-12-14T21:38:28.046Z [DEBUG] Temp file written successfully, size: 53001 bytes
+2025-12-14T21:38:28.046Z [DEBUG] Applied original permissions to temp file
+2025-12-14T21:38:28.046Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.23516.1765748308044 to C:\Users\georg\.claude.json
+2025-12-14T21:38:28.047Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-14T21:38:29.521Z [ERROR] Error streaming, falling back to non-streaming mode: {"type":"error","error":{"details":null,"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CW7JWcAHzXcD8FKVTc85o"}
+2025-12-14T21:38:34.446Z [DEBUG] executePreToolHooks called for tool: Glob
+2025-12-14T21:38:34.454Z [DEBUG] Getting matching hook commands for PreToolUse with query: Glob
+2025-12-14T21:38:34.454Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:38:34.454Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-14T21:38:34.454Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-14T21:38:34.463Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-14T21:38:34.463Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:38:34.463Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-14T21:38:38.754Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:38:41.351Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-14T21:38:41.351Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:38:41.351Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:38:49.483Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-14T21:38:49.483Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-14T21:38:49.483Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-14T21:38:49.483Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-14T21:38:49.584Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-14T21:38:49.584Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:38:49.584Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:38:49.585Z [DEBUG] FileHistory: Making snapshot for message 9199e1db-71ff-4327-b1d2-e428e4cf8ef0
+2025-12-14T21:38:49.586Z [DEBUG] FileHistory: Added snapshot for 9199e1db-71ff-4327-b1d2-e428e4cf8ef0, tracking 0 files
+2025-12-14T21:38:50.400Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:38:51.927Z [ERROR] Error streaming, falling back to non-streaming mode: {"type":"error","error":{"details":null,"type":"overloaded_error","message":"Overloaded"},"request_id":"req_011CW7JYD5XtvwsjQYWcbJWf"}
+2025-12-14T21:42:20.126Z [ERROR] Error in non-streaming fallback: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+2025-12-14T21:42:20.127Z [ERROR] Error: Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":null}
+    at I9.generate (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:458:10621)
+    at pR.makeStatusError (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:2195)
+    at pR.makeRequest (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:795:5419)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async feA.model (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11207)
+    at async feA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:1220:18703)
+    at async xg2 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:11361)
+    at async file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3787
+    at async yd1 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:945:2037)
+    at async dYA (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4235:3757)
+2025-12-14T21:42:20.189Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-14T21:42:20.189Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:42:20.189Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:42:21.209Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults (979.0ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2025-12-14T21:42:22.284Z [DEBUG] [SLOW OPERATION DETECTED] execSyncWithDefaults (1048.9ms): tasklist | findstr /I "Code.exe Cursor.exe Windsurf.exe idea64.exe pycharm64.exe webstorm64.exe phps
+2025-12-14T21:42:26.305Z [DEBUG] Stream started - received first chunk
+2025-12-14T21:42:30.690Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-14T21:42:30.690Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:42:30.690Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-14T21:43:22.407Z [DEBUG] Getting matching hook commands for Notification with query: idle_prompt
+2025-12-14T21:43:22.407Z [DEBUG] Found 0 hook matchers in settings
+2025-12-14T21:43:22.407Z [DEBUG] Matched 0 unique hooks for query "idle_prompt" (0 before deduplication)

@@ -1,0 +1,27 @@
+The file C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   202→
+   203→  const taxDue = new Date(now);
+   204→  taxDue.setMonth(taxDue.getMonth() + Math.floor(Math.random() * 12) + 1);
+   205→
+   206→  return formatDvlaResponse({
+   207→    registrationNumber: vrm,
+   208→    make: "FORD",
+   209→    colour: "BLUE",
+   210→    yearOfManufacture: 2019,
+   211→    co2Emissions: 135,
+   212→    engineCapacity: 1498,
+   213→    fuelType: "Petrol",
+   214→    markedForExport: false,
+   215→    monthOfFirstRegistration: "2019-03",
+   216→    motStatus: "Valid",
+   217→    motExpiryDate: motExpiry.toISOString().split("T")[0],
+   218→    revenueWeight: null,
+   219→    taxDueDate: taxDue.toISOString().split("T")[0],
+   220→    taxStatus: "Taxed",
+   221→    euroStatus: "EURO 6",
+   222→    dateOfLastV5CIssued: "2023-06-15",
+   223→    wheelplan: "2 AXLE RIGID BODY",
+   224→    typeApproval: "M1",
+   225→  });
+   226→}
+   227→

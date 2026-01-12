@@ -1,0 +1,86 @@
+     1→/**
+     2→ * Card Component - Reusable carded layout system
+     3→ * Usage:
+     4→ *   <Card>
+     5→ *     <CardHeader title="Section Title" action={<button>...</button>} />
+     6→ *     <CardContent>{children}</CardContent>
+     7→ *   </Card>
+     8→ */
+     9→
+    10→export function Card({ children, className = "", variant = "default", ...props }) {
+    11→  const variants = {
+    12→    default: "bg-white border border-slate-200 shadow-sm",
+    13→    accent: "bg-violet-50/50 border-2 border-violet-200",
+    14→    success: "bg-emerald-50/50 border-2 border-emerald-200",
+    15→    warning: "bg-amber-50/50 border-2 border-amber-200",
+    16→    danger: "bg-red-50/50 border-2 border-red-200",
+    17→    ghost: "bg-slate-50 border border-slate-100",
+    18→  };
+    19→
+    20→  return (
+    21→    <div
+    22→      className={`rounded-xl overflow-hidden ${variants[variant] || variants.default} ${className}`}
+    23→      {...props}
+    24→    >
+    25→      {children}
+    26→    </div>
+    27→  );
+    28→}
+    29→
+    30→export function CardHeader({
+    31→  title,
+    32→  subtitle,
+    33→  icon,
+    34→  action,
+    35→  badge,
+    36→  className = "",
+    37→  variant = "default"
+    38→}) {
+    39→  const variants = {
+    40→    default: "bg-white border-b border-slate-100",
+    41→    accent: "bg-violet-100/50 border-b border-violet-200",
+    42→    success: "bg-emerald-100/50 border-b border-emerald-200",
+    43→    warning: "bg-amber-100/50 border-b border-amber-200",
+    44→    danger: "bg-red-100/50 border-b border-red-200",
+    45→    ghost: "border-b border-slate-100",
+    46→  };
+    47→
+    48→  return (
+    49→    <div className={`px-4 py-3 flex items-center justify-between gap-3 ${variants[variant] || variants.default} ${className}`}>
+    50→      <div className="flex items-center gap-2 min-w-0">
+    51→        {icon && <span className="text-lg flex-shrink-0">{icon}</span>}
+    52→        <div className="min-w-0">
+    53→          <h3 className="text-sm font-semibold text-slate-900 truncate">{title}</h3>
+    54→          {subtitle && <p className="text-xs text-slate-500 truncate">{subtitle}</p>}
+    55→        </div>
+    56→      </div>
+    57→      <div className="flex items-center gap-2 flex-shrink-0">
+    58→        {badge}
+    59→        {action}
+    60→      </div>
+    61→    </div>
+    62→  );
+    63→}
+    64→
+    65→export function CardContent({ children, className = "", noPadding = false }) {
+    66→  return (
+    67→    <div className={noPadding ? className : `p-4 ${className}`}>
+    68→      {children}
+    69→    </div>
+    70→  );
+    71→}
+    72→
+    73→export function CardFooter({ children, className = "" }) {
+    74→  return (
+    75→    <div className={`px-4 py-3 border-t border-slate-100 bg-slate-50/50 ${className}`}>
+    76→      {children}
+    77→    </div>
+    78→  );
+    79→}
+    80→
+    81→export default Card;
+    82→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

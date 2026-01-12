@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\models\CourtesyAllocation.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    32→  },
+    33→  { timestamps: true }
+    34→);
+    35→
+    36→courtesyAllocationSchema.plugin(toJSON);
+    37→
+    38→// Indexes for dashboard and courtesy queries
+    39→courtesyAllocationSchema.index({ dealerId: 1, dateDueBack: 1, dateReturned: 1 });
+    40→courtesyAllocationSchema.index({ dealerId: 1, status: 1 });
+    41→courtesyAllocationSchema.index({ courtesyVehicleId: 1, status: 1 });
+    42→
+    43→export default mongoose.models.CourtesyAllocation || mongoose.model("CourtesyAllocation", courtesyAllocationSchema);
+    44→

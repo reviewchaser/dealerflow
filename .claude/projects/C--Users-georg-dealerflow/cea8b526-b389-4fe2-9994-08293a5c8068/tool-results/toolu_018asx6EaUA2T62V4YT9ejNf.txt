@@ -1,0 +1,404 @@
+   800→        // Prep task filters
+   801→        if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+   802→        if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+   803→        if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+   804→        if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+   805→
+   806→        // Issue filters
+   807→        if (filter === "needs_paint") return activeIssues.some(i => {
+   808→          const cat = (i.category || "").toLowerCase();
+   809→          return cat === "bodywork" || cat === "cosmetic";
+   810→        });
+   811→        if (filter === "needs_mechanical") return activeIssues.some(i => {
+   812→          const cat = (i.category || "").toLowerCase();
+   813→          return cat === "mechanical";
+   814→        });
+   815→        if (filter === "needs_electrical") return activeIssues.some(i => {
+   816→          const cat = (i.category || "").toLowerCase();
+   817→          return cat === "electrical";
+   818→        });
+   819→
+   820→        // Location filter
+   821→        if (filter === "offsite") return vehicle.locationId != null;
+   822→
+   823→        // MOT filters
+   824→        if (filter === "mot_due_soon") {
+   825→          if (!vehicle.motExpiryDate) return false;
+   826→          const expiry = new Date(vehicle.motExpiryDate);
+   827→          const now = new Date();
+   828→          const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+   829→          return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+   830→        }
+   831→        if (filter === "mot_expired") {
+   832→          if (!vehicle.motExpiryDate) return false;
+   833→          const expiry = new Date(vehicle.motExpiryDate);
+   834→          const now = new Date();
+   835→          return expiry < now;
+   836→        }
+   837→
+   838→        // Sale type filters
+   839→        if (filter === "trade_only") return vehicle.saleType === "TRADE";
+   840→        if (filter === "retail_only") return vehicle.saleType === "RETAIL" || !vehicle.saleType;
+   841→
+   842→        // Vehicle type filters
+   843→        if (filter === "type_stock") return vehicle.type === "STOCK" || !vehicle.type;
+   844→        if (filter === "type_courtesy") return vehicle.type === "COURTESY";
+   845→        if (filter === "type_fleet") return vehicle.type === "FLEET_OTHER";
+   846→
+   847→        return true;
+   848→      });
+   849→    });
+   850→  };
+   851→
+   852→  const getVehiclesByStatus = (status) => {
+   853→    const statusVehicles = vehicles.filter(v => v.status === status);
+   854→    const filtered = getFilteredVehicles(statusVehicles);
+   855→
+   856→    // Apply sorting based on columnSortOptions
+   857→    const sortOption = columnSortOptions[status] || "oldest_first";
+   858→
+   859→    return [...filtered].sort((a, b) => {
+   860→      const daysA = a.createdAt ? Math.floor((new Date() - new Date(a.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+   861→      const daysB = b.createdAt ? Math.floor((new Date() - new Date(b.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+   862→
+   863→      switch (sortOption) {
+   864→        case "oldest_first":
+   865→          return daysB - daysA; // More days = older = first
+   866→        case "newest_first":
+   867→          return daysA - daysB; // Fewer days = newer = first
+   868→        case "alphabetical":
+   869→          const nameA = `${a.make || ""} ${a.model || ""}`.toLowerCase();
+   870→          const nameB = `${b.make || ""} ${b.model || ""}`.toLowerCase();
+   871→          return nameA.localeCompare(nameB);
+   872→        default:
+   873→          return daysB - daysA;
+   874→      }
+   875→    });
+   876→  };
+   877→
+   878→  const getFilterCount = (filter) => {
+   879→    const allFiltered = getFilteredVehicles(vehicles.filter(v => {
+   880→      const tasks = v.tasks || [];
+   881→      const issues = v.issues || [];
+   882→      const activeIssues = issues.filter(i => {
+   883→        const status = (i.status || "").toLowerCase();
+   884→        return ["outstanding", "ordered", "in progress", "in_progress"].includes(status);
+   885→      });
+   886→
+   887→      if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+   888→      if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+   889→      if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+   890→      if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+   891→      if (filter === "needs_paint") return activeIssues.some(i => {
+   892→        const cat = (i.category || "").toLowerCase();
+   893→        return cat === "bodywork" || cat === "cosmetic";
+   894→      });
+   895→      if (filter === "needs_mechanical") return activeIssues.some(i => {
+   896→        const cat = (i.category || "").toLowerCase();
+   897→        return cat === "mechanical";
+   898→      });
+   899→      if (filter === "needs_electrical") return activeIssues.some(i => {
+   900→        const cat = (i.category || "").toLowerCase();
+   901→        return cat === "electrical";
+   902→      });
+   903→      if (filter === "offsite") return v.locationId != null;
+   904→      if (filter === "mot_due_soon") {
+   905→        if (!v.motExpiryDate) return false;
+   906→        const expiry = new Date(v.motExpiryDate);
+   907→        const now = new Date();
+   908→        const daysUntilExpiry = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+   909→        return daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
+   910→      }
+   911→      if (filter === "mot_expired") {
+   912→        if (!v.motExpiryDate) return false;
+   913→        const expiry = new Date(v.motExpiryDate);
+   914→        return expiry < new Date();
+   915→      }
+   916→      if (filter === "trade_only") return v.saleType === "TRADE";
+   917→      if (filter === "retail_only") return v.saleType === "RETAIL" || !v.saleType;
+   918→      if (filter === "type_stock") return v.type === "STOCK" || !v.type;
+   919→      if (filter === "type_courtesy") return v.type === "COURTESY";
+   920→      if (filter === "type_fleet") return v.type === "FLEET_OTHER";
+   921→      return false;
+   922→    }));
+   923→    return allFiltered.length;
+   924→  };
+   925→
+   926→  // VRM Search functions
+   927→  const getVrmSearchResults = () => {
+   928→    if (vrmSearch.length < 2) return [];
+   929→    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+   930→    return vehicles.filter(v => {
+   931→      const reg = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+   932→      return reg.includes(searchTerm);
+   933→    }).slice(0, 8); // Limit to 8 results
+   934→  };
+   935→
+   936→  const handleVrmSelect = (vehicle) => {
+   937→    // Close dropdown and clear search
+   938→    setVrmSearch("");
+   939→    setShowVrmDropdown(false);
+   940→
+   941→    // Find which column this vehicle is in and scroll to it
+   942→    const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
+   943→    if (columnIndex >= 0) {
+   944→      // Scroll the column into view
+   945→      const columnElements = document.querySelectorAll('[data-column-key]');
+   946→      if (columnElements[columnIndex]) {
+   947→        columnElements[columnIndex].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+   948→      }
+   949→    }
+   950→
+   951→    // Open the vehicle drawer with full details
+   952→    openVehicleDrawer(vehicle);
+   953→  };
+   954→
+   955→  const getStatusLabel = (statusKey) => {
+   956→    const col = COLUMNS.find(c => c.key === statusKey);
+   957→    return col ? col.label : statusKey;
+   958→  };
+   959→
+   960→  const handlePrintVehicle = () => {
+   961→    if (!selectedVehicle) return;
+   962→
+   963→    const vehicle = selectedVehicle;
+   964→    const tasks = vehicle.tasks || [];
+   965→    const issues = vehicle.issues || [];
+   966→    const documents = vehicle.documents || [];
+   967→    const completedTasks = tasks.filter(t => t.status === "done").length;
+   968→    const daysInStock = vehicle.createdAt
+   969→      ? Math.floor((new Date() - new Date(vehicle.createdAt)) / (1000 * 60 * 60 * 24))
+   970→      : 0;
+   971→
+   972→    // Get status label from COLUMNS
+   973→    const statusColumn = COLUMNS.find(col => col.key === vehicle.status);
+   974→    const statusLabel = statusColumn ? statusColumn.label : vehicle.status;
+   975→
+   976→    // Generate HTML for print
+   977→    const printContent = `
+   978→<!DOCTYPE html>
+   979→<html>
+   980→<head>
+   981→  <title>${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.regCurrent}</title>
+   982→  <style>
+   983→    * { margin: 0; padding: 0; box-sizing: border-box; }
+   984→    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+   985→    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+   986→    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+   987→    .reg { font-size: 18px; font-family: monospace; color: #64748b; }
+   988→    .section { margin-bottom: 30px; }
+   989→    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+   990→    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+   991→    .field { margin-bottom: 12px; }
+   992→    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+   993→    .field-value { font-size: 14px; color: #1e293b; }
+   994→    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+   995→    .badge-status { background: #e0e7ff; color: #4338ca; }
+   996→    .badge-days { background: ${daysInStock > 30 ? '#fef2f2' : '#f1f5f9'}; color: ${daysInStock > 30 ? '#dc2626' : '#475569'}; }
+   997→    .task-list { list-style: none; }
+   998→    .task-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+   999→    .task-status { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  1000→    .task-done { background: #dcfce7; color: #16a34a; }
+  1001→    .task-pending { background: #fef3c7; color: #d97706; }
+  1002→    .task-progress { background: #dbeafe; color: #2563eb; }
+  1003→    .issue-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  1004→    .issue-header { display: flex; gap: 8px; margin-bottom: 8px; }
+  1005→    .issue-badge { background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
+  1006→    .issue-desc { font-size: 14px; color: #1e293b; }
+  1007→    .doc-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+  1008→    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+  1009→    @media print {
+  1010→      body { padding: 20px; }
+  1011→      .no-print { display: none; }
+  1012→    }
+  1013→  </style>
+  1014→</head>
+  1015→<body>
+  1016→  <div class="header">
+  1017→    <div class="title">${vehicle.year || ""} ${vehicle.make} ${vehicle.model}</div>
+  1018→    <div class="reg">${vehicle.regCurrent}</div>
+  1019→  </div>
+  1020→
+  1021→  <div class="section">
+  1022→    <div class="section-title">Overview</div>
+  1023→    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+  1024→      <span class="badge badge-status">${statusLabel}</span>
+  1025→      <span class="badge badge-days">Days in Stock: ${daysInStock}</span>
+  1026→      ${vehicle.locationId ? `<span class="badge" style="background:#eef2ff;color:#4f46e5;">📍 ${vehicle.locationId.name || 'Offsite'}</span>` : '<span class="badge" style="background:#f0fdf4;color:#16a34a;">📍 On Site</span>'}
+  1027→    </div>
+  1028→  </div>
+  1029→
+  1030→  <div class="section">
+  1031→    <div class="section-title">Vehicle Details</div>
+  1032→    <div class="grid">
+  1033→      <div class="field">
+  1034→        <div class="field-label">Registration</div>
+  1035→        <div class="field-value">${vehicle.regCurrent || '—'}</div>
+  1036→      </div>
+  1037→      <div class="field">
+  1038→        <div class="field-label">VIN</div>
+  1039→        <div class="field-value">${vehicle.vin || '—'}</div>
+  1040→      </div>
+  1041→      <div class="field">
+  1042→        <div class="field-label">Make</div>
+  1043→        <div class="field-value">${vehicle.make || '—'}</div>
+  1044→      </div>
+  1045→      <div class="field">
+  1046→        <div class="field-label">Model</div>
+  1047→        <div class="field-value">${vehicle.model || '—'}</div>
+  1048→      </div>
+  1049→      <div class="field">
+  1050→        <div class="field-label">Year</div>
+  1051→        <div class="field-value">${vehicle.year || '—'}</div>
+  1052→      </div>
+  1053→      <div class="field">
+  1054→        <div class="field-label">Mileage</div>
+  1055→        <div class="field-value">${vehicle.mileageCurrent ? vehicle.mileageCurrent.toLocaleString() + ' miles' : '—'}</div>
+  1056→      </div>
+  1057→      <div class="field">
+  1058→        <div class="field-label">Colour</div>
+  1059→        <div class="field-value">${vehicle.colour || '—'}</div>
+  1060→      </div>
+  1061→      <div class="field">
+  1062→        <div class="field-label">Fuel Type</div>
+  1063→        <div class="field-value">${vehicle.fuelType || '—'}</div>
+  1064→      </div>
+  1065→      <div class="field">
+  1066→        <div class="field-label">MOT Expiry</div>
+  1067→        <div class="field-value">${vehicle.motExpiryDate ? new Date(vehicle.motExpiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</div>
+  1068→      </div>
+  1069→    </div>
+  1070→  </div>
+  1071→
+  1072→  <div class="section">
+  1073→    <div class="section-title">Prep Checklist (${completedTasks}/${tasks.length} complete)</div>
+  1074→    ${tasks.length > 0 ? `
+  1075→    <ul class="task-list">
+  1076→      ${tasks.map(task => `
+  1077→        <li class="task-item">
+  1078→          <span class="task-status ${task.status === 'done' ? 'task-done' : task.status === 'in_progress' ? 'task-progress' : 'task-pending'}">
+  1079→            ${task.status === 'done' ? '✓' : task.status === 'in_progress' ? '→' : '○'}
+  1080→          </span>
+  1081→          <span style="${task.status === 'done' ? 'text-decoration: line-through; color: #94a3b8;' : ''}">${task.name}</span>
+  1082→          ${task.completedAt ? `<span style="font-size: 11px; color: #94a3b8; margin-left: auto;">${new Date(task.completedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>` : ''}
+  1083→        </li>
+  1084→      `).join('')}
+  1085→    </ul>
+  1086→    ` : '<p style="color: #94a3b8; font-size: 14px;">No tasks</p>'}
+  1087→  </div>
+  1088→
+  1089→  <div class="section">
+  1090→    <div class="section-title">Issues (${issues.length})</div>
+  1091→    ${issues.length > 0 ? issues.map(issue => `
+  1092→      <div class="issue-card">
+  1093→        <div class="issue-header">
+  1094→          <span class="issue-badge">${issue.category}</span>
+  1095→          ${issue.subcategory ? `<span class="issue-badge">${issue.subcategory}</span>` : ''}
+  1096→          <span class="issue-badge" style="margin-left: auto;">${issue.status || 'Outstanding'}</span>
+  1097→        </div>
+  1098→        <div class="issue-desc">${issue.description}</div>
+  1099→        ${issue.actionNeeded ? `<div style="font-size: 12px; color: #64748b; margin-top: 6px;">Action: ${issue.actionNeeded}</div>` : ''}
+  1100→      </div>
+  1101→    `).join('') : '<p style="color: #94a3b8; font-size: 14px;">No issues recorded</p>'}
+  1102→  </div>
+  1103→
+  1104→  <div class="section">
+  1105→    <div class="section-title">Documents (${documents.length})</div>
+  1106→    ${documents.length > 0 ? documents.map(doc => `
+  1107→      <div class="doc-item">
+  1108→        <span style="font-weight: 500;">${doc.name}</span>
+  1109→        <span style="font-size: 12px; color: #94a3b8; margin-left: 8px;">(${doc.type.replace(/_/g, ' ')})</span>
+  1110→      </div>
+  1111→    `).join('') : '<p style="color: #94a3b8; font-size: 14px;">No documents uploaded</p>'}
+  1112→    ${vehicle.v5Url ? '<div class="doc-item"><span style="font-weight: 500;">V5 Document</span> <span style="font-size: 12px; color: #16a34a;">✓ Uploaded</span></div>' : ''}
+  1113→  </div>
+  1114→
+  1115→  ${vehicle.notes ? `
+  1116→  <div class="section">
+  1117→    <div class="section-title">Notes</div>
+  1118→    <p style="font-size: 14px; white-space: pre-wrap;">${vehicle.notes}</p>
+  1119→  </div>
+  1120→  ` : ''}
+  1121→
+  1122→  <div class="footer">
+  1123→    Printed from DealerFlow on ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+  1124→  </div>
+  1125→</body>
+  1126→</html>
+  1127→    `;
+  1128→
+  1129→    // Open in new tab
+  1130→    const printWindow = window.open('', '_blank');
+  1131→    printWindow.document.write(printContent);
+  1132→    printWindow.document.close();
+  1133→  };
+  1134→
+  1135→  // Share utility with fallback chain: Web Share API → Clipboard → Manual modal
+  1136→  // SSR-safe: only runs client-side, with guards for browser API availability
+  1137→  const shareWithFallback = async (url, title, text) => {
+  1138→    // Guard against SSR - this should only run client-side
+  1139→    if (typeof window === "undefined" || typeof navigator === "undefined") {
+  1140→      return false;
+  1141→    }
+  1142→
+  1143→    // 1. Try Web Share API (native sharing on mobile/supported browsers)
+  1144→    if (typeof navigator.share === "function") {
+  1145→      try {
+  1146→        await navigator.share({ title, text, url });
+  1147→        return true;
+  1148→      } catch (error) {
+  1149→        // User cancelled or share failed - continue to fallback
+  1150→        if (error.name !== "AbortError") {
+  1151→          console.log("Web Share API failed, trying clipboard fallback");
+  1152→        }
+  1153→      }
+  1154→    }
+  1155→
+  1156→    // 2. Try Clipboard API
+  1157→    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+  1158→      try {
+  1159→        await navigator.clipboard.writeText(url);
+  1160→        toast.success("Link copied to clipboard!");
+  1161→        return true;
+  1162→      } catch (error) {
+  1163→        console.log("Clipboard API failed, showing manual modal");
+  1164→      }
+  1165→    }
+  1166→
+  1167→    // 3. Fallback to manual modal
+  1168→    setManualShareUrl(url);
+  1169→    setShowManualShareModal(true);
+  1170→    return false;
+  1171→  };
+  1172→
+  1173→  // Job sheet share handlers
+  1174→  const handleGenerateJobSheet = async () => {
+  1175→    if (!selectedVehicle) return;
+  1176→    setIsGeneratingJobSheet(true);
+  1177→    try {
+  1178→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/job-sheet`, {
+  1179→        method: "POST",
+  1180→        headers: { "Content-Type": "application/json" },
+  1181→        body: JSON.stringify({ expiresInDays: 60 }),
+  1182→      });
+  1183→      if (!res.ok) throw new Error("Failed to generate share link");
+  1184→      const data = await res.json();
+  1185→      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+  1186→      setJobSheetLink({
+  1187→        url: fullUrl,
+  1188→        expiresAt: data.expiresAt,
+  1189→      });
+  1190→      setShowJobSheetModal(true);
+  1191→    } catch (error) {
+  1192→      toast.error(error.message);
+  1193→    } finally {
+  1194→      setIsGeneratingJobSheet(false);
+  1195→    }
+  1196→  };
+  1197→
+  1198→  const copyJobSheetLink = async () => {
+  1199→    if (jobSheetLink?.url) {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

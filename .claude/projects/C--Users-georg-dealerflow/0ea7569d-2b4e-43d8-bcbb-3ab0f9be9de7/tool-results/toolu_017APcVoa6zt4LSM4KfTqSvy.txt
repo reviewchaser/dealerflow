@@ -1,0 +1,84 @@
+     1→import { useEffect, useState, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import { useSession } from "next-auth/react";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { MobileModal } from "@/components/ui/MobileModal";
+     6→import { toast } from "react-hot-toast";
+     7→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     8→
+     9→const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+    10→const DAY_LABELS = {
+    11→  MON: "Monday",
+    12→  TUE: "Tuesday",
+    13→  WED: "Wednesday",
+    14→  THU: "Thursday",
+    15→  FRI: "Friday",
+    16→  SAT: "Saturday",
+    17→  SUN: "Sunday",
+    18→};
+    19→
+    20→const STATUS_COLORS = {
+    21→  DRAFT: "bg-slate-100 text-slate-600",
+    22→  SUBMITTED: "bg-amber-100 text-amber-700",
+    23→  APPROVED: "bg-emerald-100 text-emerald-700",
+    24→  REJECTED: "bg-red-100 text-red-700",
+    25→};
+    26→
+    27→const STATUS_LABELS = {
+    28→  DRAFT: "Draft",
+    29→  SUBMITTED: "Pending Review",
+    30→  APPROVED: "Approved",
+    31→  REJECTED: "Rejected",
+    32→};
+    33→
+    34→// Get Monday of the current week
+    35→function getWeekStart(date = new Date()) {
+    36→  const d = new Date(date);
+    37→  const day = d.getDay();
+    38→  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    39→  return new Date(d.setDate(diff));
+    40→}
+    41→
+    42→// Format date as "Mon 6 Jan"
+    43→function formatShortDate(date) {
+    44→  return new Date(date).toLocaleDateString("en-GB", {
+    45→    weekday: "short",
+    46→    day: "numeric",
+    47→    month: "short",
+    48→  });
+    49→}
+    50→
+    51→// Format week range
+    52→function formatWeekRange(weekStart) {
+    53→  const start = new Date(weekStart);
+    54→  const end = new Date(start);
+    55→  end.setDate(end.getDate() + 6);
+    56→  return `${start.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} - ${end.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
+    57→}
+    58→
+    59→export default function OvertimePage() {
+    60→  const { data: session } = useSession();
+    61→  const { isRedirecting } = useDealerRedirect();
+    62→  const [submissions, setSubmissions] = useState([]);
+    63→  const [allSubmissions, setAllSubmissions] = useState([]); // For admin view
+    64→  const [isLoading, setIsLoading] = useState(true);
+    65→  const [userRole, setUserRole] = useState(null);
+    66→  const [showAddModal, setShowAddModal] = useState(false);
+    67→  const [editingSubmission, setEditingSubmission] = useState(null);
+    68→  const [selectedWeek, setSelectedWeek] = useState(getWeekStart());
+    69→  const [viewMode, setViewMode] = useState("my"); // "my" or "approvals" (admin only)
+    70→  const [statusFilter, setStatusFilter] = useState("");
+    71→  const [pendingCount, setPendingCount] = useState(0);
+    72→  const [viewingSubmission, setViewingSubmission] = useState(null); // For detail view
+    73→  const [showReviewModal, setShowReviewModal] = useState(false);
+    74→
+    75→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    76→
+    77→  // Fetch user role
+    78→  useEffect(() => {
+    79→    const fetchRole = async () => {
+    80→      try {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState, useRef } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { MobileStageSelector, PageHint } from "@/components/ui/PageShell";
+     7→import { toast } from "react-hot-toast";
+     8→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     9→
+    10→const STATUS_LABELS = {
+    11→  pending: "New",
+    12→  reviewed: "Reviewed",

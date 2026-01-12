@@ -1,0 +1,17 @@
+67:  const [activeTab, setActiveTab] = useState("overview");
+193:  // Activity log state
+194:  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+195:  const [activityLoading, setActivityLoading] = useState(false);
+257:  const fetchActivity = async (vehicleId, loadMore = false) => {
+259:    setActivityLoading(true);
+265:        setActivityData(prev => ({
+271:        setActivityData(data);
+276:      setActivityLoading(false);
+347:    setActivityData({ activities: [], total: 0, hasMore: false }); // Reset activity when opening new vehicle
+2762:                  className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+2790:                      fetchActivity(selectedVehicle.id);
+2794:                  Activity
+2801:              {activeTab === "overview" && (
+3735:              {/* Activity Tab */}
+3738:                  <h3 className="text-sm font-semibold text-slate-900">Activity Log</h3>
+3890:                          onClick={() => fetchActivity(selectedVehicle.id, true)}

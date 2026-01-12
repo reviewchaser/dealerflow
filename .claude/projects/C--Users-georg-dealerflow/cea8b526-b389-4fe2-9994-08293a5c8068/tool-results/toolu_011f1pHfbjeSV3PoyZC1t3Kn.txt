@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\models\CalendarEvent.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    21→  },
+    22→  { timestamps: true }
+    23→);
+    24→
+    25→calendarEventSchema.plugin(toJSON);
+    26→
+    27→// Indexes for dashboard and calendar queries
+    28→calendarEventSchema.index({ dealerId: 1, startDatetime: 1 });
+    29→calendarEventSchema.index({ dealerId: 1, startDatetime: 1, categoryId: 1 });
+    30→
+    31→export default mongoose.models.CalendarEvent || mongoose.model("CalendarEvent", calendarEventSchema);
+    32→

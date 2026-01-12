@@ -1,0 +1,26 @@
+C:\Users\georg\dealerflow\pages\appraisals\new.js-21-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-22-const CATEGORY_LABELS = {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-23-  mechanical: "Mechanical",
+C:\Users\georg\dealerflow\pages\appraisals\new.js:24:  electrical: "Electrical",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-25-  bodywork: "Bodywork",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-26-  interior: "Interior",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-27-  tyres: "Tyres",
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-394-                      className="select select-bordered"
+C:\Users\georg\dealerflow\pages\appraisals\new.js-395-                    >
+C:\Users\georg\dealerflow\pages\appraisals\new.js-396-                      <option value="">Select...</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:397:                      <option value="Petrol">Petrol</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:398:                      <option value="Diesel">Diesel</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-399-                      <option value="Hybrid">Hybrid</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:400:                      <option value="Electric">Electric</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-401-                    </select>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-402-                  </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-403-                </div>
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-875-              >
+C:\Users\georg\dealerflow\pages\appraisals\new.js-876-                <option value="">Select category...</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-877-                <option value="mechanical">Mechanical</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:878:                <option value="electrical">Electrical</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-879-                <option value="bodywork">Bodywork</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-880-                <option value="interior">Interior</option>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-881-                <option value="tyres">Tyres</option>

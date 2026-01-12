@@ -1,0 +1,49 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON";
+
+const aftercareCaseSchema = new mongoose.Schema(
+  {
+    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: true },
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    vehicleSaleId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleSale" },
+    source: { 
+      type: String, 
+      enum: ["warranty_claim_form", "low_review", "complaint_form", "manual"],
+      default: "manual"
+    },
+    status: { 
+      type: String, 
+      enum: ["new", "in_progress", "pending_third_party", "resolved", "closed"],
+      default: "new"
+    },
+    // Board status for Customer/Warranty board
+    boardStatus: {
+      type: String,
+      enum: ["not_booked_in", "on_site", "work_complete", "collected"],
+      default: "not_booked_in"
+    },
+    priority: { 
+      type: String, 
+      enum: ["low", "normal", "high", "critical"],
+      default: "normal"
+    },
+    assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    summary: { type: String }, // short text
+    details: { type: Object }, // text or json
+    regAtPurchase: { type: String }, // reg at time of purchase if different
+    currentReg: { type: String }, // current reg if vehicle was re-registered
+    warrantyType: {
+      type: String,
+      enum: ["Dealer Warranty", "External Warranty"],
+    },
+    linkedSubmissionIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FormSubmission"
+    }],
+  },
+  { timestamps: true }
+);
+
+aftercareCaseSchema.plugin(toJSON);
+export default mongoose.models.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);

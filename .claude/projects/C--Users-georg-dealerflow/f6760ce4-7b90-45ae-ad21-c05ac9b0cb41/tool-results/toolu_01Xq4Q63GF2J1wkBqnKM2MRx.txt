@@ -1,0 +1,4 @@
+90:  const [shareForm, setShareForm] = useState(null);
+1001:                              onClick={() => setShareForm(form)}
+1758:          publicUrl={getPublicUrl(shareForm)}
+1759:          onClose={() => setShareForm(null)}

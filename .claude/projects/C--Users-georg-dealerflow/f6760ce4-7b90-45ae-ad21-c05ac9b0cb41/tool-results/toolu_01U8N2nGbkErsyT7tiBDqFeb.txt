@@ -1,0 +1,787 @@
+     1→import { useState, useEffect } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→import { toast, Toaster } from "react-hot-toast";
+     5→
+     6→// Issue subcategories - simplified for customers
+     7→const ISSUE_CATEGORIES = [
+     8→  { value: "bodywork", label: "Bodywork Damage", description: "Dents, scratches, paintwork issues" },
+     9→  { value: "mechanical", label: "Mechanical Issue", description: "Engine, gearbox, suspension problems" },
+    10→  { value: "electrical", label: "Electrical Problem", description: "Lights, sensors, dashboard warnings" },
+    11→  { value: "interior", label: "Interior Wear", description: "Seats, trim, carpet condition" },
+    12→  { value: "tyres", label: "Tyres/Wheels", description: "Tread wear, alloy damage" },
+    13→  { value: "other", label: "Other", description: "Any other issues" },
+    14→];
+    15→
+    16→const CONDITION_OPTIONS = [
+    17→  { value: "excellent", label: "Excellent", description: "Like new, no visible wear" },
+    18→  { value: "good", label: "Good", description: "Minor wear, well maintained" },
+    19→  { value: "fair", label: "Fair", description: "Some wear and minor issues" },
+    20→  { value: "poor", label: "Poor", description: "Significant wear or damage" },
+    21→];
+    22→
+    23→export default function CustomerPXForm() {
+    24→  const router = useRouter();
+    25→  const { dealerSlug } = router.query;
+    26→
+    27→  const [dealerInfo, setDealerInfo] = useState(null);
+    28→  const [isLoadingDealer, setIsLoadingDealer] = useState(true);
+    29→  const [isSubmitting, setIsSubmitting] = useState(false);
+    30→  const [isSubmitted, setIsSubmitted] = useState(false);
+    31→  const [isLookingUp, setIsLookingUp] = useState(false);
+    32→  const [dvlaData, setDvlaData] = useState(null);
+    33→
+    34→  const [formData, setFormData] = useState({
+    35→    customerName: "",
+    36→    customerEmail: "",
+    37→    customerPhone: "",
+    38→    vehicleReg: "",
+    39→    vehicleMake: "",
+    40→    vehicleModel: "",
+    41→    vehicleYear: "",
+    42→    mileage: "",
+    43→    colour: "",
+    44→    fuelType: "",
+    45→    conditionRating: "",
+    46→    conditionNotes: "",
+    47→    proposedPurchasePrice: "",
+    48→    interestedInVehicle: "",
+    49→  });
+    50→
+    51→  // Documents - No V5 for GDPR
+    52→  const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
+    53→
+    54→  // Vehicle photos
+    55→  const [exteriorPhotos, setExteriorPhotos] = useState([]);
+    56→  const [interiorPhotos, setInteriorPhotos] = useState([]);
+    57→  const [dashboardPhoto, setDashboardPhoto] = useState(null);
+    58→  const [odometerPhoto, setOdometerPhoto] = useState(null);
+    59→
+    60→  // Issues
+    61→  const [issues, setIssues] = useState([]);
+    62→  const [showAddIssue, setShowAddIssue] = useState(false);
+    63→  const [newIssue, setNewIssue] = useState({ category: "", description: "" });
+    64→  const [issuePhotos, setIssuePhotos] = useState([]);  // Photos for current issue being added
+    65→
+    66→  useEffect(() => {
+    67→    if (dealerSlug) {
+    68→      fetchDealerInfo();
+    69→    }
+    70→  }, [dealerSlug]);
+    71→
+    72→  const fetchDealerInfo = async () => {
+    73→    try {
+    74→      const res = await fetch(`/api/dealer?slug=${dealerSlug}`);
+    75→      if (res.ok) {
+    76→        const data = await res.json();
+    77→        setDealerInfo(data);
+    78→      }
+    79→    } catch (error) {
+    80→      console.error("Failed to fetch dealer:", error);
+    81→    } finally {
+    82→      setIsLoadingDealer(false);
+    83→    }
+    84→  };
+    85→
+    86→  const handleChange = (e) => {
+    87→    const { name, value } = e.target;
+    88→    setFormData((prev) => ({ ...prev, [name]: value }));
+    89→  };
+    90→
+    91→  const handleDvlaLookup = async () => {
+    92→    if (!formData.vehicleReg) return toast.error("Enter registration first");
+    93→    setIsLookingUp(true);
+    94→    try {
+    95→      const res = await fetch("/api/dvla-lookup", {
+    96→        method: "POST",
+    97→        headers: { "Content-Type": "application/json" },
+    98→        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
+    99→      });
+   100→      const data = await res.json();
+   101→      setDvlaData(data);
+   102→      setFormData((prev) => ({
+   103→        ...prev,
+   104→        vehicleMake: data.make || prev.vehicleMake,
+   105→        vehicleModel: data.model || prev.vehicleModel,
+   106→        vehicleYear: data.yearOfManufacture || prev.vehicleYear,
+   107→        colour: data.colour || prev.colour,
+   108→        fuelType: data.fuelType || prev.fuelType,
+   109→      }));
+   110→      toast.success("Vehicle details found!");
+   111→    } catch (error) {
+   112→      toast.error("Lookup failed - please enter details manually");
+   113→    } finally {
+   114→      setIsLookingUp(false);
+   115→    }
+   116→  };
+   117→
+   118→  const addIssue = () => {
+   119→    if (!newIssue.category || !newIssue.description) {
+   120→      return toast.error("Please select a category and describe the issue");
+   121→    }
+   122→    // Store issue with its photos (files to be uploaded on submit)
+   123→    setIssues([...issues, { ...newIssue, photos: issuePhotos }]);
+   124→    setNewIssue({ category: "", description: "" });
+   125→    setIssuePhotos([]);
+   126→    setShowAddIssue(false);
+   127→    toast.success("Issue added");
+   128→  };
+   129→
+   130→  const removeIssue = (index) => {
+   131→    setIssues(issues.filter((_, i) => i !== index));
+   132→  };
+   133→
+   134→  // Helper function to upload a single file
+   135→  // Returns S3 key (for S3 uploads) or local URL (for dev uploads)
+   136→  const uploadFile = async (file, type = "photo") => {
+   137→    if (!file) return null;
+   138→    const uploadData = new FormData();
+   139→    uploadData.append("file", file);
+   140→    uploadData.append("type", type);
+   141→    const res = await fetch("/api/vehicles/upload", { method: "POST", body: uploadData });
+   142→    if (res.ok) {
+   143→      const data = await res.json();
+   144→      // Store S3 key for S3 uploads (permanent), or URL for local uploads
+   145→      return data.key || data.url;
+   146→    }
+   147→    return null;
+   148→  };
+   149→
+   150→  // Helper function to upload multiple files
+   151→  const uploadMultipleFiles = async (files, type = "photo") => {
+   152→    const urls = [];
+   153→    for (const file of files) {
+   154→      const url = await uploadFile(file, type);
+   155→      if (url) urls.push(url);
+   156→    }
+   157→    return urls;
+   158→  };
+   159→
+   160→  const handleSubmit = async (e) => {
+   161→    e.preventDefault();
+   162→
+   163→    if (!formData.customerName || !formData.customerPhone || !formData.vehicleReg || !formData.mileage) {
+   164→      return toast.error("Please fill in all required fields");
+   165→    }
+   166→
+   167→    setIsSubmitting(true);
+   168→    try {
+   169→      // Upload service history if provided
+   170→      let serviceHistoryUrl = null;
+   171→      if (serviceHistoryFile) {
+   172→        serviceHistoryUrl = await uploadFile(serviceHistoryFile, "service_history");
+   173→      }
+   174→
+   175→      // Upload photos
+   176→      const exteriorPhotoUrls = await uploadMultipleFiles(exteriorPhotos, "exterior");
+   177→      const interiorPhotoUrls = await uploadMultipleFiles(interiorPhotos, "interior");
+   178→      const dashboardPhotoUrl = await uploadFile(dashboardPhoto, "dashboard");
+   179→      const odometerPhotoUrl = await uploadFile(odometerPhoto, "odometer");
+   180→
+   181→      // Create customer PX appraisal directly (not through Forms system)
+   182→      const res = await fetch("/api/customer-px", {
+   183→        method: "POST",
+   184→        headers: { "Content-Type": "application/json" },
+   185→        body: JSON.stringify({
+   186→          dealerSlug,
+   187→          ...formData,
+   188→          serviceHistoryUrl,
+   189→          photos: {
+   190→            exterior: exteriorPhotoUrls,
+   191→            interior: interiorPhotoUrls,
+   192→            dashboard: dashboardPhotoUrl,
+   193→            odometer: odometerPhotoUrl,
+   194→          },
+   195→        }),
+   196→      });
+   197→
+   198→      if (!res.ok) {
+   199→        const errorData = await res.json();
+   200→        throw new Error(errorData.error || "Failed to submit");
+   201→      }
+   202→
+   203→      const appraisal = await res.json();
+   204→
+   205→      // Create issues with uploaded photos
+   206→      for (const issue of issues) {
+   207→        // Upload issue photos if any
+   208→        let attachments = [];
+   209→        if (issue.photos && issue.photos.length > 0) {
+   210→          for (const file of issue.photos) {
+   211→            const url = await uploadFile(file, "issue_photo");
+   212→            if (url) {
+   213→              attachments.push({
+   214→                url,
+   215→                uploadedAt: new Date().toISOString(),
+   216→                caption: file.name,
+   217→              });
+   218→            }
+   219→          }
+   220→        }
+   221→
+   222→        await fetch("/api/customer-px/issues", {
+   223→          method: "POST",
+   224→          headers: { "Content-Type": "application/json" },
+   225→          body: JSON.stringify({
+   226→            customerPXAppraisalId: appraisal.id || appraisal._id,
+   227→            category: issue.category,
+   228→            description: issue.description,
+   229→            attachments,
+   230→            status: "outstanding",
+   231→          }),
+   232→        });
+   233→      }
+   234→
+   235→      setIsSubmitted(true);
+   236→    } catch (error) {
+   237→      toast.error(error.message || "Something went wrong. Please try again.");
+   238→    } finally {
+   239→      setIsSubmitting(false);
+   240→    }
+   241→  };
+   242→
+   243→  if (isLoadingDealer) {
+   244→    return (
+   245→      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+   246→        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+   247→      </div>
+   248→    );
+   249→  }
+   250→
+   251→  if (isSubmitted) {
+   252→    return (
+   253→      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+   254→        <Head><title>Valuation Request Submitted</title></Head>
+   255→        <Toaster position="top-center" />
+   256→        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+   257→          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+   258→            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   259→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   260→            </svg>
+   261→          </div>
+   262→          <h1 className="text-2xl font-bold text-slate-900 mb-2">Valuation Request Received</h1>
+   263→          <p className="text-slate-600 mb-6">
+   264→            Thank you for your part-exchange enquiry. We will review your vehicle details and get back to you with a valuation.
+   265→          </p>
+   266→          <p className="text-sm text-slate-500">
+   267→            We typically respond within 24 hours during business days.
+   268→          </p>
+   269→          {dealerInfo?.name && (
+   270→            <p className="text-sm text-slate-500 mt-4">
+   271→              - {dealerInfo.name}
+   272→            </p>
+   273→          )}
+   274→        </div>
+   275→      </div>
+   276→    );
+   277→  }
+   278→
+   279→  return (
+   280→    <div className="min-h-screen bg-slate-50 py-8 px-4">
+   281→      <Head>
+   282→        <title>Part Exchange Valuation{dealerInfo?.name ? ` | ${dealerInfo.name}` : ""}</title>
+   283→      </Head>
+   284→      <Toaster position="top-center" />
+   285→
+   286→      <div className="max-w-2xl mx-auto">
+   287→        {/* Header */}
+   288→        <div className="text-center mb-8">
+   289→          {dealerInfo?.logo && (
+   290→            <img src={dealerInfo.logo} alt={dealerInfo.name} className="h-12 mx-auto mb-4" />
+   291→          )}
+   292→          <h1 className="text-3xl font-bold text-slate-900">Part Exchange Valuation</h1>
+   293→          <p className="text-slate-600 mt-2">
+   294→            Get a free, no-obligation valuation for your vehicle
+   295→          </p>
+   296→          {dealerInfo?.name && (
+   297→            <p className="text-sm text-slate-500 mt-1">
+   298→              Powered by {dealerInfo.name}
+   299→            </p>
+   300→          )}
+   301→        </div>
+   302→
+   303→        <form onSubmit={handleSubmit} className="space-y-6">
+   304→          {/* Your Details */}
+   305→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   306→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Details</h2>
+   307→            <div className="space-y-4">
+   308→              <div>
+   309→                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name *</label>
+   310→                <input
+   311→                  type="text"
+   312→                  name="customerName"
+   313→                  value={formData.customerName}
+   314→                  onChange={handleChange}
+   315→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   316→                  required
+   317→                />
+   318→              </div>
+   319→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   320→                <div>
+   321→                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone *</label>
+   322→                  <input
+   323→                    type="tel"
+   324→                    name="customerPhone"
+   325→                    value={formData.customerPhone}
+   326→                    onChange={handleChange}
+   327→                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   328→                    required
+   329→                  />
+   330→                </div>
+   331→                <div>
+   332→                  <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+   333→                  <input
+   334→                    type="email"
+   335→                    name="customerEmail"
+   336→                    value={formData.customerEmail}
+   337→                    onChange={handleChange}
+   338→                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   339→                    required
+   340→                  />
+   341→                </div>
+   342→              </div>
+   343→            </div>
+   344→          </div>
+   345→
+   346→          {/* Vehicle Registration */}
+   347→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   348→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Registration</h2>
+   349→            <div className="flex gap-3">
+   350→              <input
+   351→                type="text"
+   352→                name="vehicleReg"
+   353→                value={formData.vehicleReg}
+   354→                onChange={handleChange}
+   355→                className="flex-1 px-4 py-3 border border-slate-200 rounded-lg text-xl font-mono uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   356→                placeholder="AB12 CDE"
+   357→                required
+   358→              />
+   359→              <button
+   360→                type="button"
+   361→                onClick={handleDvlaLookup}
+   362→                disabled={isLookingUp}
+   363→                className="px-6 py-3 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors"
+   364→              >
+   365→                {isLookingUp ? (
+   366→                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"></span>
+   367→                ) : (
+   368→                  "Lookup"
+   369→                )}
+   370→              </button>
+   371→            </div>
+   372→            {dvlaData && (
+   373→              <div className={`mt-4 p-3 rounded-lg ${dvlaData.isDummy ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+   374→                {dvlaData.isDummy && <span className="font-medium">Demo: </span>}
+   375→                {dvlaData.yearOfManufacture} {dvlaData.make} {dvlaData.model} - {dvlaData.colour}
+   376→              </div>
+   377→            )}
+   378→          </div>
+   379→
+   380→          {/* Vehicle Details */}
+   381→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   382→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
+   383→            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+   384→              <div>
+   385→                <label className="block text-sm font-medium text-slate-700 mb-1">Make</label>
+   386→                <input
+   387→                  type="text"
+   388→                  name="vehicleMake"
+   389→                  value={formData.vehicleMake}
+   390→                  onChange={handleChange}
+   391→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   392→                  placeholder="Ford"
+   393→                />
+   394→              </div>
+   395→              <div>
+   396→                <label className="block text-sm font-medium text-slate-700 mb-1">Model</label>
+   397→                <input
+   398→                  type="text"
+   399→                  name="vehicleModel"
+   400→                  value={formData.vehicleModel}
+   401→                  onChange={handleChange}
+   402→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   403→                  placeholder="Focus"
+   404→                />
+   405→              </div>
+   406→              <div>
+   407→                <label className="block text-sm font-medium text-slate-700 mb-1">Year</label>
+   408→                <input
+   409→                  type="number"
+   410→                  name="vehicleYear"
+   411→                  value={formData.vehicleYear}
+   412→                  onChange={handleChange}
+   413→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   414→                  placeholder="2019"
+   415→                />
+   416→              </div>
+   417→              <div>
+   418→                <label className="block text-sm font-medium text-slate-700 mb-1">Mileage *</label>
+   419→                <input
+   420→                  type="number"
+   421→                  name="mileage"
+   422→                  value={formData.mileage}
+   423→                  onChange={handleChange}
+   424→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   425→                  placeholder="50000"
+   426→                  required
+   427→                />
+   428→              </div>
+   429→              <div>
+   430→                <label className="block text-sm font-medium text-slate-700 mb-1">Colour</label>
+   431→                <input
+   432→                  type="text"
+   433→                  name="colour"
+   434→                  value={formData.colour}
+   435→                  onChange={handleChange}
+   436→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   437→                  placeholder="Blue"
+   438→                />
+   439→              </div>
+   440→              <div>
+   441→                <label className="block text-sm font-medium text-slate-700 mb-1">Fuel Type</label>
+   442→                <select
+   443→                  name="fuelType"
+   444→                  value={formData.fuelType}
+   445→                  onChange={handleChange}
+   446→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   447→                >
+   448→                  <option value="">Select...</option>
+   449→                  <option value="Petrol">Petrol</option>
+   450→                  <option value="Diesel">Diesel</option>
+   451→                  <option value="Hybrid">Hybrid</option>
+   452→                  <option value="Electric">Electric</option>
+   453→                </select>
+   454→              </div>
+   455→            </div>
+   456→          </div>
+   457→
+   458→          {/* Overall Condition */}
+   459→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   460→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Overall Condition</h2>
+   461→            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   462→              {CONDITION_OPTIONS.map((option) => (
+   463→                <label
+   464→                  key={option.value}
+   465→                  className={`relative flex flex-col items-center p-4 rounded-xl border-2 cursor-pointer transition-all ${
+   466→                    formData.conditionRating === option.value
+   467→                      ? "border-blue-500 bg-blue-50"
+   468→                      : "border-slate-200 hover:border-slate-300"
+   469→                  }`}
+   470→                >
+   471→                  <input
+   472→                    type="radio"
+   473→                    name="conditionRating"
+   474→                    value={option.value}
+   475→                    checked={formData.conditionRating === option.value}
+   476→                    onChange={handleChange}
+   477→                    className="sr-only"
+   478→                  />
+   479→                  <span className="font-medium text-slate-900">{option.label}</span>
+   480→                  <span className="text-xs text-slate-500 text-center mt-1">{option.description}</span>
+   481→                </label>
+   482→              ))}
+   483→            </div>
+   484→          </div>
+   485→
+   486→          {/* Known Issues */}
+   487→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   488→            <div className="flex items-center justify-between mb-4">
+   489→              <div>
+   490→                <h2 className="text-lg font-semibold text-slate-900">Known Issues</h2>
+   491→                <p className="text-sm text-slate-500">Tell us about any problems with your vehicle</p>
+   492→              </div>
+   493→              <button
+   494→                type="button"
+   495→                onClick={() => setShowAddIssue(true)}
+   496→                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+   497→              >
+   498→                + Add Issue
+   499→              </button>
+   500→            </div>
+   501→
+   502→            {issues.length > 0 ? (
+   503→              <div className="space-y-3">
+   504→                {issues.map((issue, index) => (
+   505→                  <div key={index} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+   506→                    <div className="flex-1">
+   507→                      <div className="flex items-center gap-2 mb-1">
+   508→                        <span className="inline-block px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-xs font-medium">
+   509→                          {ISSUE_CATEGORIES.find(c => c.value === issue.category)?.label || issue.category}
+   510→                        </span>
+   511→                        {issue.photos && issue.photos.length > 0 && (
+   512→                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
+   513→                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   514→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   515→                            </svg>
+   516→                            {issue.photos.length} photo{issue.photos.length !== 1 ? "s" : ""}
+   517→                          </span>
+   518→                        )}
+   519→                      </div>
+   520→                      <p className="text-sm text-slate-700">{issue.description}</p>
+   521→                    </div>
+   522→                    <button
+   523→                      type="button"
+   524→                      onClick={() => removeIssue(index)}
+   525→                      className="text-slate-400 hover:text-red-500 transition-colors"
+   526→                    >
+   527→                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   528→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   529→                      </svg>
+   530→                    </button>
+   531→                  </div>
+   532→                ))}
+   533→              </div>
+   534→            ) : (
+   535→              <p className="text-center text-slate-500 py-6">No issues added. This helps us give you an accurate valuation.</p>
+   536→            )}
+   537→
+   538→            {/* Add Issue Form */}
+   539→            {showAddIssue && (
+   540→              <div className="mt-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+   541→                <div className="space-y-3">
+   542→                  <div>
+   543→                    <label className="block text-sm font-medium text-slate-700 mb-1">Issue Type</label>
+   544→                    <select
+   545→                      value={newIssue.category}
+   546→                      onChange={(e) => setNewIssue({ ...newIssue, category: e.target.value })}
+   547→                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   548→                    >
+   549→                      <option value="">Select type...</option>
+   550→                      {ISSUE_CATEGORIES.map((cat) => (
+   551→                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+   552→                      ))}
+   553→                    </select>
+   554→                  </div>
+   555→                  <div>
+   556→                    <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
+   557→                    <textarea
+   558→                      value={newIssue.description}
+   559→                      onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
+   560→                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   561→                      rows={2}
+   562→                      placeholder="Describe the issue..."
+   563→                    />
+   564→                  </div>
+   565→                  <div>
+   566→                    <label className="block text-sm font-medium text-slate-700 mb-1">
+   567→                      Photos <span className="text-slate-400 font-normal">(optional)</span>
+   568→                    </label>
+   569→                    <input
+   570→                      type="file"
+   571→                      accept="image/*"
+   572→                      multiple
+   573→                      onChange={(e) => setIssuePhotos(Array.from(e.target.files))}
+   574→                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   575→                    />
+   576→                    {issuePhotos.length > 0 && (
+   577→                      <div className="flex flex-wrap gap-2 mt-2">
+   578→                        {issuePhotos.map((file, idx) => (
+   579→                          <span key={idx} className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+   580→                            {file.name}
+   581→                          </span>
+   582→                        ))}
+   583→                      </div>
+   584→                    )}
+   585→                  </div>
+   586→                  <div className="flex justify-end gap-2">
+   587→                    <button
+   588→                      type="button"
+   589→                      onClick={() => {
+   590→                        setShowAddIssue(false);
+   591→                        setNewIssue({ category: "", description: "" });
+   592→                        setIssuePhotos([]);
+   593→                      }}
+   594→                      className="px-4 py-2 text-slate-600 hover:text-slate-800 text-sm font-medium"
+   595→                    >
+   596→                      Cancel
+   597→                    </button>
+   598→                    <button
+   599→                      type="button"
+   600→                      onClick={addIssue}
+   601→                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+   602→                    >
+   603→                      Add Issue
+   604→                    </button>
+   605→                  </div>
+   606→                </div>
+   607→              </div>
+   608→            )}
+   609→          </div>
+   610→
+   611→          {/* Vehicle Photos */}
+   612→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   613→            <h2 className="text-lg font-semibold text-slate-900 mb-2">Vehicle Photos (Optional)</h2>
+   614→            <p className="text-sm text-slate-500 mb-4">Photos help us give you a more accurate valuation</p>
+   615→
+   616→            <div className="space-y-4">
+   617→              {/* Exterior Photos */}
+   618→              <div>
+   619→                <label className="block text-sm font-medium text-slate-700 mb-2">
+   620→                  Exterior Photos
+   621→                  <span className="text-slate-400 font-normal ml-1">(front, rear, sides)</span>
+   622→                </label>
+   623→                <input
+   624→                  type="file"
+   625→                  accept="image/*"
+   626→                  multiple
+   627→                  onChange={(e) => setExteriorPhotos(Array.from(e.target.files))}
+   628→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   629→                />
+   630→                {exteriorPhotos.length > 0 && (
+   631→                  <div className="flex flex-wrap gap-2 mt-2">
+   632→                    {exteriorPhotos.map((file, idx) => (
+   633→                      <span key={idx} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+   634→                        {file.name}
+   635→                      </span>
+   636→                    ))}
+   637→                  </div>
+   638→                )}
+   639→              </div>
+   640→
+   641→              {/* Interior Photos */}
+   642→              <div>
+   643→                <label className="block text-sm font-medium text-slate-700 mb-2">
+   644→                  Interior Photos
+   645→                  <span className="text-slate-400 font-normal ml-1">(seats, dashboard area)</span>
+   646→                </label>
+   647→                <input
+   648→                  type="file"
+   649→                  accept="image/*"
+   650→                  multiple
+   651→                  onChange={(e) => setInteriorPhotos(Array.from(e.target.files))}
+   652→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   653→                />
+   654→                {interiorPhotos.length > 0 && (
+   655→                  <div className="flex flex-wrap gap-2 mt-2">
+   656→                    {interiorPhotos.map((file, idx) => (
+   657→                      <span key={idx} className="text-xs bg-emerald-50 text-emerald-700 px-2 py-1 rounded">
+   658→                        {file.name}
+   659→                      </span>
+   660→                    ))}
+   661→                  </div>
+   662→                )}
+   663→              </div>
+   664→
+   665→              {/* Dashboard & Odometer */}
+   666→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   667→                <div>
+   668→                  <label className="block text-sm font-medium text-slate-700 mb-2">
+   669→                    Dashboard
+   670→                    <span className="text-slate-400 font-normal ml-1">(any warning lights)</span>
+   671→                  </label>
+   672→                  <input
+   673→                    type="file"
+   674→                    accept="image/*"
+   675→                    onChange={(e) => setDashboardPhoto(e.target.files[0])}
+   676→                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   677→                  />
+   678→                  {dashboardPhoto && (
+   679→                    <p className="text-xs text-emerald-600 mt-1">{dashboardPhoto.name}</p>
+   680→                  )}
+   681→                </div>
+   682→                <div>
+   683→                  <label className="block text-sm font-medium text-slate-700 mb-2">
+   684→                    Odometer
+   685→                    <span className="text-slate-400 font-normal ml-1">(mileage reading)</span>
+   686→                  </label>
+   687→                  <input
+   688→                    type="file"
+   689→                    accept="image/*"
+   690→                    onChange={(e) => setOdometerPhoto(e.target.files[0])}
+   691→                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   692→                  />
+   693→                  {odometerPhoto && (
+   694→                    <p className="text-xs text-emerald-600 mt-1">{odometerPhoto.name}</p>
+   695→                  )}
+   696→                </div>
+   697→              </div>
+   698→            </div>
+   699→          </div>
+   700→
+   701→          {/* Service History */}
+   702→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   703→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Service History (Optional)</h2>
+   704→            <input
+   705→              type="file"
+   706→              accept="image/*,.pdf"
+   707→              onChange={(e) => setServiceHistoryFile(e.target.files[0])}
+   708→              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-slate-100 file:text-slate-700 file:font-medium hover:file:bg-slate-200"
+   709→            />
+   710→            {serviceHistoryFile && (
+   711→              <p className="text-sm text-emerald-600 mt-2">{serviceHistoryFile.name}</p>
+   712→            )}
+   713→          </div>
+   714→
+   715→          {/* Additional Notes */}
+   716→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   717→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Additional Notes</h2>
+   718→            <textarea
+   719→              name="conditionNotes"
+   720→              value={formData.conditionNotes}
+   721→              onChange={handleChange}
+   722→              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   723→              rows={3}
+   724→              placeholder="Any other information about your vehicle..."
+   725→            />
+   726→          </div>
+   727→
+   728→          {/* Expected Value & Interest */}
+   729→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   730→            <div className="space-y-4">
+   731→              <div>
+   732→                <label className="block text-sm font-medium text-slate-700 mb-1">Expected Value (optional)</label>
+   733→                <div className="relative">
+   734→                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">GBP</span>
+   735→                  <input
+   736→                    type="number"
+   737→                    name="proposedPurchasePrice"
+   738→                    value={formData.proposedPurchasePrice}
+   739→                    onChange={handleChange}
+   740→                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   741→                    placeholder="What do you expect for your vehicle?"
+   742→                  />
+   743→                </div>
+   744→              </div>
+   745→              <div>
+   746→                <label className="block text-sm font-medium text-slate-700 mb-1">Interested in a specific vehicle? (optional)</label>
+   747→                <input
+   748→                  type="text"
+   749→                  name="interestedInVehicle"
+   750→                  value={formData.interestedInVehicle}
+   751→                  onChange={handleChange}
+   752→                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   753→                  placeholder="e.g. The blue BMW 3 Series, reg AB12 CDE"
+   754→                />
+   755→              </div>
+   756→            </div>
+   757→          </div>
+   758→
+   759→          {/* Submit */}
+   760→          <button
+   761→            type="submit"
+   762→            disabled={isSubmitting}
+   763→            className="w-full py-4 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-semibold text-lg shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 hover:from-[#0055BB] hover:to-[#119D8D] disabled:opacity-50 transition-all"
+   764→          >
+   765→            {isSubmitting ? (
+   766→              <span className="flex items-center justify-center gap-2">
+   767→                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+   768→                Submitting...
+   769→              </span>
+   770→            ) : (
+   771→              "Get My Valuation"
+   772→            )}
+   773→          </button>
+   774→
+   775→          <p className="text-xs text-slate-500 text-center">
+   776→            By submitting this form, you agree to be contacted regarding your part-exchange enquiry.
+   777→          </p>
+   778→        </form>
+   779→      </div>
+   780→    </div>
+   781→  );
+   782→}
+   783→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

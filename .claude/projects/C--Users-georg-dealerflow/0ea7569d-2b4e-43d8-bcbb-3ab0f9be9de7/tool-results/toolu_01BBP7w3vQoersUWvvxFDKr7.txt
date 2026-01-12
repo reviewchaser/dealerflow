@@ -1,0 +1,404 @@
+   800→                          <div className="flex items-center justify-between">
+   801→                            <h3 className="text-sm font-bold text-slate-800">Deal Readiness</h3>
+   802→                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+   803→                              allPassed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+   804→                            }`}>
+   805→                              {passedCount}/{checks.length} complete
+   806→                            </span>
+   807→                          </div>
+   808→                        </div>
+   809→                        <div className="p-4 grid grid-cols-2 gap-2">
+   810→                          {checks.map((check) => (
+   811→                            <div
+   812→                              key={check.id}
+   813→                              className={`flex items-center gap-2 text-sm ${
+   814→                                check.passed ? "text-emerald-700" : "text-amber-700"
+   815→                              }`}
+   816→                            >
+   817→                              {check.passed ? (
+   818→                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   819→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   820→                                </svg>
+   821→                              ) : (
+   822→                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   823→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+   824→                                </svg>
+   825→                              )}
+   826→                              <span className={check.passed ? "" : "font-medium"}>
+   827→                                {check.tab && !check.passed ? (
+   828→                                  <button
+   829→                                    onClick={() => setActiveTab(check.tab)}
+   830→                                    className="underline hover:no-underline"
+   831→                                  >
+   832→                                    {check.label}
+   833→                                  </button>
+   834→                                ) : (
+   835→                                  check.label
+   836→                                )}
+   837→                              </span>
+   838→                            </div>
+   839→                          ))}
+   840→                        </div>
+   841→                      </div>
+   842→                    );
+   843→                  })()}
+   844→
+   845→                  {/* Sale Classification Section */}
+   846→                  {deal.status === "DRAFT" && (
+   847→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   848→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   849→                        <h3 className="text-sm font-bold text-slate-800">Sale Classification</h3>
+   850→                      </div>
+   851→                      <div className="p-4 space-y-4">
+   852→                        {/* Step 1: Sale Type */}
+   853→                        <div>
+   854→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Sale Type</label>
+   855→                          <div className="flex flex-wrap gap-2">
+   856→                            {SALE_TYPE_OPTIONS.map((opt) => (
+   857→                              <button
+   858→                                key={opt.value}
+   859→                                onClick={() => handleUpdateField({
+   860→                                  saleType: opt.value,
+   861→                                  // Reset dependent fields when sale type changes
+   862→                                  ...(opt.value !== "RETAIL" ? { buyerUse: null, saleChannel: null } : {})
+   863→                                })}
+   864→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   865→                                  deal.saleType === opt.value
+   866→                                    ? "bg-[#0066CC] text-white"
+   867→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   868→                                }`}
+   869→                                title={opt.description}
+   870→                              >
+   871→                                {opt.label}
+   872→                              </button>
+   873→                            ))}
+   874→                          </div>
+   875→                        </div>
+   876→
+   877→                        {/* Step 2: Buyer Use - Only for Retail */}
+   878→                        {deal.saleType === "RETAIL" && (
+   879→                          <div>
+   880→                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Buyer Use</label>
+   881→                            <div className="flex flex-wrap gap-2">
+   882→                              {BUYER_USE_OPTIONS.map((opt) => (
+   883→                                <button
+   884→                                  key={opt.value}
+   885→                                  onClick={() => handleUpdateField({ buyerUse: opt.value })}
+   886→                                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   887→                                    deal.buyerUse === opt.value
+   888→                                      ? "bg-[#0066CC] text-white"
+   889→                                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   890→                                  }`}
+   891→                                  title={opt.description}
+   892→                                >
+   893→                                  {opt.label}
+   894→                                </button>
+   895→                              ))}
+   896→                            </div>
+   897→                          </div>
+   898→                        )}
+   899→
+   900→                        {/* Step 3: Sale Channel - Only for Retail */}
+   901→                        {deal.saleType === "RETAIL" && (
+   902→                          <div>
+   903→                            <label className="block text-xs font-medium text-slate-500 mb-1.5">Sale Channel</label>
+   904→                            <div className="flex flex-wrap gap-2">
+   905→                              {SALE_CHANNEL_OPTIONS.map((opt) => (
+   906→                                <button
+   907→                                  key={opt.value}
+   908→                                  onClick={() => handleUpdateField({ saleChannel: opt.value })}
+   909→                                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   910→                                    deal.saleChannel === opt.value
+   911→                                      ? "bg-[#0066CC] text-white"
+   912→                                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   913→                                  }`}
+   914→                                  title={opt.description}
+   915→                                >
+   916→                                  {opt.label}
+   917→                                </button>
+   918→                              ))}
+   919→                            </div>
+   920→                            {deal.saleChannel === "DISTANCE" && (
+   921→                              <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+   922→                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   923→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   924→                                </svg>
+   925→                                14-day cooling off period applies
+   926→                              </p>
+   927→                            )}
+   928→                          </div>
+   929→                        )}
+   930→
+   931→                        {/* Step 4: Business Details - For Trade or Business buyers */}
+   932→                        {(deal.saleType === "TRADE" || deal.buyerUse === "BUSINESS") && (
+   933→                          <div className="border-t border-slate-100 pt-4 space-y-3">
+   934→                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Business Details</h4>
+   935→                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+   936→                              <div>
+   937→                                <label className="block text-xs text-slate-500 mb-1">Company Name</label>
+   938→                                <input
+   939→                                  type="text"
+   940→                                  className="input input-sm input-bordered w-full"
+   941→                                  placeholder="Company name"
+   942→                                  value={deal.businessDetails?.companyName || ""}
+   943→                                  onChange={(e) => handleUpdateField({
+   944→                                    businessDetails: { ...deal.businessDetails, companyName: e.target.value }
+   945→                                  })}
+   946→                                />
+   947→                              </div>
+   948→                              <div>
+   949→                                <label className="block text-xs text-slate-500 mb-1">Company Reg Number</label>
+   950→                                <input
+   951→                                  type="text"
+   952→                                  className="input input-sm input-bordered w-full"
+   953→                                  placeholder="e.g., 12345678"
+   954→                                  value={deal.businessDetails?.companyRegNumber || ""}
+   955→                                  onChange={(e) => handleUpdateField({
+   956→                                    businessDetails: { ...deal.businessDetails, companyRegNumber: e.target.value }
+   957→                                  })}
+   958→                                />
+   959→                              </div>
+   960→                              <div className="md:col-span-2">
+   961→                                <label className="block text-xs text-slate-500 mb-1">VAT Number</label>
+   962→                                <input
+   963→                                  type="text"
+   964→                                  className="input input-sm input-bordered w-full"
+   965→                                  placeholder="e.g., GB 123 4567 89"
+   966→                                  value={deal.businessDetails?.vatNumber || ""}
+   967→                                  onChange={(e) => handleUpdateField({
+   968→                                    businessDetails: { ...deal.businessDetails, vatNumber: e.target.value }
+   969→                                  })}
+   970→                                />
+   971→                              </div>
+   972→                            </div>
+   973→                          </div>
+   974→                        )}
+   975→
+   976→                        {/* VAT Treatment */}
+   977→                        <div className="border-t border-slate-100 pt-4">
+   978→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">VAT Treatment</label>
+   979→                          <div className="flex flex-wrap gap-2">
+   980→                            {[
+   981→                              { value: "MARGIN", label: "Margin Scheme" },
+   982→                              { value: "VAT_QUALIFYING", label: "Standard VAT" },
+   983→                              { value: "NO_VAT", label: "Zero-rated / No VAT" },
+   984→                            ].map((opt) => (
+   985→                              <button
+   986→                                key={opt.value}
+   987→                                onClick={() => handleUpdateField({ vatScheme: opt.value })}
+   988→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   989→                                  deal.vatScheme === opt.value
+   990→                                    ? "bg-[#0066CC] text-white"
+   991→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   992→                                }`}
+   993→                              >
+   994→                                {opt.label}
+   995→                              </button>
+   996→                            ))}
+   997→                          </div>
+   998→                        </div>
+   999→
+  1000→                        {/* Payment Type */}
+  1001→                        <div className="border-t border-slate-100 pt-4">
+  1002→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Payment Type</label>
+  1003→                          <div className="flex flex-wrap gap-2">
+  1004→                            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+  1005→                              <button
+  1006→                                key={opt.value}
+  1007→                                onClick={() => handleUpdateField({ paymentType: opt.value })}
+  1008→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1009→                                  deal.paymentType === opt.value
+  1010→                                    ? "bg-[#0066CC] text-white"
+  1011→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1012→                                }`}
+  1013→                              >
+  1014→                                {opt.label}
+  1015→                              </button>
+  1016→                            ))}
+  1017→                          </div>
+  1018→                        </div>
+  1019→
+  1020→                        {/* Finance Details - shown when paymentType is FINANCE or MIXED */}
+  1021→                        {(deal.paymentType === "FINANCE" || deal.paymentType === "MIXED") && (
+  1022→                          <div className="border-t border-slate-100 pt-4 space-y-3">
+  1023→                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Finance Details</h4>
+  1024→                            <div className="grid grid-cols-2 gap-3">
+  1025→                              <div>
+  1026→                                <label className="block text-xs text-slate-500 mb-1">Provider</label>
+  1027→                                <input
+  1028→                                  type="text"
+  1029→                                  className="input input-sm input-bordered w-full"
+  1030→                                  placeholder="Finance company"
+  1031→                                  value={deal.finance?.provider || ""}
+  1032→                                  onChange={(e) => handleUpdateField({
+  1033→                                    finance: { ...deal.finance, provider: e.target.value }
+  1034→                                  })}
+  1035→                                />
+  1036→                              </div>
+  1037→                              <div>
+  1038→                                <label className="block text-xs text-slate-500 mb-1">Finance Type</label>
+  1039→                                <select
+  1040→                                  className="select select-sm select-bordered w-full"
+  1041→                                  value={deal.finance?.financeType || ""}
+  1042→                                  onChange={(e) => handleUpdateField({
+  1043→                                    finance: { ...deal.finance, financeType: e.target.value }
+  1044→                                  })}
+  1045→                                >
+  1046→                                  <option value="">Select...</option>
+  1047→                                  {FINANCE_TYPE_OPTIONS.map((opt) => (
+  1048→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1049→                                  ))}
+  1050→                                </select>
+  1051→                              </div>
+  1052→                              <div>
+  1053→                                <label className="block text-xs text-slate-500 mb-1">Amount Financed</label>
+  1054→                                <div className="relative">
+  1055→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1056→                                  <input
+  1057→                                    type="number"
+  1058→                                    className="input input-sm input-bordered w-full pl-7"
+  1059→                                    placeholder="0.00"
+  1060→                                    value={deal.finance?.amountFinanced || ""}
+  1061→                                    onChange={(e) => handleUpdateField({
+  1062→                                      finance: { ...deal.finance, amountFinanced: parseFloat(e.target.value) || null }
+  1063→                                    })}
+  1064→                                  />
+  1065→                                </div>
+  1066→                              </div>
+  1067→                              <div>
+  1068→                                <label className="block text-xs text-slate-500 mb-1">Customer Deposit</label>
+  1069→                                <div className="relative">
+  1070→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1071→                                  <input
+  1072→                                    type="number"
+  1073→                                    className="input input-sm input-bordered w-full pl-7"
+  1074→                                    placeholder="0.00"
+  1075→                                    value={deal.finance?.customerDeposit || ""}
+  1076→                                    onChange={(e) => handleUpdateField({
+  1077→                                      finance: { ...deal.finance, customerDeposit: parseFloat(e.target.value) || null }
+  1078→                                    })}
+  1079→                                  />
+  1080→                                </div>
+  1081→                              </div>
+  1082→                              <div>
+  1083→                                <label className="block text-xs text-slate-500 mb-1">Status</label>
+  1084→                                <select
+  1085→                                  className="select select-sm select-bordered w-full"
+  1086→                                  value={deal.finance?.status || "QUOTED"}
+  1087→                                  onChange={(e) => handleUpdateField({
+  1088→                                    finance: { ...deal.finance, status: e.target.value }
+  1089→                                  })}
+  1090→                                >
+  1091→                                  {FINANCE_STATUS_OPTIONS.map((opt) => (
+  1092→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1093→                                  ))}
+  1094→                                </select>
+  1095→                              </div>
+  1096→                              <div>
+  1097→                                <label className="block text-xs text-slate-500 mb-1">Reference</label>
+  1098→                                <input
+  1099→                                  type="text"
+  1100→                                  className="input input-sm input-bordered w-full"
+  1101→                                  placeholder="Agreement ref"
+  1102→                                  value={deal.finance?.reference || ""}
+  1103→                                  onChange={(e) => handleUpdateField({
+  1104→                                    finance: { ...deal.finance, reference: e.target.value }
+  1105→                                  })}
+  1106→                                />
+  1107→                              </div>
+  1108→                            </div>
+  1109→                          </div>
+  1110→                        )}
+  1111→                      </div>
+  1112→                    </div>
+  1113→                  )}
+  1114→
+  1115→                  {/* Vehicle Section */}
+  1116→                  {deal.vehicle && (
+  1117→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1118→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1119→                        <div className="flex items-center gap-2">
+  1120→                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+  1121→                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1122→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 5h8m-4-9a9 9 0 110 18 9 9 0 010-18z" />
+  1123→                            </svg>
+  1124→                          </div>
+  1125→                          <h3 className="text-sm font-bold text-slate-800">Vehicle</h3>
+  1126→                        </div>
+  1127→                      </div>
+  1128→                      <div className="p-4">
+  1129→                        <div className="flex items-start gap-4">
+  1130→                          {deal.vehicle.primaryImageUrl && (
+  1131→                            <img
+  1132→                              src={deal.vehicle.primaryImageUrl}
+  1133→                              alt={`${deal.vehicle.make} ${deal.vehicle.model}`}
+  1134→                              className="w-20 h-20 object-cover rounded-xl"
+  1135→                            />
+  1136→                          )}
+  1137→                          <div className="flex-1">
+  1138→                            <p className="font-semibold text-slate-900">
+  1139→                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+  1140→                            </p>
+  1141→                            <p className="text-sm text-slate-500 mt-1">
+  1142→                              {deal.vehicle.regCurrent}
+  1143→                            </p>
+  1144→                          </div>
+  1145→                        </div>
+  1146→                      </div>
+  1147→                    </div>
+  1148→                  )}
+  1149→
+  1150→                  {/* Deposit & Progress */}
+  1151→                  {deal.status !== "COMPLETED" && deal.status !== "CANCELLED" && (
+  1152→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1153→                      <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-white border-b border-slate-100">
+  1154→                        <div className="flex items-center gap-2">
+  1155→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+  1156→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1157→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1158→                            </svg>
+  1159→                          </div>
+  1160→                          <h3 className="text-sm font-bold text-slate-800">Deposit & Progress</h3>
+  1161→                        </div>
+  1162→                      </div>
+  1163→                      <div className="p-4 space-y-4">
+  1164→                        {/* Take Deposit - for Draft status */}
+  1165→                        {deal.status === "DRAFT" && (() => {
+  1166→                          const { allowed, reasons } = canTakeDeposit();
+  1167→                          return (
+  1168→                            <div className="space-y-3">
+  1169→                              {!allowed && reasons.length > 0 && (
+  1170→                                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+  1171→                                  <p className="text-xs font-medium text-amber-800 mb-1.5">Complete before deposit:</p>
+  1172→                                  <ul className="space-y-1">
+  1173→                                    {reasons.map((r, i) => (
+  1174→                                      <li key={i} className="text-xs text-amber-700 flex items-center gap-1.5">
+  1175→                                        <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1176→                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1177→                                        </svg>
+  1178→                                        {r}
+  1179→                                      </li>
+  1180→                                    ))}
+  1181→                                  </ul>
+  1182→                                </div>
+  1183→                              )}
+  1184→                              <button
+  1185→                                onClick={() => allowed && setShowDepositModal(true)}
+  1186→                                disabled={actionLoading || !allowed}
+  1187→                                className={`btn btn-sm w-full border-none ${
+  1188→                                  allowed
+  1189→                                    ? "bg-amber-500 hover:bg-amber-600 text-white"
+  1190→                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+  1191→                                }`}
+  1192→                              >
+  1193→                                {actionLoading === "deposit" ? (
+  1194→                                  <span className="loading loading-spinner loading-xs"></span>
+  1195→                                ) : (
+  1196→                                  <>
+  1197→                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1198→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+  1199→                                    </svg>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

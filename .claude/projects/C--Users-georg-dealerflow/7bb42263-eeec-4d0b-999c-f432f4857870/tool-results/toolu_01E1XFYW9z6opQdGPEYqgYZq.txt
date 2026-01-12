@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   141→                ✕
+   142→              </button>
+   143→            </div>
+   144→
+   145→            {/* Tabs - Sticky below header */}
+   146→            <div className="sticky top-[57px] md:top-[65px] bg-base-100 border-b border-base-300 px-4 z-10 shrink-0">
+   147→              <div className="tabs tabs-bordered overflow-x-auto">
+   148→                <button
+   149→                  className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+   150→                  onClick={() => setActiveTab("overview")}
+   151→                >

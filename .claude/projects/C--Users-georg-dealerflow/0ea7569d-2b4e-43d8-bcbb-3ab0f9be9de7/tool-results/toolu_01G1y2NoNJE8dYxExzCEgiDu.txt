@@ -1,0 +1,18 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   274→  }, [deals, kpiPeriod]);
+   275→
+   276→  const kpis = calculateKPIs();
+   277→
+   278→  // Open drawer by updating URL - drawer state is derived from URL
+   279→  const handleDealClick = (dealId) => {
+   280→    router.push(`/sales?id=${dealId}`, undefined, { shallow: true });
+   281→  };
+   282→
+   283→  // Close drawer by removing id from URL
+   284→  const handleDrawerClose = () => {
+   285→    router.push("/sales", undefined, { shallow: true });
+   286→  };
+   287→
+   288→  if (isRedirecting) {
+   289→    return (
+   290→      <DashboardLayout>

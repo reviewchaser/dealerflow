@@ -1,0 +1,50 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  4676→          ))}
+  4677→        </div>
+  4678→      </BottomSheet>
+  4679→
+  4680→      {/* VRM Search Dropdown - Portal for proper positioning outside overflow containers */}
+  4681→      {showVrmDropdown && (
+  4682→        <Portal>
+  4683→          <div
+  4684→            ref={vrmDropdownRef}
+  4685→            className="fixed bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
+  4686→            style={{
+  4687→              top: getVrmDropdownPosition().top,
+  4688→              left: getVrmDropdownPosition().left,
+  4689→              width: getVrmDropdownPosition().width,
+  4690→              maxWidth: 'calc(100vw - 2rem)',
+  4691→              zIndex: 99999,
+  4692→            }}
+  4693→          >
+  4694→            {vrmSearchResults.length > 0 ? (
+  4695→              <>
+  4696→                <ul className="py-1 max-h-60 sm:max-h-64 overflow-y-auto overscroll-contain">
+  4697→                  {vrmSearchResults.map((vehicle, idx) => {
+  4698→                    const vrm = (vehicle.regCurrent || "").toUpperCase();
+  4699→                    const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
+  4700→                    const isFirstOfDuplicate = idx === vrmSearchResults.findIndex(v => (v.regCurrent || "").toUpperCase() === vrm);
+  4701→                    const isSelected = idx === vrmSelectedIndex;
+  4702→
+  4703→                    return (
+  4704→                      <li key={vehicle.id || vehicle._id}>
+  4705→                        <button
+  4706→                          className={`w-full px-4 py-3.5 text-left transition-colors border-b border-slate-50 last:border-0 active:bg-blue-100 ${isSelected ? "bg-blue-50" : "hover:bg-slate-50"}`}
+  4707→                          onClick={() => handleVrmSelect(vehicle)}
+  4708→                          onTouchStart={() => setVrmSelectedIndex(idx)}
+  4709→                          onMouseEnter={() => setVrmSelectedIndex(idx)}
+  4710→                        >
+  4711→                          <div className="flex items-center justify-between gap-2 mb-1">
+  4712→                            <div className="flex items-center gap-2">
+  4713→                              <span className="font-mono font-bold text-slate-900 text-sm">{vehicle.regCurrent || vehicle.vrm}</span>
+  4714→                              {duplicateCount > 1 && isFirstOfDuplicate && (
+  4715→                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-semibold">
+  4716→                                  Latest
+  4717→                                </span>
+  4718→                              )}
+  4719→                            </div>
+  4720→                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
+  4721→                              {getStatusLabel(vehicle.status)}
+  4722→                            </span>
+  4723→                          </div>
+  4724→                          <div className="flex items-center justify-between text-xs">

@@ -1,0 +1,17 @@
+Found 16 files
+pages\api\calendar\[id].js
+pages\api\calendar\index.js
+pages\api\customer-px\[id]\convert.js
+pages\api\appraisals\[id]\convert.js
+pages\api\aftercare\[id]\job-sheet.js
+pages\api\customer-px\[id].js
+pages\api\appraisals\[id].js
+pages\api\reviews\index.js
+pages\api\aftercare\index.js
+pages\api\dashboard\stats.js
+pages\api\aftercare\[id].js
+pages\api\customer-px\index.js
+pages\api\public\job\[token].js
+pages\api\appraisals\index.js
+pages\api\ai\case-review.js
+pages\api\aftercare\courtesy.js

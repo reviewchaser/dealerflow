@@ -1,0 +1,201 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   601→    </section>
+   602→  );
+   603→}
+   604→
+   605→// ============================================================================
+   606→// PRICING SECTION
+   607→// ============================================================================
+   608→function PricingSection() {
+   609→  const [billingPeriod, setBillingPeriod] = useState("monthly");
+   610→
+   611→  const plans = [
+   612→    {
+   613→      name: "Free",
+   614→      price: "£0",
+   615→      yearlyPrice: "£0",
+   616→      period: "forever",
+   617→      yearlyPeriod: "forever",
+   618→      description: "Get started with the essentials",
+   619→      badge: "No card required",
+   620→      features: [
+   621→        "Up to 10 vehicles in stock",
+   622→        "Up to 3 team members",
+   623→        "Stock & Prep board",
+   624→        "Digital forms (PDI, Test Drive)",
+   625→        "Vehicle appraisals",
+   626→        "DVLA vehicle lookups",
+   627→        "Email support",
+   628→      ],
+   629→      limitations: [],
+   630→      cta: "Start free — no card needed",
+   631→      ctaHref: "/auth/signup?plan=free",
+   632→      highlighted: true,
+   633→    },
+   634→    {
+   635→      name: "Pro",
+   636→      price: "£49",
+   637→      yearlyPrice: "£490",
+   638→      period: "/month",
+   639→      yearlyPeriod: "/year",
+   640→      yearlySavings: "Save £98 (2 months free)",
+   641→      description: "Everything you need to run your dealership",
+   642→      badge: null,
+   643→      features: [
+   644→        "Unlimited vehicles",
+   645→        "Unlimited team members",
+   646→        "Full Sales module with invoicing",
+   647→        "Warranty & aftersales tracking",
+   648→        "All form types",
+   649→        "PDF exports with your branding",
+   650→        "Bank details on invoices",
+   651→        "Custom terms & conditions",
+   652→        "Priority email support",
+   653→        "Regular updates and new features",
+   654→      ],
+   655→      limitations: [],
+   656→      cta: billingPeriod === "yearly" ? "Start Pro — save £98/year" : "Start 14-day Pro trial",
+   657→      ctaHref: `/auth/signup?plan=pro&billing=${billingPeriod}`,
+   658→      highlighted: false,
+   659→    },
+   660→  ];
+   661→
+   662→  return (
+   663→    <section id="pricing" className="py-16 md:py-24 bg-white scroll-mt-20">
+   664→      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+   665→        <div className="max-w-3xl mx-auto text-center mb-8">
+   666→          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+   667→            Start free, upgrade when you're ready
+   668→          </h2>
+   669→          <p className="text-lg text-slate-600">
+   670→            Most dealers start on Free and upgrade as they grow. No pressure, no sales calls.
+   671→          </p>
+   672→        </div>
+   673→
+   674→        {/* Billing Toggle */}
+   675→        <div className="flex justify-center mb-10">
+   676→          <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
+   677→            <button
+   678→              onClick={() => setBillingPeriod("monthly")}
+   679→              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+   680→                billingPeriod === "monthly"
+   681→                  ? "bg-white text-slate-900 shadow-sm"
+   682→                  : "text-slate-600 hover:text-slate-900"
+   683→              }`}
+   684→            >
+   685→              Monthly
+   686→            </button>
+   687→            <button
+   688→              onClick={() => setBillingPeriod("yearly")}
+   689→              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
+   690→                billingPeriod === "yearly"
+   691→                  ? "bg-white text-slate-900 shadow-sm"
+   692→                  : "text-slate-600 hover:text-slate-900"
+   693→              }`}
+   694→            >
+   695→              Yearly
+   696→              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
+   697→                Save 17%
+   698→              </span>
+   699→            </button>
+   700→          </div>
+   701→        </div>
+   702→
+   703→        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+   704→          {plans.map((plan, idx) => {
+   705→            const displayPrice = billingPeriod === "yearly" ? plan.yearlyPrice : plan.price;
+   706→            const displayPeriod = billingPeriod === "yearly" ? plan.yearlyPeriod : plan.period;
+   707→
+   708→            return (
+   709→              <div
+   710→                key={idx}
+   711→                className={`relative rounded-2xl overflow-hidden ${
+   712→                  plan.highlighted
+   713→                    ? "bg-blue-600 text-white ring-2 ring-blue-600 shadow-xl shadow-blue-600/20"
+   714→                    : "bg-white border-2 border-slate-200"
+   715→                }`}
+   716→              >
+   717→                {plan.badge && (
+   718→                  <div className={`absolute top-0 right-0 text-xs font-semibold px-3 py-1 rounded-bl-lg ${
+   719→                    plan.highlighted ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-600"
+   720→                  }`}>
+   721→                    {plan.badge}
+   722→                  </div>
+   723→                )}
+   724→
+   725→                {/* Header */}
+   726→                <div className={`p-6 border-b ${plan.highlighted ? "border-blue-500" : "border-slate-200"}`}>
+   727→                  <h3 className={`text-xl font-bold mb-1 ${plan.highlighted ? "text-white" : "text-slate-900"}`}>
+   728→                    {plan.name}
+   729→                  </h3>
+   730→                  <p className={`text-sm mb-4 ${plan.highlighted ? "text-blue-100" : "text-slate-600"}`}>
+   731→                    {plan.description}
+   732→                  </p>
+   733→                  <div className="flex items-baseline gap-1">
+   734→                    <span className={`text-4xl font-bold ${plan.highlighted ? "text-white" : "text-slate-900"}`}>
+   735→                      {displayPrice}
+   736→                    </span>
+   737→                    <span className={plan.highlighted ? "text-blue-200" : "text-slate-500"}>
+   738→                      {displayPeriod}
+   739→                    </span>
+   740→                  </div>
+   741→                  {billingPeriod === "yearly" && plan.yearlySavings && (
+   742→                    <p className="text-sm text-emerald-600 font-medium mt-2">{plan.yearlySavings}</p>
+   743→                  )}
+   744→                </div>
+   745→
+   746→                {/* Features */}
+   747→                <div className="p-6">
+   748→                  <ul className="space-y-3 mb-6">
+   749→                    {plan.features.map((feature, fIdx) => (
+   750→                      <li key={fIdx} className="flex items-start gap-3 text-sm">
+   751→                        <svg className={`w-5 h-5 flex-shrink-0 mt-0.5 ${plan.highlighted ? "text-blue-200" : "text-emerald-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   752→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   753→                        </svg>
+   754→                        <span className={plan.highlighted ? "text-white" : "text-slate-700"}>
+   755→                          {feature}
+   756→                        </span>
+   757→                      </li>
+   758→                    ))}
+   759→                  </ul>
+   760→
+   761→                  <Link
+   762→                    href={plan.ctaHref}
+   763→                    className={`block w-full py-3 px-4 text-center text-base font-medium rounded-lg transition-colors ${
+   764→                      plan.highlighted
+   765→                        ? "bg-white hover:bg-blue-50 text-blue-600"
+   766→                        : "bg-slate-900 hover:bg-slate-800 text-white"
+   767→                    }`}
+   768→                  >
+   769→                    {plan.cta}
+   770→                  </Link>
+   771→                  {plan.highlighted && (
+   772→                    <p className="text-center text-xs text-blue-200 mt-3">
+   773→                      No credit card required
+   774→                    </p>
+   775→                  )}
+   776→                </div>
+   777→              </div>
+   778→            );
+   779→          })}
+   780→        </div>
+   781→
+   782→        {/* What it replaces */}
+   783→        <div className="mt-12 max-w-2xl mx-auto p-6 bg-slate-50 rounded-xl border border-slate-200">
+   784→          <p className="font-medium text-slate-900 mb-3 text-center">Replaces:</p>
+   785→          <div className="flex flex-wrap justify-center gap-2">
+   786→            {["Spreadsheets", "WhatsApp groups", "Paper forms", "Email chains", "Sticky notes"].map((item, idx) => (
+   787→              <span key={idx} className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600">
+   788→                {item}
+   789→              </span>
+   790→            ))}
+   791→          </div>
+   792→        </div>
+   793→      </div>
+   794→    </section>
+   795→  );
+   796→}
+   797→
+   798→// ============================================================================
+   799→// HOW IT WORKS SECTION
+   800→// ============================================================================

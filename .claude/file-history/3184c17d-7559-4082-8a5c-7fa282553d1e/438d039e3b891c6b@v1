@@ -1,0 +1,46 @@
+import connectMongo from "@/libs/mongoose";
+import VehicleLocation from "@/models/VehicleLocation";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  if (req.method === "GET") {
+    try {
+      const locations = await VehicleLocation.find().sort({ name: 1 }).lean();
+      // Transform _id to id
+      const result = locations.map(loc => ({
+        id: loc._id.toString(),
+        name: loc.name,
+        createdAt: loc.createdAt,
+        updatedAt: loc.updatedAt,
+      }));
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      return res.status(500).json({ error: "Failed to fetch locations" });
+    }
+  }
+
+  if (req.method === "POST") {
+    try {
+      const { name } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ error: "Name is required" });
+      }
+
+      const location = await VehicleLocation.create({ name });
+      return res.status(201).json({
+        id: location._id.toString(),
+        name: location.name,
+        createdAt: location.createdAt,
+        updatedAt: location.updatedAt,
+      });
+    } catch (error) {
+      console.error("Error creating location:", error);
+      return res.status(500).json({ error: "Failed to create location" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

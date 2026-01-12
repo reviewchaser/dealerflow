@@ -1,0 +1,1135 @@
+C:\Users\georg\dealerflow\pages\appraisals\index.js-20-  declined: "bg-slate-100 text-slate-500 border-slate-200",
+C:\Users\georg\dealerflow\pages\appraisals\index.js-21-};
+C:\Users\georg\dealerflow\pages\appraisals\index.js-22-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:23:export default function Appraisals() {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-24-  const router = useRouter();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-25-  const [activeTab, setActiveTab] = useState("all");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:26:  const [appraisals, setAppraisals] = useState([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:27:  const [pxAppraisals, setPxAppraisals] = useState([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-28-  const [isLoading, setIsLoading] = useState(true);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-29-  const [filter, setFilter] = useState("all");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-30-  const [isConverting, setIsConverting] = useState(null);
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-39-  const vrmSearchRef = useRef(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-40-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-41-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:42:    fetchAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:43:    fetchPxAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-44-    fetchDealerInfo();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-45-  }, [filter]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-46-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-47-  // Close menus when clicking outside
+C:\Users\georg\dealerflow\pages\appraisals\index.js-48-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-49-    const handleClickOutside = (event) => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:50:      if (menuRef.current && !menuRef.current.contains(event.target)) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-51-        setOpenMenuId(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-52-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js:53:      if (newDropdownRef.current && !newDropdownRef.current.contains(event.target)) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-54-        setShowNewDropdown(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-55-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js:56:      if (vrmSearchRef.current && !vrmSearchRef.current.contains(event.target)) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-57-        setShowVrmSuggestions(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-58-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-59-    };
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-63-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-64-  const fetchDealerInfo = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-65-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:66:      const res = await fetch("/api/dealer");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-67-      if (res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:68:        const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-69-        setDealerSlug(data.slug || data._id || data.id);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-70-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-71-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:72:      console.error("Failed to fetch dealer info");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-73-    }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-74-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-75-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:76:  const fetchAppraisals = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-77-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:78:      const res = await fetch(`/api/appraisals?decision=${filter}`);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-79-      // Check for JSON response
+C:\Users\georg\dealerflow\pages\appraisals\index.js-80-      const contentType = res.headers.get("content-type") || "";
+C:\Users\georg\dealerflow\pages\appraisals\index.js-81-      if (!contentType.includes("application/json")) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:82:        console.error("[Appraisals] Non-JSON response:", res.status);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:83:        toast.error(res.status === 401 || res.status === 403 ? "Session expired - please sign in" : "Failed to load appraisals");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:84:        setAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-85-        return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-86-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-87-      if (!res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:88:        const err = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:89:        toast.error(err.error || "Failed to load appraisals");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:90:        setAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-91-        return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-92-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js:93:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:94:      setAppraisals(Array.isArray(data) ? data : []);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-95-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:96:      console.error("[Appraisals] Fetch error:", error);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:97:      toast.error("Failed to load buying appraisals");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:98:      setAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-99-    }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-100-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-101-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:102:  const fetchPxAppraisals = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-103-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:104:      const res = await fetch(`/api/customer-px?decision=${filter}`);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-105-      // Check for JSON response
+C:\Users\georg\dealerflow\pages\appraisals\index.js-106-      const contentType = res.headers.get("content-type") || "";
+C:\Users\georg\dealerflow\pages\appraisals\index.js-107-      if (!contentType.includes("application/json")) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:108:        console.error("[PX Appraisals] Non-JSON response:", res.status);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:109:        setPxAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-110-        return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-111-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-112-      if (!res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:113:        setPxAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-114-        return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-115-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js:116:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:117:      setPxAppraisals(Array.isArray(data) ? data : []);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-118-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:119:      console.error("Failed to load PX appraisals", error);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:120:      setPxAppraisals([]);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-121-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-122-      setIsLoading(false);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-123-    }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-124-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-125-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-126-  const handleDelete = async (id, type = "buying") => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:127:    if (!confirm("Delete this appraisal?")) return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-128-    setOpenMenuId(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-129-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:130:      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:131:      await fetch(endpoint, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\index.js-132-      toast.success("Deleted");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:133:      if (type === "px") fetchPxAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:134:      else fetchAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-135-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:136:      toast.error("Failed to delete");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-137-    }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-138-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-139-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:140:  const handleConvertToStock = async (appraisal, type = "buying") => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:141:    if (!confirm(`Convert "${appraisal.vehicleReg}" to stock? All issues and documents will be transferred.`)) return;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-142-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:143:    setIsConverting(appraisal.id || appraisal._id);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-144-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-145-      const endpoint = type === "px"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:146:        ? `/api/customer-px/${appraisal.id || appraisal._id}/convert`
+C:\Users\georg\dealerflow\pages\appraisals\index.js:147:        : `/api/appraisals/${appraisal.id || appraisal._id}/convert`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-148-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:149:      const res = await fetch(endpoint, {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-150-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\index.js-151-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\index.js-152-        body: JSON.stringify({ initialStatus: "in_stock" }),
+C:\Users\georg\dealerflow\pages\appraisals\index.js-153-      });
+C:\Users\georg\dealerflow\pages\appraisals\index.js-154-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-155-      if (!res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:156:        const error = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:157:        throw new Error(error.error || "Failed to convert");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-158-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-159-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-160-      toast.success("Vehicle added to stock with all issues and documents!");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:161:      if (type === "px") fetchPxAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:162:      else fetchAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-163-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-164-      if (confirm("Vehicle created. View it on Stock & Prep board?")) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-165-        router.push("/sales-prep");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-166-      }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-167-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-168-      console.error("Convert error:", error);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:169:      toast.error(error.message || "Failed to convert to stock");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-170-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-171-      setIsConverting(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-172-    }
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-175-  const handleUpdateStatus = async (id, status, type = "buying") => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-176-    setOpenMenuId(null);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-177-    try {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:178:      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:179:      await fetch(endpoint, {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-180-        method: "PATCH",
+C:\Users\georg\dealerflow\pages\appraisals\index.js-181-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\index.js-182-        body: JSON.stringify({ decision: status, decidedAt: new Date() }),
+C:\Users\georg\dealerflow\pages\appraisals\index.js-183-      });
+C:\Users\georg\dealerflow\pages\appraisals\index.js-184-      toast.success(`Marked as ${STATUS_LABELS[status]}`);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:185:      if (type === "px") fetchPxAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:186:      else fetchAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-187-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:188:      toast.error("Failed to update status");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-189-    }
+C:\Users\georg\dealerflow\pages\appraisals\index.js-190-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-191-
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-195-    toast.success("Link copied to clipboard!");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-196-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-197-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:198:  // Combine and filter appraisals based on tab
+C:\Users\georg\dealerflow\pages\appraisals\index.js:199:  const getAllAppraisals = () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:200:    const buying = appraisals.map(a => ({ ...a, source: "buying" }));
+C:\Users\georg\dealerflow\pages\appraisals\index.js:201:    const px = pxAppraisals.map(a => ({ ...a, source: "px" }));
+C:\Users\georg\dealerflow\pages\appraisals\index.js-202-    return [...buying, ...px].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+C:\Users\georg\dealerflow\pages\appraisals\index.js-203-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-204-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:205:  const getCurrentAppraisals = () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-206-    let result;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:207:    if (activeTab === "all") result = getAllAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js:208:    else if (activeTab === "buying") result = appraisals.map(a => ({ ...a, source: "buying" }));
+C:\Users\georg\dealerflow\pages\appraisals\index.js:209:    else result = pxAppraisals.map(a => ({ ...a, source: "px" }));
+C:\Users\georg\dealerflow\pages\appraisals\index.js-210-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-211-    // Apply VRM search filter
+C:\Users\georg\dealerflow\pages\appraisals\index.js-212-    if (vrmSearch.trim()) {
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-218-    return result;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-219-  };
+C:\Users\georg\dealerflow\pages\appraisals\index.js-220-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:221:  const currentAppraisals = getCurrentAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-222-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-223-  // Get unique VRMs for suggestions
+C:\Users\georg\dealerflow\pages\appraisals\index.js-224-  const getVrmSuggestions = () => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-225-    if (!vrmSearch.trim()) return [];
+C:\Users\georg\dealerflow\pages\appraisals\index.js:226:    const allAppraisals = getAllAppraisals();
+C:\Users\georg\dealerflow\pages\appraisals\index.js-227-    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+C:\Users\georg\dealerflow\pages\appraisals\index.js:228:    const uniqueVrms = [...new Set(allAppraisals.map(a => a.vehicleReg).filter(Boolean))];
+C:\Users\georg\dealerflow\pages\appraisals\index.js-229-    return uniqueVrms
+C:\Users\georg\dealerflow\pages\appraisals\index.js-230-      .filter(vrm => vrm.toUpperCase().replace(/\s/g, "").includes(searchTerm))
+C:\Users\georg\dealerflow\pages\appraisals\index.js-231-      .slice(0, 5);
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-240-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-241-  return (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-242-    <DashboardLayout>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:243:      <Head><title>Appraisals | DealerFlow</title></Head>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-244-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-245-      {/* Header */}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-246-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-247-        <div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:248:          <h1 className="text-2xl font-bold text-slate-900">Appraisals</h1>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:249:          <p className="text-slate-500 mt-1">Manage vehicle appraisals and part-exchange valuations</p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-250-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-251-        <div className="flex items-center gap-3">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-252-          {/* Share Links Button */}
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-260-            Share Links
+C:\Users\georg\dealerflow\pages\appraisals\index.js-261-          </button>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-262-
+C:\Users\georg\dealerflow\pages\appraisals\index.js:263:          {/* New Appraisal Dropdown */}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-264-          <div className="relative" ref={newDropdownRef}>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-265-            <button
+C:\Users\georg\dealerflow\pages\appraisals\index.js-266-              onClick={() => setShowNewDropdown(!showNewDropdown)}
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-269-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-270-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-271-              </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:272:              New Appraisal
+C:\Users\georg\dealerflow\pages\appraisals\index.js-273-              <svg className={`w-4 h-4 transition-transform ${showNewDropdown ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-274-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-275-              </svg>
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-278-            {showNewDropdown && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-279-              <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-280-                <Link
+C:\Users\georg\dealerflow\pages\appraisals\index.js:281:                  href="/appraisals/new"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-282-                  className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-283-                  onClick={() => setShowNewDropdown(false)}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-284-                >
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-288-                    </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-289-                  </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-290-                  <div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:291:                    <p className="font-semibold text-slate-900">Dealer Appraisal</p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:292:                    <p className="text-xs text-slate-500">Staff fills out when appraising a vehicle</p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-293-                  </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-294-                </Link>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-295-                <button
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-328-          >
+C:\Users\georg\dealerflow\pages\appraisals\index.js-329-            <span className="flex items-center gap-2">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-330-              All
+C:\Users\georg\dealerflow\pages\appraisals\index.js:331:              {(appraisals.length + pxAppraisals.length) > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-332-                <span className={`px-2 py-0.5 text-xs rounded-full ${
+C:\Users\georg\dealerflow\pages\appraisals\index.js-333-                  activeTab === "all" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-334-                }`}>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:335:                  {appraisals.length + pxAppraisals.length}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-336-                </span>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-337-              )}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-338-            </span>
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-346-            onClick={() => setActiveTab("buying")}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-347-          >
+C:\Users\georg\dealerflow\pages\appraisals\index.js-348-            <span className="flex items-center gap-2">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:349:              Dealer Appraisals
+C:\Users\georg\dealerflow\pages\appraisals\index.js:350:              {appraisals.length > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-351-                <span className={`px-2 py-0.5 text-xs rounded-full ${
+C:\Users\georg\dealerflow\pages\appraisals\index.js-352-                  activeTab === "buying" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-353-                }`}>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:354:                  {appraisals.length}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-355-                </span>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-356-              )}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-357-            </span>
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-366-          >
+C:\Users\georg\dealerflow\pages\appraisals\index.js-367-            <span className="flex items-center gap-2">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-368-              Customer PX
+C:\Users\georg\dealerflow\pages\appraisals\index.js:369:              {pxAppraisals.length > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-370-                <span className={`px-2 py-0.5 text-xs rounded-full ${
+C:\Users\georg\dealerflow\pages\appraisals\index.js-371-                  activeTab === "px" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-372-                }`}>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:373:                  {pxAppraisals.length}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-374-                </span>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-375-              )}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-376-            </span>
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-454-        <div className="flex justify-center py-20">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-455-          <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-456-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:457:      ) : currentAppraisals.length === 0 ? (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-458-        <div className="bg-slate-50 rounded-2xl border border-slate-200">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-459-          <div className="text-center py-16 px-4">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-460-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-463-              </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-464-            </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-465-            <p className="text-lg font-medium text-slate-700 mb-1">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:466:              {activeTab === "buying" ? "No dealer appraisals found" : activeTab === "px" ? "No customer PX appraisals found" : "No appraisals found"}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-467-            </p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-468-            <p className="text-sm text-slate-500 mb-6">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-469-              {activeTab === "buying"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:470:                ? "Start by creating your first vehicle appraisal"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-471-                : activeTab === "px"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-472-                ? "Share the Customer PX link with your customers"
+C:\Users\georg\dealerflow\pages\appraisals\index.js:473:                : "Create a dealer appraisal or share the Customer PX link"}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-474-            </p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-475-            <div className="flex justify-center gap-3">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-476-              <Link
+C:\Users\georg\dealerflow\pages\appraisals\index.js:477:                href="/appraisals/new"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-478-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-medium shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 transition-all"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-479-              >
+C:\Users\georg\dealerflow\pages\appraisals\index.js-480-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\index.js-481-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-482-                </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:483:                New Appraisal
+C:\Users\georg\dealerflow\pages\appraisals\index.js-484-              </Link>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-485-              {activeTab !== "buying" && (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-486-                <button
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-498-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-499-      ) : (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-500-        <div className="space-y-3">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:501:          {currentAppraisals.map((a) => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js-502-            const id = a.id || a._id;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-503-            const isMenuOpen = openMenuId === id;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-504-            const type = a.source;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:505:            const viewUrl = type === "px" ? `/appraisals/px/${id}` : `/appraisals/${id}`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js-506-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-507-            return (
+C:\Users\georg\dealerflow\pages\appraisals\index.js-508-              <div
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-678-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-679-                </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-680-              </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:681:              <h2 className="text-xl font-bold text-slate-900">Share Appraisal Forms</h2>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-682-              <p className="text-sm text-slate-500 mt-1">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:683:                Share these links to receive vehicle appraisals
+C:\Users\georg\dealerflow\pages\appraisals\index.js-684-              </p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-685-            </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-686-
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-736-                  </svg>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-737-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-738-                <div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js:739:                  <h3 className="font-semibold text-slate-900">Dealer Buying Appraisal</h3>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-740-                  <p className="text-xs text-slate-500">For trade/wholesale vehicle offers</p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-741-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-742-              </div>
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-744-                <input
+C:\Users\georg\dealerflow\pages\appraisals\index.js-745-                  type="text"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-746-                  readOnly
+C:\Users\georg\dealerflow\pages\appraisals\index.js:747:                  value={`${typeof window !== "undefined" ? window.location.origin : ""}/appraisal/${dealerSlug}`}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-748-                  className="flex-1 bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-700"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-749-                />
+C:\Users\georg\dealerflow\pages\appraisals\index.js-750-                <button
+C:\Users\georg\dealerflow\pages\appraisals\index.js-751-                  onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:752:                    navigator.clipboard.writeText(`${window.location.origin}/appraisal/${dealerSlug}`);
+C:\Users\georg\dealerflow\pages\appraisals\index.js-753-                    toast.success("Dealer Buying link copied!");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-754-                  }}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-755-                  className="px-3 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-758-                </button>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-759-                <button
+C:\Users\georg\dealerflow\pages\appraisals\index.js-760-                  onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:761:                    const link = `${window.location.origin}/appraisal/${dealerSlug}`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:762:                    window.open(`https://wa.me/?text=Submit a vehicle appraisal: ${encodeURIComponent(link)}`, "_blank");
+C:\Users\georg\dealerflow\pages\appraisals\index.js-763-                  }}
+C:\Users\georg\dealerflow\pages\appraisals\index.js-764-                  className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\index.js-765-                >
+--
+C:\Users\georg\dealerflow\pages\appraisals\index.js-771-            </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-772-
+C:\Users\georg\dealerflow\pages\appraisals\index.js-773-            <p className="text-xs text-slate-500 text-center">
+C:\Users\georg\dealerflow\pages\appraisals\index.js:774:              Share these links via email, WhatsApp, or embed them on your website
+C:\Users\georg\dealerflow\pages\appraisals\index.js-775-            </p>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-776-          </div>
+C:\Users\georg\dealerflow\pages\appraisals\index.js-777-        </div>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-9-import { Badge } from "@/components/ui/Badge";
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-10-import { PhotoGallery } from "@/components/ui/PhotoGallery";
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-11-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:12:// Categories must match AppraisalIssue model schema (lowercase)
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-13-const ISSUE_CATEGORIES = ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"];
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-14-const ISSUE_SUBCATEGORIES = {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-15-  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-17-  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-18-  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-19-  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:20:  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-21-  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:22:  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-23-  other: ["General", "Misc"],
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-24-};
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-25-const CATEGORY_LABELS = {
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-34-  other: "Other",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-35-};
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-36-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:37:export default function AppraisalDetail() {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-38-  const router = useRouter();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-39-  const { id } = router.query;
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:40:  const [appraisal, setAppraisal] = useState(null);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-41-  const [issues, setIssues] = useState([]);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-42-  const [isLoading, setIsLoading] = useState(true);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-43-  const [isConverting, setIsConverting] = useState(false);
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-62-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-63-  useEffect(() => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-64-    if (id) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:65:      fetchAppraisal();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-66-      fetchIssues();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-67-    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-68-  }, [id]);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-69-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:70:  const fetchAppraisal = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-71-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:72:      const res = await fetch(`/api/appraisals/${id}`);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:73:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:74:      setAppraisal(data);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-75-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:76:      toast.error("Failed to load");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-77-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-78-      setIsLoading(false);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-79-    }
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-81-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-82-  const fetchIssues = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-83-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:84:      const res = await fetch(`/api/appraisals/issues?appraisalId=${id}`);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:85:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-86-      setIssues(Array.isArray(data) ? data : []);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-87-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:88:      console.error("Failed to load issues:", error);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-89-      setIssues([]);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-90-    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-91-  };
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-92-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-93-  const handleDecision = async (decision) => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-94-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:95:      await fetch(`/api/appraisals/${id}`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-96-        method: "PUT",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-97-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-98-        body: JSON.stringify({ decision }),
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-99-      });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-100-      toast.success(`Marked as ${decision}`);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:101:      fetchAppraisal();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-102-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:103:      toast.error("Failed to update");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-104-    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-105-  };
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-106-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-107-  const handleConvert = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-108-    setIsConverting(true);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-109-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:110:      const res = await fetch(`/api/appraisals/${id}/convert`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-111-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-112-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-113-        body: JSON.stringify({ initialStatus: "in_stock" }),
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-114-      });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:115:      if (!res.ok) throw new Error("Failed to convert");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-116-      toast.success("Vehicle created!");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-117-      router.push("/sales-prep");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-118-    } catch (error) {
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-146-      const formData = new FormData();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-147-      formData.append("file", file);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-148-      try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:149:        const res = await fetch("/api/vehicles/upload", {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-150-          method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-151-          body: formData,
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-152-        });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-153-        if (res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:154:          const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:155:          // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-156-          uploadedUrls.push(data.key || data.url);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-157-        }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-158-      } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:159:        console.error("Photo upload failed:", error);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-160-      }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-161-    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-162-    return uploadedUrls;
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-174-      let photoUrls = [];
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-175-      if (photoFiles.length > 0) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-176-        setIsUploadingPhotos(true);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:177:        photoUrls = await uploadPhotos();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-178-        setIsUploadingPhotos(false);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-179-      }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-180-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:181:      const res = await fetch("/api/appraisals/issues", {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-182-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-183-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-184-        body: JSON.stringify({
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:185:          appraisalId: id,
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-186-          ...issueForm,
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-187-          estimatedCost: issueForm.estimatedCost ? parseFloat(issueForm.estimatedCost) : undefined,
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-188-          photos: photoUrls,
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-189-        }),
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-190-      });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-191-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:192:      if (!res.ok) throw new Error("Failed to add issue");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-193-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-194-      toast.success("Issue added");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-195-      setShowIssueModal(false);
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-215-    if (!confirm("Delete this issue?")) return;
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-216-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-217-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:218:      await fetch(`/api/appraisals/issues/${issueId}`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-219-      toast.success("Issue deleted");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-220-      fetchIssues();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-221-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:222:      toast.error("Failed to delete");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-223-    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-224-  };
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-225-
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-228-  const handleGenerateShareLink = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-229-    setIsGeneratingShare(true);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-230-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:231:      const res = await fetch(`/api/appraisals/${id}/share`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-232-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-233-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-234-        body: JSON.stringify({ expiresInDays: 60 }),
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-235-      });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:236:      if (!res.ok) throw new Error("Failed to generate share link");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:237:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-238-      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-239-      setShareLink({
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-240-        url: fullUrl,
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-248-  };
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-249-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-250-  const handleRevokeShareLink = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:251:    if (!confirm("Revoke this share link? Anyone with the link will no longer be able to view this appraisal.")) return;
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-252-    try {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:253:      const res = await fetch(`/api/appraisals/${id}/share`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:254:      if (!res.ok) throw new Error("Failed to revoke");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-255-      setShareLink(null);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-256-      toast.success("Share link revoked");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-257-    } catch (error) {
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-271-<!DOCTYPE html>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-272-<html>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-273-<head>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:274:  <title>Appraisal - ${appraisal.vehicleReg}</title>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-275-  <style>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-276-    * { margin: 0; padding: 0; box-sizing: border-box; }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-277-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-302-</head>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-303-<body>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-304-  <div class="header">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:305:    <p class="reg">${appraisal.vehicleReg}</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:306:    <p class="subtitle">${appraisal.vehicleMake || ""} ${appraisal.vehicleModel || ""} ${appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:307:    <span class="badge ${appraisal.decision === "converted" ? "badge-success" : appraisal.decision === "declined" ? "badge-error" : "badge-warning"}" style="margin-top: 12px;">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:308:      ${appraisal.decision === "pending" ? "New" : appraisal.decision === "reviewed" ? "Reviewed" : appraisal.decision === "converted" ? "Converted" : appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-309-    </span>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-310-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-311-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-312-  <div class="section">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:313:    <h2 class="section-title">Vehicle Details</h2>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-314-    <div class="grid">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:315:      <div class="field"><div class="field-label">Make</div><div class="field-value">${appraisal.vehicleMake || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:316:      <div class="field"><div class="field-label">Model</div><div class="field-value">${appraisal.vehicleModel || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:317:      <div class="field"><div class="field-label">Year</div><div class="field-value">${appraisal.vehicleYear || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:318:      <div class="field"><div class="field-label">Mileage</div><div class="field-value">${appraisal.mileage ? appraisal.mileage.toLocaleString() : "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:319:      <div class="field"><div class="field-label">Colour</div><div class="field-value">${appraisal.colour || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:320:      <div class="field"><div class="field-label">Fuel Type</div><div class="field-value">${appraisal.fuelType || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:321:      <div class="field"><div class="field-label">Proposed Price</div><div class="field-value" style="font-weight: bold; font-size: 18px;">${appraisal.proposedPurchasePrice ? "£" + appraisal.proposedPurchasePrice.toLocaleString() : "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-322-    </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-323-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-324-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:325:  ${appraisal.conditionNotes ? `
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-326-  <div class="section">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-327-    <h2 class="section-title">Condition Notes</h2>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:328:    <div class="notes">${appraisal.conditionNotes}</div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-329-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-330-  ` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-331-
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-343-        ${issue.estimatedCost ? `<p class="issue-cost">Est. cost: £${issue.estimatedCost.toLocaleString()}</p>` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-344-      </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-345-    `).join("")}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:346:    ${totalEstimatedCost > 0 ? `<div class="total-cost">Total Estimated Repairs: £${totalEstimatedCost.toLocaleString()}</div>` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-347-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-348-  ` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-349-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:350:  ${appraisal.contactId ? `
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-351-  <div class="section">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-352-    <h2 class="section-title">Seller Information</h2>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-353-    <div class="grid">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:354:      <div class="field"><div class="field-label">Name</div><div class="field-value">${appraisal.contactId.name || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:355:      <div class="field"><div class="field-label">Phone</div><div class="field-value">${appraisal.contactId.phone || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:356:      <div class="field"><div class="field-label">Email</div><div class="field-value">${appraisal.contactId.email || "—"}</div></div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-357-    </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-358-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-359-  ` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-360-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-361-  <div class="footer">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:362:    <p>Appraisal created: ${new Date(appraisal.createdAt).toLocaleDateString()} ${new Date(appraisal.createdAt).toLocaleTimeString()}</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-363-    <p style="margin-top: 4px;">Printed from DealerFlow</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-364-  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-365-</body>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-383-    );
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-384-  }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-385-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:386:  if (!appraisal) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-387-    return (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-388-      <DashboardLayout>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:389:        <div className="alert alert-error">Appraisal not found</div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-390-      </DashboardLayout>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-391-    );
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-392-  }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-393-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-394-  return (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-395-    <DashboardLayout>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:396:      <Head><title>Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-397-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-398-      <div className="mb-8">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-399-        <div className="flex items-center gap-2 mb-4">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:400:          <Link href="/appraisals" className="btn btn-ghost btn-sm">← Back</Link>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-401-          <button className="btn btn-ghost btn-sm" onClick={handlePrint}>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-402-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-403-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-413-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-414-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-415-          <div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:416:            <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-417-            <p className="text-base-content/60 mt-2">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:418:              {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-419-            </p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-420-          </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-421-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:422:            appraisal.decision === "converted" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:423:            appraisal.decision === "declined" ? "bg-red-50 text-red-700 border-red-200" :
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:424:            appraisal.decision === "reviewed" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-700 border-amber-200"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-425-          }`}>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:426:            {appraisal.decision === "pending" ? "New" :
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:427:             appraisal.decision === "reviewed" ? "Reviewed" :
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:428:             appraisal.decision === "converted" ? "Converted" :
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:429:             appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-430-          </span>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-431-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-432-      </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-433-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-434-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-435-        <div className="lg:col-span-2 space-y-6">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:436:          {/* Vehicle Details */}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-437-          <Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:438:            <CardHeader title="Vehicle Details" icon="🚗" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-439-            <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-440-              <KeyValueGrid cols={2}>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:441:                <KeyValue label="Make" value={appraisal.vehicleMake} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:442:                <KeyValue label="Model" value={appraisal.vehicleModel} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:443:                <KeyValue label="Year" value={appraisal.vehicleYear} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:444:                <KeyValue label="Mileage" value={appraisal.mileage?.toLocaleString()} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-445-              </KeyValueGrid>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-446-              <div className="mt-4 pt-4 border-t border-slate-100">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:447:                <KeyValue label="Proposed Price" value={appraisal.proposedPurchasePrice ? `£${appraisal.proposedPurchasePrice.toLocaleString()}` : null} size="lg" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-448-              </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-449-            </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-450-          </Card>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-453-          <Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-454-            <CardHeader title="Condition Notes" icon="📝" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-455-            <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:456:              <p className="whitespace-pre-wrap text-slate-700">{appraisal.conditionNotes || "No notes recorded"}</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-457-            </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-458-          </Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-459-
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-462-            <CardHeader
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-463-              title="Issues & Damage"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-464-              icon="⚠️"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:465:              subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-466-              action={
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-467-                <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-468-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-523-                      )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-524-                      {issue.photos && issue.photos.length > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-525-                        <div className="mt-3 pt-3 border-t border-slate-200">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:526:                          <PhotoGallery photos={issue.photos} thumbnailSize="sm" showCount={false} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-527-                        </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-528-                      )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-529-                    </div>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-534-          </Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-535-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-536-          {/* Legacy Damage Photos - show if existing */}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:537:          {appraisal.damagePhotos && appraisal.damagePhotos.length > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-538-            <Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-539-              <CardHeader title="Legacy Damage Photos" icon="📷" subtitle="Consider creating issues for these photos" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-540-              <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:541:                <PhotoGallery photos={appraisal.damagePhotos} thumbnailSize="lg" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-542-              </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-543-            </Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-544-          )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-545-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-546-          {/* Fault Code Photos - show if existing */}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:547:          {appraisal.faultCodePhotos && appraisal.faultCodePhotos.length > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-548-            <Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-549-              <CardHeader title="Fault Code Photos" icon="🔧" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-550-              <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:551:                <PhotoGallery photos={appraisal.faultCodePhotos} thumbnailSize="lg" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-552-              </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-553-            </Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-554-          )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-555-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:556:          {/* AI Hints */}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:557:          {appraisal.aiHintText && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-558-            <Card variant="accent">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:559:              <CardHeader title="AI Suggestions" icon="🤖" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-560-              <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:561:                <p className="whitespace-pre-wrap text-sm text-slate-700">{appraisal.aiHintText}</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-562-              </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-563-            </Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-564-          )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-565-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-566-          {/* Seller Info */}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:567:          {appraisal.contactId && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-568-            <Card>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-569-              <CardHeader title="Seller Information" icon="👤" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-570-              <CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-571-                <KeyValueGrid cols={3}>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:572:                  <KeyValue label="Name" value={appraisal.contactId?.name} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:573:                  <KeyValue label="Phone" value={appraisal.contactId?.phone} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:574:                  <KeyValue label="Email" value={appraisal.contactId?.email} />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-575-                </KeyValueGrid>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-576-              </CardContent>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-577-            </Card>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-583-          <Card className="sticky top-20">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-584-            <CardHeader title="Actions" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-585-            <CardContent className="space-y-4">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:586:              {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-587-                <div className="space-y-3">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-588-                  <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-589-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-618-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-619-              )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-620-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:621:              {appraisal.decision === "converted" || appraisal.vehicleId ? (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-622-                <div className="space-y-3">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-623-                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 text-center">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-624-                    Vehicle added to stock
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-632-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-633-              ) : null}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-634-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:635:              {appraisal.decision === "declined" && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-636-                <div className="space-y-3">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-637-                  <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-600 text-center">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:638:                    This appraisal was declined
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-639-                  </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-640-                  <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-641-                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-652-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Issues Summary</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-653-                  <p className="text-sm text-slate-700">{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-654-                  {totalEstimatedCost > 0 && (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:655:                    <p className="text-sm font-semibold text-red-600">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-656-                  )}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-657-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-658-              )}
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-661-                <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-662-                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-663-                  onClick={async () => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:664:                    if (confirm("Delete this appraisal?")) {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:665:                      await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:666:                      router.push("/appraisals");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-667-                    }
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-668-                  }}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-669-                >
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:670:                  Delete Appraisal
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-671-                </button>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-672-              </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-673-            </CardContent>
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-732-                <input
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-733-                  type="text"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-734-                  className="input input-bordered"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:735:                  placeholder="e.g., Replace bumper, repaint"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-736-                  value={issueForm.actionNeeded}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-737-                  onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-738-                />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-739-              </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-740-
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-741-              <div className="form-control">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:742:                <label className="label"><span className="label-text">Estimated Repair Cost (£)</span></label>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-743-                <input
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-744-                  type="number"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-745-                  className="input input-bordered"
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-825-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-826-                </svg>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-827-              </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:828:              <h3 className="font-bold text-lg">Share Appraisal</h3>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-829-              <p className="text-sm text-base-content/60 mt-1">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:830:                Share a read-only view of this appraisal
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-831-              </p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-832-            </div>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-833-
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-857-                <div className="grid grid-cols-2 gap-2">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-858-                  <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-859-                    onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:860:                      window.open(`mailto:?subject=Vehicle Appraisal - ${appraisal.vehicleReg}&body=View the appraisal here: ${shareLink.url}`, "_blank");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-861-                    }}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-862-                    className="btn btn-ghost btn-sm"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-863-                  >
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-864-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-865-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-866-                    </svg>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:867:                    Email
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-868-                  </button>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-869-                  <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-870-                    onClick={() => {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:871:                      window.open(`https://wa.me/?text=View this vehicle appraisal: ${encodeURIComponent(shareLink.url)}`, "_blank");
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-872-                    }}
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-873-                    className="btn btn-ghost btn-sm"
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-874-                  >
+--
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-889-            ) : (
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-890-              <div className="space-y-4">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-891-                <p className="text-sm text-center text-base-content/60">
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:892:                  Generate a secure link that allows anyone to view this appraisal (read-only). The link will expire after 60 days.
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-893-                </p>
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-894-                <button
+C:\Users\georg\dealerflow\pages\appraisals\[id].js-895-                  className="btn btn-primary w-full"
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-13-  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js-14-  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js-15-  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js:16:  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js-17-  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js:18:  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js-19-  other: ["General", "Misc"],
+C:\Users\georg\dealerflow\pages\appraisals\new.js-20-};
+C:\Users\georg\dealerflow\pages\appraisals\new.js-21-
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-31-  other: "Other",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-32-};
+C:\Users\georg\dealerflow\pages\appraisals\new.js-33-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:34:export default function NewAppraisal() {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-35-  const router = useRouter();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-36-  const [isLoading, setIsLoading] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-37-  const [isLookingUp, setIsLookingUp] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-38-  const [dvlaData, setDvlaData] = useState(null);
+C:\Users\georg\dealerflow\pages\appraisals\new.js:39:  const [aiHints, setAiHints] = useState(null);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-40-  const [isLoadingHints, setIsLoadingHints] = useState(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-41-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-42-  // Form data
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-50-    fuelType: "",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-51-    conditionNotes: "",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-52-    proposedPurchasePrice: "",
+C:\Users\georg\dealerflow\pages\appraisals\new.js:53:    aiHintText: "",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-54-    prepTemplateId: "default",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-55-  });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-56-
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-82-  const handleDvlaLookup = async () => {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-83-    if (!formData.vehicleReg) return toast.error("Enter registration first");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-84-    setIsLookingUp(true);
+C:\Users\georg\dealerflow\pages\appraisals\new.js:85:    setAiHints(null);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-86-    setDvlaData(null);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-87-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-88-    try {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:89:      const res = await fetch("/api/dvla-lookup", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-90-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-91-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\new.js-92-        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
+C:\Users\georg\dealerflow\pages\appraisals\new.js-93-      });
+C:\Users\georg\dealerflow\pages\appraisals\new.js:94:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-95-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-96-      // Handle error responses
+C:\Users\georg\dealerflow\pages\appraisals\new.js-97-      if (!res.ok) {
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-104-            toast.error("Invalid registration format");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-105-            break;
+C:\Users\georg\dealerflow\pages\appraisals\new.js-106-          case "NOT_CONFIGURED":
+C:\Users\georg\dealerflow\pages\appraisals\new.js:107:          case "AUTH_FAILED":
+C:\Users\georg\dealerflow\pages\appraisals\new.js-108-          case "ACCESS_DENIED":
+C:\Users\georg\dealerflow\pages\appraisals\new.js-109-            toast.error("DVLA integration not configured");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-110-            break;
+C:\Users\georg\dealerflow\pages\appraisals\new.js-111-          case "NETWORK_ERROR":
+C:\Users\georg\dealerflow\pages\appraisals\new.js-112-          case "SERVICE_ERROR":
+C:\Users\georg\dealerflow\pages\appraisals\new.js:113:            toast.error("DVLA service unavailable, try again later");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-114-            break;
+C:\Users\georg\dealerflow\pages\appraisals\new.js-115-          default:
+C:\Users\georg\dealerflow\pages\appraisals\new.js:116:            toast.error(data.message || "Lookup failed");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-117-        }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-118-        return;
+C:\Users\georg\dealerflow\pages\appraisals\new.js-119-      }
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-130-        fuelType: data.fuelType || prev.fuelType,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-131-      }));
+C:\Users\georg\dealerflow\pages\appraisals\new.js-132-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:133:      // Fetch AI hints
+C:\Users\georg\dealerflow\pages\appraisals\new.js:134:      fetchAiHints(data.make, data.model, data.yearOfManufacture);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-135-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:136:      toast.error("DVLA service unavailable, try again later");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-137-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-138-      setIsLookingUp(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-139-    }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-140-  };
+C:\Users\georg\dealerflow\pages\appraisals\new.js-141-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:142:  const fetchAiHints = async (make, model, year) => {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-143-    setIsLoadingHints(true);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-144-    try {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:145:      const res = await fetch("/api/ai-hints", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-146-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-147-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\new.js-148-        body: JSON.stringify({ make, model, year, mileage: formData.mileage }),
+C:\Users\georg\dealerflow\pages\appraisals\new.js-149-      });
+C:\Users\georg\dealerflow\pages\appraisals\new.js:150:      const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js:151:      setAiHints(data);
+C:\Users\georg\dealerflow\pages\appraisals\new.js:152:      if (data.isDummy) showDummyNotification("AI Hints");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-153-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:154:      console.error("AI hints error:", error);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-155-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-156-      setIsLoadingHints(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-157-    }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-158-  };
+C:\Users\georg\dealerflow\pages\appraisals\new.js-159-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-160-  const addHintsToNotes = () => {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:161:    if (!aiHints?.hints || !Array.isArray(aiHints.hints)) return;
+C:\Users\georg\dealerflow\pages\appraisals\new.js:162:    const hintsText = aiHints.hints.map((h) => `• ${h}`).join("\n");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-163-    setFormData((prev) => ({
+C:\Users\georg\dealerflow\pages\appraisals\new.js-164-      ...prev,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-165-      conditionNotes: prev.conditionNotes
+C:\Users\georg\dealerflow\pages\appraisals\new.js:166:        ? `${prev.conditionNotes}\n\n--- AI Suggestions ---\n${hintsText}`
+C:\Users\georg\dealerflow\pages\appraisals\new.js:167:        : `--- AI Suggestions ---\n${hintsText}`,
+C:\Users\georg\dealerflow\pages\appraisals\new.js:168:      aiHintText: hintsText,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-169-    }));
+C:\Users\georg\dealerflow\pages\appraisals\new.js-170-    toast.success("Added to notes");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-171-  };
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-175-    formDataUpload.append("file", file);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-176-    formDataUpload.append("type", type);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-177-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:178:    const res = await fetch("/api/vehicles/upload", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-179-      method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-180-      body: formDataUpload,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-181-    });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-182-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:183:    if (!res.ok) throw new Error("Upload failed");
+C:\Users\georg\dealerflow\pages\appraisals\new.js:184:    const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js:185:    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+C:\Users\georg\dealerflow\pages\appraisals\new.js-186-    return data.key || data.url;
+C:\Users\georg\dealerflow\pages\appraisals\new.js-187-  };
+C:\Users\georg\dealerflow\pages\appraisals\new.js-188-
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-200-      const uploadedOtherDocs = [];
+C:\Users\georg\dealerflow\pages\appraisals\new.js-201-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-202-      if (v5File) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:203:        v5Url = await uploadFile(v5File, "v5");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-204-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-205-      if (serviceHistoryFile) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:206:        serviceHistoryUrl = await uploadFile(serviceHistoryFile, "service_history");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-207-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-208-      for (const doc of otherDocuments) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-209-        if (doc.file) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:210:          const url = await uploadFile(doc.file, "other");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-211-          uploadedOtherDocs.push({ name: doc.name, url });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-212-        }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-213-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-214-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:215:      // Create appraisal
+C:\Users\georg\dealerflow\pages\appraisals\new.js:216:      const appraisalData = {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-217-        ...formData,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-218-        v5Url,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-219-        serviceHistoryUrl,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-220-        otherDocuments: uploadedOtherDocs,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-221-      };
+C:\Users\georg\dealerflow\pages\appraisals\new.js-222-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:223:      const res = await fetch("/api/appraisals", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-224-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-225-        headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\new.js:226:        body: JSON.stringify(appraisalData),
+C:\Users\georg\dealerflow\pages\appraisals\new.js-227-      });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-228-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-229-      if (!res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:230:        const errorData = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js:231:        throw new Error(errorData.error || "Failed to create");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-232-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-233-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:234:      const appraisal = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-235-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-236-      // Create issues if any
+C:\Users\georg\dealerflow\pages\appraisals\new.js-237-      for (const issue of issues) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:238:        await fetch("/api/appraisals/issues", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-239-          method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-240-          headers: { "Content-Type": "application/json" },
+C:\Users\georg\dealerflow\pages\appraisals\new.js-241-          body: JSON.stringify({
+C:\Users\georg\dealerflow\pages\appraisals\new.js:242:            appraisalId: appraisal.id,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-243-            ...issue,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-244-          }),
+C:\Users\georg\dealerflow\pages\appraisals\new.js-245-        });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-246-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-247-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:248:      toast.success("Appraisal created!");
+C:\Users\georg\dealerflow\pages\appraisals\new.js:249:      router.push("/appraisals");
+C:\Users\georg\dealerflow\pages\appraisals\new.js-250-    } catch (error) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-251-      toast.error(error.message);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-252-    } finally {
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-257-  return (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-258-    <DashboardLayout>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-259-      <Head>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:260:        <title>New Appraisal | DealerFlow</title>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-261-      </Head>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-262-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-263-      <div className="mb-8">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:264:        <Link href="/appraisals" className="btn btn-ghost btn-sm mb-4">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-265-          ← Back
+C:\Users\georg\dealerflow\pages\appraisals\new.js-266-        </Link>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:267:        <h1 className="text-3xl font-bold">New Buying Appraisal</h1>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-268-        <p className="text-base-content/60 mt-2">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:269:          Capture vehicle details for purchase assessment
+C:\Users\georg\dealerflow\pages\appraisals\new.js-270-        </p>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-271-      </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-272-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-273-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:274:        {/* Main Form - Left Side */}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-275-        <div className="lg:col-span-2">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-276-          <form onSubmit={handleSubmit} className="space-y-6">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-277-            {/* Vehicle Registration Lookup */}
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-320-            {/* Vehicle Information */}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-321-            <div className="card bg-base-200">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-322-              <div className="card-body">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:323:                <h2 className="card-title">Vehicle Details</h2>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-324-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-325-                  <div className="form-control">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-326-                    <label className="label">
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-525-                  </button>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-526-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-527-                <p className="text-sm text-base-content/60">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:528:                  Add any damage, mechanical issues, or fault codes found during appraisal
+C:\Users\georg\dealerflow\pages\appraisals\new.js-529-                </p>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-530-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-531-                {issues.length > 0 ? (
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-654-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-655-            {/* Submit */}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-656-            <div className="flex gap-4">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:657:              <Link href="/appraisals" className="btn btn-ghost">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-658-                Cancel
+C:\Users\georg\dealerflow\pages\appraisals\new.js-659-              </Link>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-660-              <button
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-667-                    <span className="loading loading-spinner"></span> Saving...
+C:\Users\georg\dealerflow\pages\appraisals\new.js-668-                  </>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-669-                ) : (
+C:\Users\georg\dealerflow\pages\appraisals\new.js:670:                  "Save Appraisal"
+C:\Users\georg\dealerflow\pages\appraisals\new.js-671-                )}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-672-              </button>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-673-            </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-674-          </form>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-675-        </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-676-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:677:        {/* AI Hints Sidebar - Right Side */}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-678-        <div className="lg:col-span-1">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-679-          <div className="card bg-base-200 sticky top-20">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-680-            <div className="card-body">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:681:              <h3 className="card-title text-lg">🤖 AI Suggestions</h3>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-682-              <p className="text-xs text-base-content/60 mb-4">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-683-                Things to check for this vehicle
+C:\Users\georg\dealerflow\pages\appraisals\new.js-684-              </p>
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-687-                <div className="flex justify-center py-8">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-688-                  <span className="loading loading-spinner"></span>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-689-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js:690:              ) : aiHints ? (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-691-                <div className="space-y-4">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:692:                  {aiHints.isDummy && (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-693-                    <div className="alert alert-warning text-xs">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:694:                      ⚠️ Demo mode – AI not configured
+C:\Users\georg\dealerflow\pages\appraisals\new.js-695-                    </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-696-                  )}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-697-
+C:\Users\georg\dealerflow\pages\appraisals\new.js-698-                  <ul className="list-disc list-inside text-sm space-y-2">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:699:                    {Array.isArray(aiHints.hints) && aiHints.hints.map((hint, i) => (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-700-                      <li key={i} className="text-base-content/80">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-701-                        {hint}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-702-                      </li>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-703-                    ))}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-704-                  </ul>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-705-
+C:\Users\georg\dealerflow\pages\appraisals\new.js:706:                  {aiHints.marketInsight && (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-707-                    <div className="mt-4 p-3 bg-base-100 rounded-lg">
+C:\Users\georg\dealerflow\pages\appraisals\new.js-708-                      <p className="text-xs font-semibold mb-1">Market Insight</p>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-709-                      <p className="text-sm text-base-content/70">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:710:                        {aiHints.marketInsight}
+C:\Users\georg\dealerflow\pages\appraisals\new.js-711-                      </p>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-712-                    </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-713-                  )}
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-726-                </div>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-727-              ) : (
+C:\Users\georg\dealerflow\pages\appraisals\new.js-728-                <p className="text-sm text-base-content/60">
+C:\Users\georg\dealerflow\pages\appraisals\new.js:729:                  Enter registration and click "Lookup" to see AI-powered
+C:\Users\georg\dealerflow\pages\appraisals\new.js-730-                  suggestions.
+C:\Users\georg\dealerflow\pages\appraisals\new.js-731-                </p>
+C:\Users\georg\dealerflow\pages\appraisals\new.js-732-              )}
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-821-    for (const file of photoFiles) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-822-      const formData = new FormData();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-823-      formData.append("file", file);
+C:\Users\georg\dealerflow\pages\appraisals\new.js:824:      const res = await fetch("/api/vehicles/upload", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-825-        method: "POST",
+C:\Users\georg\dealerflow\pages\appraisals\new.js-826-        body: formData,
+C:\Users\georg\dealerflow\pages\appraisals\new.js-827-      });
+C:\Users\georg\dealerflow\pages\appraisals\new.js-828-      if (res.ok) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:829:        const data = await res.json();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-830-        uploadedUrls.push(data.url);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-831-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-832-    }
+--
+C:\Users\georg\dealerflow\pages\appraisals\new.js-841-      let photoUrls = [];
+C:\Users\georg\dealerflow\pages\appraisals\new.js-842-      if (photoFiles.length > 0) {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-843-        setIsUploadingPhotos(true);
+C:\Users\georg\dealerflow\pages\appraisals\new.js:844:        photoUrls = await uploadPhotos();
+C:\Users\georg\dealerflow\pages\appraisals\new.js-845-        setIsUploadingPhotos(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-846-      }
+C:\Users\georg\dealerflow\pages\appraisals\new.js-847-      // Pass photo URLs to onSubmit
+C:\Users\georg\dealerflow\pages\appraisals\new.js:848:      await onSubmit(photoUrls);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-849-    } finally {
+C:\Users\georg\dealerflow\pages\appraisals\new.js-850-      setIsLoading(false);
+C:\Users\georg\dealerflow\pages\appraisals\new.js-851-    }

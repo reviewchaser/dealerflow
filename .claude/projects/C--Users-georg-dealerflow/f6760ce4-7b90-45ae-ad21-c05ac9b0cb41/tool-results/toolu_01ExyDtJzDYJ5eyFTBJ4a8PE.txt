@@ -1,0 +1,313 @@
+     1→/**
+     2→ * File Upload API Route
+     3→ *
+     4→ * Supports:
+     5→ * - AWS S3 (private bucket with signed URLs) when configured
+     6→ * - Local filesystem in development (public/uploads)
+     7→ *
+     8→ * Validates:
+     9→ * - File type (images only: png, jpeg, webp, gif)
+    10→ * - File size (max 5MB)
+    11→ *
+    12→ * Note: This is a general upload endpoint. For dealer logo uploads
+    13→ * that require tenant scoping, use /api/dealer/logo instead.
+    14→ */
+    15→
+    16→import formidable from "formidable";
+    17→import fs from "fs";
+    18→import path from "path";
+    19→import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+    20→import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+    21→
+    22→// Disable body parsing so Next.js doesn't consume the request body
+    23→export const config = {
+    24→  api: {
+    25→    bodyParser: false,
+    26→  },
+    27→};
+    28→
+    29→// Allowed MIME types (images + documents + videos)
+    30→const ALLOWED_TYPES = [
+    31→  // Images
+    32→  "image/png",
+    33→  "image/jpeg",
+    34→  "image/jpg",
+    35→  "image/webp",
+    36→  "image/gif",
+    37→  // Documents
+    38→  "application/pdf",
+    39→  "application/msword",
+    40→  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    41→  // Videos
+    42→  "video/mp4",
+    43→  "video/quicktime",
+    44→  "video/webm",
+    45→];
+    46→
+    47→// Max file size: 5MB
+    48→const MAX_FILE_SIZE = 5 * 1024 * 1024;
+    49→
+    50→/**
+    51→ * Check if S3 is configured
+    52→ */
+    53→function isS3Configured() {
+    54→  return !!(
+    55→    process.env.S3_ACCESS_KEY &&
+    56→    process.env.S3_SECRET_KEY &&
+    57→    process.env.S3_BUCKET
+    58→  );
+    59→}
+    60→
+    61→/**
+    62→ * Get S3 client
+    63→ */
+    64→function getS3Client() {
+    65→  return new S3Client({
+    66→    region: process.env.S3_REGION || "eu-west-2",
+    67→    credentials: {
+    68→      accessKeyId: process.env.S3_ACCESS_KEY,
+    69→      secretAccessKey: process.env.S3_SECRET_KEY,
+    70→    },
+    71→  });
+    72→}
+    73→
+    74→/**
+    75→ * Upload file to S3 (private bucket)
+    76→ * Returns the S3 key (not a public URL)
+    77→ */
+    78→async function uploadToS3(buffer, filename, contentType) {
+    79→  const s3 = getS3Client();
+    80→  const bucket = process.env.S3_BUCKET;
+    81→  const key = `uploads/${filename}`;
+    82→
+    83→  await s3.send(
+    84→    new PutObjectCommand({
+    85→      Bucket: bucket,
+    86→      Key: key,
+    87→      Body: buffer,
+    88→      ContentType: contentType,
+    89→      // No ACL - bucket is private by default
+    90→    })
+    91→  );
+    92→
+    93→  return key;
+    94→}
+    95→
+    96→/**
+    97→ * Generate signed URL for private S3 object
+    98→ * @param {string} key - S3 object key
+    99→ * @param {number} expiresIn - URL expiration in seconds (default 1 hour)
+   100→ * @returns {Promise<string>} Signed URL
+   101→ */
+   102→export async function getS3SignedUrl(key, expiresIn = 3600) {
+   103→  if (!isS3Configured()) {
+   104→    throw new Error("S3 not configured");
+   105→  }
+   106→
+   107→  const s3 = getS3Client();
+   108→  const command = new GetObjectCommand({
+   109→    Bucket: process.env.S3_BUCKET,
+   110→    Key: key,
+   111→  });
+   112→
+   113→  return getSignedUrl(s3, command, { expiresIn });
+   114→}
+   115→
+   116→/**
+   117→ * Upload file to local filesystem (dev only)
+   118→ */
+   119→async function uploadToLocal(buffer, filename) {
+   120→  const uploadDir = path.join(process.cwd(), "public", "uploads");
+   121→
+   122→  // Ensure upload directory exists
+   123→  if (!fs.existsSync(uploadDir)) {
+   124→    fs.mkdirSync(uploadDir, { recursive: true });
+   125→  }
+   126→
+   127→  const filepath = path.join(uploadDir, filename);
+   128→  fs.writeFileSync(filepath, buffer);
+   129→
+   130→  return `/uploads/${filename}`;
+   131→}
+   132→
+   133→/**
+   134→ * Generate unique filename
+   135→ */
+   136→function generateFilename(originalName, ext) {
+   137→  const timestamp = Date.now();
+   138→  const randomId = Math.random().toString(36).substring(2, 9);
+   139→  const safeExt = ext || ".jpg";
+   140→  return `${timestamp}-${randomId}${safeExt}`;
+   141→}
+   142→
+   143→/**
+   144→ * Get file extension from MIME type
+   145→ */
+   146→function getExtFromMimeType(mimeType) {
+   147→  const map = {
+   148→    "image/png": ".png",
+   149→    "image/jpeg": ".jpg",
+   150→    "image/jpg": ".jpg",
+   151→    "image/webp": ".webp",
+   152→    "image/gif": ".gif",
+   153→    "application/pdf": ".pdf",
+   154→    "application/msword": ".doc",
+   155→    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+   156→    "video/mp4": ".mp4",
+   157→    "video/quicktime": ".mov",
+   158→    "video/webm": ".webm",
+   159→  };
+   160→  return map[mimeType] || ".bin";
+   161→}
+   162→
+   163→export default async function handler(req, res) {
+   164→  // Always return JSON
+   165→  res.setHeader("Content-Type", "application/json");
+   166→
+   167→  if (req.method !== "POST") {
+   168→    return res.status(405).json({ error: "Method not allowed", code: "METHOD_NOT_ALLOWED" });
+   169→  }
+   170→
+   171→  // Log storage configuration (not secrets)
+   172→  const useS3 = isS3Configured();
+   173→  console.log(`[Upload] Storage: ${useS3 ? "S3 (private)" : "Local"}`);
+   174→
+   175→  try {
+   176→    // Configure formidable
+   177→    const form = formidable({
+   178→      maxFileSize: MAX_FILE_SIZE,
+   179→      keepExtensions: true,
+   180→      filter: ({ mimetype }) => {
+   181→        // Only accept allowed image types
+   182→        return ALLOWED_TYPES.includes(mimetype);
+   183→      },
+   184→    });
+   185→
+   186→    // Parse the form data
+   187→    let fields, files;
+   188→    try {
+   189→      [fields, files] = await form.parse(req);
+   190→    } catch (parseError) {
+   191→      console.error("[Upload] Parse error:", parseError.message);
+   192→
+   193→      // Check for file size error
+   194→      if (parseError.code === 1009 || parseError.message?.includes("maxFileSize")) {
+   195→        return res.status(413).json({
+   196→          error: "File too large. Maximum size is 5MB.",
+   197→          code: "FILE_TOO_LARGE",
+   198→        });
+   199→      }
+   200→
+   201→      // Check for file type error
+   202→      if (parseError.message?.includes("filter")) {
+   203→        return res.status(415).json({
+   204→          error: "Invalid file type. Allowed: images, PDFs, Word docs, and videos.",
+   205→          code: "INVALID_FILE_TYPE",
+   206→        });
+   207→      }
+   208→
+   209→      return res.status(400).json({
+   210→        error: "Failed to parse upload",
+   211→        code: "PARSE_ERROR",
+   212→      });
+   213→    }
+   214→
+   215→    // Get the uploaded file (support both 'file' and 'logo' field names)
+   216→    const file = files.file?.[0] || files.logo?.[0];
+   217→
+   218→    if (!file) {
+   219→      console.log("[Upload] No file in request. Fields:", Object.keys(files));
+   220→      return res.status(400).json({
+   221→        error: "No file uploaded",
+   222→        code: "NO_FILE",
+   223→      });
+   224→    }
+   225→
+   226→    // Validate file type again (belt and suspenders)
+   227→    const mimeType = file.mimetype;
+   228→    if (!ALLOWED_TYPES.includes(mimeType)) {
+   229→      console.log("[Upload] Invalid MIME type:", mimeType);
+   230→      return res.status(415).json({
+   231→        error: `Invalid file type: ${mimeType}. Allowed: images, PDFs, Word docs, and videos.`,
+   232→        code: "INVALID_FILE_TYPE",
+   233→      });
+   234→    }
+   235→
+   236→    // Validate file size again
+   237→    if (file.size > MAX_FILE_SIZE) {
+   238→      console.log("[Upload] File too large:", file.size);
+   239→      return res.status(413).json({
+   240→        error: `File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum is 5MB.`,
+   241→        code: "FILE_TOO_LARGE",
+   242→      });
+   243→    }
+   244→
+   245→    // Read file into buffer
+   246→    const buffer = fs.readFileSync(file.filepath);
+   247→
+   248→    // Generate unique filename
+   249→    const ext = getExtFromMimeType(mimeType);
+   250→    const filename = generateFilename(file.originalFilename, ext);
+   251→
+   252→    // Upload to appropriate storage
+   253→    let url;
+   254→    let key;
+   255→    let isS3Upload = false;
+   256→
+   257→    try {
+   258→      if (useS3) {
+   259→        console.log("[Upload] Uploading to S3 (private)...");
+   260→        key = await uploadToS3(buffer, filename, mimeType);
+   261→        // Generate signed URL for immediate use
+   262→        url = await getS3SignedUrl(key, 86400); // 24 hour expiry
+   263→        isS3Upload = true;
+   264→        console.log("[Upload] S3 upload success, key:", key);
+   265→      } else {
+   266→        // Local upload (dev mode)
+   267→        if (process.env.NODE_ENV === "production") {
+   268→          console.warn("[Upload] WARNING: No S3 configured in production. Upload will not persist!");
+   269→        }
+   270→        console.log("[Upload] Uploading to local filesystem...");
+   271→        url = await uploadToLocal(buffer, filename);
+   272→        console.log("[Upload] Local upload success:", url);
+   273→      }
+   274→    } catch (storageError) {
+   275→      console.error("[Upload] Storage error:", storageError.message, storageError.stack);
+   276→      return res.status(500).json({
+   277→        error: "Failed to save file to storage",
+   278→        code: "STORAGE_ERROR",
+   279→        details: process.env.NODE_ENV !== "production" ? storageError.message : undefined,
+   280→      });
+   281→    }
+   282→
+   283→    // Clean up temp file
+   284→    try {
+   285→      fs.unlinkSync(file.filepath);
+   286→    } catch (cleanupError) {
+   287→      // Non-critical, just log
+   288→      console.warn("[Upload] Failed to clean up temp file:", cleanupError.message);
+   289→    }
+   290→
+   291→    return res.status(200).json({
+   292→      url,
+   293→      key: isS3Upload ? key : undefined, // Include key for S3 uploads (for storing in DB)
+   294→      message: "File uploaded successfully",
+   295→      filename: file.originalFilename,
+   296→      size: file.size,
+   297→      type: mimeType,
+   298→      storage: isS3Upload ? "s3" : "local",
+   299→    });
+   300→  } catch (error) {
+   301→    console.error("[Upload] Unexpected error:", error.message, error.stack);
+   302→    return res.status(500).json({
+   303→      error: "Failed to upload file",
+   304→      code: "UPLOAD_ERROR",
+   305→      details: process.env.NODE_ENV !== "production" ? error.message : undefined,
+   306→    });
+   307→  }
+   308→}
+   309→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

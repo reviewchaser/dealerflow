@@ -1,0 +1,18 @@
+Found 17 files
+components\DealDrawer.js
+pages\public\handover-pack\[token].js
+pages\dashboard.js
+pages\settings.js
+pages\api\dashboard\stats.js
+pages\marketing.js
+pages\index.js
+pages\onboarding.js
+libs\formTemplates.js
+snapshots\snapshot-2025-12-28T21-43-04.json
+pages\api\forms\submissions.js
+models\CalendarCategory.js
+libs\seedDefaults.js
+scripts\reseed-all-forms.js
+pages\api\onboarding\workflow.js
+pages\api\calendar\categories.js
+README.md

@@ -1,0 +1,869 @@
+Claude Code Instruction — Implement DealerHQ “Sales” Module (Vehicle Sales Only)
+0) Objective and Scope
+
+Implement a full vehicle sales module for DealerHQ that supports:
+
+Deal lifecycle: Lead/Test drive → Deposit/Sales Order → Invoice → Delivered/Completed
+
+Vehicle-sales invoicing only (not aftersales/service invoicing)
+
+Proper UK VAT handling for:
+VAT Qualifying and Margin Scheme
+
+Contacts: customers, suppliers, finance companies
+
+Part exchange linkage (from existing appraisals/submissions)
+
+Add-ons catalogue and selection
+
+Sales requests (e.g. alloy refurb) tied to vehicle and optionally converted into checklist/issues
+
+PDF generation (deposit receipt + invoice + optional “pack” export of linked documents)
+
+Signature capture (in-person deposits)
+
+Reporting: Stock book + profit + VAT summaries + KPIs
+
+This must integrate cleanly with existing modules:
+
+Stock & Prep (vehicles are the source of truth)
+
+Appraisals (customer PX form + dealer appraisal)
+
+Forms/Submissions (PDI, service receipts etc)
+
+We will not hide/feature-flag; just build it in a way that does not break existing MVP flows.
+
+1) Navigation & Pages
+
+Add sidebar section: Sales
+
+Sales > Deals
+
+Sales > Invoices (optional separate view; can be tab within Deals but better as its own list)
+
+Sales > Contacts
+
+Sales > Reports
+
+Also add small integration entry points:
+
+Stock vehicle drawer: “Sales” section with:
+
+Create deal / open deal
+
+Create deposit receipt
+
+Create invoice
+
+Link PX
+
+Link docs pack (PDI/service receipt)
+
+Appraisals: “Convert to Part Exchange” or “Link to Deal” workflow
+
+2) Core Data Models (Mongo + Mongoose)
+2.1 Contact model (single model with type tags)
+
+models/Contact.js
+
+Fields:
+
+dealerId
+
+typeTags: array enum: CUSTOMER, FINANCE, SUPPLIER (can include multiple)
+
+isProspect boolean (default false)
+
+displayName (string)
+
+companyName (string optional)
+
+email, phone
+
+address object:
+
+line1, line2, town, county, postcode, country
+
+companyNumber optional
+
+vatNumber optional
+
+notes optional
+
+timestamps
+
+Indexes:
+
+{ dealerId, displayName }
+
+{ dealerId, email } sparse
+
+{ dealerId, phone } sparse
+
+2.2 Vehicle sales fields (extend existing Vehicle model)
+
+Add to Vehicle:
+
+stockNumber (integer, per dealer auto-increment)
+
+vatScheme: enum MARGIN, VAT_QUALIFYING, NO_VAT (default MARGIN for typical dealers, but configurable per dealer)
+
+purchase object (optional):
+
+purchasedFromContactId (supplier contact)
+
+purchaseDate
+
+purchasePriceNet (number) // for stock book profit calculation; for margin scheme still store what you paid
+
+purchaseVat (number optional) // relevant only if VAT qualifying purchase
+
+purchasePriceGross (derived)
+
+purchaseNotes
+
+salesStatus: enum AVAILABLE, IN_DEAL, SOLD_IN_PROGRESS, DELIVERED, COMPLETED (align to your existing sold in progress states, don’t break current board)
+
+Also store:
+
+vin (string)
+
+model (string)
+
+transmission (string)
+
+(already have make, fuel, engine size etc)
+
+2.3 Deal model (the main sales object)
+
+models/Deal.js
+
+Fields:
+
+dealerId
+
+vehicleId
+
+dealNumber (integer per dealer, sequential – separate from stock number)
+
+status: enum:
+
+DRAFT
+
+DEPOSIT_TAKEN
+
+INVOICED
+
+DELIVERED
+
+COMPLETED
+
+CANCELLED
+
+Parties:
+
+soldToContactId (required from deposit stage onwards)
+
+invoiceToContactId (optional; finance company/payer)
+
+deliveryAddress snapshot:
+
+isDifferent boolean
+
+address fields as above
+
+Sale context:
+
+buyerType: enum CONSUMER, BUSINESS
+
+saleChannel: enum IN_PERSON, DISTANCE
+
+saleType: enum RETAIL, TRADE (trade = B2B typically, but keep separate)
+
+Pricing snapshot for vehicle:
+
+vehiclePriceGross (number)
+
+vehiclePriceNet (number)
+
+vehicleVatAmount (number)
+
+vatScheme (copied from vehicle at time of deal)
+
+vatRate (default 0.2)
+
+Part exchange:
+
+partExchangeId (optional)
+
+partExchangeAllowance (number)
+
+partExchangeSettlement (number, optional)
+
+Deposits/payments:
+
+payments: array of subdocs:
+
+type: DEPOSIT, BALANCE, OTHER
+
+amount (number)
+
+method: CASH, CARD, BANK_TRANSFER, FINANCE, OTHER
+
+paidAt date
+
+reference optional
+
+isRefunded boolean
+
+Add-ons:
+
+addOns: array:
+
+addOnProductId (optional if custom)
+
+name
+
+category
+
+qty
+
+unitPriceNet
+
+vatTreatment: STANDARD | NO_VAT | ZERO
+
+vatRate
+
+derived totals
+
+Sales requests:
+
+requests: array:
+
+title
+
+details
+
+type: PREP, ACCESSORY, COSMETIC, ADMIN, OTHER
+
+status: REQUESTED, IN_PROGRESS, DONE
+
+estimatedCostNet optional
+
+linkToIssueId optional
+
+linkToChecklistTaskId optional
+
+Terms snapshots (store applied text at time of doc generation):
+
+termsKey (e.g. CONSUMER_DISTANCE, BUSINESS_IN_PERSON, etc)
+
+termsSnapshotText (string)
+
+Document links / pack:
+
+linkedSubmissionIds array (PDI, service receipt, etc)
+
+Audit:
+
+createdByUserId
+
+timestamps
+
+Indexes:
+
+{ dealerId, dealNumber } unique
+
+{ dealerId, vehicleId }
+
+{ dealerId, status, createdAt }
+
+2.4 PartExchange model (link appraisal/submission)
+
+models/PartExchange.js
+
+Fields:
+
+dealerId
+
+sourceType: CUSTOMER_FORM, DEALER_APPRAISAL
+
+sourceId (submissionId / appraisalId)
+
+vehicleSummary (px vehicle):
+
+VRM, make/model, mileage, vin optional
+
+allowance (number)
+
+settlement (number optional)
+
+notes:
+
+keys, docs, condition summary
+
+timestamps
+
+Index:
+
+{ dealerId, sourceType, sourceId }
+
+2.5 AddOnProduct model (catalog configured by dealer)
+
+models/AddOnProduct.js
+
+Fields:
+
+dealerId
+
+name
+
+category enum: WARRANTY, COSMETIC, DELIVERY, ADMIN, OTHER
+
+defaultPriceNet
+
+vatTreatment: STANDARD, NO_VAT, ZERO
+
+vatRate default 0.2
+
+isActive boolean default true
+
+timestamps
+
+Index:
+
+{ dealerId, name }
+
+2.6 Invoice / Deposit doc model (optional)
+
+You can model invoices as derived documents from a deal (recommended), or separate.
+
+Preferred approach: store both as SalesDocument records referencing deal:
+models/SalesDocument.js
+
+Fields:
+
+dealerId
+
+dealId
+
+type: DEPOSIT_RECEIPT, INVOICE
+
+documentNumber (invoice number or receipt number; per dealer sequences)
+
+issuedAt
+
+pdfStorageKey optional (if storing)
+
+status: DRAFT, ISSUED, VOID
+
+signature object:
+
+required boolean
+
+buyerSignatureImageKey optional
+
+dealerSignatureImageKey optional
+
+signedAt optional
+
+snapshots:
+
+termsSnapshotText
+
+pricing snapshot
+
+parties snapshot
+
+timestamps
+
+Indexes:
+
+{ dealerId, type, documentNumber } unique
+
+{ dealerId, dealId, type }
+
+3) Dealer Settings for Sales
+
+Extend dealer settings:
+
+nextStockNumber (int)
+
+nextDealNumber (int)
+
+nextInvoiceNumber (int)
+
+nextDepositReceiptNumber (int)
+
+Default VAT rate (0.2)
+
+Default VAT scheme for new vehicles
+
+Deal / Invoice terms templates (editable text areas):
+
+Consumer Distance
+
+Consumer In-Person
+
+Business Distance
+
+Business In-Person
+
+Bank details for invoice footer
+
+Dealer legal name/address, company number, VAT number (optional)
+
+4) UI/UX Design & Flows
+4.1 Contacts page
+
+Search, filter by tag
+
+Create/edit contact
+
+Quick “Create from submission” option (optional)
+
+Avoid auto-creating contacts from test drives; provide “Create contact” action from submission.
+
+4.2 Deals page
+
+Table/list with filters:
+
+status, month, sale type, buyer type, VAT scheme
+
+Columns:
+
+deal number, vehicle (VRM/make), buyer name, status, total gross, deposit paid, balance due
+
+Clicking opens Deal drawer/page with tabs:
+
+Overview
+
+Payments
+
+Add-ons
+
+Requests
+
+Documents
+
+History
+
+4.3 Creating a Deal
+
+Entry points:
+
+from vehicle drawer: “Create deal”
+
+from Deals page: “New deal” → choose vehicle
+
+In deal creation:
+
+Select buyer contact (or create new)
+
+Choose buyer type (Consumer/Business)
+
+Choose sale channel (Distance/In-person)
+
+Choose sale type (Retail/Trade)
+
+Choose VAT scheme (prefilled from vehicle but editable)
+
+Add delivery address if different
+
+Set vehicle sale price (gross input is easiest for dealers; store net derived)
+
+4.4 Deposit receipt
+
+From a deal, “Take deposit”:
+
+Add payment amount and method
+
+Show deposit receipt preview
+
+If IN_PERSON then require signature capture:
+
+buyer signature pad
+
+dealer signature pad
+
+If DISTANCE then include distance terms (no signatures required)
+
+Generate PDF for print/download
+
+Provide mailto share option
+
+4.5 Invoice generation
+
+From deal: “Generate invoice”
+
+Ensure required fields exist:
+
+buyer, price, VAT scheme, etc
+
+Include add-ons and deposit offsets
+
+For finance:
+
+invoice-to payer shown
+
+sold-to customer shown
+
+Generate PDF
+
+Mark status INVOICED
+
+Provide “Mark delivered” then “Mark completed” actions
+
+4.6 Export pack (invoice + PDI/service)
+
+Deal has “Documents pack”:
+
+Checkbox list of linked submissions (PDI/service/etc)
+
+Export Pack generates combined PDF:
+
+Invoice first
+
+Then selected submission PDFs appended
+
+5) VAT and Profit Calculations (critical, implement correctly)
+5.1 VAT Qualifying
+
+Store:
+
+sale price gross input
+
+compute:
+
+net = gross / (1+rate)
+
+vat = gross - net
+Profit reporting should use net sale price vs purchase price net (if known).
+
+5.2 Margin Scheme
+
+For margin scheme invoices:
+
+Do NOT show VAT breakdown on the invoice.
+
+Invoice shows gross total only.
+
+Profit = sale price gross - purchase price gross (or purchase price net if stored; for margin, treat purchase price as gross)
+
+5.3 KPI clarification (per your note)
+
+You want totals that include all vehicles.
+
+✅ Implement KPI set as:
+
+Total sales gross (ALL vehicles) = sum of sale gross across margin + VAT qualifying
+
+Total sales net (ALL vehicles) =
+
+for VAT qualifying: sale net
+
+for margin: treat “net” = gross (because VAT is not separated) OR show “net equivalent” label.
+
+Total VAT collected = VAT qualifying VAT + add-ons VAT
+
+Total gross profit =
+
+margin scheme: sale gross − purchase gross
+
+VAT qualifying: sale net − purchase net (and optionally show VAT profit irrelevant)
+
+Profit % based on relevant base.
+
+Also show separate breakdown:
+
+VAT qualifying sales gross/net/vat
+
+Margin scheme sales gross + profit
+
+6) Reports (must implement)
+6.1 Sales Summary report
+
+Filters: date range, retail/trade, consumer/business, channel, VAT scheme
+Outputs:
+
+units sold
+
+totals gross/net/vat
+
+profit gross and %
+
+add-ons total and VAT
+
+6.2 Stock Book report (exportable CSV + screen table)
+
+Per vehicle sold in range:
+
+stock number
+
+VRM, make/model
+
+purchase date, purchased from, purchase cost
+
+sale date, buyer, sale price
+
+VAT scheme
+
+profit + margin %
+
+add-ons total
+
+days in stock
+
+6.3 VAT Summary report (not MTD submission)
+
+Date range:
+
+VAT qualifying:
+
+net sales
+
+VAT output
+
+add-ons:
+
+net
+
+VAT
+
+margin scheme totals separately (no VAT output)
+
+Export CSV.
+
+7) Integrations with Existing Modules
+7.1 Part exchange linkage
+
+Add “Link PX” in deal:
+
+Choose from:
+
+existing customer PX submissions
+
+existing dealer appraisals
+
+Create a PartExchange record referencing source and store allowance/settlement.
+
+7.2 Sales requests to checklist/issues
+
+On deal request items:
+
+Button: “Add to checklist task”
+
+Button: “Convert to issue”
+Store linkage IDs.
+
+7.3 Test drive → contact (do not auto-create)
+
+Add in test drive submission detail:
+
+“Create contact” action (prefill from captured details)
+
+“Start deal for this vehicle” action (if a vehicle is linked)
+
+8) API Endpoints (Pages router style)
+
+Create endpoints:
+
+/api/contacts CRUD
+
+/api/addons CRUD
+
+/api/deals CRUD + actions:
+
+POST /api/deals/:id/take-deposit
+
+POST /api/deals/:id/generate-invoice
+
+POST /api/deals/:id/mark-delivered
+
+POST /api/deals/:id/mark-completed
+
+/api/reports/sales-summary
+
+/api/reports/stock-book
+
+/api/reports/vat-summary
+
+/api/sales-documents/:id/pdf (generate on-demand)
+
+All endpoints must enforce:
+
+logged-in session
+
+dealer scoping
+
+role permissions:
+
+normal staff: create deals, take deposits, generate invoices
+
+admin/owner: settings, reports
+(Adjust to your current RBAC model; workshop likely shouldn’t access sales).
+
+9) PDF Generation
+
+Deposit Receipt PDF includes:
+
+Dealer details + logo
+
+Receipt number, date
+
+Buyer details + delivery address if different
+
+Vehicle details
+
+Deposit amount, method
+
+Terms block (selected by buyerType + channel)
+
+Signature blocks if in-person consumer:
+
+dealer signature
+
+buyer signature
+
+Print-friendly
+
+Invoice PDF includes:
+
+Invoice number
+
+Sold to + invoice to payer if finance
+
+Vehicle details, add-ons breakdown
+
+VAT breakdown only if VAT qualifying (never for margin)
+
+Deposit deduction and balance due
+
+Terms block
+
+Signature blocks optional (can include but not required unless you decide)
+
+Implement “mailto share” for PDF:
+
+After generating, provide:
+
+copy link
+
+mailto with subject/body containing link
+
+10) Numbering strategy (per dealer)
+
+Use simple counters in dealer settings:
+
+stock number starts at 1 and increments
+
+deal number increments
+
+invoice number increments
+
+deposit receipt number increments
+
+Ensure atomic increment to avoid collisions.
+
+EXTRA 1 — Stock filter by Make (UX decision + implement)
+Current
+
+Stock search only VRM with suggestions.
+
+Best solution
+
+Add Make filter inside the existing Filter panel (not inside VRM search). Keep search focused on VRM and possibly model text later.
+
+Implement:
+
+Filter dropdown: Make (multi-select optional)
+
+Optional: Model dropdown depends on make
+
+Apply filter to board list and remember user selection.
+
+EXTRA 2 — Autofill VIN, model, transmission from VRM lookup
+Goal
+
+When adding a vehicle via VRM lookup, auto-populate:
+
+VIN
+
+Model (trim/model)
+
+Transmission
+
+And ideally MOT expiry even if not yet due first MOT.
+
+How to do it (UK reality)
+
+DVLA Vehicle Enquiry API typically returns: make, colour, fuel type, engine capacity, CO2 etc. It often does not include VIN and sometimes not transmission/model detail.
+
+So you need:
+
+Continue using DVLA for core vehicle details
+
+Add secondary data source for VIN/model/transmission:
+
+Option A: Cap HPI / Experian AutoCheck (paid, best)
+
+Option B: a VRM decode provider API (also paid)
+
+Option C: allow manual entry if not available (fallback)
+
+Implementation now
+
+Update VRM lookup flow to support “partial fill”:
+
+Always fill DVLA fields
+
+If VIN/model/transmission missing, show a compact banner:
+
+“VIN/Model/Transmission not available from DVLA — please enter manually”
+
+Keep fields editable.
+
+MOT expiry for vehicles not yet due first MOT
+
+If the car is <3 years old, MOT expiry technically isn’t applicable. But if DVLA has a “first MOT due” date or registration date, you can compute:
+
+First MOT due = first registration date + 3 years
+
+Implement:
+
+If DVLA response includes firstRegistrationDate:
+
+If MOT expiry missing:
+
+Set MOT expiry to regDate + 3 years (label internally as “First MOT due”)
+
+Don’t show as “expired” obviously—just display date and “First MOT due”.
+
+Definition of Done
+
+Sales module fully usable:
+
+Create deal from vehicle
+
+Take deposit, print receipt, signatures when required
+
+Generate invoice, print/email link
+
+Mark delivered/completed
+
+Contacts CRUD
+
+Add-ons catalog + selection
+
+PX link from appraisals
+
+Sales requests and link to checklist/issues
+
+Reports: sales summary, stock book, VAT summary (export)
+
+Stock make filter works
+
+VRM lookup fills best possible data + manual fallback
+
+First MOT due date derived when appropriate

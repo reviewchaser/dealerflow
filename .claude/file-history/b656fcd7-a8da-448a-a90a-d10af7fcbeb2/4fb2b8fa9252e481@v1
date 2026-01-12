@@ -1,0 +1,105 @@
+/**
+ * DealerContext - Global dealer/tenant context
+ *
+ * Provides dealerSlug and dealer data throughout the app.
+ * Used by all tenant-aware pages under /app/[dealerSlug]/
+ */
+
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/router';
+
+const DealerContext = createContext(null);
+
+export function DealerProvider({ children, initialDealer, initialSlug }) {
+  const router = useRouter();
+  const [dealer, setDealer] = useState(initialDealer || null);
+  const [dealerSlug, setDealerSlug] = useState(initialSlug || null);
+  const [isLoading, setIsLoading] = useState(!initialDealer);
+
+  // Extract dealerSlug from URL if we're in /app/[dealerSlug]/* route
+  useEffect(() => {
+    const pathParts = router.asPath.split('/');
+    if (pathParts[1] === 'app' && pathParts[2]) {
+      const slugFromUrl = pathParts[2].split('?')[0]; // Remove query params
+      if (slugFromUrl !== dealerSlug) {
+        setDealerSlug(slugFromUrl);
+      }
+    }
+  }, [router.asPath, dealerSlug]);
+
+  // Fetch dealer data if we have a slug but no dealer
+  useEffect(() => {
+    if (dealerSlug && !dealer) {
+      setIsLoading(true);
+      fetch('/api/dealer', {
+        headers: { 'x-dealer-slug': dealerSlug }
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data) setDealer(data);
+        })
+        .finally(() => setIsLoading(false));
+    }
+  }, [dealerSlug, dealer]);
+
+  // Generate tenant-aware path
+  const tenantPath = useCallback((path) => {
+    if (!dealerSlug) return `/${path}`;
+    return `/app/${dealerSlug}/${path}`.replace(/\/+$/, '');
+  }, [dealerSlug]);
+
+  // Navigate to tenant-aware path
+  const navigateTo = useCallback((path) => {
+    router.push(tenantPath(path));
+  }, [router, tenantPath]);
+
+  // API fetch with tenant header
+  const fetchWithTenant = useCallback(async (url, options = {}) => {
+    const headers = {
+      ...options.headers,
+    };
+    if (dealerSlug) {
+      headers['x-dealer-slug'] = dealerSlug;
+    }
+    return fetch(url, { ...options, headers });
+  }, [dealerSlug]);
+
+  const value = {
+    dealer,
+    dealerSlug,
+    isLoading,
+    setDealer,
+    tenantPath,
+    navigateTo,
+    fetchWithTenant,
+  };
+
+  return (
+    <DealerContext.Provider value={value}>
+      {children}
+    </DealerContext.Provider>
+  );
+}
+
+export function useDealer() {
+  const context = useContext(DealerContext);
+  if (!context) {
+    // Return a fallback for non-tenant pages
+    return {
+      dealer: null,
+      dealerSlug: null,
+      isLoading: false,
+      tenantPath: (path) => `/${path}`,
+      navigateTo: () => {},
+      fetchWithTenant: fetch,
+    };
+  }
+  return context;
+}
+
+export function useDealerSlug() {
+  const { dealerSlug } = useDealer();
+  return dealerSlug;
+}
+
+export default DealerContext;

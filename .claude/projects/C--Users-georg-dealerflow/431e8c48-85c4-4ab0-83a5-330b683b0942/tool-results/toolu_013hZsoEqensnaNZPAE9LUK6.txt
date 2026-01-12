@@ -1,0 +1,2 @@
+29:    // Note: DealerMembership uses removedAt: null for active, not status field
+32:      removedAt: null,

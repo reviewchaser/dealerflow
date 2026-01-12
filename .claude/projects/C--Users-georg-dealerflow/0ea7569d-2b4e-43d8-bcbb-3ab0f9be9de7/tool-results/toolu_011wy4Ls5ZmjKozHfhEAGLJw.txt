@@ -1,0 +1,254 @@
+  2000→                      className="fixed inset-0"
+  2001→                      onClick={() => setShowFiltersDropdown(false)}
+  2002→                    />
+  2003→
+  2004→                    {/* Desktop Filter Panel - Fixed position, viewport-clamped */}
+  2005→                    <div
+  2006→                      className="fixed w-[360px] max-h-[70vh] bg-white rounded-xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
+  2007→                      style={{ top: filterPopoverPos.top, right: filterPopoverPos.right }}
+  2008→                    >
+  2009→                      {/* Sticky Header */}
+  2010→                      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white shrink-0">
+  2011→                        <h3 className="font-semibold text-slate-900">Filters</h3>
+  2012→                        <button
+  2013→                          onClick={() => setShowFiltersDropdown(false)}
+  2014→                          className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+  2015→                        >
+  2016→                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2017→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  2018→                          </svg>
+  2019→                        </button>
+  2020→                      </div>
+  2021→
+  2022→                      {/* Scrollable Content */}
+  2023→                      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+  2024→                        {/* Prep Tasks Section */}
+  2025→                        <div>
+  2026→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Prep Tasks</h5>
+  2027→                          <div className="space-y-1.5">
+  2028→                            {[
+  2029→                              { key: "awaiting_pdi", label: "Awaiting PDI" },
+  2030→                              { key: "awaiting_valet", label: "Awaiting Valet" },
+  2031→                              { key: "awaiting_photos", label: "Awaiting Photos" },
+  2032→                              { key: "awaiting_mot", label: "Awaiting MOT" },
+  2033→                            ].map(filter => {
+  2034→                              const isActive = activeFilters.includes(filter.key);
+  2035→                              const count = getFilterCount(filter.key);
+  2036→                              return (
+  2037→                                <button
+  2038→                                  key={filter.key}
+  2039→                                  onClick={() => toggleFilter(filter.key)}
+  2040→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2041→                                    isActive
+  2042→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2043→                                      : "text-slate-600 hover:bg-slate-50"
+  2044→                                  }`}
+  2045→                                >
+  2046→                                  <span>{filter.label}</span>
+  2047→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2048→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2049→                                  }`}>{count}</span>
+  2050→                                </button>
+  2051→                              );
+  2052→                            })}
+  2053→                          </div>
+  2054→                        </div>
+  2055→
+  2056→                        {/* Issues Section */}
+  2057→                        <div>
+  2058→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Issues</h5>
+  2059→                          <div className="space-y-1.5">
+  2060→                            {[
+  2061→                              { key: "needs_paint", label: "Needs Paint" },
+  2062→                              { key: "needs_mechanical", label: "Needs Mechanical" },
+  2063→                              { key: "needs_electrical", label: "Needs Electrical" },
+  2064→                            ].map(filter => {
+  2065→                              const isActive = activeFilters.includes(filter.key);
+  2066→                              const count = getFilterCount(filter.key);
+  2067→                              return (
+  2068→                                <button
+  2069→                                  key={filter.key}
+  2070→                                  onClick={() => toggleFilter(filter.key)}
+  2071→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2072→                                    isActive
+  2073→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2074→                                      : "text-slate-600 hover:bg-slate-50"
+  2075→                                  }`}
+  2076→                                >
+  2077→                                  <span>{filter.label}</span>
+  2078→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2079→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2080→                                  }`}>{count}</span>
+  2081→                                </button>
+  2082→                              );
+  2083→                            })}
+  2084→                          </div>
+  2085→                        </div>
+  2086→
+  2087→                        {/* Location Section */}
+  2088→                        <div>
+  2089→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Location</h5>
+  2090→                          <div className="space-y-1.5">
+  2091→                            {(() => {
+  2092→                              const isActive = activeFilters.includes("offsite");
+  2093→                              const count = getFilterCount("offsite");
+  2094→                              return (
+  2095→                                <button
+  2096→                                  onClick={() => toggleFilter("offsite")}
+  2097→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2098→                                    isActive
+  2099→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2100→                                      : "text-slate-600 hover:bg-slate-50"
+  2101→                                  }`}
+  2102→                                >
+  2103→                                  <span>Offsite Only</span>
+  2104→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2105→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2106→                                  }`}>{count}</span>
+  2107→                                </button>
+  2108→                              );
+  2109→                            })()}
+  2110→                          </div>
+  2111→                        </div>
+  2112→
+  2113→                        {/* Vehicle Type Section */}
+  2114→                        <div>
+  2115→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Vehicle Type</h5>
+  2116→                          <div className="space-y-1.5">
+  2117→                            {[
+  2118→                              { key: "type_stock", label: "Stock Vehicles" },
+  2119→                              { key: "type_courtesy", label: "Courtesy Vehicles" },
+  2120→                              { key: "type_fleet", label: "Fleet Vehicles" },
+  2121→                            ].map(filter => {
+  2122→                              const isActive = activeFilters.includes(filter.key);
+  2123→                              const count = getFilterCount(filter.key);
+  2124→                              return (
+  2125→                                <button
+  2126→                                  key={filter.key}
+  2127→                                  onClick={() => toggleFilter(filter.key)}
+  2128→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2129→                                    isActive
+  2130→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2131→                                      : "text-slate-600 hover:bg-slate-50"
+  2132→                                  }`}
+  2133→                                >
+  2134→                                  <span>{filter.label}</span>
+  2135→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2136→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2137→                                  }`}>{count}</span>
+  2138→                                </button>
+  2139→                              );
+  2140→                            })}
+  2141→                          </div>
+  2142→                        </div>
+  2143→
+  2144→                        {/* Sale Type Section */}
+  2145→                        <div>
+  2146→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Sale Type</h5>
+  2147→                          <div className="space-y-1.5">
+  2148→                            {[
+  2149→                              { key: "trade_only", label: "Trade Only" },
+  2150→                              { key: "retail_only", label: "Retail Only" },
+  2151→                            ].map(filter => {
+  2152→                              const isActive = activeFilters.includes(filter.key);
+  2153→                              const count = getFilterCount(filter.key);
+  2154→                              return (
+  2155→                                <button
+  2156→                                  key={filter.key}
+  2157→                                  onClick={() => toggleFilter(filter.key)}
+  2158→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2159→                                    isActive
+  2160→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2161→                                      : "text-slate-600 hover:bg-slate-50"
+  2162→                                  }`}
+  2163→                                >
+  2164→                                  <span>{filter.label}</span>
+  2165→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2166→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2167→                                  }`}>{count}</span>
+  2168→                                </button>
+  2169→                              );
+  2170→                            })}
+  2171→                          </div>
+  2172→                        </div>
+  2173→
+  2174→                        {/* MOT Status Section */}
+  2175→                        <div>
+  2176→                          <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">MOT Status</h5>
+  2177→                          <div className="space-y-1.5">
+  2178→                            {[
+  2179→                              { key: "mot_expired", label: "MOT Expired" },
+  2180→                              { key: "mot_due_soon", label: "MOT Due Soon" },
+  2181→                            ].map(filter => {
+  2182→                              const isActive = activeFilters.includes(filter.key);
+  2183→                              const count = getFilterCount(filter.key);
+  2184→                              return (
+  2185→                                <button
+  2186→                                  key={filter.key}
+  2187→                                  onClick={() => toggleFilter(filter.key)}
+  2188→                                  className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+  2189→                                    isActive
+  2190→                                      ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
+  2191→                                      : "text-slate-600 hover:bg-slate-50"
+  2192→                                  }`}
+  2193→                                >
+  2194→                                  <span>{filter.label}</span>
+  2195→                                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+  2196→                                    isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  2197→                                  }`}>{count}</span>
+  2198→                                </button>
+  2199→                              );
+  2200→                            })}
+  2201→                          </div>
+  2202→                        </div>
+  2203→                      </div>
+  2204→
+  2205→                      {/* Sticky Footer */}
+  2206→                      <div className="border-t border-slate-200 p-3 bg-white flex gap-2 shrink-0">
+  2207→                        <button
+  2208→                          onClick={() => setActiveFilters([])}
+  2209→                          className="flex-1 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+  2210→                        >
+  2211→                          Clear
+  2212→                        </button>
+  2213→                        <button
+  2214→                          onClick={() => setShowFiltersDropdown(false)}
+  2215→                          className="flex-1 bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors"
+  2216→                        >
+  2217→                          Apply
+  2218→                        </button>
+  2219→                      </div>
+  2220→                    </div>
+  2221→                  </div>
+  2222→                </Portal>
+  2223→              )}
+  2224→
+  2225→              {/* ═══════════════════════════════════════════════════════════════ */}
+  2226→              {/* MOBILE/TABLET: Bottom Sheet (< lg screens) */}
+  2227→              {/* Uses its own internal Portal for correct positioning */}
+  2228→              {/* ═══════════════════════════════════════════════════════════════ */}
+  2229→              <BottomSheet
+  2230→                    isOpen={showFiltersDropdown}
+  2231→                    onClose={() => setShowFiltersDropdown(false)}
+  2232→                    hideAbove="lg"
+  2233→                    title="Filters"
+  2234→                    footer={
+  2235→                      <div className="flex gap-3">
+  2236→                        <button
+  2237→                          onClick={() => setActiveFilters([])}
+  2238→                          className="flex-1 px-4 py-3 text-base font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+  2239→                        >
+  2240→                          Clear
+  2241→                        </button>
+  2242→                        <button
+  2243→                          onClick={() => setShowFiltersDropdown(false)}
+  2244→                          className="flex-1 bg-slate-900 text-white py-3 rounded-xl text-base font-bold hover:bg-slate-800 transition-colors"
+  2245→                        >
+  2246→                          Apply {activeFilters.length > 0 && `(${activeFilters.length})`}
+  2247→                        </button>
+  2248→                      </div>
+  2249→                    }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

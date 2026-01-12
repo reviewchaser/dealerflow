@@ -1,0 +1,130 @@
+/**
+ * Tenant Submissions Page - /app/[dealerSlug]/submissions
+ */
+
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+
+const FORM_TYPE_LABELS = {
+  PDI: "PDI",
+  TEST_DRIVE: "Test Drive",
+  WARRANTY_CLAIM: "Warranty",
+  COURTESY_OUT: "Courtesy Out",
+  COURTESY_IN: "Courtesy In",
+  SERVICE_RECEIPT: "Service",
+  REVIEW_FEEDBACK: "Feedback",
+  OTHER: "Other",
+};
+
+// Inner component that uses context
+function SubmissionsContent({ dealer }) {
+  const { fetchWithTenant } = useDealer();
+  const [forms, setForms] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchWithTenant("/api/forms").then(r => r.ok ? r.json() : []),
+      fetchWithTenant("/api/forms/submissions").then(r => r.ok ? r.json() : []),
+    ])
+      .then(([formsData, subsData]) => {
+        setForms(Array.isArray(formsData) ? formsData : []);
+        setSubmissions(Array.isArray(subsData) ? subsData : []);
+      })
+      .finally(() => setIsLoading(false));
+  }, [fetchWithTenant]);
+
+  return (
+    <>
+      <Head><title>Submissions | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Form Submissions</h1>
+        <p className="text-slate-600 mt-1">View and manage form submissions</p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Quick Launch Forms */}
+          {forms.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-100 p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-4">Launch Form</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {forms.slice(0, 8).map((form) => (
+                  <button
+                    key={form.id || form._id}
+                    onClick={() => {
+                      if (form.isPublic && form.publicSlug) {
+                        window.open(`/public/forms/${form.publicSlug}`, '_blank');
+                      } else {
+                        window.location.href = `/forms/fill/${form.id || form._id}`;
+                      }
+                    }}
+                    className="p-4 bg-slate-50 rounded-xl hover:bg-[#0066CC]/10 hover:border-[#0066CC] border-2 border-transparent transition-all text-center"
+                  >
+                    <span className="text-sm font-semibold text-slate-700">
+                      {FORM_TYPE_LABELS[form.type] || form.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Submissions */}
+          <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Recent Submissions</h2>
+            </div>
+            {submissions.length === 0 ? (
+              <div className="p-8 text-center">
+                <p className="text-slate-500">No submissions yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {submissions.slice(0, 20).map((sub) => (
+                  <div key={sub.id || sub._id} className="p-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {FORM_TYPE_LABELS[sub.formType] || sub.formName || "Form"}
+                        </p>
+                        <p className="text-sm text-slate-500">
+                          {new Date(sub.createdAt).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      {sub.vehicleReg && (
+                        <span className="font-mono text-sm bg-slate-100 px-2 py-1 rounded">
+                          {sub.vehicleReg}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function TenantSubmissions({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <SubmissionsContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

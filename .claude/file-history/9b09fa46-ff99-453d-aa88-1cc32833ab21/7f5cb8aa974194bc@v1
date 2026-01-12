@@ -1,0 +1,42 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON.js";
+
+const dealerSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    // Company details for forms and branding
+    companyName: { type: String }, // Legal company name e.g. "My New Motor LTD"
+    companyAddress: { type: String }, // Full address for forms
+    companyPhone: { type: String }, // Phone for forms/contact
+    companyEmail: { type: String }, // Email for forms/contact
+    // Legacy fields (kept for compatibility)
+    address: { type: String },
+    phone: { type: String },
+    email: { type: String },
+    websiteUrl: { type: String },
+    googleReviewUrl: { type: String },
+    logoUrl: { type: String }, // Dealer logo for branding
+    slug: { type: String, unique: true, sparse: true }, // URL slug for public forms
+    settings: { type: Object, default: {} }, // branding, default task templates
+    // Form customization - intro text, T&Cs per form type
+    formCustomText: {
+      type: Map,
+      of: {
+        introText: String,
+        termsText: String,
+        contactPhone: String,
+      },
+      default: {},
+    },
+  },
+  { timestamps: true }
+);
+
+dealerSchema.plugin(toJSON);
+
+// Delete cached model to force schema update
+if (mongoose.models.Dealer) {
+  delete mongoose.models.Dealer;
+}
+
+export default mongoose.model("Dealer", dealerSchema);

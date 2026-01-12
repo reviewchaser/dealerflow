@@ -1,0 +1,43 @@
+The file C:\Users\georg\dealerflow\pages\appraisal\[dealerSlug].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   246→          {/* Vehicle Details */}
+   247→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   248→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
+   249→
+   250→            {/* VRM Lookup - Mobile responsive: always stacked */}
+   251→            <div className="mb-4">
+   252→              <label className="block text-sm font-medium text-slate-700 mb-1">Registration *</label>
+   253→              <div className="space-y-2">
+   254→                <input
+   255→                  type="text"
+   256→                  required
+   257→                  placeholder="AB12 CDE"
+   258→                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono text-xl text-center"
+   259→                  value={formData.vehicleReg}
+   260→                  onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })}
+   261→                />
+   262→                <button
+   263→                  type="button"
+   264→                  onClick={handleVrmLookup}
+   265→                  disabled={isLookingUp || !formData.vehicleReg}
+   266→                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+   267→                >
+   268→                  {isLookingUp ? (
+   269→                    <>
+   270→                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+   271→                      Looking up...
+   272→                    </>
+   273→                  ) : (
+   274→                    <>
+   275→                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   276→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+   277→                      </svg>
+   278→                      Lookup Vehicle
+   279→                    </>
+   280→                  )}
+   281→                </button>
+   282→              </div>
+   283→            </div>
+   284→
+   285→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   286→              <div>
+   287→                <label className="block text-sm font-medium text-slate-700 mb-1">Make</label>

@@ -1,0 +1,98 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON.js";
+     3→
+     4→// Dealer status for admin control
+     5→export const DEALER_STATUS = {
+     6→  ACTIVE: "ACTIVE",
+     7→  DISABLED: "DISABLED",
+     8→};
+     9→
+    10→const dealerSchema = new mongoose.Schema(
+    11→  {
+    12→    name: { type: String, required: true },
+    13→    // Platform admin can disable dealers
+    14→    status: {
+    15→      type: String,
+    16→      enum: Object.values(DEALER_STATUS),
+    17→      default: DEALER_STATUS.ACTIVE,
+    18→      index: true,
+    19→    },
+    20→    // Company details for forms and branding
+    21→    companyName: { type: String }, // Legal company name e.g. "My New Motor LTD"
+    22→    companyAddress: { type: String }, // Full address for forms
+    23→    companyPhone: { type: String }, // Phone for forms/contact
+    24→    companyEmail: { type: String }, // Email for forms/contact
+    25→    // Legacy fields (kept for compatibility)
+    26→    address: { type: String },
+    27→    phone: { type: String },
+    28→    email: { type: String },
+    29→    websiteUrl: { type: String },
+    30→    googleReviewUrl: { type: String },
+    31→    logoUrl: { type: String }, // Dealer logo for branding (deprecated - use logoKey)
+    32→    logoKey: { type: String }, // S3 object key for logo (private bucket)
+    33→    slug: { type: String, unique: true, sparse: true }, // URL slug for public forms
+    34→    settings: { type: Object, default: {} }, // branding, default task templates
+    35→    // Form customization - intro text, T&Cs per form type
+    36→    formCustomText: {
+    37→      type: Map,
+    38→      of: {
+    39→        introText: String,
+    40→        termsText: String,
+    41→        contactPhone: String,
+    42→      },
+    43→      default: {},
+    44→    },
+    45→    // === ONBOARDING FIELDS ===
+    46→    completedOnboarding: { type: Boolean, default: false },
+    47→    timezone: { type: String, default: "Europe/London" },
+    48→    // Comprehensive onboarding state with module/form toggles
+    49→    onboarding: {
+    50→      completedAt: { type: Date },
+    51→      dismissedAt: { type: Date },
+    52→      enabledModules: {
+    53→        salesPrep: { type: Boolean, default: true },
+    54→        appraisals: { type: Boolean, default: true },
+    55→        warranty: { type: Boolean, default: false },
+    56→        reviews: { type: Boolean, default: false },
+    57→      },
+    58→      enabledForms: [{ type: String }], // ["PDI", "DELIVERY", "TEST_DRIVE", ...]
+    59→      completedSteps: [{ type: String }], // ["first_vehicle", "first_appraisal", ...]
+    60→    },
+    61→    primaryContactEmail: { type: String },
+    62→    primaryContactPhone: { type: String },
+    63→    // Board configuration for Sales & Prep view
+    64→    boardConfig: {
+    65→      columns: [{
+    66→        key: { type: String },
+    67→        label: { type: String },
+    68→        order: { type: Number },
+    69→        color: { type: String },
+    70→      }]
+    71→    },
+    72→    // Task auto-completion settings
+    73→    taskAutoComplete: {
+    74→      enabled: { type: Boolean, default: true },
+    75→      mappings: [{
+    76→        formType: { type: String },
+    77→        taskName: { type: String },
+    78→      }]
+    79→    },
+    80→    // Default task template group for new vehicles
+    81→    defaultTaskTemplateGroupId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleTaskTemplateGroup" },
+    82→  },
+    83→  { timestamps: true }
+    84→);
+    85→
+    86→dealerSchema.plugin(toJSON);
+    87→
+    88→// Delete cached model to force schema update
+    89→if (mongoose.models.Dealer) {
+    90→  delete mongoose.models.Dealer;
+    91→}
+    92→
+    93→export default mongoose.model("Dealer", dealerSchema);
+    94→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

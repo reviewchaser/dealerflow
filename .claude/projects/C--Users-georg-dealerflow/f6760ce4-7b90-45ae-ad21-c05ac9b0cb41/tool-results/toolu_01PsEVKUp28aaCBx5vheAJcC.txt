@@ -1,0 +1,19 @@
+The file C:\Users\georg\dealerflow\pages\forms.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   334→      alert("Failed to delete form");
+   335→    }
+   336→  };
+   337→
+   338→  const getPublicUrl = (form) => {
+   339→    // Support both legacy isPublic flag and new visibility modes
+   340→    // PUBLIC and SHARE_LINK visibility modes should have shareable URLs
+   341→    const isShareable = form.isPublic ||
+   342→      form.visibility === "PUBLIC" ||
+   343→      form.visibility === "SHARE_LINK";
+   344→
+   345→    if (!isShareable || !form.publicSlug) return null;
+   346→    return `${window.location.origin}/public/forms/${form.publicSlug}`;
+   347→  };
+   348→
+   349→  const getSubmissionCount = (formId) => {
+   350→    return submissions.filter((s) => s.formId?._id === formId).length;
+   351→  };

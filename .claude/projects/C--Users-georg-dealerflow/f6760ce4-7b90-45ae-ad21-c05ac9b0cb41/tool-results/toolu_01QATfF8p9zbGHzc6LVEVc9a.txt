@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\components\ui\MobileModal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   147→                </svg>
+   148→              </button>
+   149→            </div>
+   150→
+   151→            {/* Content - Scrollable vertically only */}
+   152→            <div
+   153→              className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6 min-h-0"
+   154→              style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+   155→            >
+   156→              {contentChildren}
+   157→            </div>
+   158→
+   159→            {/* Footer - Sticky with safe area padding on mobile */}
+   160→            {footerContent && (
+   161→              <div

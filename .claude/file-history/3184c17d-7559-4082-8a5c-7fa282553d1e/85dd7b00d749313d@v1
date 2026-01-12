@@ -1,0 +1,388 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const STATUS_LABELS = {
+  pending: "New",
+  reviewed: "Reviewed",
+  converted: "Converted",
+  declined: "Declined",
+};
+
+const STATUS_COLORS = {
+  pending: "badge-warning",
+  reviewed: "badge-info",
+  converted: "badge-success",
+  declined: "badge-error",
+};
+
+export default function Appraisals() {
+  const router = useRouter();
+  const [appraisals, setAppraisals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [isConverting, setIsConverting] = useState(null); // Stores appraisal id being converted
+
+  useEffect(() => { fetchAppraisals(); }, [filter]);
+
+  const fetchAppraisals = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`/api/appraisals?decision=${filter}`);
+      const data = await res.json();
+      setAppraisals(data);
+    } catch (error) {
+      toast.error("Failed to load appraisals");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this appraisal?")) return;
+    try {
+      await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+      toast.success("Deleted");
+      fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const handleOpenConvertModal = (appraisal) => {
+    setConvertFormData({
+      regCurrent: appraisal.vehicleReg || "",
+      make: appraisal.vehicleMake || "",
+      model: appraisal.vehicleModel || "",
+      year: appraisal.vehicleYear || "",
+      mileageCurrent: appraisal.mileage || "",
+      fuelType: "",
+      transmission: "",
+      colour: "",
+      notes: appraisal.conditionNotes || "",
+      type: "STOCK",
+    });
+    setShowConvertModal(appraisal);
+  };
+
+  const handleConvertToStock = async () => {
+    setIsConverting(true);
+    try {
+      // Create vehicle
+      const vehicleRes = await fetch("/api/vehicles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...convertFormData,
+          status: "in_stock",
+          skipDefaultTasks: false,
+        }),
+      });
+
+      if (!vehicleRes.ok) throw new Error("Failed to create vehicle");
+      const vehicle = await vehicleRes.json();
+
+      // Update appraisal with vehicle link and status
+      await fetch(`/api/appraisals/${showConvertModal.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          decision: "converted",
+          vehicleId: vehicle.id,
+          decidedAt: new Date(),
+        }),
+      });
+
+      toast.success("Vehicle added to stock!");
+      setShowConvertModal(null);
+      fetchAppraisals();
+
+      // Option to go to the vehicle
+      if (confirm("Vehicle created. View it on Sales & Prep board?")) {
+        router.push("/sales-prep");
+      }
+    } catch (error) {
+      console.error("Convert error:", error);
+      toast.error("Failed to convert to stock");
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      await fetch(`/api/appraisals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision: status, decidedAt: new Date() }),
+      });
+      toast.success(`Marked as ${STATUS_LABELS[status]}`);
+      fetchAppraisals();
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <Head><title>Appraisals | DealerFlow</title></Head>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Buying Appraisals</h1>
+          <p className="text-base-content/60 mt-2">Track vehicle purchase assessments</p>
+        </div>
+        <Link href="/appraisals/new" className="btn btn-primary">+ New Appraisal</Link>
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {["all", "pending", "reviewed", "converted", "declined"].map((status) => (
+          <button key={status} className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setFilter(status)}>
+            {status === "all" ? "All" : STATUS_LABELS[status] || status}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : appraisals.length === 0 ? (
+        <div className="card bg-base-200">
+          <div className="card-body text-center py-16">
+            <p className="text-lg text-base-content/60">No appraisals found</p>
+            <div className="mt-6">
+              <Link href="/appraisals/new" className="btn btn-primary">Create First Appraisal</Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Registration</th>
+                <th>Vehicle</th>
+                <th>Mileage</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {appraisals.map((a) => (
+                <tr key={a.id} className="hover">
+                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
+                  <td><span className="font-mono font-semibold">{a.vehicleReg}</span></td>
+                  <td>
+                    {a.vehicleMake && a.vehicleModel ? (
+                      <span>{a.vehicleMake} {a.vehicleModel} {a.vehicleYear ? `(${a.vehicleYear})` : ""}</span>
+                    ) : "—"}
+                  </td>
+                  <td>{a.mileage?.toLocaleString() || "—"}</td>
+                  <td>
+                    <div className={`badge ${STATUS_COLORS[a.decision] || "badge-ghost"}`}>
+                      {STATUS_LABELS[a.decision] || a.decision}
+                    </div>
+                    {a.vehicleId && (
+                      <Link href="/sales-prep" className="badge badge-outline badge-sm ml-2">
+                        In Stock
+                      </Link>
+                    )}
+                  </td>
+                  <td>
+                    <div className="flex gap-1">
+                      <Link href={`/appraisals/${a.id}`} className="btn btn-ghost btn-xs">View</Link>
+
+                      {a.decision === "pending" && (
+                        <>
+                          <button
+                            className="btn btn-success btn-xs"
+                            onClick={() => handleOpenConvertModal(a)}
+                          >
+                            Convert to Stock
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-xs"
+                            onClick={() => handleUpdateStatus(a.id, "declined")}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      )}
+
+                      {a.decision === "reviewed" && !a.vehicleId && (
+                        <button
+                          className="btn btn-success btn-xs"
+                          onClick={() => handleOpenConvertModal(a)}
+                        >
+                          Convert to Stock
+                        </button>
+                      )}
+
+                      <button className="btn btn-ghost btn-xs text-error" onClick={() => handleDelete(a.id)}>
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Convert to Stock Modal */}
+      {showConvertModal && (
+        <dialog className="modal modal-open">
+          <div className="modal-box max-w-2xl">
+            <h3 className="font-bold text-lg mb-4">Convert Appraisal to Stock</h3>
+
+            <div className="alert alert-info mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Review and adjust vehicle details before adding to stock</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label"><span className="label-text">Registration</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered font-mono uppercase"
+                  value={convertFormData.regCurrent}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, regCurrent: e.target.value.toUpperCase() }))}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Type</span></label>
+                <select
+                  className="select select-bordered"
+                  value={convertFormData.type}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, type: e.target.value }))}
+                >
+                  <option value="STOCK">Stock</option>
+                  <option value="COURTESY">Courtesy</option>
+                  <option value="FLEET_OTHER">Fleet/Other</option>
+                </select>
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Make</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={convertFormData.make}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, make: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Model</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={convertFormData.model}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, model: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Year</span></label>
+                <input
+                  type="number"
+                  className="input input-bordered"
+                  value={convertFormData.year}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, year: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Mileage</span></label>
+                <input
+                  type="number"
+                  className="input input-bordered"
+                  value={convertFormData.mileageCurrent}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, mileageCurrent: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Fuel Type</span></label>
+                <select
+                  className="select select-bordered"
+                  value={convertFormData.fuelType}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, fuelType: e.target.value }))}
+                >
+                  <option value="">Select...</option>
+                  <option value="Petrol">Petrol</option>
+                  <option value="Diesel">Diesel</option>
+                  <option value="Electric">Electric</option>
+                  <option value="Hybrid">Hybrid</option>
+                </select>
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Transmission</span></label>
+                <select
+                  className="select select-bordered"
+                  value={convertFormData.transmission}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, transmission: e.target.value }))}
+                >
+                  <option value="">Select...</option>
+                  <option value="Manual">Manual</option>
+                  <option value="Automatic">Automatic</option>
+                </select>
+              </div>
+
+              <div className="form-control col-span-2">
+                <label className="label"><span className="label-text">Colour</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={convertFormData.colour}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, colour: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-control col-span-2">
+                <label className="label"><span className="label-text">Notes</span></label>
+                <textarea
+                  className="textarea textarea-bordered"
+                  rows={3}
+                  value={convertFormData.notes}
+                  onChange={(e) => setConvertFormData(prev => ({ ...prev, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowConvertModal(null)} disabled={isConverting}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleConvertToStock} disabled={isConverting}>
+                {isConverting ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    Converting...
+                  </>
+                ) : (
+                  "Add to Stock"
+                )}
+              </button>
+            </div>
+          </div>
+          <form method="dialog" className="modal-backdrop">
+            <button onClick={() => setShowConvertModal(null)}>close</button>
+          </form>
+        </dialog>
+      )}
+    </DashboardLayout>
+  );
+}

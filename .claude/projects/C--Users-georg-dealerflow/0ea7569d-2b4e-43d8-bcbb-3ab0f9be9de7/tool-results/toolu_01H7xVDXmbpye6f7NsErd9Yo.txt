@@ -1,0 +1,5 @@
+C:\Users\georg\dealerflow\pages\api\public\deposit-receipt\[token].js
+C:\Users\georg\dealerflow\pages\public\deposit-receipt\[token].js
+C:\Users\georg\dealerflow\.next\static\chunks\pages\public\deposit-receipt\[token].js
+C:\Users\georg\dealerflow\.next\server\pages\public\deposit-receipt\[token].js
+C:\Users\georg\dealerflow\.next\server\pages\api\public\deposit-receipt\[token].js

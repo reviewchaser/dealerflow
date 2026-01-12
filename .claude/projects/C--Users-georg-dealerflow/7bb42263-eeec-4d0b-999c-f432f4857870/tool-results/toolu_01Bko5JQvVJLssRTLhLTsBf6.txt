@@ -1,0 +1,104 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import VehicleIssue from "@/models/VehicleIssue";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import VehicleActivity from "@/models/VehicleActivity";
+     5→import User from "@/models/User";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→async function handler(req, res, ctx) {
+     9→  await connectMongo();
+    10→  const { dealerId, userId, user } = ctx;
+    11→  const { id } = req.query; // vehicleId
+    12→
+    13→  // Verify vehicle belongs to this dealer
+    14→  const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    15→  if (!vehicle) {
+    16→    return res.status(404).json({ error: "Vehicle not found" });
+    17→  }
+    18→
+    19→  if (req.method === "GET") {
+    20→    try {
+    21→      const issues = await VehicleIssue.find({ vehicleId: id }).sort({ createdAt: -1 }).lean();
+    22→      return res.status(200).json(issues);
+    23→    } catch (error) {
+    24→      console.error("Error fetching issues:", error);
+    25→      return res.status(500).json({ error: "Failed to fetch issues" });
+    26→    }
+    27→  }
+    28→
+    29→  if (req.method === "POST") {
+    30→    try {
+    31→      const { category, subcategory, description, photos, actionNeeded, status, notes, partsRequired, partsDetails } = req.body;
+    32→
+    33→      if (!category || !subcategory || !description) {
+    34→        return res.status(400).json({ error: "Category, subcategory, and description are required" });
+    35→      }
+    36→
+    37→      // Map lowercase categories to proper case for model
+    38→      const categoryMap = {
+    39→        'cosmetic': 'Cosmetic',
+    40→        'bodywork': 'Cosmetic',
+    41→        'mechanical': 'Mechanical',
+    42→        'electrical': 'Electrical',
+    43→        'interior': 'Cosmetic',
+    44→        'tyres': 'Mechanical',
+    45→        'mot': 'Mechanical',
+    46→        'service': 'Mechanical',
+    47→        'fault_codes': 'Mechanical',
+    48→        'other': 'Other'
+    49→      };
+    50→
+    51→      // Map lowercase status to proper case for model
+    52→      const statusMap = {
+    53→        'outstanding': 'Outstanding',
+    54→        'ordered': 'Ordered',
+    55→        'in_progress': 'In Progress',
+    56→        'resolved': 'Complete',
+    57→        'complete': 'Complete'
+    58→      };
+    59→
+    60→      const mappedCategory = categoryMap[category.toLowerCase()] || 'Other';
+    61→      const mappedStatus = statusMap[(status || 'outstanding').toLowerCase()] || 'Outstanding';
+    62→
+    63→      const issue = await VehicleIssue.create({
+    64→        vehicleId: id,
+    65→        category: mappedCategory,
+    66→        subcategory,
+    67→        description,
+    68→        photos: photos || [],
+    69→        actionNeeded,
+    70→        status: mappedStatus,
+    71→        notes,
+    72→        partsRequired: partsRequired || false,
+    73→        partsDetails: partsDetails || null,
+    74→      });
+    75→
+    76→      // Log activity
+    77→      const actor = await User.findById(userId).lean();
+    78→      const actorName = actor?.name || user?.name || user?.email || "System";
+    79→      await VehicleActivity.log({
+    80→        dealerId,
+    81→        vehicleId: id,
+    82→        actorId: userId,
+    83→        actorName,
+    84→        type: "ISSUE_ADDED",
+    85→        message: `Added ${mappedCategory} issue: ${description.substring(0, 50)}${description.length > 50 ? '...' : ''}`,
+    86→        meta: { issueId: issue._id, category: mappedCategory, subcategory },
+    87→      });
+    88→
+    89→      return res.status(201).json(issue.toJSON());
+    90→    } catch (error) {
+    91→      console.error("Error creating issue:", error);
+    92→      return res.status(500).json({ error: error.message || "Failed to create issue" });
+    93→    }
+    94→  }
+    95→
+    96→  return res.status(405).json({ error: "Method not allowed" });
+    97→}
+    98→
+    99→export default withDealerContext(handler);
+   100→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

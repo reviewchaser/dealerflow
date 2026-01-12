@@ -1,0 +1,10 @@
+81-    defaultTaskTemplateGroupId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleTaskTemplateGroup" },
+82-
+83-    // === SALES SETTINGS ===
+84:    salesSettings: {
+85-      // Sequential numbering
+86:      nextStockNumber: { type: Number, default: 1 },
+87:      stockNumberPrefix: { type: String, default: "" },
+88-      nextDealNumber: { type: Number, default: 1 },
+89-      dealNumberPrefix: { type: String, default: "D" },
+90-      nextInvoiceNumber: { type: Number, default: 1 },

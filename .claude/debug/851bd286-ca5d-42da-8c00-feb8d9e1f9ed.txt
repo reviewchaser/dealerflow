@@ -1,0 +1,679 @@
+2025-12-09T21:28:38.387Z [DEBUG] Watching for changes in setting files C:\Users\georg\.claude\settings.json, C:\Users\georg\dealerflow\.claude\settings.local.json...
+2025-12-09T21:28:38.522Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2025-12-09T21:28:38.604Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-12-09T21:28:38.604Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-12-09T21:28:38.604Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-12-09T21:28:38.604Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-12-09T21:28:38.604Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()
+2025-12-09T21:28:38.639Z [DEBUG] Applying permission update: Adding 12 allow rule(s) to destination 'localSettings': ["Bash(npm run dev:*)","Bash(npm install)","Bash(npm install:*)","Bash(node scripts/seed-forms-standalone.js:*)","Bash(taskkill:*)","Bash(rm:*)","Bash(ls:*)","Bash(cat:*)","Bash(python:*)","Bash(lsof:*)","Bash(npm run build:*)","Bash(timeout 5 bash:*)"]
+2025-12-09T21:28:38.683Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-12-09T21:28:38.688Z [DEBUG] Total LSP servers loaded: 0
+2025-12-09T21:28:38.688Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2025-12-09T21:28:38.689Z [DEBUG] LSP manager initialized with 0 servers
+2025-12-09T21:28:38.689Z [DEBUG] LSP server manager initialized successfully
+2025-12-09T21:28:38.689Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-12-09T21:28:38.726Z [DEBUG] Loading skills from directories: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\georg\.claude\skills, project=C:\Users\georg\dealerflow\.claude\skills
+2025-12-09T21:28:38.727Z [DEBUG] >>>>> getPluginSkills CALLED <<<<<
+2025-12-09T21:28:39.954Z [DEBUG] installed_plugins.json doesn't exist yet at C:\Users\georg\.claude\plugins\installed_plugins.json, returning empty object
+2025-12-09T21:28:40.191Z [DEBUG] Creating shell snapshot for bash (C:\Program Files\Git\bin\bash.exe)
+2025-12-09T21:28:40.191Z [DEBUG] Looking for shell config file: C:\Users\georg\.bashrc
+2025-12-09T21:28:40.191Z [DEBUG] Shell config file not found: C:\Users\georg\.bashrc, creating snapshot with Claude Code defaults only
+2025-12-09T21:28:40.191Z [DEBUG] Snapshots directory: C:\Users\georg\.claude\shell-snapshots
+2025-12-09T21:28:40.240Z [DEBUG] Creating snapshot at: C:\Users\georg\.claude\shell-snapshots\snapshot-bash-1765315720191-tosv5f.sh
+2025-12-09T21:28:40.241Z [DEBUG] Shell binary exists: true
+2025-12-09T21:28:40.241Z [DEBUG] Execution timeout: 10000ms
+2025-12-09T21:28:40.263Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765315720263
+2025-12-09T21:28:40.267Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-09T21:28:40.267Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765315720263 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:28:40.268Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:28:40.286Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-12-09T21:28:40.286Z [DEBUG] Total plugin skills loaded: 0
+2025-12-09T21:28:40.286Z [DEBUG] Total plugin commands loaded: 0
+2025-12-09T21:28:40.286Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-12-09T21:28:40.926Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-12-09T21:28:41.036Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2025-12-09T21:28:41.045Z [DEBUG] Total plugin agents loaded: 0
+2025-12-09T21:28:41.105Z [DEBUG] Git remote URL: null
+2025-12-09T21:28:41.105Z [DEBUG] No git remote URL found
+2025-12-09T21:28:41.105Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2025-12-09T21:28:41.209Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=C:\Users\georg\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\vendor\ripgrep\x64-win32\rg.exe)
+2025-12-09T21:28:41.497Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315721497
+2025-12-09T21:28:41.497Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:41.501Z [DEBUG] Temp file written successfully, size: 45524 bytes
+2025-12-09T21:28:41.501Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:41.501Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315721497 to C:\Users\georg\.claude.json
+2025-12-09T21:28:41.503Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:41.515Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315721515
+2025-12-09T21:28:41.516Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:41.519Z [DEBUG] Temp file written successfully, size: 45524 bytes
+2025-12-09T21:28:41.520Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:41.520Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315721515 to C:\Users\georg\.claude.json
+2025-12-09T21:28:41.522Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:41.536Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315721536
+2025-12-09T21:28:41.536Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:41.540Z [DEBUG] Temp file written successfully, size: 45568 bytes
+2025-12-09T21:28:41.540Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:41.540Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315721536 to C:\Users\georg\.claude.json
+2025-12-09T21:28:41.542Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:41.556Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315721556
+2025-12-09T21:28:41.557Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:41.560Z [DEBUG] Temp file written successfully, size: 45568 bytes
+2025-12-09T21:28:41.561Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:41.561Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315721556 to C:\Users\georg\.claude.json
+2025-12-09T21:28:41.562Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:41.678Z [DEBUG] Shell snapshot created successfully (342 bytes)
+2025-12-09T21:28:41.695Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315721695
+2025-12-09T21:28:41.696Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:41.698Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:28:41.699Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:41.699Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315721695 to C:\Users\georg\.claude.json
+2025-12-09T21:28:41.700Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:41.925Z [DEBUG] Creating installed_plugins_v2.json from V1 and settings.json files
+2025-12-09T21:28:41.936Z [DEBUG] Saved 0 installed plugins to V2 file at C:\Users\georg\.claude\plugins\installed_plugins_v2.json
+2025-12-09T21:28:41.936Z [DEBUG] Sync completed: 0 added, 0 updated in installed_plugins_v2.json
+2025-12-09T21:28:41.944Z [DEBUG] Saved 0 installed plugins to C:\Users\georg\.claude\plugins\installed_plugins.json (schema version 1)
+2025-12-09T21:28:41.944Z [DEBUG] V1 file updated with 0 user-scope plugins
+2025-12-09T21:28:41.992Z [DEBUG] Initialized versioned plugins system with 0 plugins
+2025-12-09T21:28:42.021Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722021
+2025-12-09T21:28:42.022Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.025Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:28:42.026Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.026Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722021 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.028Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.058Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-12-09T21:28:42.058Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:28:42.058Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-12-09T21:28:42.105Z [DEBUG] Skills and commands included in Skill tool:
+2025-12-09T21:28:42.106Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-12-09T21:28:42.274Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722274
+2025-12-09T21:28:42.274Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.277Z [DEBUG] Temp file written successfully, size: 46135 bytes
+2025-12-09T21:28:42.278Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.278Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722274 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.280Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.293Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722293
+2025-12-09T21:28:42.294Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.297Z [DEBUG] Temp file written successfully, size: 46135 bytes
+2025-12-09T21:28:42.297Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.297Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722293 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.299Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.310Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722310
+2025-12-09T21:28:42.311Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.314Z [DEBUG] Temp file written successfully, size: 46135 bytes
+2025-12-09T21:28:42.315Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.315Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722310 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.316Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.334Z [DEBUG] performStartupChecks called
+2025-12-09T21:28:42.336Z [DEBUG] Starting background plugin installations
+2025-12-09T21:28:42.337Z [DEBUG] performBackgroundPluginInstallations called
+2025-12-09T21:28:42.374Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-09T21:28:42.391Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722391
+2025-12-09T21:28:42.391Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.394Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:28:42.394Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.394Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722391 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.396Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.399Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2025-12-09T21:28:42.399Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2025-12-09T21:28:42.447Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-12-09T21:28:42.447Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:28:42.447Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-12-09T21:28:42.528Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-12-09T21:28:42.528Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:28:42.528Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-12-09T21:28:42.683Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722683
+2025-12-09T21:28:42.683Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.687Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:28:42.688Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.688Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722683 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.690Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:42.765Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315722765
+2025-12-09T21:28:42.766Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:28:42.768Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:28:42.769Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:28:42.769Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315722765 to C:\Users\georg\.claude.json
+2025-12-09T21:28:42.771Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:28:43.806Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:28:45.487Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-09T21:28:45.487Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:28:45.487Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-09T21:28:46.124Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:28:53.090Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-09T21:28:53.090Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:28:53.090Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-09T21:30:40.498Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.8028.1765315840498
+2025-12-09T21:30:40.498Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:30:40.502Z [DEBUG] Temp file written successfully, size: 46240 bytes
+2025-12-09T21:30:40.503Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:30:40.503Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.8028.1765315840498 to C:\Users\georg\.claude.json
+2025-12-09T21:30:40.505Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-09T21:31:11.646Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:31:11.647Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:31:11.648Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:31:11.648Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:31:11.878Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:31:11.878Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:31:12.136Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-09T21:31:12.136Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:12.136Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-09T21:31:12.156Z [DEBUG] FileHistory: Added snapshot for 31d676c5-81fc-4cad-bbc0-147509c473b0, tracking 0 files
+2025-12-09T21:31:12.269Z [DEBUG] Total plugin output styles loaded: 0
+2025-12-09T21:31:13.117Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:31:14.212Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:31:21.035Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:31:21.036Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:31:21.037Z [DEBUG] executePreToolHooks called for tool: Glob
+2025-12-09T21:31:21.039Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:31:21.069Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:31:21.069Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:21.069Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:21.069Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:31:21.069Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:21.069Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:21.069Z [DEBUG] Getting matching hook commands for PreToolUse with query: Glob
+2025-12-09T21:31:21.069Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:21.069Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-09T21:31:21.069Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:31:21.069Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:21.069Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:35.600Z [DEBUG] Getting matching hook commands for PostToolUse with query: Glob
+2025-12-09T21:31:35.600Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:35.600Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-09T21:31:35.839Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 0 results
+2025-12-09T21:31:35.850Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 1 results
+2025-12-09T21:31:35.875Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:31:35.875Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:35.875Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:35.879Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 2 results
+2025-12-09T21:31:35.971Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:31:35.971Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:35.971Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:36.009Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:31:36.009Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:36.009Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:36.101Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:31:36.101Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:31:36.102Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:31:36.102Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:31:36.132Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:31:36.132Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:31:39.143Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:31:43.070Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:31:43.103Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:31:43.103Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:43.103Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:43.103Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:31:43.105Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:31:43.133Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:31:43.133Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:43.133Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:31:43.133Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:31:43.133Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:43.133Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:31:56.110Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:31:56.110Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:56.110Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:31:56.110Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:31:56.110Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:56.110Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:31:56.145Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:31:56.145Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:31:56.145Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:31:56.227Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:31:56.227Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:31:56.227Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:31:56.228Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:31:56.969Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:31:56.969Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:31:59.956Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:32:07.872Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:32:07.895Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:32:07.895Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:07.895Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:07.895Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:32:07.896Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:32:07.918Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:32:07.918Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:07.918Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:07.919Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:32:07.919Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:07.919Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:18.028Z [ERROR] AxiosError: AxiosError: timeout of 5000ms exceeded
+    at FU.<anonymous> (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:187:10436)
+    at FU.emit (node:events:508:28)
+    at FU.emit (node:domain:489:12)
+    at Timeout.<anonymous> (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:186:5600)
+    at listOnTimeout (node:internal/timers:605:17)
+    at process.processTimers (node:internal/timers:541:7)
+    at dHA.request (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:189:2130)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at listOnTimeout (node:internal/timers:567:9)
+    at process.processTimers (node:internal/timers:541:7)
+    at async JE0 (file:///C:/Users/georg/AppData/Roaming/npm/node_modules/@anthropic-ai/claude-code/cli.js:4675:3924)
+2025-12-09T21:32:18.234Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:32:18.234Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:18.234Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:18.234Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:32:18.234Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:18.234Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:18.300Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:32:18.300Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:18.300Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:18.385Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:32:18.385Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:32:18.386Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:32:18.386Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:32:19.177Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:32:19.177Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:32:21.445Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:32:26.881Z [DEBUG] executePreToolHooks called for tool: Glob
+2025-12-09T21:32:26.883Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:32:26.921Z [DEBUG] Getting matching hook commands for PreToolUse with query: Glob
+2025-12-09T21:32:26.921Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:26.921Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-09T21:32:26.921Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:32:26.921Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:26.921Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:34.425Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 2 results
+2025-12-09T21:32:34.459Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:32:34.459Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:34.459Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:34.896Z [DEBUG] Getting matching hook commands for PostToolUse with query: Glob
+2025-12-09T21:32:34.896Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:34.896Z [DEBUG] Matched 0 unique hooks for query "Glob" (0 before deduplication)
+2025-12-09T21:32:34.952Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:32:34.952Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:32:34.952Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:32:34.952Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:32:34.988Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:32:34.988Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:32:36.821Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:32:38.301Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:32:38.323Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:32:38.323Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:38.323Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:42.084Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:32:42.084Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:42.084Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:32:42.140Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:32:42.140Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:32:42.140Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:32:42.140Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:32:42.547Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:32:42.547Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:32:45.627Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:32:49.876Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:32:49.920Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:32:49.920Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:49.920Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:53.695Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:32:53.696Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:32:53.696Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:32:53.745Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:32:53.745Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:32:53.746Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:32:53.746Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:32:53.782Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:32:53.782Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:32:57.321Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:33:01.361Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:33:01.363Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:33:01.364Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:33:01.393Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:33:01.393Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:01.393Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:01.393Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:33:01.393Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:01.393Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:01.393Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:33:01.393Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:01.393Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:12.119Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:33:12.119Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:12.120Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:12.120Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:33:12.120Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:12.120Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:12.120Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:33:12.120Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:12.120Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:12.202Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:33:12.202Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:33:12.203Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:33:12.203Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:33:12.598Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:33:12.598Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:33:18.234Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:33:29.130Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:33:29.131Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-09T21:33:29.168Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:33:29.168Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:29.169Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:33:29.169Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-09T21:33:29.169Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:29.169Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:33:29.169Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:33:29.207Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:33:29.207Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:29.207Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:36.887Z [DEBUG] tree-sitter: loaded from disk
+2025-12-09T21:33:36.968Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:33:36.968Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:36.968Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:33:38.515Z [DEBUG] Session environment not yet supported on Windows
+2025-12-09T21:33:38.540Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 3 results
+2025-12-09T21:33:38.691Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:33:38.692Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:38.692Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:33:40.577Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-09T21:33:40.578Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:40.578Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:33:40.643Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:33:40.643Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:33:40.644Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:33:40.644Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:33:41.063Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:33:41.063Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:33:41.275Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:33:42.969Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:33:48.844Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:33:48.875Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:33:48.875Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:48.875Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:33:49.003Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316029003
+2025-12-09T21:33:49.003Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:33:49.006Z [DEBUG] Temp file written successfully, size: 611 bytes
+2025-12-09T21:33:49.006Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:33:49.006Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316029003 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:33:49.008Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:33:49.058Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:33:49.058Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:49.058Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:33:49.103Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:33:49.103Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:33:49.104Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:33:49.104Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:33:49.134Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:33:49.134Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:33:51.491Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:33:53.542Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-09T21:33:53.593Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-09T21:33:53.593Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:33:53.593Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:33:54.090Z [DEBUG] Session environment not yet supported on Windows
+2025-12-09T21:34:04.352Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-09T21:34:04.352Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:04.352Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:34:04.405Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:34:04.405Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:34:04.406Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:34:04.406Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:34:04.474Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:34:04.474Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:34:05.055Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:34:07.365Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:34:10.354Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:34:10.396Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:34:10.396Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:10.396Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:34:10.506Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316050506
+2025-12-09T21:34:10.507Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:34:10.510Z [DEBUG] Temp file written successfully, size: 613 bytes
+2025-12-09T21:34:10.511Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:34:10.511Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316050506 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:34:10.513Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:34:10.566Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:34:10.566Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:10.566Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:34:10.590Z [DEBUG] executePreToolHooks called for tool: Bash
+2025-12-09T21:34:10.634Z [DEBUG] Getting matching hook commands for PreToolUse with query: Bash
+2025-12-09T21:34:10.634Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:10.634Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:34:16.279Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:34:16.406Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:34:16.724Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:34:19.262Z [DEBUG] Permission suggestions for Bash: [
+  {
+    "type": "addRules",
+    "rules": [
+      {
+        "toolName": "Bash",
+        "ruleContent": "mkdir:*"
+      }
+    ],
+    "behavior": "allow",
+    "destination": "localSettings"
+  }
+]
+2025-12-09T21:34:19.342Z [DEBUG] executePermissionRequestHooks called for tool: Bash
+2025-12-09T21:34:19.378Z [DEBUG] Getting matching hook commands for PermissionRequest with query: Bash
+2025-12-09T21:34:19.378Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:19.378Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:34:25.360Z [DEBUG] Getting matching hook commands for Notification with query: permission_prompt
+2025-12-09T21:34:25.360Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:34:25.360Z [DEBUG] Matched 0 unique hooks for query "permission_prompt" (0 before deduplication)
+2025-12-09T21:46:14.882Z [DEBUG] Persisting permission update: addRules to source 'localSettings'
+2025-12-09T21:46:14.882Z [DEBUG] Persisting 1 allow rule(s) to localSettings
+2025-12-09T21:46:14.895Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\.claude\settings.local.json.tmp.8028.1765316774895
+2025-12-09T21:46:14.896Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:46:14.899Z [DEBUG] Temp file written successfully, size: 437 bytes
+2025-12-09T21:46:14.899Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:46:14.899Z [DEBUG] Renaming C:\Users\georg\dealerflow\.claude\settings.local.json.tmp.8028.1765316774895 to C:\Users\georg\dealerflow\.claude\settings.local.json
+2025-12-09T21:46:14.901Z [DEBUG] File C:\Users\georg\dealerflow\.claude\settings.local.json written atomically
+2025-12-09T21:46:14.920Z [DEBUG] Applying permission update: Adding 1 allow rule(s) to destination 'localSettings': ["Bash(mkdir:*)"]
+2025-12-09T21:46:15.357Z [DEBUG] Session environment not yet supported on Windows
+2025-12-09T21:46:15.461Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-09T21:46:17.584Z [DEBUG] Getting matching hook commands for PostToolUse with query: Bash
+2025-12-09T21:46:17.584Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:17.584Z [DEBUG] Matched 0 unique hooks for query "Bash" (0 before deduplication)
+2025-12-09T21:46:17.677Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:46:17.677Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:46:17.678Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:46:17.678Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:46:17.738Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:46:17.738Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:46:18.359Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:46:20.127Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:46:33.464Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:46:33.524Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:46:33.524Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:33.524Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:46:33.689Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316793689
+2025-12-09T21:46:33.690Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:46:33.692Z [DEBUG] Temp file written successfully, size: 615 bytes
+2025-12-09T21:46:33.693Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:46:33.693Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316793689 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:46:33.695Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:46:33.768Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:46:33.768Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:33.768Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:46:34.189Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-09T21:46:34.232Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-09T21:46:34.232Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:34.232Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-09T21:46:37.287Z [DEBUG] Permission suggestions for Edit: [
+  {
+    "type": "setMode",
+    "mode": "acceptEdits",
+    "destination": "session"
+  }
+]
+2025-12-09T21:46:37.806Z [DEBUG] executePermissionRequestHooks called for tool: Edit
+2025-12-09T21:46:38.276Z [DEBUG] Getting matching hook commands for PermissionRequest with query: Edit
+2025-12-09T21:46:38.276Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:38.276Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-09T21:46:43.830Z [DEBUG] Getting matching hook commands for Notification with query: permission_prompt
+2025-12-09T21:46:43.830Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:46:43.830Z [DEBUG] Matched 0 unique hooks for query "permission_prompt" (0 before deduplication)
+2025-12-09T21:47:24.289Z [DEBUG] Applying permission update: Setting mode to 'acceptEdits'
+2025-12-09T21:47:24.309Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\pages\api\vehicles\upload.js.tmp.8028.1765316844309
+2025-12-09T21:47:24.310Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:47:24.312Z [DEBUG] Temp file written successfully, size: 1815 bytes
+2025-12-09T21:47:24.313Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:47:24.313Z [DEBUG] Renaming C:\Users\georg\dealerflow\pages\api\vehicles\upload.js.tmp.8028.1765316844309 to C:\Users\georg\dealerflow\pages\api\vehicles\upload.js
+2025-12-09T21:47:24.315Z [DEBUG] File C:\Users\georg\dealerflow\pages\api\vehicles\upload.js written atomically
+2025-12-09T21:47:24.372Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\pages\api\vehicles\upload.js
+2025-12-09T21:47:24.415Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-09T21:47:24.456Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-09T21:47:24.456Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:24.456Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-09T21:47:24.691Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:47:24.691Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:47:24.692Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:47:24.692Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:47:25.020Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:47:25.020Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:47:27.419Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:47:31.911Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:47:31.947Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:47:31.947Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:31.947Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:32.076Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316852076
+2025-12-09T21:47:32.077Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:47:32.079Z [DEBUG] Temp file written successfully, size: 764 bytes
+2025-12-09T21:47:32.079Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:47:32.079Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316852076 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:47:32.081Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:47:32.137Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:47:32.137Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:32.137Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:32.381Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:47:32.415Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:47:32.415Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:32.415Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:47:35.244Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:47:35.244Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:35.244Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:47:35.295Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:47:35.295Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:47:35.296Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:47:35.296Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:47:35.889Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:47:35.889Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:47:38.882Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:47:43.721Z [DEBUG] executePreToolHooks called for tool: Edit
+2025-12-09T21:47:43.752Z [DEBUG] Getting matching hook commands for PreToolUse with query: Edit
+2025-12-09T21:47:43.752Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:43.752Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-09T21:47:45.960Z [DEBUG] Writing to temp file: C:\Users\georg\dealerflow\.gitignore.tmp.8028.1765316865960
+2025-12-09T21:47:45.961Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:47:45.964Z [DEBUG] Temp file written successfully, size: 368 bytes
+2025-12-09T21:47:45.965Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:47:45.965Z [DEBUG] Renaming C:\Users\georg\dealerflow\.gitignore.tmp.8028.1765316865960 to C:\Users\georg\dealerflow\.gitignore
+2025-12-09T21:47:45.967Z [DEBUG] File C:\Users\georg\dealerflow\.gitignore written atomically
+2025-12-09T21:47:46.017Z [DEBUG] FileHistory: Tracked file modification for C:\Users\georg\dealerflow\.gitignore
+2025-12-09T21:47:46.078Z [DEBUG] Getting matching hook commands for PostToolUse with query: Edit
+2025-12-09T21:47:46.078Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:46.078Z [DEBUG] Matched 0 unique hooks for query "Edit" (0 before deduplication)
+2025-12-09T21:47:46.118Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:47:46.177Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:47:46.177Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:46.177Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:46.307Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316866307
+2025-12-09T21:47:46.307Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:47:46.310Z [DEBUG] Temp file written successfully, size: 766 bytes
+2025-12-09T21:47:46.311Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:47:46.311Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316866307 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:47:46.313Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:47:46.373Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:47:46.373Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:46.373Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:46.426Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:47:46.426Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:47:46.427Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:47:46.427Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:47:46.837Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:47:46.837Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:47:49.237Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:47:53.267Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:47:53.326Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:47:53.326Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:53.326Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:53.459Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316873459
+2025-12-09T21:47:53.459Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:47:53.462Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-09T21:47:53.463Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:47:53.463Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765316873459 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:47:53.465Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:47:53.519Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:47:53.519Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:47:53.519Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:47:53.565Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:47:53.565Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:47:53.565Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:47:53.565Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:47:53.962Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:47:53.962Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:47:56.583Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:48:05.307Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-09T21:48:05.307Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:48:05.307Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-09T21:49:07.331Z [DEBUG] Getting matching hook commands for Notification with query: idle_prompt
+2025-12-09T21:49:07.331Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:49:07.331Z [DEBUG] Matched 0 unique hooks for query "idle_prompt" (0 before deduplication)
+2025-12-09T21:50:57.319Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:50:57.319Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:50:57.320Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:50:57.320Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:50:57.797Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:50:57.798Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:50:57.884Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-09T21:50:57.884Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:50:57.884Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-09T21:50:57.920Z [DEBUG] FileHistory: Making snapshot for message c32cfa55-f0bf-439e-b183-4861d3b69ecc
+2025-12-09T21:50:57.925Z [DEBUG] FileHistory: Added snapshot for c32cfa55-f0bf-439e-b183-4861d3b69ecc, tracking 2 files
+2025-12-09T21:50:59.035Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:51:02.755Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:51:10.821Z [DEBUG] executePreToolHooks called for tool: TodoWrite
+2025-12-09T21:51:10.853Z [DEBUG] Getting matching hook commands for PreToolUse with query: TodoWrite
+2025-12-09T21:51:10.853Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:10.853Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:51:10.998Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765317070998
+2025-12-09T21:51:10.999Z [DEBUG] Preserving file permissions: 100666
+2025-12-09T21:51:11.002Z [DEBUG] Temp file written successfully, size: 614 bytes
+2025-12-09T21:51:11.003Z [DEBUG] Applied original permissions to temp file
+2025-12-09T21:51:11.003Z [DEBUG] Renaming C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json.tmp.8028.1765317070998 to C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json
+2025-12-09T21:51:11.005Z [DEBUG] File C:\Users\georg\.claude\todos\851bd286-ca5d-42da-8c00-feb8d9e1f9ed-agent-851bd286-ca5d-42da-8c00-feb8d9e1f9ed.json written atomically
+2025-12-09T21:51:11.066Z [DEBUG] Getting matching hook commands for PostToolUse with query: TodoWrite
+2025-12-09T21:51:11.066Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:11.067Z [DEBUG] Matched 0 unique hooks for query "TodoWrite" (0 before deduplication)
+2025-12-09T21:51:11.289Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:51:11.342Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:51:11.342Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:11.342Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:51:11.342Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:51:11.372Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:51:11.372Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:11.372Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:51:16.928Z [DEBUG] Getting matching hook commands for PostToolUse with query: Read
+2025-12-09T21:51:16.928Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:16.928Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:51:17.040Z [DEBUG] rg error (signal=null, code=2, stderr: rg: C:\Users\georg\dealerflow\nul: Incorrect function. (os error 1)
+), 6 results
+2025-12-09T21:51:17.082Z [DEBUG] Getting matching hook commands for PostToolUse with query: Grep
+2025-12-09T21:51:17.082Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:17.082Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:51:17.137Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-09T21:51:17.137Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-09T21:51:17.138Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-09T21:51:17.138Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-09T21:51:17.908Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: envAgentName=undefined, isTeamLead=false, resolved agentName=undefined, teamName=undefined
+2025-12-09T21:51:17.908Z [DEBUG] [TeammateMailbox] Not checking inbox - not a teammate or team lead
+2025-12-09T21:51:20.195Z [DEBUG] Stream started - received first chunk
+2025-12-09T21:51:23.797Z [DEBUG] executePreToolHooks called for tool: Grep
+2025-12-09T21:51:23.838Z [DEBUG] Getting matching hook commands for PreToolUse with query: Grep
+2025-12-09T21:51:23.838Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:23.838Z [DEBUG] Matched 0 unique hooks for query "Grep" (0 before deduplication)
+2025-12-09T21:51:23.838Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:51:23.840Z [DEBUG] executePreToolHooks called for tool: Read
+2025-12-09T21:51:23.868Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:51:23.868Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:23.868Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)
+2025-12-09T21:51:23.868Z [DEBUG] Getting matching hook commands for PreToolUse with query: Read
+2025-12-09T21:51:23.868Z [DEBUG] Found 0 hook matchers in settings
+2025-12-09T21:51:23.868Z [DEBUG] Matched 0 unique hooks for query "Read" (0 before deduplication)

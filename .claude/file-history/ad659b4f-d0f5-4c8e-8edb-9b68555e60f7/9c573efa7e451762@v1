@@ -1,0 +1,90 @@
+import connectMongo from "@/libs/mongoose";
+import HolidayRequest from "@/models/HolidayRequest";
+import CalendarEvent from "@/models/CalendarEvent";
+import CalendarCategory from "@/models/CalendarCategory";
+import User from "@/models/User";
+import { withDealerContext, requireRole } from "@/libs/authContext";
+
+export default withDealerContext(async (req, res, ctx) => {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+  const { dealerId, userId, role, user } = ctx;
+  const { id } = req.query;
+
+  // Only OWNER/ADMIN can approve
+  try {
+    requireRole({ role }, ["OWNER", "ADMIN"]);
+  } catch (error) {
+    return res.status(403).json({ error: error.message });
+  }
+
+  try {
+    const request = await HolidayRequest.findOne({ _id: id, dealerId });
+
+    if (!request) {
+      return res.status(404).json({ error: "Holiday request not found" });
+    }
+
+    if (request.status === "APPROVED") {
+      return res.status(400).json({ error: "Request is already approved" });
+    }
+
+    const { adminNote } = req.body;
+
+    // Get reviewer name
+    const reviewer = await User.findById(userId).lean();
+    const reviewerName = reviewer?.name || user?.name || user?.email || "Admin";
+
+    // Get or create "Holiday" calendar category
+    let holidayCategory = await CalendarCategory.findOne({
+      dealerId,
+      name: "Holiday",
+    });
+
+    if (!holidayCategory) {
+      holidayCategory = await CalendarCategory.create({
+        dealerId,
+        name: "Holiday",
+        colour: "#10b981", // Green color for holidays
+      });
+    }
+
+    // Create calendar event for the holiday
+    // For all-day events, set times to start/end of day
+    const startDatetime = new Date(request.startDate);
+    startDatetime.setHours(0, 0, 0, 0);
+
+    const endDatetime = new Date(request.endDate);
+    endDatetime.setHours(23, 59, 59, 999);
+
+    const calendarEvent = await CalendarEvent.create({
+      dealerId,
+      title: `${request.type} - ${request.userName}`,
+      description: request.notes || `${request.type} request`,
+      categoryId: holidayCategory._id,
+      startDatetime,
+      endDatetime,
+      assignedUserId: request.userId,
+      createdByUserId: userId,
+      linkedHolidayRequestId: request._id,
+    });
+
+    // Update request status
+    request.status = "APPROVED";
+    request.reviewedByUserId = userId;
+    request.reviewedByName = reviewerName;
+    request.reviewedAt = new Date();
+    request.adminNote = adminNote || null;
+    request.linkedCalendarEventId = calendarEvent._id;
+
+    await request.save();
+
+    return res.status(200).json(request.toJSON());
+  } catch (error) {
+    console.error("Error approving holiday request:", error);
+    return res.status(500).json({ error: "Failed to approve holiday request" });
+  }
+});

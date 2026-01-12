@@ -1,0 +1,38 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON";
+
+const holidayRequestSchema = new mongoose.Schema(
+  {
+    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true, index: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userName: { type: String }, // cached for display (full name)
+    userEmail: { type: String }, // cached for fallback display
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    totalDays: { type: Number }, // computed days (inclusive)
+    type: {
+      type: String,
+      enum: ["Holiday", "Sick", "Unpaid", "Other"],
+      default: "Holiday"
+    },
+    notes: { type: String },
+    status: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING"
+    },
+    reviewedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    reviewedByName: { type: String },
+    reviewedAt: { type: Date },
+    adminNote: { type: String },
+    linkedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
+  },
+  { timestamps: true }
+);
+
+// Index for efficient queries
+holidayRequestSchema.index({ dealerId: 1, status: 1 });
+holidayRequestSchema.index({ dealerId: 1, userId: 1 });
+
+holidayRequestSchema.plugin(toJSON);
+export default mongoose.models.HolidayRequest || mongoose.model("HolidayRequest", holidayRequestSchema);

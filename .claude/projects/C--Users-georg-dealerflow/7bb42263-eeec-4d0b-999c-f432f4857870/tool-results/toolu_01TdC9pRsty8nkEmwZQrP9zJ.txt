@@ -1,0 +1,1 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. All occurrences of 'Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (' were successfully replaced with 'Cosmetic: { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-100", icon: ('.

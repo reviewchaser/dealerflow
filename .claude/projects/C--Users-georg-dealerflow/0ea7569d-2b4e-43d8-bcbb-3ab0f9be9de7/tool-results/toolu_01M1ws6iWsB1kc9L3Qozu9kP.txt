@@ -1,0 +1,63 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3558→                            Missing
+  3559→                          </span>
+  3560→                        )}
+  3561→                      </div>
+  3562→                      <div className="space-y-3">
+  3563→                        <div className="grid grid-cols-2 gap-3">
+  3564→                          <div className="form-control">
+  3565→                            <label className="label label-text text-xs">SIV (Total Inc. VAT)</label>
+  3566→                            <div className="relative">
+  3567→                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  3568→                              <input
+  3569→                                type="number"
+  3570→                                step="0.01"
+  3571→                                className="input input-sm input-bordered w-full pl-7"
+  3572→                                placeholder="0.00"
+  3573→                                value={selectedVehicle.purchase?.purchasePriceNet || ""}
+  3574→                                onChange={(e) => {
+  3575→                                  const siv = e.target.value ? parseFloat(e.target.value) : null;
+  3576→                                  // Auto-calculate VAT for VAT Qualifying (20% rate): VAT = SIV - (SIV / 1.2)
+  3577→                                  const autoVat = selectedVehicle.vatScheme === "VAT_QUALIFYING" && siv
+  3578→                                    ? Math.round((siv - (siv / 1.2)) * 100) / 100
+  3579→                                    : 0;
+  3580→                                  setSelectedVehicle({
+  3581→                                    ...selectedVehicle,
+  3582→                                    purchase: {
+  3583→                                      ...selectedVehicle.purchase,
+  3584→                                      purchasePriceNet: siv,
+  3585→                                      purchaseVat: autoVat
+  3586→                                    }
+  3587→                                  });
+  3588→                                }}
+  3589→                                onBlur={async () => {
+  3590→                                  await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3591→                                    method: "PUT",
+  3592→                                    headers: { "Content-Type": "application/json" },
+  3593→                                    body: JSON.stringify({ purchase: selectedVehicle.purchase }),
+  3594→                                  });
+  3595→                                  fetchVehicles();
+  3596→                                }}
+  3597→                              />
+  3598→                            </div>
+  3599→                          </div>
+  3600→                          {selectedVehicle.vatScheme === "VAT_QUALIFYING" && (
+  3601→                            <div className="form-control">
+  3602→                              <label className="label label-text text-xs">VAT Portion (Auto)</label>
+  3603→                              <div className="relative">
+  3604→                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  3605→                                <input
+  3606→                                  type="text"
+  3607→                                  className="input input-sm input-bordered w-full pl-7 bg-slate-100 cursor-not-allowed"
+  3608→                                  readOnly
+  3609→                                  value={selectedVehicle.purchase?.purchaseVat?.toFixed(2) || "0.00"}
+  3610→                                />
+  3611→                              </div>
+  3612→                              <p className="text-xs text-slate-400 mt-0.5">Calculated @ 20% VAT</p>
+  3613→                            </div>
+  3614→                          )}
+  3615→                        </div>
+  3616→                        <div className="grid grid-cols-2 gap-3">
+  3617→                          <div className="form-control">
+  3618→                            <label className="label label-text text-xs">Purchase Date</label>
+  3619→                            <input

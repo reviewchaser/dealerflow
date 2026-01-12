@@ -1,0 +1,87 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1034→                  )}
+  1035→                </div>
+  1036→              )}
+  1037→
+  1038→              {/* Add-ons Tab */}
+  1039→              {activeTab === "addons" && (
+  1040→                <div className="space-y-4">
+  1041→                  {deal.addOns?.length > 0 ? (
+  1042→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1043→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex items-center justify-between">
+  1044→                        <h3 className="text-sm font-bold text-slate-800">Add-ons</h3>
+  1045→                        {deal.status === "DRAFT" && (
+  1046→                          <button
+  1047→                            onClick={() => {
+  1048→                              setShowAddOnPicker(true);
+  1049→                              fetchAddOnProducts();
+  1050→                            }}
+  1051→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1052→                          >
+  1053→                            + Add
+  1054→                          </button>
+  1055→                        )}
+  1056→                      </div>
+  1057→                      <div className="divide-y divide-slate-100">
+  1058→                        {deal.addOns.map((addon, idx) => (
+  1059→                          <div key={idx} className="p-4 flex items-center justify-between gap-3">
+  1060→                            <div className="flex-1 min-w-0">
+  1061→                              <p className="font-medium text-slate-900">{addon.name}</p>
+  1062→                              <p className="text-sm text-slate-500">
+  1063→                                {addon.qty > 1 && `${addon.qty} x `}
+  1064→                                {formatCurrency(addon.unitPriceNet)}
+  1065→                                {addon.vatTreatment === "STANDARD" && " + VAT"}
+  1066→                              </p>
+  1067→                            </div>
+  1068→                            <span className="font-semibold text-slate-900">
+  1069→                              {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+  1070→                            </span>
+  1071→                            {deal.status === "DRAFT" && (
+  1072→                              <button
+  1073→                                onClick={() => handleRemoveAddOn(idx)}
+  1074→                                disabled={actionLoading === "addon"}
+  1075→                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+  1076→                              >
+  1077→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1078→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  1079→                                </svg>
+  1080→                              </button>
+  1081→                            )}
+  1082→                          </div>
+  1083→                        ))}
+  1084→                      </div>
+  1085→                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-between">
+  1086→                        <span className="font-medium text-slate-700">Total</span>
+  1087→                        <span className="font-bold text-slate-900">
+  1088→                          {formatCurrency(totals.addOnsNetTotal + totals.addOnsVatTotal)}
+  1089→                        </span>
+  1090→                      </div>
+  1091→                    </div>
+  1092→                  ) : (
+  1093→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
+  1094→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1095→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1096→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  1097→                        </svg>
+  1098→                      </div>
+  1099→                      <p className="text-sm font-medium text-slate-600">No add-ons</p>
+  1100→                      <p className="text-xs text-slate-400 mt-1">Add products like warranties or accessories</p>
+  1101→                      {deal.status === "DRAFT" && (
+  1102→                        <button
+  1103→                          onClick={() => {
+  1104→                            setShowAddOnPicker(true);
+  1105→                            fetchAddOnProducts();
+  1106→                          }}
+  1107→                          className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none mt-4"
+  1108→                        >
+  1109→                          Add Add-on
+  1110→                        </button>
+  1111→                      )}
+  1112→                    </div>
+  1113→                  )}
+  1114→                </div>
+  1115→              )}
+  1116→
+  1117→              {/* Payments Tab */}
+  1118→              {activeTab === "payments" && (
+  1119→                <div className="space-y-4">

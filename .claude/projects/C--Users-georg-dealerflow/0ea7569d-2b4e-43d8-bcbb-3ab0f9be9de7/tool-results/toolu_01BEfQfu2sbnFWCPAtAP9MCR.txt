@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   475→      ],
+   476→    },
+   477→  ];
+   478→
+   479→  const colorMap = {
+   480→    blue: { bg: "bg-blue-50", border: "border-blue-200", accent: "text-blue-600", dot: "bg-blue-600" },
+   481→    cyan: { bg: "bg-cyan-50", border: "border-cyan-200", accent: "text-cyan-600", dot: "bg-cyan-600" },
+   482→    emerald: { bg: "bg-emerald-50", border: "border-emerald-200", accent: "text-emerald-600", dot: "bg-emerald-600" },
+   483→    violet: { bg: "bg-violet-50", border: "border-violet-200", accent: "text-violet-600", dot: "bg-violet-600" },
+   484→    amber: { bg: "bg-amber-50", border: "border-amber-200", accent: "text-amber-600", dot: "bg-amber-600" },
+   485→    rose: { bg: "bg-rose-50", border: "border-rose-200", accent: "text-rose-600", dot: "bg-rose-600" },
+   486→  };

@@ -1,0 +1,81 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1189→                                )}
+  1190→                              </div>
+  1191→                            )}
+  1192→
+  1193→                            {/* Footer row: Days open + icons */}
+  1194→                            <div className="flex items-center justify-between text-xs text-slate-500">
+  1195→                              <span className="font-medium">{daysOpen}d open</span>
+  1196→                              <div className="flex items-center gap-2">
+  1197→                                {caseItem.partsRequired && (
+  1198→                                  <span className="flex items-center gap-0.5 text-orange-600" title="Parts Required">
+  1199→                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1200→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+  1201→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  1202→                                    </svg>
+  1203→                                  </span>
+  1204→                                )}
+  1205→                                {attachmentCount > 0 && (
+  1206→                                  <span className="flex items-center gap-0.5" title="Attachments">
+  1207→                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1208→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+  1209→                                    </svg>
+  1210→                                    {attachmentCount}
+  1211→                                  </span>
+  1212→                                )}
+  1213→                                {activityCount > 0 && (
+  1214→                                  <span className="flex items-center gap-0.5" title="Activity">
+  1215→                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1216→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  1217→                                    </svg>
+  1218→                                    {activityCount}
+  1219→                                  </span>
+  1220→                                )}
+  1221→                              </div>
+  1222→                            </div>
+  1223→
+  1224→                            {/* Mobile Move Button */}
+  1225→                            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
+  1226→                              <div className="dropdown dropdown-end">
+  1227→                                <label
+  1228→                                  tabIndex={0}
+  1229→                                  className="btn btn-sm btn-ghost gap-1 text-slate-500 hover:text-[#0066CC] hover:bg-[#0066CC]/5"
+  1230→                                  onClick={(e) => e.stopPropagation()}
+  1231→                                >
+  1232→                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1233→                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  1234→                                  </svg>
+  1235→                                  Move
+  1236→                                </label>
+  1237→                                <ul
+  1238→                                  tabIndex={0}
+  1239→                                  className="dropdown-content z-[100] menu p-2 shadow-xl bg-white rounded-xl w-48 border border-slate-100"
+  1240→                                  onClick={(e) => e.stopPropagation()}
+  1241→                                >
+  1242→                                  {COLUMNS.filter(c => c.key !== col.key).map((targetCol) => (
+  1243→                                    <li key={targetCol.key}>
+  1244→                                      <button
+  1245→                                        className="flex items-center gap-2 text-sm py-2.5"
+  1246→                                        onClick={async (e) => {
+  1247→                                          e.stopPropagation();
+  1248→                                          await moveCaseToStatus(caseItem, targetCol.key);
+  1249→                                          document.activeElement?.blur();
+  1250→                                        }}
+  1251→                                      >
+  1252→                                        <span className={`w-2 h-2 rounded-full ${targetCol.accentBg}`}></span>
+  1253→                                        {targetCol.label}
+  1254→                                      </button>
+  1255→                                    </li>
+  1256→                                  ))}
+  1257→                                </ul>
+  1258→                              </div>
+  1259→                            </div>
+  1260→                          </div>
+  1261→                        </div>
+  1262→                      </div>
+  1263→                    );
+  1264→                  })}
+  1265→                  {columnCases.length === 0 && (
+  1266→                    <div className="text-center py-12 text-slate-400">
+  1267→                      <p className="text-sm">No cases in {col.label}</p>
+  1268→                    </div>

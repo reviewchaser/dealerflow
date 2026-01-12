@@ -1,0 +1,142 @@
+0) First: confirm routing architecture and remove duplication risk
+
+Confirm whether this repo uses Next.js Pages Router (pages/) or App Router (app/) for tenant routes.
+
+Ensure Sales + Contacts exist in ONE routing system only:
+
+If tenant routes are /app/[dealerSlug]/..., then files must live in the correct place for that router.
+
+Fix any mismatch so:
+
+/app/[dealerSlug]/sales works on localhost + Vercel
+
+/app/[dealerSlug]/contacts works on localhost + Vercel
+
+Add redirects if necessary (e.g. /sales → /app/[dealerSlug]/sales).
+
+D) Implement Sales Settings (Settings page)
+
+Add a new “Sales” section inside Settings with persistence (DB + API):
+
+Company details for documents:
+
+Trading name, address, phone, email
+
+Company reg, VAT reg
+
+Logo (use existing upload system)
+
+Numbering:
+
+Invoice prefix (optional), next invoice number (default 1)
+
+Deposit receipt prefix (optional), next receipt number (default 1)
+
+VAT:
+
+Default VAT rate (default 20%)
+
+KPI display default: Ex VAT
+
+Default terms templates (editable textareas):
+
+B2C distance, B2C in-person, B2B distance, B2B in-person
+
+Ensure PDFs (deposit receipt + invoice) pull from these settings automatically.
+
+E) Correct Sales KPI logic + attribution rules
+
+Implement rules so KPIs reflect when money/actions happen, not record creation:
+
+Deals have dates:
+
+depositTakenAt
+
+invoiceIssuedAt
+
+deliveredAt
+
+completedAt
+
+KPIs:
+
+“This month sales” = sum of deals completedAt in month (default)
+
+Deposit totals = sum of payments with type=DEPOSIT by payment date
+
+VAT totals: compute VAT qualifying vs margin properly (don’t mix)
+
+Add KPI toggles:
+
+Ex VAT / Inc VAT switch (default Ex VAT)
+
+Fix the bug where adding costs now lands in “last month/year”:
+
+Sales/Costs must be grouped by costCreatedAt or paymentDate, not dealCreatedAt.
+
+F) Stock enhancements (VRM search text + DVLA/MOT/VIN/Recall + MOT history modal)
+
+Update stock search placeholder:
+
+“Search VRM, make, model…”
+
+VRM lookup autofill improvements when adding vehicles:
+
+Must autofill: Model, Transmission, VIN if available
+
+If VIN not available, keep manual entry and show helper text.
+
+MOT expiry autofill:
+
+If API returns MOT expiry even for not-due-first-MOT vehicles, populate it.
+
+Recall status:
+
+Add fields to Vehicle:
+
+recallStatus enum (UNKNOWN / NO_OUTSTANDING / OUTSTANDING / CHECK_REQUIRED)
+
+recallLastCheckedAt, recallNotes
+
+UI in vehicle drawer under identity/specs.
+
+If no automated recall source exists, implement manual workflow now (status + checked date).
+
+MOT history button under MOT expiry:
+
+“View MOT history” opens modal/drawer
+
+Render clean list/table: date, result, mileage, expiry, advisories (expand)
+
+Mobile-friendly scroll with sticky close button
+
+H) Testing checklist (must be performed and reported)
+
+Claude must test on:
+
+Desktop + mobile viewport
+
+Localhost + Vercel deployment
+Scenarios:
+
+Navigate to Sales/Contacts routes (no 404)
+
+Create sale from Sales page and from vehicle drawer (if present)
+
+Set Sold To contact and Invoice To contact
+
+Take deposit → generate invoice → mark delivered → complete
+
+Verify numbering increments from settings
+
+Verify PDF/print includes company details + correct terms (B2B/B2C + distance/in-person)
+
+Verify KPIs update correctly without page reload if possible; otherwise implement revalidate/refetch after drawer actions
+
+Verify VRM lookup autofills model/transmission/VIN when possible
+
+Verify MOT history modal works and recall field persists
+
+Deliverable:
+
+A short “What I tested / what passed / what still needs attention” report.

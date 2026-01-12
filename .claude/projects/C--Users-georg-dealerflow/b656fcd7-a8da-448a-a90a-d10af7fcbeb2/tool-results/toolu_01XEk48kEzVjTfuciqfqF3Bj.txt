@@ -1,0 +1,109 @@
+     1→import { NextResponse } from 'next/server';
+     2→import { getToken } from 'next-auth/jwt';
+     3→
+     4→// Routes that require authentication and tenant context
+     5→const TENANT_ROUTES = [
+     6→  '/dashboard',
+     7→  '/sales-prep',
+     8→  '/warranty',
+     9→  '/appraisals',
+    10→  '/forms',
+    11→  '/reviews',
+    12→  '/calendar',
+    13→  '/settings',
+    14→  '/vehicles',
+    15→];
+    16→
+    17→// Routes that are public (no auth required)
+    18→const PUBLIC_ROUTES = [
+    19→  '/public',
+    20→  '/appraisal',
+    21→  '/auth',
+    22→  '/api/auth',
+    23→  '/api/public',
+    24→  '/',
+    25→  '/tos',
+    26→  '/privacy-policy',
+    27→];
+    28→
+    29→export async function middleware(request) {
+    30→  const { pathname } = request.nextUrl;
+    31→
+    32→  // Skip middleware for static files, API routes, and public routes
+    33→  if (
+    34→    pathname.startsWith('/_next') ||
+    35→    pathname.startsWith('/favicon') ||
+    36→    pathname.includes('.') ||
+    37→    PUBLIC_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
+    38→  ) {
+    39→    return NextResponse.next();
+    40→  }
+    41→
+    42→  // Check if this is a tenant route that needs to be redirected to /app/[dealerSlug]/...
+    43→  const isTenantRoute = TENANT_ROUTES.some(route =>
+    44→    pathname === route || pathname.startsWith(route + '/')
+    45→  );
+    46→
+    47→  if (isTenantRoute) {
+    48→    // Get the user's session token
+    49→    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    50→
+    51→    if (!token) {
+    52→      // Not authenticated - redirect to signin
+    53→      const signInUrl = new URL('/auth/signin', request.url);
+    54→      signInUrl.searchParams.set('callbackUrl', pathname);
+    55→      return NextResponse.redirect(signInUrl);
+    56→    }
+    57→
+    58→    // User is authenticated - they should use the legacy routes for now
+    59→    // The tenant context is handled by the API layer
+    60→    // In future, we can redirect to /app/[dealerSlug]/... here
+    61→
+    62→    return NextResponse.next();
+    63→  }
+    64→
+    65→  // Handle /app routes - require auth
+    66→  if (pathname.startsWith('/app')) {
+    67→    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    68→
+    69→    if (!token) {
+    70→      const signInUrl = new URL('/auth/signin', request.url);
+    71→      signInUrl.searchParams.set('callbackUrl', pathname);
+    72→      return NextResponse.redirect(signInUrl);
+    73→    }
+    74→
+    75→    // Extract dealer slug from path: /app/[dealerSlug]/...
+    76→    const pathParts = pathname.split('/');
+    77→    const dealerSlug = pathParts[2];
+    78→
+    79→    if (!dealerSlug || dealerSlug === '') {
+    80→      // No dealer slug provided - redirect to tenant picker or default dealer
+    81→      // For now, redirect to legacy dashboard which handles this
+    82→      return NextResponse.redirect(new URL('/dashboard', request.url));
+    83→    }
+    84→
+    85→    // Dealer slug is provided - pass it along in a header for API routes to use
+    86→    const response = NextResponse.next();
+    87→    response.headers.set('x-dealer-slug', dealerSlug);
+    88→    return response;
+    89→  }
+    90→
+    91→  return NextResponse.next();
+    92→}
+    93→
+    94→export const config = {
+    95→  matcher: [
+    96→    /*
+    97→     * Match all request paths except:
+    98→     * - _next/static (static files)
+    99→     * - _next/image (image optimization files)
+   100→     * - favicon.ico (favicon file)
+   101→     */
+   102→    '/((?!_next/static|_next/image|favicon.ico).*)',
+   103→  ],
+   104→};
+   105→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

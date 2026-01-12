@@ -1,0 +1,49 @@
+The file C:\Users\georg\dealerflow\components\ui\MobileModal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    30→  className = "",
+    31→}) {
+    32→  const modalRef = useRef(null);
+    33→
+    34→  // Lock body scroll and prevent horizontal pan when open
+    35→  useEffect(() => {
+    36→    if (isOpen) {
+    37→      const scrollY = window.scrollY;
+    38→      const html = document.documentElement;
+    39→
+    40→      // Lock both html and body to prevent any horizontal movement
+    41→      document.body.style.position = "fixed";
+    42→      document.body.style.top = `-${scrollY}px`;
+    43→      document.body.style.left = "0";
+    44→      document.body.style.right = "0";
+    45→      document.body.style.width = "100%";
+    46→      document.body.style.overflow = "hidden";
+    47→      document.body.style.overflowX = "hidden";
+    48→      document.body.style.touchAction = "none";
+    49→
+    50→      html.style.overflow = "hidden";
+    51→      html.style.overflowX = "hidden";
+    52→
+    53→      // Add class for additional CSS-based locking
+    54→      document.body.classList.add("modal-open");
+    55→
+    56→      return () => {
+    57→        document.body.style.position = "";
+    58→        document.body.style.top = "";
+    59→        document.body.style.left = "";
+    60→        document.body.style.right = "";
+    61→        document.body.style.width = "";
+    62→        document.body.style.overflow = "";
+    63→        document.body.style.overflowX = "";
+    64→        document.body.style.touchAction = "";
+    65→
+    66→        html.style.overflow = "";
+    67→        html.style.overflowX = "";
+    68→
+    69→        document.body.classList.remove("modal-open");
+    70→        window.scrollTo(0, scrollY);
+    71→      };
+    72→    }
+    73→  }, [isOpen]);
+    74→
+    75→  // Handle escape key
+    76→  useEffect(() => {
+    77→    const handleEscape = (e) => {

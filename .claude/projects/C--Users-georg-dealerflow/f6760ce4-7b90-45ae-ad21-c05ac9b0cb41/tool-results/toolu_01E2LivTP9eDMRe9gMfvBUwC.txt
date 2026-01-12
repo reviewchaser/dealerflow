@@ -1,0 +1,51 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   435→      setDragPosition({ x: e.clientX, y: e.clientY });
+   436→    }
+   437→  };
+   438→
+   439→  const handleDragOver = (e) => {
+   440→    e.preventDefault();
+   441→    e.dataTransfer.dropEffect = "move";
+   442→  };
+   443→
+   444→  // Mobile-friendly move function (no drag required)
+   445→  const moveCaseToStatus = async (caseItem, newStatus) => {
+   446→    const caseId = caseItem.id || caseItem._id;
+   447→    if (caseItem.boardStatus === newStatus) return;
+   448→
+   449→    // Optimistic update
+   450→    setCases(prev => prev.map(c =>
+   451→      (c.id || c._id) === caseId ? { ...c, boardStatus: newStatus } : c
+   452→    ));
+   453→
+   454→    try {
+   455→      const res = await fetch(`/api/aftercare/${caseId}`, {
+   456→        method: "PUT",
+   457→        headers: { "Content-Type": "application/json" },
+   458→        body: JSON.stringify({ boardStatus: newStatus }),
+   459→      });
+   460→      const data = await res.json();
+   461→      if (!res.ok || !data.ok) {
+   462→        throw new Error(data.error || "Failed to update status");
+   463→      }
+   464→      toast.success(`Moved to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`);
+   465→      if (data.case) {
+   466→        setCases(prev => prev.map(c =>
+   467→          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+   468→        ));
+   469→      }
+   470→    } catch (err) {
+   471→      console.error("Move error:", err);
+   472→      toast.error(err.message || "Failed to move case");
+   473→      // Revert optimistic update
+   474→      setCases(prev => prev.map(c =>
+   475→        (c.id || c._id) === caseId ? { ...c, boardStatus: caseItem.boardStatus } : c
+   476→      ));
+   477→    }
+   478→  };
+   479→
+   480→  const handleDragEnd = () => {
+   481→    setDraggedCard(null);
+   482→  };
+   483→
+   484→  const handleDrop = async (e, newStatus) => {

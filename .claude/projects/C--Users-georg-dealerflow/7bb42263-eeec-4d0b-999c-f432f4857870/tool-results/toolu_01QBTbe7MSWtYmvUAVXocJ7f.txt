@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   584→                  {(a.decision === "pending" || a.decision === "reviewed") && !a.vehicleId && (
+   585→                    <button
+   586→                      onClick={() => handleConvertToStock(a, type)}
+   587→                      disabled={isConverting === id}
+   588→                      className={`inline-flex items-center gap-1.5 px-4 py-1.5 text-white rounded-lg text-sm font-medium shadow-lg transition-all disabled:opacity-50 ${
+   589→                        a.decision === "pending"
+   590→                          ? "bg-[#0066CC] shadow-[#0066CC]/20 hover:shadow-[#0066CC]/30 hover:bg-[#0055BB]"
+   591→                          : "bg-gradient-to-r from-emerald-500 to-green-500 shadow-emerald-200 hover:shadow-emerald-300"
+   592→                      }`}
+   593→                    >
+   594→                      {isConverting === id ? (
+   595→                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+   596→                      ) : (

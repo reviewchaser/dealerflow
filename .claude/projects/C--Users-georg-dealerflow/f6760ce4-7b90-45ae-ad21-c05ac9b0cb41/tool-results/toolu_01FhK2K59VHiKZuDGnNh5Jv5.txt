@@ -1,0 +1,204 @@
+     1→import { useEffect, useState, useRef, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→import { BottomSheet } from "@/components/ui/BottomSheet";
+     9→import { Portal } from "@/components/ui/Portal";
+    10→import { MobileStageSelector } from "@/components/ui/PageShell";
+    11→
+    12→const COLUMNS = [
+    13→  { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    14→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    15→  { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
+    16→  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+    17→  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+    18→];
+    19→
+    20→const ISSUE_SUBCATEGORIES = {
+    21→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    22→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    23→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    24→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    25→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    26→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    27→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    28→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    29→  other: ["General", "Misc"],
+    30→};
+    31→
+    32→// Sold statuses - these show "Sold X days" instead of "In stock X days"
+    33→const SOLD_STATUSES = ["live", "reserved", "delivered"];
+    34→
+    35→// Helper to compute duration label based on status
+    36→const getVehicleDuration = (vehicle) => {
+    37→  const isSold = SOLD_STATUSES.includes(vehicle.status);
+    38→
+    39→  if (isSold) {
+    40→    if (vehicle.soldAt) {
+    41→      const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
+    42→      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+    43→    }
+    44→    // Legacy sold vehicle without soldAt - just show "Sold"
+    45→    return { days: 0, label: "Sold", isSold: true };
+    46→  }
+    47→
+    48→  const daysInStock = vehicle.createdAt
+    49→    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    50→    : 0;
+    51→  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+    52→};
+    53→
+    54→export default function SalesPrep() {
+    55→  const router = useRouter();
+    56→  const [vehicles, setVehicles] = useState([]);
+    57→  const [isLoading, setIsLoading] = useState(true);
+    58→  const [selectedVehicle, setSelectedVehicle] = useState(null);
+    59→  const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
+    60→  const [showAddModal, setShowAddModal] = useState(false);
+    61→  const [draggedCard, setDraggedCard] = useState(null);
+    62→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+    63→  const [newTaskName, setNewTaskName] = useState("");
+    64→  const [activeTab, setActiveTab] = useState("overview");
+    65→  const [editingTaskId, setEditingTaskId] = useState(null);
+    66→  const [editingTaskName, setEditingTaskName] = useState("");
+    67→
+    68→  // Parts ordering state
+    69→  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+    70→  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+    71→  const [partsOrderForm, setPartsOrderForm] = useState({
+    72→    supplierType: "EURO_CAR_PARTS",
+    73→    supplierName: "",
+    74→    orderRef: "",
+    75→    expectedAt: "",
+    76→    notes: "",
+    77→  });
+    78→  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+    79→
+    80→  // Column sorting state
+    81→  const [columnSortOptions, setColumnSortOptions] = useState({});
+    82→
+    83→  // Job sheet share state
+    84→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+    85→  const [jobSheetLink, setJobSheetLink] = useState(null);
+    86→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+    87→
+    88→  // Prep summary share state
+    89→  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+    90→  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+    91→  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+    92→
+    93→  // Manual share fallback modal
+    94→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+    95→  const [manualShareUrl, setManualShareUrl] = useState("");
+    96→
+    97→  // Issues state
+    98→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+    99→  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
+   100→  const [issueForm, setIssueForm] = useState({
+   101→    category: "",
+   102→    subcategory: "",
+   103→    description: "",
+   104→    actionNeeded: "",
+   105→    priority: "medium",
+   106→    location: "",
+   107→    status: "outstanding",
+   108→    notes: "",
+   109→    photos: [],
+   110→    partsRequired: false,
+   111→    partsDetails: "",
+   112→  });
+   113→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   114→  const [expandedIssues, setExpandedIssues] = useState({});
+   115→
+   116→  // Filters state - with localStorage persistence
+   117→  const [activeFilters, setActiveFilters] = useState([]);
+   118→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   119→  const filterButtonRef = useRef(null);
+   120→  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+   121→
+   122→  // Calculate popover position when opening
+   123→  const openFiltersDropdown = useCallback(() => {
+   124→    if (filterButtonRef.current) {
+   125→      const rect = filterButtonRef.current.getBoundingClientRect();
+   126→      const viewportHeight = window.innerHeight;
+   127→      const viewportWidth = window.innerWidth;
+   128→
+   129→      // Position below the button, aligned to right edge
+   130→      let top = rect.bottom + 8;
+   131→      let right = viewportWidth - rect.right;
+   132→
+   133→      // Ensure popover doesn't go below viewport (max 70vh height + 16px padding)
+   134→      const popoverHeight = Math.min(viewportHeight * 0.7, 600);
+   135→      if (top + popoverHeight > viewportHeight - 16) {
+   136→        top = Math.max(16, viewportHeight - popoverHeight - 16);
+   137→      }
+   138→
+   139→      // Ensure popover doesn't go off right edge
+   140→      right = Math.max(16, right);
+   141→
+   142→      setFilterPopoverPos({ top, right });
+   143→    }
+   144→    setShowFiltersDropdown(true);
+   145→  }, []);
+   146→
+   147→  // Load filters from localStorage on mount
+   148→  useEffect(() => {
+   149→    try {
+   150→      const savedFilters = localStorage.getItem("salesPrepFilters");
+   151→      if (savedFilters) {
+   152→        setActiveFilters(JSON.parse(savedFilters));
+   153→      }
+   154→    } catch (e) {
+   155→      console.warn("Failed to load saved filters:", e);
+   156→    }
+   157→  }, []);
+   158→
+   159→  // Save filters to localStorage when they change
+   160→  useEffect(() => {
+   161→    try {
+   162→      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+   163→    } catch (e) {
+   164→      console.warn("Failed to save filters:", e);
+   165→    }
+   166→  }, [activeFilters]);
+   167→
+   168→  // Documents state
+   169→  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+   170→  const [documentForm, setDocumentForm] = useState({
+   171→    name: "",
+   172→    type: "other",
+   173→    file: null,
+   174→  });
+   175→
+   176→  // Location state
+   177→  const [locations, setLocations] = useState([]);
+   178→  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+   179→
+   180→  // Vehicle Labels state
+   181→  const [availableLabels, setAvailableLabels] = useState([]);
+   182→  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+   183→  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+   184→  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+   185→
+   186→  // Activity log state
+   187→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   188→  const [activityLoading, setActivityLoading] = useState(false);
+   189→
+   190→  // VRM Search state
+   191→  const [vrmSearch, setVrmSearch] = useState("");
+   192→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   193→
+   194→  // Mobile state
+   195→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   196→
+   197→  useEffect(() => {
+   198→    fetchVehicles();
+   199→    fetchLocations();
+   200→    fetchLabels();
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

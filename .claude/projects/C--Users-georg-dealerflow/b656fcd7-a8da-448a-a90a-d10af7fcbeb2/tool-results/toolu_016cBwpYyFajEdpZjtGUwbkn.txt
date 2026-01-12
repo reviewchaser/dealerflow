@@ -1,0 +1,109 @@
+     1→import mongoose from "mongoose";
+     2→import { getServerSession } from "next-auth/next";
+     3→import { authOptions } from "@/libs/authOptions";
+     4→import Dealer from "@/models/Dealer";
+     5→import DealerMembership from "@/models/DealerMembership";
+     6→import User from "@/models/User";
+     7→import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
+     8→
+     9→export default async function handler(req, res) {
+    10→  if (req.method !== "POST") {
+    11→    return res.status(405).json({ error: "Method not allowed" });
+    12→  }
+    13→
+    14→  // Get authenticated user
+    15→  const session = await getServerSession(req, res, authOptions);
+    16→  if (!session?.user?.id) {
+    17→    return res.status(401).json({ error: "Not authenticated" });
+    18→  }
+    19→
+    20→  const { name, logoUrl } = req.body;
+    21→
+    22→  if (!name || typeof name !== "string" || !name.trim()) {
+    23→    return res.status(400).json({ error: "Dealership name is required" });
+    24→  }
+    25→
+    26→  try {
+    27→    // Connect to MongoDB
+    28→    if (mongoose.connection.readyState !== 1) {
+    29→      await mongoose.connect(process.env.MONGODB_URI);
+    30→    }
+    31→
+    32→    // Check if user already has an active dealer membership
+    33→    const existingMembership = await DealerMembership.findOneActive({
+    34→      userId: session.user.id,
+    35→    });
+    36→
+    37→    if (existingMembership) {
+    38→      return res.status(400).json({ error: "You already have a dealership" });
+    39→    }
+    40→
+    41→    // Generate a URL-safe slug from the name
+    42→    const baseSlug = name
+    43→      .trim()
+    44→      .toLowerCase()
+    45→      .replace(/[^a-z0-9]+/g, "-")
+    46→      .replace(/^-|-$/g, "");
+    47→
+    48→    // Check for slug uniqueness and add suffix if needed
+    49→    let slug = baseSlug;
+    50→    let suffix = 1;
+    51→    while (await Dealer.findOne({ slug })) {
+    52→      slug = `${baseSlug}-${suffix}`;
+    53→      suffix++;
+    54→    }
+    55→
+    56→    // Create the dealer
+    57→    const dealer = await Dealer.create({
+    58→      name: name.trim(),
+    59→      logoUrl: logoUrl || null,
+    60→      slug,
+    61→      completedOnboarding: false,
+    62→      onboarding: {
+    63→        enabledModules: {
+    64→          salesPrep: true,
+    65→          appraisals: true,
+    66→          warranty: false,
+    67→          reviews: false,
+    68→        },
+    69→        enabledForms: [],
+    70→        completedSteps: [],
+    71→      },
+    72→    });
+    73→
+    74→    // Create membership with OWNER role
+    75→    await DealerMembership.create({
+    76→      dealerId: dealer._id,
+    77→      userId: session.user.id,
+    78→      role: "OWNER",
+    79→      lastActiveAt: new Date(),
+    80→    });
+    81→
+    82→    // Set this dealer as the user's default
+    83→    await User.findByIdAndUpdate(session.user.id, {
+    84→      defaultDealerId: dealer._id,
+    85→      dealerId: dealer._id, // Legacy field
+    86→    });
+    87→
+    88→    // Log platform activity
+    89→    await PlatformActivity.log(ACTIVITY_TYPES.DEALER_CREATED, {
+    90→      actorUserId: session.user.id,
+    91→      dealerId: dealer._id,
+    92→      metadata: { dealerName: dealer.name },
+    93→    });
+    94→
+    95→    return res.status(201).json({
+    96→      success: true,
+    97→      dealerId: dealer._id.toString(),
+    98→      slug: dealer.slug,
+    99→    });
+   100→  } catch (error) {
+   101→    console.error("[CreateDealer] Error:", error);
+   102→    return res.status(500).json({ error: "Failed to create dealership" });
+   103→  }
+   104→}
+   105→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

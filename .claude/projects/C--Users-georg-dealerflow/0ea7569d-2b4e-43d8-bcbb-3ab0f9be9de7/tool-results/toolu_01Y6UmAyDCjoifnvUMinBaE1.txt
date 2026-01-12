@@ -1,0 +1,93 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→/**
+     5→ * Contact Model
+     6→ *
+     7→ * Unified contact model for customers, suppliers, and finance companies.
+     8→ * Uses typeTags array to support contacts that serve multiple roles.
+     9→ */
+    10→
+    11→const contactSchema = new mongoose.Schema(
+    12→  {
+    13→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: true },
+    14→
+    15→    // Contact type tags (can have multiple)
+    16→    typeTags: [{
+    17→      type: String,
+    18→      enum: ["CUSTOMER", "FINANCE", "SUPPLIER"],
+    19→    }],
+    20→
+    21→    // Whether this is a prospect (lead) or actual contact
+    22→    isProspect: { type: Boolean, default: false },
+    23→
+    24→    // === BASIC INFO ===
+    25→    displayName: { type: String, required: true }, // Primary display name
+    26→    companyName: { type: String }, // Company if applicable
+    27→
+    28→    // Contact details
+    29→    email: { type: String, lowercase: true, trim: true },
+    30→    phone: { type: String },
+    31→    mobile: { type: String },
+    32→
+    33→    // Address
+    34→    address: {
+    35→      line1: { type: String },
+    36→      line2: { type: String },
+    37→      town: { type: String },
+    38→      county: { type: String },
+    39→      postcode: { type: String, uppercase: true },
+    40→      country: { type: String, default: "United Kingdom" },
+    41→    },
+    42→
+    43→    // === BUSINESS INFO (for suppliers/finance) ===
+    44→    companyNumber: { type: String },
+    45→    vatNumber: { type: String },
+    46→    accountReference: { type: String }, // Supplier/finance account ref
+    47→
+    48→    // === FINANCE COMPANY SPECIFIC ===
+    49→    financeSettings: {
+    50→      commissionRate: { type: Number }, // Percentage
+    51→      contactPerson: { type: String },
+    52→      contactEmail: { type: String },
+    53→      contactPhone: { type: String },
+    54→    },
+    55→
+    56→    // === METADATA ===
+    57→    notes: { type: String },
+    58→    isActive: { type: Boolean, default: true },
+    59→
+    60→    // Source tracking
+    61→    sourceType: {
+    62→      type: String,
+    63→      enum: ["MANUAL", "TEST_DRIVE", "APPRAISAL", "ENQUIRY", "IMPORT"],
+    64→      default: "MANUAL",
+    65→    },
+    66→    sourceId: { type: mongoose.Schema.Types.ObjectId }, // Link to source record
+    67→
+    68→    // Audit fields
+    69→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    70→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    71→  },
+    72→  { timestamps: true }
+    73→);
+    74→
+    75→contactSchema.plugin(toJSON);
+    76→
+    77→// Indexes
+    78→contactSchema.index({ dealerId: 1, displayName: 1 });
+    79→contactSchema.index({ dealerId: 1, email: 1 }, { sparse: true });
+    80→contactSchema.index({ dealerId: 1, phone: 1 }, { sparse: true });
+    81→contactSchema.index({ dealerId: 1, typeTags: 1 });
+    82→contactSchema.index({ dealerId: 1, isActive: 1 });
+    83→contactSchema.index({ dealerId: 1, createdAt: -1 });
+    84→
+    85→// Text search index for name/email/company
+    86→contactSchema.index({ displayName: "text", email: "text", companyName: "text" });
+    87→
+    88→export default mongoose.models?.Contact || mongoose.model("Contact", contactSchema);
+    89→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

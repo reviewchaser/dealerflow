@@ -1,0 +1,2 @@
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\dashboard.js
+C:\Users\georg\dealerflow\pages\dashboard.js

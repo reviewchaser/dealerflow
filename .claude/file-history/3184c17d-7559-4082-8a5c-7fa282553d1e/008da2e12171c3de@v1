@@ -1,0 +1,96 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import VehicleLabelAssignment from "@/models/VehicleLabelAssignment";
+import VehicleIssue from "@/models/VehicleIssue";
+import VehicleLocation from "@/models/VehicleLocation";
+import VehicleDocument from "@/models/VehicleDocument";
+
+const DEFAULT_TASKS = ["PDI", "Valet", "Photos", "MOT Check", "Advert"];
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { status } = req.query;
+      let query = {};
+      if (status && status !== "all") query.status = status;
+
+      const vehicles = await Vehicle.find(query)
+        .populate("locationId")
+        .sort({ createdAt: -1 })
+        .lean();
+
+      // Get tasks, labels, issues, and documents for each vehicle, and transform IDs
+      for (let vehicle of vehicles) {
+        const tasks = await VehicleTask.find({ vehicleId: vehicle._id }).lean();
+        const labels = await VehicleLabelAssignment.find({ vehicleId: vehicle._id })
+          .populate("vehicleLabelId").lean();
+        const issues = await VehicleIssue.find({ vehicleId: vehicle._id }).lean();
+        const documents = await VehicleDocument.find({ vehicleId: vehicle._id }).lean();
+
+        // Transform _id to id for vehicle and related items
+        vehicle.id = vehicle._id.toString();
+        delete vehicle._id;
+
+        vehicle.tasks = tasks.map(t => ({ ...t, id: t._id.toString(), _id: undefined }));
+        vehicle.labels = labels.map(l => ({ ...l, id: l._id.toString(), _id: undefined }));
+        vehicle.issues = issues.map(i => ({ ...i, id: i._id.toString(), _id: undefined }));
+        vehicle.documents = documents.map(d => ({ ...d, id: d._id.toString(), _id: undefined }));
+      }
+
+      return res.status(200).json(vehicles);
+    }
+
+    if (req.method === "POST") {
+      const {
+        regCurrent, vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status = "in_stock", notes, locationId, skipDefaultTasks,
+        type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
+        saleType = "RETAIL" // RETAIL, TRADE - only for STOCK vehicles
+      } = req.body;
+
+      if (!regCurrent || !make || !model) {
+        return res.status(400).json({ error: "Reg, make and model required" });
+      }
+
+      const vehicleData = {
+        regCurrent: regCurrent.toUpperCase().replace(/\s/g, ""),
+        vin, make, model, derivative, year,
+        mileageCurrent, bodyType, fuelType, transmission, colour,
+        status, notes, type,
+        // Only set saleType for STOCK vehicles
+        ...(type === "STOCK" && { saleType }),
+      };
+
+      // Only add locationId if it's not empty
+      if (locationId) {
+        vehicleData.locationId = locationId;
+      }
+
+      const vehicle = await Vehicle.create(vehicleData);
+
+      // Create default tasks only if not skipped (for backwards compatibility)
+      if (!skipDefaultTasks) {
+        for (const taskName of DEFAULT_TASKS) {
+          await VehicleTask.create({
+            vehicleId: vehicle._id,
+            name: taskName,
+            status: "pending",
+            source: "system_default",
+          });
+        }
+      }
+
+      // Transform to include id field
+      const vehicleJson = vehicle.toJSON();
+      return res.status(201).json(vehicleJson);
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}

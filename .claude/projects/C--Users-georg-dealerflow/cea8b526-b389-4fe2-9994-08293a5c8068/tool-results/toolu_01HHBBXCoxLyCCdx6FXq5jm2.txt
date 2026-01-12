@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\models\AftercareCase.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   137→  },
+   138→  { timestamps: true }
+   139→);
+   140→
+   141→aftercareCaseSchema.plugin(toJSON);
+   142→
+   143→// Indexes for dashboard and common queries
+   144→aftercareCaseSchema.index({ dealerId: 1, boardStatus: 1 });
+   145→aftercareCaseSchema.index({ dealerId: 1, status: 1 });
+   146→aftercareCaseSchema.index({ dealerId: 1, createdAt: -1 });
+   147→
+   148→export default mongoose.models.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);
+   149→

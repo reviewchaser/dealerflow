@@ -1,0 +1,110 @@
+     1→/**
+     2→ * DealerContext - Global dealer/tenant context
+     3→ *
+     4→ * Provides dealerSlug and dealer data throughout the app.
+     5→ * Used by all tenant-aware pages under /app/[dealerSlug]/
+     6→ */
+     7→
+     8→import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+     9→import { useRouter } from 'next/router';
+    10→
+    11→const DealerContext = createContext(null);
+    12→
+    13→export function DealerProvider({ children, initialDealer, initialSlug }) {
+    14→  const router = useRouter();
+    15→  const [dealer, setDealer] = useState(initialDealer || null);
+    16→  const [dealerSlug, setDealerSlug] = useState(initialSlug || null);
+    17→  const [isLoading, setIsLoading] = useState(!initialDealer);
+    18→
+    19→  // Extract dealerSlug from URL if we're in /app/[dealerSlug]/* route
+    20→  useEffect(() => {
+    21→    const pathParts = router.asPath.split('/');
+    22→    if (pathParts[1] === 'app' && pathParts[2]) {
+    23→      const slugFromUrl = pathParts[2].split('?')[0]; // Remove query params
+    24→      if (slugFromUrl !== dealerSlug) {
+    25→        setDealerSlug(slugFromUrl);
+    26→      }
+    27→    }
+    28→  }, [router.asPath, dealerSlug]);
+    29→
+    30→  // Fetch dealer data if we have a slug but no dealer
+    31→  useEffect(() => {
+    32→    if (dealerSlug && !dealer) {
+    33→      setIsLoading(true);
+    34→      fetch('/api/dealer', {
+    35→        headers: { 'x-dealer-slug': dealerSlug }
+    36→      })
+    37→        .then(res => res.ok ? res.json() : null)
+    38→        .then(data => {
+    39→          if (data) setDealer(data);
+    40→        })
+    41→        .finally(() => setIsLoading(false));
+    42→    }
+    43→  }, [dealerSlug, dealer]);
+    44→
+    45→  // Generate tenant-aware path
+    46→  const tenantPath = useCallback((path) => {
+    47→    if (!dealerSlug) return `/${path}`;
+    48→    return `/app/${dealerSlug}/${path}`.replace(/\/+$/, '');
+    49→  }, [dealerSlug]);
+    50→
+    51→  // Navigate to tenant-aware path
+    52→  const navigateTo = useCallback((path) => {
+    53→    router.push(tenantPath(path));
+    54→  }, [router, tenantPath]);
+    55→
+    56→  // API fetch with tenant header
+    57→  const fetchWithTenant = useCallback(async (url, options = {}) => {
+    58→    const headers = {
+    59→      ...options.headers,
+    60→    };
+    61→    if (dealerSlug) {
+    62→      headers['x-dealer-slug'] = dealerSlug;
+    63→    }
+    64→    return fetch(url, { ...options, headers });
+    65→  }, [dealerSlug]);
+    66→
+    67→  const value = {
+    68→    dealer,
+    69→    dealerSlug,
+    70→    isLoading,
+    71→    setDealer,
+    72→    tenantPath,
+    73→    navigateTo,
+    74→    fetchWithTenant,
+    75→  };
+    76→
+    77→  return (
+    78→    <DealerContext.Provider value={value}>
+    79→      {children}
+    80→    </DealerContext.Provider>
+    81→  );
+    82→}
+    83→
+    84→export function useDealer() {
+    85→  const context = useContext(DealerContext);
+    86→  if (!context) {
+    87→    // Return a fallback for non-tenant pages
+    88→    return {
+    89→      dealer: null,
+    90→      dealerSlug: null,
+    91→      isLoading: false,
+    92→      tenantPath: (path) => `/${path}`,
+    93→      navigateTo: () => {},
+    94→      fetchWithTenant: fetch,
+    95→    };
+    96→  }
+    97→  return context;
+    98→}
+    99→
+   100→export function useDealerSlug() {
+   101→  const { dealerSlug } = useDealer();
+   102→  return dealerSlug;
+   103→}
+   104→
+   105→export default DealerContext;
+   106→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

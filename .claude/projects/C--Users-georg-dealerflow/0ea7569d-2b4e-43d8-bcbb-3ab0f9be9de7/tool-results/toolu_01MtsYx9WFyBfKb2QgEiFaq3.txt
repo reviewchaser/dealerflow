@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    66→}) {
+    67→  const [deal, setDeal] = useState(null);
+    68→  const [isLoading, setIsLoading] = useState(false);
+    69→  const [fetchError, setFetchError] = useState(null);
+    70→  const [activeTab, setActiveTab] = useState("overview");
+    71→  const [actionLoading, setActionLoading] = useState(null);
+    72→
+    73→  // Deposit modal state
+    74→  const [showDepositModal, setShowDepositModal] = useState(false);
+    75→  const [depositAmount, setDepositAmount] = useState("");
+    76→  const [depositMethod, setDepositMethod] = useState("CARD");
+    77→  const [depositReference, setDepositReference] = useState("");

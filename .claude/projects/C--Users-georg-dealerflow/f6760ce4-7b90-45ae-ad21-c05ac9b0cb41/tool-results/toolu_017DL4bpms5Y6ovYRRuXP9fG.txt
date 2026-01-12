@@ -1,0 +1,204 @@
+  2780→                </div>
+  2781→              )}
+  2782→            </div>
+  2783→            <div className="flex justify-end p-4 border-t border-slate-200">
+  2784→              <button
+  2785→                className="btn btn-ghost"
+  2786→                onClick={() => {
+  2787→                  setShowJobSheetModal(false);
+  2788→                  setJobSheetLink(null);
+  2789→                }}
+  2790→              >
+  2791→                Close
+  2792→              </button>
+  2793→            </div>
+  2794→          </div>
+  2795→        </div>
+  2796→      )}
+  2797→    </DashboardLayout>
+  2798→  );
+  2799→}
+  2800→
+  2801→function AddCaseModal({ onClose, onSuccess }) {
+  2802→  const [isLoading, setIsLoading] = useState(false);
+  2803→  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  2804→  const [mediaAttachments, setMediaAttachments] = useState([]);
+  2805→  const [formData, setFormData] = useState({
+  2806→    customerName: "", customerEmail: "", customerPhone: "",
+  2807→    vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
+  2808→    warrantyType: "", mileage: "",
+  2809→    addressStreet: "", addressCity: "", addressPostcode: "",
+  2810→  });
+  2811→
+  2812→  const handleMediaUpload = async (e) => {
+  2813→    const files = Array.from(e.target.files);
+  2814→    if (files.length === 0) return;
+  2815→    setIsUploadingMedia(true);
+  2816→    const uploadedFiles = [];
+  2817→    for (const file of files) {
+  2818→      const formDataObj = new FormData();
+  2819→      formDataObj.append("file", file);
+  2820→      try {
+  2821→        const res = await fetch("/api/vehicles/upload", { method: "POST", body: formDataObj });
+  2822→        const data = await res.json();
+  2823→        if (data.url) {
+  2824→          uploadedFiles.push({ url: data.url, filename: data.filename || file.name });
+  2825→        }
+  2826→      } catch (err) {
+  2827→        toast.error(`Failed to upload ${file.name}`);
+  2828→      }
+  2829→    }
+  2830→    setMediaAttachments([...mediaAttachments, ...uploadedFiles]);
+  2831→    setIsUploadingMedia(false);
+  2832→    e.target.value = "";
+  2833→  };
+  2834→
+  2835→  const handleSubmit = async (e) => {
+  2836→    e.preventDefault();
+  2837→    if (!formData.customerName) return toast.error("Customer name required");
+  2838→    setIsLoading(true);
+  2839→    try {
+  2840→      const payload = {
+  2841→        ...formData,
+  2842→        source: "manual",
+  2843→        attachments: mediaAttachments,
+  2844→        details: {
+  2845→          mileage: formData.mileage,
+  2846→          customerAddress: {
+  2847→            street: formData.addressStreet,
+  2848→            city: formData.addressCity,
+  2849→            postcode: formData.addressPostcode,
+  2850→          }
+  2851→        }
+  2852→      };
+  2853→      const res = await fetch("/api/aftercare", {
+  2854→        method: "POST",
+  2855→        headers: { "Content-Type": "application/json" },
+  2856→        body: JSON.stringify(payload),
+  2857→      });
+  2858→      if (!res.ok) throw new Error("Failed to create");
+  2859→      toast.success("Case created!");
+  2860→      onSuccess();
+  2861→    } catch (error) {
+  2862→      toast.error(error.message);
+  2863→    } finally {
+  2864→      setIsLoading(false);
+  2865→    }
+  2866→  };
+  2867→
+  2868→  return (
+  2869→    <div className="modal modal-open">
+  2870→      <div className="modal-box">
+  2871→        <h3 className="font-bold text-lg mb-4">New Aftercare Case</h3>
+  2872→        <form onSubmit={handleSubmit}>
+  2873→          <div className="form-control mb-3">
+  2874→            <label className="label"><span className="label-text">Customer Name *</span></label>
+  2875→            <input type="text" className="input input-bordered" value={formData.customerName}
+  2876→              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })} required />
+  2877→          </div>
+  2878→          <div className="grid grid-cols-2 gap-3">
+  2879→            <div className="form-control">
+  2880→              <label className="label"><span className="label-text">Phone</span></label>
+  2881→              <input type="tel" className="input input-bordered" value={formData.customerPhone}
+  2882→                onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })} />
+  2883→            </div>
+  2884→            <div className="form-control">
+  2885→              <label className="label"><span className="label-text">Email</span></label>
+  2886→              <input type="email" className="input input-bordered" value={formData.customerEmail}
+  2887→                onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })} />
+  2888→            </div>
+  2889→          </div>
+  2890→          <div className="grid grid-cols-2 gap-3 mt-3">
+  2891→            <div className="form-control">
+  2892→              <label className="label"><span className="label-text">Current Reg (If different)</span></label>
+  2893→              <input type="text" className="input input-bordered uppercase" value={formData.vehicleReg}
+  2894→                onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })} />
+  2895→            </div>
+  2896→            <div className="form-control">
+  2897→              <label className="label"><span className="label-text">Reg at Purchase</span></label>
+  2898→              <input type="text" className="input input-bordered uppercase" value={formData.regAtPurchase}
+  2899→                onChange={(e) => setFormData({ ...formData, regAtPurchase: e.target.value.toUpperCase() })} />
+  2900→            </div>
+  2901→          </div>
+  2902→          <div className="grid grid-cols-2 gap-3 mt-3">
+  2903→            <div className="form-control">
+  2904→              <label className="label"><span className="label-text">Priority</span></label>
+  2905→              <select className="select select-bordered" value={formData.priority}
+  2906→                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+  2907→                <option value="low">Low</option>
+  2908→                <option value="normal">Normal</option>
+  2909→                <option value="high">High</option>
+  2910→                <option value="critical">Critical</option>
+  2911→              </select>
+  2912→            </div>
+  2913→            <div className="form-control">
+  2914→              <label className="label"><span className="label-text">Warranty Type</span></label>
+  2915→              <select className="select select-bordered" value={formData.warrantyType}
+  2916→                onChange={(e) => setFormData({ ...formData, warrantyType: e.target.value })}>
+  2917→                <option value="">Not specified</option>
+  2918→                <option value="Dealer Warranty">Dealer Warranty</option>
+  2919→                <option value="External Warranty">External Warranty</option>
+  2920→              </select>
+  2921→            </div>
+  2922→          </div>
+  2923→          <div className="form-control mt-3">
+  2924→            <label className="label"><span className="label-text">Current Mileage</span></label>
+  2925→            <input type="number" className="input input-bordered" placeholder="e.g. 45000"
+  2926→              value={formData.mileage}
+  2927→              onChange={(e) => setFormData({ ...formData, mileage: e.target.value })} />
+  2928→          </div>
+  2929→          <div className="form-control mt-3">
+  2930→            <label className="label"><span className="label-text">Customer Address</span></label>
+  2931→            <input type="text" className="input input-bordered mb-2" placeholder="Street address"
+  2932→              value={formData.addressStreet}
+  2933→              onChange={(e) => setFormData({ ...formData, addressStreet: e.target.value })} />
+  2934→            <div className="grid grid-cols-2 gap-2">
+  2935→              <input type="text" className="input input-bordered" placeholder="City"
+  2936→                value={formData.addressCity}
+  2937→                onChange={(e) => setFormData({ ...formData, addressCity: e.target.value })} />
+  2938→              <input type="text" className="input input-bordered uppercase" placeholder="Postcode"
+  2939→                value={formData.addressPostcode}
+  2940→                onChange={(e) => setFormData({ ...formData, addressPostcode: e.target.value.toUpperCase() })} />
+  2941→            </div>
+  2942→          </div>
+  2943→          <div className="form-control mt-3">
+  2944→            <label className="label"><span className="label-text">Issue Summary</span></label>
+  2945→            <textarea className="textarea textarea-bordered" value={formData.summary}
+  2946→              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}></textarea>
+  2947→          </div>
+  2948→          <div className="form-control mt-3">
+  2949→            <label className="label"><span className="label-text">Photos/Documents</span></label>
+  2950→            <div className="flex flex-wrap gap-2 mb-2">
+  2951→              {mediaAttachments.map((att, i) => (
+  2952→                <div key={i} className="relative w-16 h-16 bg-slate-100 rounded overflow-hidden group">
+  2953→                  {att.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+  2954→                    <img src={att.url} alt={att.filename} className="w-full h-full object-cover" />
+  2955→                  ) : (
+  2956→                    <div className="w-full h-full flex items-center justify-center text-xs text-slate-500 p-1">
+  2957→                      {att.filename}
+  2958→                    </div>
+  2959→                  )}
+  2960→                  <button
+  2961→                    type="button"
+  2962→                    className="absolute top-0 right-0 bg-red-500 text-white w-4 h-4 text-xs flex items-center justify-center rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
+  2963→                    onClick={() => setMediaAttachments(mediaAttachments.filter((_, j) => j !== i))}
+  2964→                  >
+  2965→                    ×
+  2966→                  </button>
+  2967→                </div>
+  2968→              ))}
+  2969→            </div>
+  2970→            <label className="btn btn-outline btn-sm gap-2 w-fit cursor-pointer">
+  2971→              {isUploadingMedia ? (
+  2972→                <span className="loading loading-spinner loading-xs"></span>
+  2973→              ) : (
+  2974→                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2975→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  2976→                </svg>
+  2977→              )}
+  2978→              Add Photos
+  2979→              <input
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,91 @@
+import mongoose from "mongoose";
+import toJSON from "./plugins/toJSON";
+
+const aftercareCaseSchema = new mongoose.Schema(
+  {
+    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: true },
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    vehicleSaleId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleSale" },
+    source: {
+      type: String,
+      enum: ["warranty_claim_form", "low_review", "complaint_form", "manual"],
+      default: "manual"
+    },
+    status: {
+      type: String,
+      enum: ["new", "in_progress", "pending_third_party", "resolved", "closed"],
+      default: "new"
+    },
+    // Board status for Customer/Warranty board
+    boardStatus: {
+      type: String,
+      enum: ["not_booked_in", "on_site", "work_complete", "collected"],
+      default: "not_booked_in"
+    },
+    priority: {
+      type: String,
+      enum: ["low", "normal", "high", "critical"],
+      default: "normal"
+    },
+    assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    summary: { type: String }, // short text
+    details: { type: Object }, // text or json
+    regAtPurchase: { type: String }, // reg at time of purchase if different
+    currentReg: { type: String }, // current reg if vehicle was re-registered
+    warrantyType: {
+      type: String,
+      enum: ["Dealer Warranty", "External Warranty"],
+    },
+    linkedSubmissionIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "FormSubmission"
+    }],
+
+    // Case-level attachments (separate from comment attachments)
+    attachments: [{
+      url: { type: String, required: true },
+      filename: { type: String },
+      uploadedAt: { type: Date, default: Date.now },
+      uploadedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    }],
+
+    // Timeline events - embedded array
+    events: [{
+      type: {
+        type: String,
+        enum: [
+          "CASE_CREATED",
+          "SUBMISSION_LINKED",
+          "COMMENT_ADDED",
+          "STATUS_CHANGED",
+          "AI_REVIEW_GENERATED",
+          "ATTACHMENT_ADDED"
+        ],
+        required: true
+      },
+      createdAt: { type: Date, default: Date.now },
+      createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      summary: { type: String },
+      metadata: { type: mongoose.Schema.Types.Mixed }
+    }],
+
+    // AI Case Review - cached output
+    aiReview: {
+      generatedAt: { type: Date },
+      generatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      payload: {
+        summary: { type: String },
+        possibleCauses: [{ type: String }],
+        recommendedSteps: [{ type: String }],
+        warrantyConsiderations: [{ type: String }],
+        draftCustomerReply: { type: String },
+        draftInternalNote: { type: String }
+      }
+    }
+  },
+  { timestamps: true }
+);
+
+aftercareCaseSchema.plugin(toJSON);
+export default mongoose.models.AftercareCase || mongoose.model("AftercareCase", aftercareCaseSchema);

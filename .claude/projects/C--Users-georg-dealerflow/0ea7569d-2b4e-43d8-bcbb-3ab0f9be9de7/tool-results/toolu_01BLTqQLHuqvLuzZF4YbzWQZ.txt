@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\pages\calendar.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   283→  return (
+   284→    <DashboardLayout>
+   285→      <Head><title>Calendar | DealerFlow</title></Head>
+   286→
+   287→      {/* Header - Flex Row on all screens */}
+   288→      <div className="flex items-center justify-between mb-4">
+   289→        <div className="flex items-center gap-2">
+   290→          <h1 className="text-xl md:text-2xl font-bold text-slate-800">Calendar</h1>
+   291→          <PageHint id="calendar">View team schedules, events, and approved holidays. Click any time slot to add an event.</PageHint>
+   292→        </div>
+   293→        <div className="flex items-center gap-2">
+   294→          <button
+   295→            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-2 text-sm font-medium flex items-center gap-2 transition-colors"
+   296→            onClick={() => setShowHolidayModal(true)}
+   297→          >

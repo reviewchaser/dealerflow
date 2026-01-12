@@ -1,0 +1,138 @@
+     1→import { withDealerContext, requireRole } from "../../../../libs/authContext";
+     2→import connectMongo from "../../../../libs/mongoose";
+     3→import OvertimeSubmission from "../../../../models/OvertimeSubmission";
+     4→
+     5→/**
+     6→ * Admin Overtime API
+     7→ * GET - List all overtime submissions for the dealership
+     8→ * Only OWNER and ADMIN roles can access
+     9→ */
+    10→async function handler(req, res, ctx) {
+    11→  // Require admin or owner role
+    12→  const roleCheck = requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+    13→  if (!roleCheck.allowed) {
+    14→    return res.status(403).json({ error: roleCheck.message || "Access denied" });
+    15→  }
+    16→
+    17→  if (req.method !== "GET") {
+    18→    res.setHeader("Allow", ["GET"]);
+    19→    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    20→  }
+    21→
+    22→  await connectMongo();
+    23→  const { dealerId } = ctx;
+    24→
+    25→  try {
+    26→    const {
+    27→      status,
+    28→      userId,
+    29→      year,
+    30→      month,
+    31→      limit = 100,
+    32→      offset = 0,
+    33→      sortBy = "submittedAt",
+    34→      sortOrder = "desc",
+    35→    } = req.query;
+    36→
+    37→    const query = { dealerId };
+    38→
+    39→    // Filter by status
+    40→    if (status) {
+    41→      if (status === "PENDING") {
+    42→        // Alias for SUBMITTED (awaiting review)
+    43→        query.status = "SUBMITTED";
+    44→      } else if (["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"].includes(status)) {
+    45→        query.status = status;
+    46→      }
+    47→    }
+    48→
+    49→    // Filter by user
+    50→    if (userId) {
+    51→      query.userId = userId;
+    52→    }
+    53→
+    54→    // Filter by date range
+    55→    if (year) {
+    56→      const yearNum = parseInt(year, 10);
+    57→      if (month) {
+    58→        const monthNum = parseInt(month, 10) - 1;
+    59→        const startDate = new Date(Date.UTC(yearNum, monthNum, 1));
+    60→        const endDate = new Date(Date.UTC(yearNum, monthNum + 1, 0, 23, 59, 59));
+    61→        query.weekStartDate = { $gte: startDate, $lte: endDate };
+    62→      } else {
+    63→        const startDate = new Date(Date.UTC(yearNum, 0, 1));
+    64→        const endDate = new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59));
+    65→        query.weekStartDate = { $gte: startDate, $lte: endDate };
+    66→      }
+    67→    }
+    68→
+    69→    // Build sort object
+    70→    const sortOptions = {};
+    71→    const validSortFields = ["submittedAt", "weekStartDate", "totalOvertimeHours", "createdAt"];
+    72→    const field = validSortFields.includes(sortBy) ? sortBy : "submittedAt";
+    73→    sortOptions[field] = sortOrder === "asc" ? 1 : -1;
+    74→
+    75→    // Get total count for pagination
+    76→    const totalCount = await OvertimeSubmission.countDocuments(query);
+    77→
+    78→    // Fetch submissions
+    79→    const submissions = await OvertimeSubmission.find(query)
+    80→      .sort(sortOptions)
+    81→      .skip(parseInt(offset, 10))
+    82→      .limit(Math.min(parseInt(limit, 10), 200))
+    83→      .lean();
+    84→
+    85→    // Get summary stats
+    86→    const stats = await OvertimeSubmission.aggregate([
+    87→      { $match: { dealerId: ctx.membership.dealerId } },
+    88→      {
+    89→        $group: {
+    90→          _id: "$status",
+    91→          count: { $sum: 1 },
+    92→          totalHours: { $sum: "$totalOvertimeHours" },
+    93→        },
+    94→      },
+    95→    ]);
+    96→
+    97→    const statusCounts = {
+    98→      DRAFT: 0,
+    99→      SUBMITTED: 0,
+   100→      APPROVED: 0,
+   101→      REJECTED: 0,
+   102→    };
+   103→    let totalApprovedHours = 0;
+   104→
+   105→    stats.forEach((stat) => {
+   106→      if (statusCounts.hasOwnProperty(stat._id)) {
+   107→        statusCounts[stat._id] = stat.count;
+   108→      }
+   109→      if (stat._id === "APPROVED") {
+   110→        totalApprovedHours = stat.totalHours;
+   111→      }
+   112→    });
+   113→
+   114→    return res.status(200).json({
+   115→      submissions,
+   116→      pagination: {
+   117→        total: totalCount,
+   118→        offset: parseInt(offset, 10),
+   119→        limit: parseInt(limit, 10),
+   120→      },
+   121→      stats: {
+   122→        statusCounts,
+   123→        pendingReview: statusCounts.SUBMITTED,
+   124→        totalApprovedHours,
+   125→      },
+   126→    });
+   127→  } catch (error) {
+   128→    console.error("Error fetching admin overtime:", error);
+   129→    return res.status(500).json({ error: "Failed to fetch submissions" });
+   130→  }
+   131→}
+   132→
+   133→export default withDealerContext(handler);
+   134→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

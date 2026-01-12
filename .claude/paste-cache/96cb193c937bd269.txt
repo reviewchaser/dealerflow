@@ -1,0 +1,392 @@
+Claude Code Instruction — DealerHQ Stability Fixes + Sales Workflow + Reporting + Roles + Free Plan
+Context
+
+DealerHQ is live and drawer-first. Sales module is mostly functional but still has critical UI/DB issues and incomplete outputs (invoice/receipt). Reporting routes are broken (404). We also need role-based access improvements and groundwork for a “Sales-only free tier” with approval flow.
+
+This work must not break Stock & Prep, Aftersales/Warranty, Forms/Submissions, Contacts.
+
+Priority 0 — Fix critical blockers (must do first)
+(1) Finance/Broker “New Contact” form goes off-screen inside drawer
+
+Problem: In the Sale drawer → Customer tab → “Invoice To → Finance/Broker”, the “New Contact” UI extends off-screen (drawer height overflow / fixed positioning).
+
+Required fix:
+
+Ensure the contact create form is contained in a modal or drawer sub-panel with:
+
+max-height: 80vh, internal scroll
+
+sticky header/footer for actions (Save/Cancel)
+
+If using popover/command dropdown: use portal + correct z-index (but the issue here is more about layout/overflow than z-index).
+
+Acceptance tests:
+
+On a small laptop viewport, I can create a Business contact without any fields being inaccessible.
+
+No form elements render below the visible viewport without scroll.
+
+(2) Deposit receipt duplicate key error: document numbering is not atomic / not scoped
+
+Error:
+E11000 duplicate key error collection: test.salesdocuments index: dealerId_1_type_1_documentNumber_1 dup key: { dealerId: ..., type: "DEPOSIT_RECEIPT", documentNumber: "DEP00001" }
+
+Root cause (likely):
+
+The “next document number” isn’t being incremented atomically, or it resets to DEP00001 for every attempt, or the sequence is not persisted correctly per dealer/type.
+
+Required fix:
+Implement atomic counters per dealer + doc type.
+
+Implementation approach (recommended)
+
+Create a DocumentCounter (or DealerCounter) model:
+
+dealerId
+
+type (INVOICE, DEPOSIT_RECEIPT)
+
+nextNumber (integer)
+
+unique index on (dealerId, type)
+
+On generating a document:
+
+findOneAndUpdate({dealerId, type}, {$inc: {nextNumber: 1}}, {upsert: true, new: true})
+
+Use the returned pre/post value to format doc number (DEP + padded int).
+
+Then create SalesDocument with that number.
+
+Ensure generation endpoint is idempotent per sale:
+
+If sale already has a receipt document, return existing instead of creating a new one.
+
+Acceptance tests:
+
+Generating deposit receipt 10 times on same sale never errors; returns same receipt if already exists.
+
+Creating receipts concurrently doesn’t produce duplicates.
+
+Works for invoices too.
+
+(5) Reporting routes 404 (Inventory + VAT)
+
+Problem: Sidebar report links still return 404.
+
+Required fix:
+
+Verify the route structure under /app/[dealerSlug]/management/reports/... (or wherever it’s meant to live).
+
+Ensure the files exist in Next App Router with correct segment names.
+
+Ensure navigation links match actual route paths.
+
+Acceptance tests:
+
+Clicking Inventory Report loads page (no 404).
+
+Clicking VAT Report loads page (no 404).
+
+(6) Double-navigation / unwanted redirect to /my-new-motor/app/...
+
+Problem: Links momentarily load then redirect to a duplicated path that includes dealer slug unexpectedly, like:
+dealerhq.co.uk/app/public/forms → redirects to dealerhq.co.uk/my-new-motor/app/public/forms
+
+Likely causes:
+
+A global middleware or layout effect that auto-injects dealerSlug into all /app/* routes.
+
+A client-side router replace() happening on mount.
+
+Incorrect basePath handling.
+
+Required fix:
+
+Decide canonical routing rules:
+
+Tenant routes: /app/[dealerSlug]/...
+
+Public routes (no slug): /app/public/... (or /public/... — whichever you chose)
+
+Middleware should only rewrite when:
+
+path starts with /app and does not already include a slug and is not a public route.
+
+Ensure this rewrite happens once (no client-side “double push”).
+
+Add unit-ish checks or logging in middleware during dev to confirm single rewrite.
+
+Acceptance tests:
+
+Visiting /app/public/forms stays there.
+
+Visiting /app/<slug>/forms stays there.
+
+No flicker/double-load on navigation.
+
+Priority 1 — Sales documents completeness (invoice + deposit receipt)
+(3) Invoice missing logo, T&Cs, mileage, bank details, etc.
+
+Required additions to invoice PDF:
+
+Dealer logo (from Settings upload/url)
+
+VAT number + company registration number (settings)
+
+Bank details (settings)
+
+Mileage (from vehicle record; fallback “Not recorded”)
+
+VIN where available
+
+Invoice To vs Deliver To (already being implemented)
+
+Page 2: Terms & Conditions selected by classification:
+
+Retail personal in-person
+
+Retail personal distance
+
+Retail business use
+
+Trade
+
+Export / zero-rated
+
+Signature boxes on page 2:
+
+Dealer signature/date
+
+Customer signature/date
+
+Also ensure:
+
+White background header (logos are usually on white; avoid coloured bands).
+
+Totals show: total, paid, balance due, and if finance invoice-to is used, show “Amount due from” (broker vs customer).
+
+Acceptance tests:
+
+Generated invoice contains logo, bank details, VAT number, mileage, correct terms, signature boxes.
+
+Deposit receipt PDF improvements
+
+In addition to fixing numbering, update receipt PDF:
+
+Dealer logo
+
+Payment method + reference (if available)
+
+“Taken by” (user) and date/time
+
+Short footer terms line (not a full contract)
+
+Priority 2 — Sales workflow gaps
+(4) No option to add Part Exchange
+
+Required:
+
+Add a Part Exchange card in Sale Summary (between Pricing and Next Actions):
+
+toggle “Is there a part exchange?”
+
+add PX vehicle reg + provisional value + notes (MVP)
+
+link to existing appraisal form (optional but recommended)
+
+Rules:
+
+PX not required before deposit.
+
+PX can be added later.
+
+Appraisal should be encouraged but not forced until handover/delivery.
+
+Acceptance tests:
+
+PX can be added on a draft sale.
+
+PX shows in pricing summary (optional: affects totals later).
+
+(7) Service receipt exists but not selectable in handover pack
+
+Problem: Handover pack modal doesn’t detect service receipt for the vehicle.
+
+Likely root cause:
+
+Service receipt submission is not linked to vehicleId reliably (maybe only VRM is stored, or the linkage is missing on submission creation).
+
+Handover pack query only checks one of these.
+
+Required fix (robust linkage):
+
+Ensure form submissions store dealerId + vehicleId (canonical link).
+
+When submitting Service Receipt / PDI forms:
+
+if created from a vehicle context, always attach vehicleId
+
+if created from public link, attempt to match by VRM to dealer stock and attach vehicleId where possible
+
+Update handover pack lookup:
+
+first query by vehicleId
+
+fallback to VRM match if needed (scoped to dealer)
+
+Acceptance tests:
+
+Submit service receipt for a vehicle → open handover pack for that vehicle → service receipt appears selectable.
+
+Priority 3 — Dashboard notifications feed proposal
+(8) Add notifications/activity feed at top of dashboard
+
+Yes—this is a good idea, as long as it stays lightweight and doesn’t duplicate every module.
+
+Placement
+
+On the dashboard you shared, there’s already:
+
+top greeting and date
+
+KPI cards
+
+“Quick Forms”
+
+“Needs Attention”
+
+“Quick Actions”
+
+“Prep Priorities” list 
+
+Dashboard _ DealerHQ
+
+Recommendation: Put a compact “Activity” feed card just under the greeting banner (above KPI tiles) or above “Needs Attention”.
+
+Items to include (MVP)
+
+Vehicle moved to new location/status (e.g., “CA51EAN moved to Sold in Progress by USER”)
+
+Issue marked complete (VRM + issue title)
+
+Deposit taken (VRM + amount + user)
+
+Invoice generated (VRM + invoice number + user)
+
+New appraisal created/updated
+
+Aftersales case update
+
+Implementation
+
+Use existing Activity/events system if present; otherwise create ActivityEvent model:
+
+dealerId, entityType, entityId, message, userId, createdAt
+
+Write events from key actions (sale deposit/invoice, vehicle move, issue complete)
+
+Acceptance tests:
+
+Dashboard shows last 10 events for the dealer in descending time order.
+
+Priority 4 — Permissions / roles
+(9) Workshop users must not access Sales module
+
+Implement role-based access control:
+
+Add roles like: admin, sales, workshop, viewer
+
+Gate:
+
+Sidebar visibility (Sales hidden for workshop)
+
+Route protection (server-side check — not just UI hiding)
+
+“workshop” role can access Stock & Prep + Aftersales + Issues, but not Sales pages/routes.
+
+Acceptance tests:
+
+Workshop user cannot visit /app/[slug]/sales directly (403 or redirect).
+
+Sales nav item hidden.
+
+Priority 5 — Free plan (Sales-only) + approval flow (10, 10.1, 10.2)
+Is it premature?
+
+No—designing the boundaries now is good, but keep the implementation minimal so it doesn’t slow core product.
+
+(10) Free plan: Sales-only invoicing
+
+Plan rules:
+
+Free tier has access to:
+
+Sales module (invoicing/receipts)
+
+Minimal vehicle storage (to invoice vehicles) — either:
+
+allow adding vehicles but lock prep features, or
+
+allow “invoice-only vehicles” created in Sales
+
+Everything else locked: Stock & Prep workflows, Aftersales, Submissions, etc.
+
+(10.1) Registration approval workflow
+
+Yes—implement now as a simple abuse prevention measure:
+
+New registrations default status=pending
+
+Admin dashboard page to approve dealers/users
+
+Until approved:
+
+show “Pending approval” screen (no access to app)
+
+Keep it minimal: no complex KYC.
+
+(10.2) How to show free account in dashboard / UI
+
+Recommended approach:
+
+Keep sidebar items visible but locked with a padlock icon + “Upgrade” CTA
+
+Clicking locked module opens upgrade modal/page instead of 404.
+
+For free tier, allow Stock module only for adding vehicles, but lock:
+
+prep board features
+
+issues workflow beyond basic notes
+This encourages upsell without breaking navigation.
+
+Acceptance tests:
+
+Free user sees Sales unlocked, other modules locked with upgrade prompt.
+
+Free user can still add a vehicle needed for invoicing (minimal).
+
+Pending users can’t access app until approved.
+
+Deliverable checklist (must complete)
+
+Fix finance contact form overflow (modal/scroll).
+
+Fix duplicate document numbering with atomic counters + idempotent creation.
+
+Add missing invoice/receipt content: logo, T&Cs, mileage, bank details, signature boxes.
+
+Add Part Exchange section in sale.
+
+Fix reporting routes 404.
+
+Fix double-navigation / slug injection flicker.
+
+Fix service receipt selection in handover pack by linking submissions to vehicleId.
+
+Add dashboard activity feed.
+
+Enforce workshop role restriction from Sales.
+
+Implement pending approval + free tier module locking.

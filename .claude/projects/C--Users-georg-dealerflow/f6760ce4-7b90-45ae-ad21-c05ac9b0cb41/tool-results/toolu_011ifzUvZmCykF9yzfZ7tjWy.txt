@@ -1,0 +1,33 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  4656→      setIsLoading(false);
+  4657→    }
+  4658→  };
+  4659→
+  4660→  return (
+  4661→    <div className="modal modal-open">
+  4662→      <div
+  4663→        className="modal-box max-w-4xl flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] bg-white p-0 rounded-none md:rounded-xl"
+  4664→      >
+  4665→        {/* Sticky Header */}
+  4666→        <div
+  4667→          className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white"
+  4668→          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+  4669→        >
+  4670→          <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
+  4671→          <button
+  4672→            type="button"
+  4673→            onClick={onClose}
+  4674→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  4675→          >
+  4676→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  4677→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  4678→            </svg>
+  4679→          </button>
+  4680→        </div>
+  4681→        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+  4682→          {/* Scrollable Content */}
+  4683→          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 py-4">
+  4684→          {/* Vehicle Details Section */}
+  4685→          <div className="mb-6 pb-6 border-b border-slate-100">
+  4686→            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
+  4687→            <div className="relative flex gap-2 mb-4">

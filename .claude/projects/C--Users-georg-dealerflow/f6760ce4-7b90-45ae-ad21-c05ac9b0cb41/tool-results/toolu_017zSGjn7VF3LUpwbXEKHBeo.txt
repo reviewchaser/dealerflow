@@ -1,0 +1,10 @@
+C:\Users\georg\dealerflow\middleware.js
+C:\Users\georg\dealerflow\node_modules\next\dist\build\templates\middleware.js
+C:\Users\georg\dealerflow\node_modules\next\dist\client\components\react-dev-overlay\server\middleware.js
+C:\Users\georg\dealerflow\node_modules\next\dist\esm\build\templates\middleware.js
+C:\Users\georg\dealerflow\node_modules\next\dist\esm\client\components\react-dev-overlay\server\middleware.js
+C:\Users\georg\dealerflow\node_modules\next-auth\middleware.js
+C:\Users\georg\dealerflow\node_modules\next-auth\next\middleware.js
+C:\Users\georg\dealerflow\node_modules\@smithy\types\dist-es\middleware.js
+C:\Users\georg\dealerflow\node_modules\@aws-sdk\types\dist-es\middleware.js
+C:\Users\georg\dealerflow\.next\server\middleware.js

@@ -1,0 +1,210 @@
+     1→import { withDealerContext } from "@/libs/authContext";
+     2→
+     3→// In-memory token cache
+     4→let cachedToken = null;
+     5→let tokenExpiresAt = 0;
+     6→
+     7→// Simple in-memory rate limiter
+     8→const rateLimitMap = new Map();
+     9→const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+    10→const RATE_LIMIT_MAX = 30; // 30 requests per minute per dealer
+    11→
+    12→async function getOAuthToken() {
+    13→  // Check if we have a valid cached token (with 60s safety margin)
+    14→  const now = Date.now();
+    15→  if (cachedToken && tokenExpiresAt > now + 60000) {
+    16→    return cachedToken;
+    17→  }
+    18→
+    19→  const tokenUrl = process.env.DVSA_TOKEN_URL;
+    20→  const clientId = process.env.DVSA_CLIENT_ID;
+    21→  const clientSecret = process.env.DVSA_CLIENT_SECRET;
+    22→  const scope = process.env.DVSA_SCOPE;
+    23→
+    24→  if (!tokenUrl || !clientId || !clientSecret) {
+    25→    throw new Error("Missing DVSA OAuth configuration");
+    26→  }
+    27→
+    28→  const body = new URLSearchParams({
+    29→    grant_type: "client_credentials",
+    30→    client_id: clientId,
+    31→    client_secret: clientSecret,
+    32→  });
+    33→
+    34→  if (scope) {
+    35→    body.append("scope", scope);
+    36→  }
+    37→
+    38→  const response = await fetch(tokenUrl, {
+    39→    method: "POST",
+    40→    headers: {
+    41→      "Content-Type": "application/x-www-form-urlencoded",
+    42→    },
+    43→    body: body.toString(),
+    44→  });
+    45→
+    46→  if (!response.ok) {
+    47→    const errorText = await response.text();
+    48→    console.error("[MOT API] OAuth token error:", response.status, errorText);
+    49→    throw new Error("Failed to obtain OAuth token");
+    50→  }
+    51→
+    52→  const data = await response.json();
+    53→  cachedToken = data.access_token;
+    54→  // Calculate expiry time (subtract 60s safety margin)
+    55→  tokenExpiresAt = now + (data.expires_in * 1000) - 60000;
+    56→
+    57→  return cachedToken;
+    58→}
+    59→
+    60→function checkRateLimit(dealerId) {
+    61→  const now = Date.now();
+    62→  const key = `dealer:${dealerId}`;
+    63→
+    64→  // Get or create rate limit entry
+    65→  let entry = rateLimitMap.get(key);
+    66→  if (!entry || entry.windowStart + RATE_LIMIT_WINDOW < now) {
+    67→    // Start new window
+    68→    entry = { windowStart: now, count: 0 };
+    69→    rateLimitMap.set(key, entry);
+    70→  }
+    71→
+    72→  entry.count++;
+    73→
+    74→  if (entry.count > RATE_LIMIT_MAX) {
+    75→    return false;
+    76→  }
+    77→
+    78→  return true;
+    79→}
+    80→
+    81→// Clean up old rate limit entries periodically
+    82→setInterval(() => {
+    83→  const now = Date.now();
+    84→  for (const [key, entry] of rateLimitMap.entries()) {
+    85→    if (entry.windowStart + RATE_LIMIT_WINDOW < now) {
+    86→      rateLimitMap.delete(key);
+    87→    }
+    88→  }
+    89→}, RATE_LIMIT_WINDOW);
+    90→
+    91→async function handler(req, res, ctx) {
+    92→  if (req.method !== "GET") {
+    93→    return res.status(405).json({ error: "Method not allowed" });
+    94→  }
+    95→
+    96→  const { dealerId } = ctx;
+    97→
+    98→  // Check rate limit
+    99→  if (!checkRateLimit(dealerId)) {
+   100→    return res.status(429).json({
+   101→      error: "Rate limit exceeded",
+   102→      message: "Too many requests. Please wait a moment."
+   103→    });
+   104→  }
+   105→
+   106→  const { vrm } = req.query;
+   107→
+   108→  if (!vrm) {
+   109→    return res.status(400).json({ error: "VRM parameter required" });
+   110→  }
+   111→
+   112→  // Normalize VRM: strip spaces, uppercase
+   113→  const cleanVrm = vrm.trim().toUpperCase().replace(/\s+/g, "");
+   114→
+   115→  if (cleanVrm.length < 2 || cleanVrm.length > 8) {
+   116→    return res.status(400).json({ error: "Invalid VRM format" });
+   117→  }
+   118→
+   119→  try {
+   120→    const token = await getOAuthToken();
+   121→    const apiBase = process.env.DVSA_API_BASE;
+   122→    const apiKey = process.env.DVSA_API_KEY;
+   123→
+   124→    if (!apiBase) {
+   125→      throw new Error("Missing DVSA_API_BASE configuration");
+   126→    }
+   127→
+   128→    const headers = {
+   129→      "Authorization": `Bearer ${token}`,
+   130→      "Accept": "application/json",
+   131→    };
+   132→
+   133→    // Add API key header if configured
+   134→    if (apiKey) {
+   135→      headers["x-api-key"] = apiKey;
+   136→    }
+   137→
+   138→    const motResponse = await fetch(
+   139→      `${apiBase}/trade/vehicles/mot-tests?registration=${cleanVrm}`,
+   140→      { headers }
+   141→    );
+   142→
+   143→    if (motResponse.status === 404) {
+   144→      return res.status(404).json({
+   145→        error: "Vehicle not found",
+   146→        errorCode: "NOT_FOUND"
+   147→      });
+   148→    }
+   149→
+   150→    if (!motResponse.ok) {
+   151→      const errorText = await motResponse.text();
+   152→      console.error("[MOT API] DVSA API error:", motResponse.status, errorText);
+   153→      return res.status(502).json({
+   154→        error: "Failed to fetch MOT data",
+   155→        errorCode: "DVSA_ERROR"
+   156→      });
+   157→    }
+   158→
+   159→    const motData = await motResponse.json();
+   160→
+   161→    // Extract vehicle from response (DVSA returns array)
+   162→    const vehicle = Array.isArray(motData) ? motData[0] : motData;
+   163→
+   164→    if (!vehicle) {
+   165→      return res.status(404).json({
+   166→        error: "Vehicle not found",
+   167→        errorCode: "NOT_FOUND"
+   168→      });
+   169→    }
+   170→
+   171→    // Find the most recent MOT test to get expiry date
+   172→    let motExpiry = null;
+   173→    if (vehicle.motTests && vehicle.motTests.length > 0) {
+   174→      // Sort by completed date descending to get most recent
+   175→      const sortedTests = [...vehicle.motTests].sort((a, b) =>
+   176→        new Date(b.completedDate) - new Date(a.completedDate)
+   177→      );
+   178→      const latestTest = sortedTests[0];
+   179→      if (latestTest.expiryDate) {
+   180→        motExpiry = latestTest.expiryDate;
+   181→      }
+   182→    }
+   183→
+   184→    // Return normalized response
+   185→    return res.status(200).json({
+   186→      registration: cleanVrm,
+   187→      make: vehicle.make || null,
+   188→      model: vehicle.model || null,
+   189→      fuelType: vehicle.fuelType || null,
+   190→      primaryColour: vehicle.primaryColour || null,
+   191→      engineSize: vehicle.engineSize ? String(vehicle.engineSize) : null,
+   192→      motExpiry: motExpiry,
+   193→      manufactureYear: vehicle.manufactureYear || null,
+   194→      firstUsedDate: vehicle.firstUsedDate || null,
+   195→    });
+   196→  } catch (error) {
+   197→    console.error("[MOT API] Error:", error.message);
+   198→    return res.status(500).json({
+   199→      error: "Internal server error",
+   200→      errorCode: "INTERNAL_ERROR"
+   201→    });
+   202→  }
+   203→}
+   204→
+   205→export default withDealerContext(handler);
+   206→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

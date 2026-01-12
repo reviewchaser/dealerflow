@@ -1,0 +1,16 @@
+65:    console.log("[Sales] Drawer state:", {
+76:    console.log("[Sales] Component MOUNTED");
+77:    return () => console.log("[Sales] Component UNMOUNTED");
+114:      console.log("[Sales] create=1 detected, opening modal");
+156:    console.log("[Sales] handleSelectVehicle called:", { vehicleId, activeDeal: vehicle.activeDeal });
+163:        console.log("[Sales] Opening existing deal:", targetId);
+170:        console.log("[Sales] Navigation complete for existing deal");
+175:      console.log("[Sales] Creating new deal for vehicle:", vehicleId);
+183:      console.log("[Sales] Create deal response:", { ok: res.ok, data });
+188:          console.log("[Sales] Vehicle has existing deal, opening:", data.existingDealId);
+194:          console.log("[Sales] Navigation complete, refreshing list");
+202:      console.log("[Sales] Deal created successfully:", newDealId);
+208:      console.log("[Sales] Navigation complete for new deal, refreshing list");
+311:    console.log("[Sales] handleDealClick:", dealId);
+317:    console.log("[Sales] handleDrawerClose called");
+318:    console.trace("[Sales] Close drawer stack trace");

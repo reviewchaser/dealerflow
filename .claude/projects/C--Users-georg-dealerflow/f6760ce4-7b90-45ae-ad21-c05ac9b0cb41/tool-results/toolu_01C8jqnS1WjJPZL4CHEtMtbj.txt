@@ -1,0 +1,62 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   109→  };
+   110→
+   111→  if (!isOpen) return null;
+   112→
+   113→  // Lock body scroll when drawer is open
+   114→  useEffect(() => {
+   115→    if (isOpen) {
+   116→      const scrollY = window.scrollY;
+   117→      document.body.style.position = "fixed";
+   118→      document.body.style.top = `-${scrollY}px`;
+   119→      document.body.style.left = "0";
+   120→      document.body.style.right = "0";
+   121→      document.body.style.overflow = "hidden";
+   122→      document.body.style.width = "100%";
+   123→
+   124→      return () => {
+   125→        document.body.style.position = "";
+   126→        document.body.style.top = "";
+   127→        document.body.style.left = "";
+   128→        document.body.style.right = "";
+   129→        document.body.style.overflow = "";
+   130→        document.body.style.width = "";
+   131→        window.scrollTo(0, scrollY);
+   132→      };
+   133→    }
+   134→  }, [isOpen]);
+   135→
+   136→  return (
+   137→    <div
+   138→      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
+   139→      style={{
+   140→        touchAction: "none",
+   141→        overscrollBehavior: "none",
+   142→        WebkitOverflowScrolling: "touch",
+   143→      }}
+   144→    >
+   145→      {/* Backdrop with blur - captures all pointer/touch events outside drawer */}
+   146→      <div
+   147→        className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
+   148→        onClick={onClose}
+   149→        style={{ touchAction: "none" }}
+   150→      />
+   151→
+   152→      {/* Drawer - Uses 100dvh for proper mobile Safari height, locked horizontal scroll */}
+   153→      <div
+   154→        className={`relative bg-[#f8fafc] flex flex-col ${
+   155→          isStacked ? "w-full max-w-2xl" : "w-full max-w-3xl"
+   156→        } min-w-0 translate-x-0 overflow-x-hidden shadow-2xl`}
+   157→        style={{
+   158→          height: "100dvh",
+   159→          maxHeight: "100dvh",
+   160→          touchAction: "pan-y",
+   161→          WebkitOverflowScrolling: "touch",
+   162→          overscrollBehaviorX: "none",
+   163→          overscrollBehaviorY: "contain",
+   164→        }}
+   165→      >
+   166→        {isLoading ? (
+   167→          <div className="flex items-center justify-center h-full">
+   168→            <span className="loading loading-spinner loading-lg"></span>
+   169→          </div>

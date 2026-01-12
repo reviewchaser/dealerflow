@@ -1,0 +1,300 @@
+     1→/**
+     2→ * AI Suggestions Panel Component
+     3→ *
+     4→ * Displays AI-generated diagnostic suggestions in a collapsible panel.
+     5→ * Shows: suspected issues, checks to run, customer questions, parts, safety notes.
+     6→ * Includes "Copy to notes" functionality.
+     7→ */
+     8→
+     9→import { useState } from "react";
+    10→import { toast } from "react-hot-toast";
+    11→
+    12→// Urgency badge colors
+    13→const URGENCY_COLORS = {
+    14→  low: "badge-success",
+    15→  med: "badge-warning",
+    16→  high: "badge-error",
+    17→};
+    18→
+    19→const URGENCY_LABELS = {
+    20→  low: "Low",
+    21→  med: "Medium",
+    22→  high: "High",
+    23→};
+    24→
+    25→export default function AISuggestionsPanel({
+    26→  suggestions,
+    27→  isLoading,
+    28→  isDummy,
+    29→  onCopyToNotes,
+    30→  className = "",
+    31→}) {
+    32→  const [isExpanded, setIsExpanded] = useState(true);
+    33→
+    34→  if (!suggestions && !isLoading) {
+    35→    return null;
+    36→  }
+    37→
+    38→  const handleCopyToNotes = () => {
+    39→    if (!suggestions) return;
+    40→
+    41→    // Format suggestions as text
+    42→    const lines = [];
+    43→    lines.push("=== AI SUGGESTIONS ===\n");
+    44→
+    45→    if (suggestions.suspected_issues?.length > 0) {
+    46→      lines.push("SUSPECTED ISSUES:");
+    47→      suggestions.suspected_issues.forEach((issue, i) => {
+    48→        lines.push(`${i + 1}. ${issue.title} [${issue.urgency?.toUpperCase()}]`);
+    49→        if (issue.why) lines.push(`   Why: ${issue.why}`);
+    50→      });
+    51→      lines.push("");
+    52→    }
+    53→
+    54→    if (suggestions.checks_to_run?.length > 0) {
+    55→      lines.push("CHECKS TO RUN:");
+    56→      suggestions.checks_to_run.forEach((check, i) => {
+    57→        lines.push(`${i + 1}. ${check.step}`);
+    58→        if (check.tools) lines.push(`   Tools: ${check.tools}`);
+    59→        if (check.time_estimate_mins) lines.push(`   Est. time: ${check.time_estimate_mins} mins`);
+    60→      });
+    61→      lines.push("");
+    62→    }
+    63→
+    64→    if (suggestions.questions_for_customer?.length > 0) {
+    65→      lines.push("QUESTIONS FOR CUSTOMER:");
+    66→      suggestions.questions_for_customer.forEach((q, i) => {
+    67→        lines.push(`${i + 1}. ${q.question}`);
+    68→        if (q.why) lines.push(`   Reason: ${q.why}`);
+    69→      });
+    70→      lines.push("");
+    71→    }
+    72→
+    73→    if (suggestions.parts_to_consider?.length > 0) {
+    74→      lines.push("PARTS TO CONSIDER:");
+    75→      suggestions.parts_to_consider.forEach((part, i) => {
+    76→        lines.push(`${i + 1}. ${part.part}`);
+    77→        if (part.notes) lines.push(`   Notes: ${part.notes}`);
+    78→      });
+    79→      lines.push("");
+    80→    }
+    81→
+    82→    if (suggestions.safety_notes?.length > 0) {
+    83→      lines.push("SAFETY NOTES:");
+    84→      suggestions.safety_notes.forEach((note, i) => {
+    85→        lines.push(`- ${note.note}`);
+    86→      });
+    87→    }
+    88→
+    89→    const text = lines.join("\n");
+    90→
+    91→    // If callback provided, use it
+    92→    if (onCopyToNotes) {
+    93→      onCopyToNotes(text);
+    94→      toast.success("Added to notes");
+    95→    } else {
+    96→      // Otherwise copy to clipboard
+    97→      navigator.clipboard.writeText(text).then(() => {
+    98→        toast.success("Copied to clipboard");
+    99→      }).catch(() => {
+   100→        toast.error("Failed to copy");
+   101→      });
+   102→    }
+   103→  };
+   104→
+   105→  return (
+   106→    <div className={`bg-base-200 rounded-lg border border-base-300 ${className}`}>
+   107→      {/* Header */}
+   108→      <div
+   109→        className="flex items-center justify-between p-3 cursor-pointer hover:bg-base-300/50 rounded-t-lg"
+   110→        onClick={() => setIsExpanded(!isExpanded)}
+   111→      >
+   112→        <div className="flex items-center gap-2">
+   113→          <svg
+   114→            xmlns="http://www.w3.org/2000/svg"
+   115→            className="h-5 w-5 text-primary"
+   116→            viewBox="0 0 24 24"
+   117→            fill="none"
+   118→            stroke="currentColor"
+   119→            strokeWidth="2"
+   120→          >
+   121→            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+   122→          </svg>
+   123→          <span className="font-medium">AI Suggestions</span>
+   124→          {isDummy && (
+   125→            <span className="badge badge-sm badge-ghost">Demo</span>
+   126→          )}
+   127→        </div>
+   128→        <div className="flex items-center gap-2">
+   129→          {isLoading && (
+   130→            <span className="loading loading-spinner loading-sm"></span>
+   131→          )}
+   132→          <svg
+   133→            xmlns="http://www.w3.org/2000/svg"
+   134→            className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+   135→            fill="none"
+   136→            viewBox="0 0 24 24"
+   137→            stroke="currentColor"
+   138→          >
+   139→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+   140→          </svg>
+   141→        </div>
+   142→      </div>
+   143→
+   144→      {/* Content */}
+   145→      {isExpanded && (
+   146→        <div className="p-3 pt-0 space-y-4">
+   147→          {isLoading ? (
+   148→            <div className="text-center py-4 text-base-content/60">
+   149→              <span className="loading loading-dots loading-md"></span>
+   150→              <p className="mt-2 text-sm">Analysing...</p>
+   151→            </div>
+   152→          ) : suggestions ? (
+   153→            <>
+   154→              {/* Suspected Issues */}
+   155→              {suggestions.suspected_issues?.length > 0 && (
+   156→                <div>
+   157→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   158→                    <span className="text-warning">!</span> Suspected Issues
+   159→                  </h4>
+   160→                  <div className="space-y-2">
+   161→                    {suggestions.suspected_issues.map((issue, i) => (
+   162→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   163→                        <div className="flex items-start justify-between gap-2">
+   164→                          <span className="font-medium">{issue.title}</span>
+   165→                          {issue.urgency && (
+   166→                            <span className={`badge badge-xs ${URGENCY_COLORS[issue.urgency] || "badge-ghost"}`}>
+   167→                              {URGENCY_LABELS[issue.urgency] || issue.urgency}
+   168→                            </span>
+   169→                          )}
+   170→                        </div>
+   171→                        {issue.why && (
+   172→                          <p className="text-base-content/70 mt-1">{issue.why}</p>
+   173→                        )}
+   174→                      </div>
+   175→                    ))}
+   176→                  </div>
+   177→                </div>
+   178→              )}
+   179→
+   180→              {/* Checks to Run */}
+   181→              {suggestions.checks_to_run?.length > 0 && (
+   182→                <div>
+   183→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   184→                    <span className="text-info">&#10003;</span> Checks to Run
+   185→                  </h4>
+   186→                  <div className="space-y-2">
+   187→                    {suggestions.checks_to_run.map((check, i) => (
+   188→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   189→                        <p className="font-medium">{check.step}</p>
+   190→                        <div className="flex gap-4 mt-1 text-xs text-base-content/60">
+   191→                          {check.tools && <span>Tools: {check.tools}</span>}
+   192→                          {check.time_estimate_mins > 0 && (
+   193→                            <span>~{check.time_estimate_mins} mins</span>
+   194→                          )}
+   195→                        </div>
+   196→                      </div>
+   197→                    ))}
+   198→                  </div>
+   199→                </div>
+   200→              )}
+   201→
+   202→              {/* Questions for Customer */}
+   203→              {suggestions.questions_for_customer?.length > 0 && (
+   204→                <div>
+   205→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   206→                    <span className="text-secondary">?</span> Questions for Customer
+   207→                  </h4>
+   208→                  <div className="space-y-2">
+   209→                    {suggestions.questions_for_customer.map((q, i) => (
+   210→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   211→                        <p className="font-medium">{q.question}</p>
+   212→                        {q.why && (
+   213→                          <p className="text-base-content/60 text-xs mt-1">
+   214→                            Why: {q.why}
+   215→                          </p>
+   216→                        )}
+   217→                      </div>
+   218→                    ))}
+   219→                  </div>
+   220→                </div>
+   221→              )}
+   222→
+   223→              {/* Parts to Consider */}
+   224→              {suggestions.parts_to_consider?.length > 0 && (
+   225→                <div>
+   226→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   227→                    <span className="text-accent">&#9881;</span> Parts to Consider
+   228→                  </h4>
+   229→                  <div className="space-y-1">
+   230→                    {suggestions.parts_to_consider.map((part, i) => (
+   231→                      <div key={i} className="bg-base-100 rounded p-2 text-sm">
+   232→                        <span className="font-medium">{part.part}</span>
+   233→                        {part.notes && (
+   234→                          <span className="text-base-content/60"> - {part.notes}</span>
+   235→                        )}
+   236→                      </div>
+   237→                    ))}
+   238→                  </div>
+   239→                </div>
+   240→              )}
+   241→
+   242→              {/* Safety Notes */}
+   243→              {suggestions.safety_notes?.length > 0 && (
+   244→                <div>
+   245→                  <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+   246→                    <span className="text-error">&#9888;</span> Safety Notes
+   247→                  </h4>
+   248→                  <div className="bg-error/10 border border-error/20 rounded p-2">
+   249→                    <ul className="text-sm space-y-1">
+   250→                      {suggestions.safety_notes.map((note, i) => (
+   251→                        <li key={i} className="flex items-start gap-2">
+   252→                          <span className="text-error">&#8226;</span>
+   253→                          <span>{note.note}</span>
+   254→                        </li>
+   255→                      ))}
+   256→                    </ul>
+   257→                  </div>
+   258→                </div>
+   259→              )}
+   260→
+   261→              {/* Copy to Notes Button */}
+   262→              <div className="pt-2 border-t border-base-300">
+   263→                <button
+   264→                  type="button"
+   265→                  className="btn btn-sm btn-ghost gap-2"
+   266→                  onClick={handleCopyToNotes}
+   267→                >
+   268→                  <svg
+   269→                    xmlns="http://www.w3.org/2000/svg"
+   270→                    className="h-4 w-4"
+   271→                    fill="none"
+   272→                    viewBox="0 0 24 24"
+   273→                    stroke="currentColor"
+   274→                  >
+   275→                    <path
+   276→                      strokeLinecap="round"
+   277→                      strokeLinejoin="round"
+   278→                      strokeWidth={2}
+   279→                      d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+   280→                    />
+   281→                  </svg>
+   282→                  Copy to notes
+   283→                </button>
+   284→              </div>
+   285→            </>
+   286→          ) : (
+   287→            <p className="text-sm text-base-content/60 text-center py-4">
+   288→              No suggestions available
+   289→            </p>
+   290→          )}
+   291→        </div>
+   292→      )}
+   293→    </div>
+   294→  );
+   295→}
+   296→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

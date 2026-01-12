@@ -1,0 +1,11 @@
+94-
+95-    // Purchase details
+96:    purchase: {
+97:      purchasedFromContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+98:      purchaseDate: { type: Date },
+99:      purchasePriceNet: { type: Number }, // For margin scheme, this is the gross paid
+100:      purchaseVat: { type: Number }, // Only relevant for VAT qualifying purchases
+101:      purchaseInvoiceRef: { type: String },
+102:      purchaseNotes: { type: String },
+103-    },
+104-

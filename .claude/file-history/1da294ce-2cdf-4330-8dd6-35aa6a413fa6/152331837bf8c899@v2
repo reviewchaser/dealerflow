@@ -1,0 +1,38 @@
+// Mark onboarding as complete
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+import { seedAllDefaultsForDealer } from "@/libs/seedDefaults";
+import { withDealerContext } from "@/libs/authContext";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
+
+async function handler(req, res, ctx) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+  const { dealerId, dealer } = ctx;
+
+  // Ensure all defaults are seeded (in case user skipped steps)
+  await seedAllDefaultsForDealer(dealerId);
+
+  // Mark onboarding as complete
+  dealer.completedOnboarding = true;
+  await dealer.save();
+
+  // Log platform activity
+  await PlatformActivity.log(ACTIVITY_TYPES.DEALER_ONBOARDING_COMPLETED, {
+    actorUserId: ctx.userId,
+    dealerId,
+    metadata: { dealerName: dealer.name },
+  });
+
+  console.log(`[Onboarding] Completed for dealer ${dealerId}`);
+
+  return res.status(200).json({
+    success: true,
+    completedOnboarding: true,
+  });
+}
+
+export default withDealerContext(handler);

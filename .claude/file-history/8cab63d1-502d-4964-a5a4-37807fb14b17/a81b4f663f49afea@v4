@@ -1,0 +1,783 @@
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import Link from "next/link";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const COLUMNS = [
+  { key: "not_booked_in", label: "Warranty Cases - Not Booked In", color: "bg-error/20" },
+  { key: "on_site", label: "Customer Cars On Site", color: "bg-warning/20" },
+  { key: "work_complete", label: "Work Complete - Awaiting Collection", color: "bg-info/20" },
+  { key: "collected", label: "Collected / Closed", color: "bg-success/20" },
+];
+
+const PRIORITIES = {
+  low: "badge-ghost",
+  normal: "badge-info",
+  high: "badge-warning",
+  critical: "badge-error",
+};
+
+const SOURCE_LABELS = {
+  warranty_claim_form: "Warranty Claim",
+  low_review: "Low Review",
+  complaint_form: "Complaint",
+  manual: "Manual",
+};
+
+// Timeline event icons
+const EVENT_ICONS = {
+  CASE_CREATED: "📋",
+  SUBMISSION_LINKED: "🔗",
+  COMMENT_ADDED: "💬",
+  STATUS_CHANGED: "🔄",
+  AI_REVIEW_GENERATED: "🤖",
+  ATTACHMENT_ADDED: "📎",
+};
+
+// Helper to calculate days since date
+const daysSince = (date) => {
+  if (!date) return 0;
+  const diff = Date.now() - new Date(date).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+};
+
+// Helper for relative time display
+const relativeTime = (date) => {
+  const days = daysSince(date);
+  if (days === 0) {
+    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    if (hours === 0) {
+      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    }
+    return `${hours}h ago`;
+  }
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+};
+
+export default function Warranty() {
+  const router = useRouter();
+  const [cases, setCases] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [commentAttachments, setCommentAttachments] = useState([]);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => { fetchCases(); }, []);
+
+  // Auto-open case from query param (e.g., /warranty?caseId=123)
+  useEffect(() => {
+    if (router.query.caseId && !selectedCase) {
+      fetchCaseDetail(router.query.caseId);
+    }
+  }, [router.query.caseId]);
+
+  const fetchCases = async () => {
+    try {
+      const res = await fetch("/api/aftercare");
+      const data = await res.json();
+      // Ensure cases is always an array
+      setCases(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error("Failed to load cases");
+      setCases([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCaseDetail = async (caseId) => {
+    try {
+      const res = await fetch(`/api/aftercare/${caseId}`);
+      const data = await res.json();
+      setSelectedCase(data);
+    } catch (error) {
+      toast.error("Failed to load case");
+    }
+  };
+
+  const updateCaseBoardStatus = async (caseId, newStatus) => {
+    try {
+      await fetch(`/api/aftercare/${caseId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ boardStatus: newStatus }),
+      });
+      fetchCases();
+      if (selectedCase?.id === caseId) {
+        fetchCaseDetail(caseId); // Refresh to get new event
+      }
+      toast.success(`Moved to ${newStatus.replace(/_/g, " ")}`);
+    } catch (error) {
+      toast.error("Failed to update");
+    }
+  };
+
+  const handleFileSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    const uploadedFiles = [];
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        if (data.url) {
+          uploadedFiles.push({ url: data.url, filename: data.filename || file.name });
+        }
+      } catch (err) {
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+    setCommentAttachments([...commentAttachments, ...uploadedFiles]);
+  };
+
+  const addComment = async () => {
+    if (!newComment.trim() && commentAttachments.length === 0) return;
+    try {
+      await fetch(`/api/aftercare/${selectedCase.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: newComment || "(attachment)",
+          authorType: "staff",
+          attachments: commentAttachments
+        }),
+      });
+      setNewComment("");
+      setCommentAttachments([]);
+      fetchCaseDetail(selectedCase.id);
+      toast.success("Comment added");
+    } catch (error) {
+      toast.error("Failed to add comment");
+    }
+  };
+
+  const generateAIReview = async (regenerate = false) => {
+    if (regenerate) {
+      setShowRegenerateConfirm(false);
+    }
+    setIsGeneratingAI(true);
+    try {
+      const res = await fetch("/api/ai/case-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: selectedCase.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate");
+      fetchCaseDetail(selectedCase.id);
+      toast.success("AI review generated");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  const getCasesByStatus = (status) => cases.filter(c => c.boardStatus === status);
+
+  // Calculate attachment count for a case
+  const getAttachmentCount = (c) => {
+    const caseAttachments = c.attachments?.length || 0;
+    const submissionAttachments = c.submissionAttachmentCount || 0;
+    const commentAttachments = c.commentAttachmentCount || 0;
+    return caseAttachments + submissionAttachments + commentAttachments;
+  };
+
+  // Get activity count (events count)
+  const getActivityCount = (c) => c.events?.length || 0;
+
+  return (
+    <DashboardLayout>
+      <Head><title>Customer/Warranty | DealerFlow</title></Head>
+
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Customer / Warranty Board</h1>
+          <p className="text-base-content/60 mt-1">Manage warranty cases and aftercare</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+          + New Case
+        </button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {COLUMNS.map((col) => (
+            <div key={col.key} className={`flex-shrink-0 w-80 ${col.color} rounded-lg p-3`}>
+              <h3 className="font-semibold mb-3 text-sm flex items-center justify-between">
+                {col.label}
+                <span className="badge badge-ghost">{getCasesByStatus(col.key).length}</span>
+              </h3>
+
+              <div className="space-y-3">
+                {getCasesByStatus(col.key).map((caseItem) => (
+                  <div
+                    key={caseItem.id}
+                    className="card bg-base-100 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => fetchCaseDetail(caseItem.id)}
+                  >
+                    <div className="card-body p-3">
+                      {/* Top row: Reg + Warranty badge + Priority */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono font-bold text-sm">
+                            {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "No reg"}
+                          </span>
+                          {caseItem.warrantyType && (
+                            <span className="badge badge-xs badge-outline">
+                              {caseItem.warrantyType === "Dealer Warranty" ? "Dealer" : "External"}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`badge badge-sm ${PRIORITIES[caseItem.priority]}`}>
+                          {caseItem.priority}
+                        </span>
+                      </div>
+
+                      {/* Middle: Customer name + Vehicle make/model */}
+                      <div className="mt-1">
+                        <p className="text-sm text-base-content/80">{caseItem.contactId?.name || "Unknown"}</p>
+                        {caseItem.vehicleId && (
+                          <p className="text-xs text-base-content/60">
+                            {caseItem.vehicleId.make} {caseItem.vehicleId.model}
+                          </p>
+                        )}
+                        {!caseItem.vehicleId && caseItem.details?.make && (
+                          <p className="text-xs text-base-content/60">
+                            {caseItem.details.make} {caseItem.details.model}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Bottom row: Days open + Attachment count + Activity count + Source */}
+                      <div className="flex items-center gap-3 mt-2 text-xs text-base-content/60">
+                        <span className="font-medium">{daysSince(caseItem.createdAt)}d open</span>
+                        {getAttachmentCount(caseItem) > 0 && (
+                          <span className="flex items-center gap-0.5" title="Attachments">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                            </svg>
+                            {getAttachmentCount(caseItem)}
+                          </span>
+                        )}
+                        {getActivityCount(caseItem) > 0 && (
+                          <span className="flex items-center gap-0.5" title="Activity">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            {getActivityCount(caseItem)}
+                          </span>
+                        )}
+                        <span className="badge badge-ghost badge-xs ml-auto">
+                          {SOURCE_LABELS[caseItem.source] || caseItem.source}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Case Detail Drawer */}
+      {selectedCase && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="bg-black/50 absolute inset-0" onClick={() => setSelectedCase(null)}></div>
+          <div className="relative bg-base-100 w-full max-w-xl h-full overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-base-100 border-b border-base-300 p-4 z-10">
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-xl font-bold font-mono">
+                      {selectedCase.regAtPurchase || selectedCase.details?.vehicleReg || "No Reg"}
+                    </h2>
+                    {selectedCase.warrantyType && (
+                      <span className="badge badge-sm badge-outline">
+                        {selectedCase.warrantyType}
+                      </span>
+                    )}
+                    <span className={`badge badge-sm ${PRIORITIES[selectedCase.priority]}`}>
+                      {selectedCase.priority}
+                    </span>
+                  </div>
+                  <p className="text-sm text-base-content/60 mt-1">
+                    {selectedCase.contactId?.name} &middot; {daysSince(selectedCase.createdAt)}d open
+                  </p>
+                </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSelectedCase(null)}>✕</button>
+              </div>
+
+              <div className="flex gap-2 mt-3">
+                <select
+                  className="select select-bordered select-sm flex-1"
+                  value={selectedCase.boardStatus}
+                  onChange={(e) => {
+                    updateCaseBoardStatus(selectedCase.id, e.target.value);
+                    setSelectedCase({ ...selectedCase, boardStatus: e.target.value });
+                  }}
+                >
+                  {COLUMNS.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                <select
+                  className="select select-bordered select-sm"
+                  value={selectedCase.priority}
+                  onChange={async (e) => {
+                    await fetch(`/api/aftercare/${selectedCase.id}`, {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ priority: e.target.value }),
+                    });
+                    setSelectedCase({ ...selectedCase, priority: e.target.value });
+                    fetchCases();
+                  }}
+                >
+                  <option value="low">Low</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {/* Customer & Vehicle Section */}
+              <div className="card bg-base-200">
+                <div className="card-body p-4">
+                  <h3 className="font-semibold mb-2">Customer & Vehicle</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div><span className="text-base-content/60">Name:</span> {selectedCase.contactId?.name || "—"}</div>
+                    <div><span className="text-base-content/60">Phone:</span> {selectedCase.contactId?.phone || "—"}</div>
+                    <div className="col-span-2"><span className="text-base-content/60">Email:</span> {selectedCase.contactId?.email || "—"}</div>
+                    <div><span className="text-base-content/60">Reg at Purchase:</span> {selectedCase.regAtPurchase || "—"}</div>
+                    <div><span className="text-base-content/60">Current Reg:</span> {selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</div>
+                    {selectedCase.vehicleId && (
+                      <>
+                        <div className="col-span-2">
+                          <span className="text-base-content/60">Vehicle:</span>{" "}
+                          {selectedCase.vehicleId.make} {selectedCase.vehicleId.model} {selectedCase.vehicleId.year}
+                        </div>
+                        <div className="col-span-2">
+                          <Link
+                            href={`/sales-prep?vehicleId=${selectedCase.vehicleId._id || selectedCase.vehicleId.id}`}
+                            className="btn btn-xs btn-outline"
+                          >
+                            View Vehicle
+                          </Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions Row */}
+              <div className="flex gap-2 flex-wrap">
+                {selectedCase.aiReview?.payload ? (
+                  <button
+                    className="btn btn-sm btn-outline"
+                    onClick={() => setShowRegenerateConfirm(true)}
+                    disabled={isGeneratingAI}
+                  >
+                    {isGeneratingAI ? <span className="loading loading-spinner loading-xs"></span> : "Regenerate AI Review"}
+                  </button>
+                ) : (
+                  <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => generateAIReview()}
+                    disabled={isGeneratingAI}
+                  >
+                    {isGeneratingAI ? <span className="loading loading-spinner loading-xs"></span> : "Generate AI Review"}
+                  </button>
+                )}
+                <button
+                  className="btn btn-sm btn-outline"
+                  disabled={!selectedCase.aiReview?.payload?.draftCustomerReply}
+                  onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftCustomerReply, "Customer reply")}
+                >
+                  Copy Customer Reply
+                </button>
+                <button
+                  className="btn btn-sm btn-outline"
+                  disabled={!selectedCase.aiReview?.payload?.draftInternalNote}
+                  onClick={() => copyToClipboard(selectedCase.aiReview?.payload?.draftInternalNote, "Internal note")}
+                >
+                  Copy Internal Note
+                </button>
+              </div>
+
+              {/* AI Case Review Panel */}
+              {selectedCase.aiReview?.payload ? (
+                <div className="card bg-info/10 border border-info/30">
+                  <div className="card-body p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        🤖 AI Case Review
+                      </h3>
+                      <span className="text-xs text-base-content/60">
+                        Generated {relativeTime(selectedCase.aiReview.generatedAt)}
+                      </span>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="mb-4">
+                      <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Summary</h4>
+                      <p className="text-sm">{selectedCase.aiReview.payload.summary}</p>
+                    </div>
+
+                    {/* Possible Causes */}
+                    {selectedCase.aiReview.payload.possibleCauses?.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Possible Causes</h4>
+                        <ul className="text-sm list-disc list-inside space-y-1">
+                          {selectedCase.aiReview.payload.possibleCauses.map((cause, i) => (
+                            <li key={i}>{cause}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recommended Steps */}
+                    {selectedCase.aiReview.payload.recommendedSteps?.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Recommended Next Steps</h4>
+                        <ol className="text-sm list-decimal list-inside space-y-1">
+                          {selectedCase.aiReview.payload.recommendedSteps.map((step, i) => (
+                            <li key={i}>{step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {/* Warranty Considerations */}
+                    {selectedCase.aiReview.payload.warrantyConsiderations?.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-medium text-xs uppercase text-base-content/60 mb-1">Warranty Considerations</h4>
+                        <ul className="text-sm list-disc list-inside space-y-1">
+                          {selectedCase.aiReview.payload.warrantyConsiderations.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Draft Customer Reply */}
+                    {selectedCase.aiReview.payload.draftCustomerReply && (
+                      <div className="mb-4">
+                        <div className="flex justify-between items-center mb-1">
+                          <h4 className="font-medium text-xs uppercase text-base-content/60">Draft Customer Reply</h4>
+                          <button
+                            className="btn btn-xs btn-ghost"
+                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftCustomerReply, "Customer reply")}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-sm bg-base-100 p-2 rounded whitespace-pre-wrap">
+                          {selectedCase.aiReview.payload.draftCustomerReply}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Draft Internal Note */}
+                    {selectedCase.aiReview.payload.draftInternalNote && (
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <h4 className="font-medium text-xs uppercase text-base-content/60">Draft Internal Note</h4>
+                          <button
+                            className="btn btn-xs btn-ghost"
+                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftInternalNote, "Internal note")}
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <p className="text-sm bg-base-100 p-2 rounded whitespace-pre-wrap">
+                          {selectedCase.aiReview.payload.draftInternalNote}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="card bg-base-200 border border-base-300">
+                  <div className="card-body p-4 text-center">
+                    <p className="text-sm text-base-content/60">
+                      Click "Generate AI Review" to get AI-powered analysis of this case.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Issue Summary */}
+              {selectedCase.summary && (
+                <div className="card bg-base-200">
+                  <div className="card-body p-4">
+                    <h3 className="font-semibold mb-2">Issue Summary</h3>
+                    <p className="text-sm whitespace-pre-wrap">{selectedCase.summary}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
+              <div className="card bg-base-200">
+                <div className="card-body p-4">
+                  <h3 className="font-semibold mb-3">Timeline</h3>
+
+                  {/* Event-driven timeline (newest first) */}
+                  <div className="space-y-3 mb-4">
+                    {(selectedCase.events || [])
+                      .slice()
+                      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                      .map((event, idx) => (
+                        <div key={idx} className="flex gap-3 items-start">
+                          <div className="text-lg" title={event.type}>
+                            {EVENT_ICONS[event.type] || "📌"}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm">{event.summary || event.type.replace(/_/g, " ")}</p>
+                            <p className="text-xs text-base-content/60" title={new Date(event.createdAt).toLocaleString()}>
+                              {relativeTime(event.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+
+                    {(!selectedCase.events || selectedCase.events.length === 0) && (
+                      <p className="text-sm text-base-content/60">No timeline events yet.</p>
+                    )}
+                  </div>
+
+                  {/* Comments (legacy display for existing comments) */}
+                  {selectedCase.comments?.length > 0 && (
+                    <div className="border-t border-base-300 pt-3 mt-3">
+                      <h4 className="font-medium text-sm mb-2">Comments</h4>
+                      <div className="space-y-3">
+                        {selectedCase.comments.map((comment) => (
+                          <div key={comment.id} className={`p-3 rounded-lg ${
+                            comment.authorType === "customer" ? "bg-primary/10" : "bg-base-100"
+                          }`}>
+                            <div className="flex justify-between text-xs text-base-content/60 mb-1">
+                              <span>{comment.authorType === "customer" ? "Customer" : "Staff"}</span>
+                              <span title={new Date(comment.createdAt).toLocaleString()}>
+                                {relativeTime(comment.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-sm">{comment.content}</p>
+                            {comment.attachments?.length > 0 && (
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                {comment.attachments.map((att, i) => (
+                                  <a
+                                    key={i}
+                                    href={att.url || att}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="badge badge-sm badge-outline gap-1"
+                                  >
+                                    📎 {att.filename || "File"}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Add Comment with Attachment */}
+                  <div className="mt-4">
+                    {commentAttachments.length > 0 && (
+                      <div className="flex gap-2 flex-wrap mb-2">
+                        {commentAttachments.map((att, i) => (
+                          <span key={i} className="badge badge-sm gap-1">
+                            📎 {att.filename}
+                            <button
+                              className="text-error ml-1"
+                              onClick={() => setCommentAttachments(commentAttachments.filter((_, j) => j !== i))}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="input input-bordered input-sm flex-1"
+                        placeholder="Add a comment..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyPress={(e) => e.key === "Enter" && addComment()}
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        multiple
+                        onChange={handleFileSelect}
+                      />
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Attach files"
+                      >
+                        📎
+                      </button>
+                      <button className="btn btn-primary btn-sm" onClick={addComment}>Add</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Regenerate Confirm Modal */}
+      {showRegenerateConfirm && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg">Regenerate AI Review?</h3>
+            <p className="py-4">This will replace the existing AI review with a new one. This action cannot be undone.</p>
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setShowRegenerateConfirm(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => generateAIReview(true)}>Regenerate</button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowRegenerateConfirm(false)}></div>
+        </div>
+      )}
+
+      {/* Add Case Modal */}
+      {showAddModal && (
+        <AddCaseModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); fetchCases(); }} />
+      )}
+    </DashboardLayout>
+  );
+}
+
+function AddCaseModal({ onClose, onSuccess }) {
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    customerName: "", customerEmail: "", customerPhone: "",
+    vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
+    warrantyType: "",
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.customerName) return toast.error("Customer name required");
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/aftercare", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...formData, source: "manual" }),
+      });
+      if (!res.ok) throw new Error("Failed to create");
+      toast.success("Case created!");
+      onSuccess();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal modal-open">
+      <div className="modal-box">
+        <h3 className="font-bold text-lg mb-4">New Aftercare Case</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-control mb-3">
+            <label className="label"><span className="label-text">Customer Name *</span></label>
+            <input type="text" className="input input-bordered" value={formData.customerName}
+              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })} required />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Phone</span></label>
+              <input type="tel" className="input input-bordered" value={formData.customerPhone}
+                onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })} />
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Email</span></label>
+              <input type="email" className="input input-bordered" value={formData.customerEmail}
+                onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Current Reg</span></label>
+              <input type="text" className="input input-bordered uppercase" value={formData.vehicleReg}
+                onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })} />
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Reg at Purchase</span></label>
+              <input type="text" className="input input-bordered uppercase" value={formData.regAtPurchase}
+                onChange={(e) => setFormData({ ...formData, regAtPurchase: e.target.value.toUpperCase() })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Priority</span></label>
+              <select className="select select-bordered" value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}>
+                <option value="low">Low</option>
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div className="form-control">
+              <label className="label"><span className="label-text">Warranty Type</span></label>
+              <select className="select select-bordered" value={formData.warrantyType}
+                onChange={(e) => setFormData({ ...formData, warrantyType: e.target.value })}>
+                <option value="">Not specified</option>
+                <option value="Dealer Warranty">Dealer Warranty</option>
+                <option value="External Warranty">External Warranty</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Issue Summary</span></label>
+            <textarea className="textarea textarea-bordered" value={formData.summary}
+              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}></textarea>
+          </div>
+          <div className="modal-action">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+              {isLoading ? <span className="loading loading-spinner"></span> : "Create Case"}
+            </button>
+          </div>
+        </form>
+      </div>
+      <div className="modal-backdrop" onClick={onClose}></div>
+    </div>
+  );
+}

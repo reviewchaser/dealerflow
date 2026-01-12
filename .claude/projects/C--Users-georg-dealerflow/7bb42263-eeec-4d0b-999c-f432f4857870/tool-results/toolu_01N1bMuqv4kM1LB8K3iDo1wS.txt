@@ -1,0 +1,22 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  4942→
+  4943→  return (
+  4944→    <div className="modal modal-open">
+  4945→      <div className="modal-box max-w-2xl bg-white">
+  4946→        <div className="flex items-center justify-between mb-6">
+  4947→          <h3 className="text-xl font-bold text-slate-900">{isEditing ? "Edit Issue" : "Add Issue"}</h3>
+  4948→          <button
+  4949→            type="button"
+  4950→            onClick={onClose}
+  4951→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  4952→          >
+  4953→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  4954→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  4955→            </svg>
+  4956→          </button>
+  4957→        </div>
+  4958→        <form onSubmit={handleSubmit}>
+  4959→          <div className="grid grid-cols-2 gap-4">
+  4960→            <div className="form-control">
+  4961→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
+  4962→              <select

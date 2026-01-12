@@ -1,0 +1,207 @@
+     1→/**
+     2→ * Shared VRM/DVLA Lookup Normalizer
+     3→ *
+     4→ * All VRM lookups in the app should use this to produce a consistent shape:
+     5→ * - vrm (normalised)
+     6→ * - make
+     7→ * - model
+     8→ * - fuelType
+     9→ * - year
+    10→ * - colour
+    11→ * - motStatus
+    12→ * - motExpiryDate
+    13→ * - transmission
+    14→ * - engineCapacity
+    15→ */
+    16→
+    17→/**
+    18→ * Normalize a VRM string (trim, uppercase, remove spaces)
+    19→ * @param {string} vrm - Raw VRM input
+    20→ * @returns {string} - Normalized VRM
+    21→ */
+    22→export function normalizeVrm(vrm) {
+    23→  if (!vrm) return "";
+    24→  return vrm.trim().toUpperCase().replace(/\s+/g, "");
+    25→}
+    26→
+    27→/**
+    28→ * Calculate MOT status from expiry date
+    29→ * @param {string|Date} motExpiryDate - MOT expiry date
+    30→ * @param {string} dvlaMotStatus - Status from DVLA API (if available)
+    31→ * @returns {{ status: string, daysRemaining: number|null, isExpired: boolean, isDueSoon: boolean }}
+    32→ */
+    33→export function calculateMotStatus(motExpiryDate, dvlaMotStatus = null) {
+    34→  if (!motExpiryDate) {
+    35→    return {
+    36→      status: dvlaMotStatus || "Unknown",
+    37→      daysRemaining: null,
+    38→      isExpired: false,
+    39→      isDueSoon: false,
+    40→    };
+    41→  }
+    42→
+    43→  const expiry = new Date(motExpiryDate);
+    44→  const now = new Date();
+    45→  const diffMs = expiry.getTime() - now.getTime();
+    46→  const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    47→
+    48→  const isExpired = daysRemaining < 0;
+    49→  const isDueSoon = !isExpired && daysRemaining <= 30;
+    50→
+    51→  let status;
+    52→  if (isExpired) {
+    53→    status = "Expired";
+    54→  } else if (isDueSoon) {
+    55→    status = "Due Soon";
+    56→  } else {
+    57→    status = dvlaMotStatus || "Valid";
+    58→  }
+    59→
+    60→  return {
+    61→    status,
+    62→    daysRemaining: isExpired ? 0 : daysRemaining,
+    63→    isExpired,
+    64→    isDueSoon,
+    65→  };
+    66→}
+    67→
+    68→/**
+    69→ * Normalize DVLA API response to consistent vehicle shape
+    70→ * @param {object} dvlaData - Raw DVLA API response
+    71→ * @returns {object} - Normalized vehicle data
+    72→ */
+    73→export function normalizeDvlaResponse(dvlaData) {
+    74→  if (!dvlaData) {
+    75→    return null;
+    76→  }
+    77→
+    78→  const vrm = normalizeVrm(dvlaData.registrationNumber);
+    79→  const motInfo = calculateMotStatus(dvlaData.motExpiryDate, dvlaData.motStatus);
+    80→
+    81→  return {
+    82→    // Core fields
+    83→    vrm,
+    84→    make: dvlaData.make?.toUpperCase() || "",
+    85→    model: dvlaData.model?.toUpperCase() || "", // Note: DVLA often returns empty model
+    86→    year: dvlaData.yearOfManufacture || null,
+    87→    colour: dvlaData.colour?.toUpperCase() || "",
+    88→    fuelType: normalizeFuelType(dvlaData.fuelType),
+    89→    transmission: normalizeTransmission(dvlaData.transmission),
+    90→    engineCapacity: dvlaData.engineCapacity || null,
+    91→
+    92→    // MOT information
+    93→    motStatus: motInfo.status,
+    94→    motExpiryDate: dvlaData.motExpiryDate || null,
+    95→    motDaysRemaining: motInfo.daysRemaining,
+    96→    motIsExpired: motInfo.isExpired,
+    97→    motIsDueSoon: motInfo.isDueSoon,
+    98→
+    99→    // Tax information
+   100→    taxStatus: dvlaData.taxStatus || null,
+   101→    taxDueDate: dvlaData.taxDueDate || null,
+   102→
+   103→    // Additional DVLA fields (for reference)
+   104→    co2Emissions: dvlaData.co2Emissions || null,
+   105→    euroStatus: dvlaData.euroStatus || null,
+   106→    markedForExport: dvlaData.markedForExport || false,
+   107→    monthOfFirstRegistration: dvlaData.monthOfFirstRegistration || null,
+   108→    dateOfLastV5CIssued: dvlaData.dateOfLastV5CIssued || null,
+   109→
+   110→    // Metadata
+   111→    isDummy: dvlaData.isDummy || false,
+   112→    lookupTimestamp: new Date().toISOString(),
+   113→  };
+   114→}
+   115→
+   116→/**
+   117→ * Normalize fuel type to consistent format
+   118→ * @param {string} fuelType - Raw fuel type from DVLA
+   119→ * @returns {string} - Normalized fuel type
+   120→ */
+   121→export function normalizeFuelType(fuelType) {
+   122→  if (!fuelType) return "";
+   123→
+   124→  const normalized = fuelType.toUpperCase().trim();
+   125→
+   126→  // Map common variations
+   127→  const fuelMap = {
+   128→    PETROL: "PETROL",
+   129→    DIESEL: "DIESEL",
+   130→    ELECTRIC: "ELECTRIC",
+   131→    HYBRID: "HYBRID",
+   132→    "HYBRID ELECTRIC": "HYBRID",
+   133→    "PLUG-IN HYBRID": "HYBRID",
+   134→    "PETROL/ELECTRIC HYBRID": "HYBRID",
+   135→    "DIESEL/ELECTRIC HYBRID": "HYBRID",
+   136→    GAS: "GAS",
+   137→    LPG: "LPG",
+   138→    CNG: "CNG",
+   139→    "BI FUEL": "BI FUEL",
+   140→    HYDROGEN: "HYDROGEN",
+   141→  };
+   142→
+   143→  return fuelMap[normalized] || normalized;
+   144→}
+   145→
+   146→/**
+   147→ * Normalize transmission to consistent format
+   148→ * @param {string} transmission - Raw transmission from DVLA
+   149→ * @returns {string} - Normalized transmission
+   150→ */
+   151→export function normalizeTransmission(transmission) {
+   152→  if (!transmission) return "";
+   153→
+   154→  const normalized = transmission.toUpperCase().trim();
+   155→
+   156→  // Map common variations
+   157→  const transMap = {
+   158→    MANUAL: "MANUAL",
+   159→    AUTOMATIC: "AUTOMATIC",
+   160→    AUTO: "AUTOMATIC",
+   161→    SEMI: "SEMI-AUTO",
+   162→    "SEMI-AUTOMATIC": "SEMI-AUTO",
+   163→    "SEMI-AUTO": "SEMI-AUTO",
+   164→    CVT: "CVT",
+   165→  };
+   166→
+   167→  return transMap[normalized] || normalized;
+   168→}
+   169→
+   170→/**
+   171→ * Check if model is missing and needs manual entry
+   172→ * @param {object} normalizedData - Normalized vehicle data from normalizeDvlaResponse
+   173→ * @returns {boolean} - True if model is missing/empty
+   174→ */
+   175→export function isModelMissing(normalizedData) {
+   176→  return !normalizedData?.model || normalizedData.model.trim() === "";
+   177→}
+   178→
+   179→/**
+   180→ * Validate that required fields are present for vehicle creation
+   181→ * @param {object} vehicleData - Vehicle data to validate
+   182→ * @returns {{ valid: boolean, missingFields: string[] }}
+   183→ */
+   184→export function validateVehicleData(vehicleData) {
+   185→  const required = ["vrm", "make", "model"];
+   186→  const missingFields = required.filter((field) => !vehicleData?.[field]?.trim());
+   187→
+   188→  return {
+   189→    valid: missingFields.length === 0,
+   190→    missingFields,
+   191→  };
+   192→}
+   193→
+   194→export default {
+   195→  normalizeVrm,
+   196→  normalizeDvlaResponse,
+   197→  normalizeFuelType,
+   198→  normalizeTransmission,
+   199→  calculateMotStatus,
+   200→  isModelMissing,
+   201→  validateVehicleData,
+   202→};
+   203→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

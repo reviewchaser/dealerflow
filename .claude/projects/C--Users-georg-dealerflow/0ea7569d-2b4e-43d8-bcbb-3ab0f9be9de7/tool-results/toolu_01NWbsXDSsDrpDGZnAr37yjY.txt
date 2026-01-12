@@ -1,0 +1,42 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3673→                            placeholder="Search suppliers..."
+  3674→                            allowCreate={true}
+  3675→                          />
+  3676→                        </div>
+  3677→                        <div className="form-control">
+  3678→                          <label className="label label-text text-xs">VAT Scheme</label>
+  3679→                          <select
+  3680→                            className="select select-sm select-bordered w-full"
+  3681→                            value={selectedVehicle.vatScheme || "MARGIN"}
+  3682→                            onChange={async (e) => {
+  3683→                              const newScheme = e.target.value;
+  3684→                              const siv = selectedVehicle.purchase?.purchasePriceNet || 0;
+  3685→                              // Recalculate VAT when scheme changes
+  3686→                              const autoVat = newScheme === "VAT_QUALIFYING" && siv
+  3687→                                ? Math.round((siv - (siv / 1.2)) * 100) / 100
+  3688→                                : 0;
+  3689→                              const updatedPurchase = {
+  3690→                                ...selectedVehicle.purchase,
+  3691→                                purchaseVat: autoVat
+  3692→                              };
+  3693→                              setSelectedVehicle({
+  3694→                                ...selectedVehicle,
+  3695→                                vatScheme: newScheme,
+  3696→                                purchase: updatedPurchase
+  3697→                              });
+  3698→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3699→                                method: "PUT",
+  3700→                                headers: { "Content-Type": "application/json" },
+  3701→                                body: JSON.stringify({ vatScheme: newScheme, purchase: updatedPurchase }),
+  3702→                              });
+  3703→                              fetchVehicles();
+  3704→                            }}
+  3705→                          >
+  3706→                            <option value="MARGIN">Margin Scheme</option>
+  3707→                            <option value="VAT_QUALIFYING">VAT Qualifying</option>
+  3708→                            <option value="NO_VAT">No VAT</option>
+  3709→                          </select>
+  3710→                          <p className="text-xs text-slate-400 mt-1">
+  3711→                            {selectedVehicle.vatScheme === "VAT_QUALIFYING"
+  3712→                              ? "VAT can be reclaimed on purchase and charged on sale"
+  3713→                              : selectedVehicle.vatScheme === "NO_VAT"

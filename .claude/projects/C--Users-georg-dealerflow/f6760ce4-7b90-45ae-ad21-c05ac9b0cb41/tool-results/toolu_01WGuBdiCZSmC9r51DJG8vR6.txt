@@ -1,0 +1,38 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2864→      setIsLoading(false);
+  2865→    }
+  2866→  };
+  2867→
+  2868→  return (
+  2869→    <div className="modal modal-open">
+  2870→      <div
+  2871→        className="modal-box flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] p-0 rounded-none md:rounded-xl"
+  2872→      >
+  2873→        {/* Sticky Header */}
+  2874→        <div
+  2875→          className="shrink-0 flex items-center justify-between px-4 py-4 border-b border-slate-200 bg-white"
+  2876→          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+  2877→        >
+  2878→          <h3 className="font-bold text-lg">New Aftercare Case</h3>
+  2879→          <button
+  2880→            type="button"
+  2881→            onClick={onClose}
+  2882→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  2883→          >
+  2884→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  2885→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  2886→            </svg>
+  2887→          </button>
+  2888→        </div>
+  2889→        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+  2890→          {/* Scrollable Content */}
+  2891→          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+  2892→          <div className="form-control mb-3">
+  2893→            <label className="label"><span className="label-text">Customer Name *</span></label>
+  2894→            <input type="text" className="input input-bordered" value={formData.customerName}
+  2895→              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })} required />
+  2896→          </div>
+  2897→          <div className="grid grid-cols-2 gap-3">
+  2898→            <div className="form-control">
+  2899→              <label className="label"><span className="label-text">Phone</span></label>
+  2900→              <input type="tel" className="input input-bordered" value={formData.customerPhone}

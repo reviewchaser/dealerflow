@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   703→            })}
+   704→          </ul>
+   705→        </nav>
+   706→
+   707→        {/* Footer - Collapse Toggle + SaaS Branding */}
+   708→        <div className={`shrink-0 mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+   709→          {/* Collapse Toggle Button */}
+   710→          <button
+   711→            onClick={toggleSidebarCollapsed}
+   712→            className={`hidden lg:flex items-center w-full rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all duration-200 ${

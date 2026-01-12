@@ -1,0 +1,132 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Contact from "@/models/Contact";
+     3→import { withDealerContext } from "@/libs/authContext";
+     4→
+     5→/**
+     6→ * Contacts API
+     7→ * GET /api/contacts - List contacts with filtering
+     8→ * POST /api/contacts - Create new contact
+     9→ *
+    10→ * Query params:
+    11→ * - type: CUSTOMER|SUPPLIER|FINANCE (filter by typeTag)
+    12→ * - search: Search by name, email, phone, company
+    13→ * - active: true|false (filter by isActive, defaults to true)
+    14→ */
+    15→async function handler(req, res, ctx) {
+    16→  await connectMongo();
+    17→  const { dealerId, userId } = ctx;
+    18→
+    19→  if (req.method === "GET") {
+    20→    const { type, search, active } = req.query;
+    21→
+    22→    let query = { dealerId };
+    23→
+    24→    // Filter by typeTag
+    25→    if (type && type !== "all") {
+    26→      query.typeTags = type;
+    27→    }
+    28→
+    29→    // Filter by active status (default to showing active only)
+    30→    if (active === "false") {
+    31→      query.isActive = false;
+    32→    } else if (active !== "all") {
+    33→      query.isActive = { $ne: false }; // Include docs without isActive field
+    34→    }
+    35→
+    36→    // Search across multiple fields
+    37→    if (search) {
+    38→      query.$or = [
+    39→        { displayName: { $regex: search, $options: "i" } },
+    40→        { companyName: { $regex: search, $options: "i" } },
+    41→        { email: { $regex: search, $options: "i" } },
+    42→        { phone: { $regex: search, $options: "i" } },
+    43→        { mobile: { $regex: search, $options: "i" } },
+    44→      ];
+    45→    }
+    46→
+    47→    const contacts = await Contact.find(query)
+    48→      .sort({ createdAt: -1 })
+    49→      .lean();
+    50→
+    51→    // Transform for backward compatibility (name -> displayName)
+    52→    const transformed = contacts.map(c => ({
+    53→      ...c,
+    54→      id: c._id.toString(),
+    55→      name: c.displayName || c.name, // Backward compat
+    56→      _id: undefined,
+    57→      __v: undefined,
+    58→    }));
+    59→
+    60→    return res.status(200).json(transformed);
+    61→  }
+    62→
+    63→  if (req.method === "POST") {
+    64→    const {
+    65→      displayName,
+    66→      name, // Backward compat
+    67→      companyName,
+    68→      email,
+    69→      phone,
+    70→      mobile,
+    71→      address,
+    72→      notes,
+    73→      typeTags,
+    74→      type, // Backward compat - single type string
+    75→      isProspect,
+    76→      companyNumber,
+    77→      vatNumber,
+    78→      accountReference,
+    79→      financeSettings,
+    80→    } = req.body;
+    81→
+    82→    const contactName = displayName || name;
+    83→    if (!contactName) {
+    84→      return res.status(400).json({ error: "Name is required" });
+    85→    }
+    86→
+    87→    // Handle backward compatibility for type -> typeTags
+    88→    let tags = typeTags;
+    89→    if (!tags && type) {
+    90→      // Convert old type format to new typeTags
+    91→      const typeMap = {
+    92→        customer: "CUSTOMER",
+    93→        seller: "SUPPLIER",
+    94→        supplier: "SUPPLIER",
+    95→        finance: "FINANCE",
+    96→      };
+    97→      tags = [typeMap[type.toLowerCase()] || "CUSTOMER"];
+    98→    }
+    99→
+   100→    const contact = await Contact.create({
+   101→      dealerId,
+   102→      displayName: contactName,
+   103→      companyName,
+   104→      email,
+   105→      phone,
+   106→      mobile,
+   107→      address,
+   108→      notes,
+   109→      typeTags: tags || ["CUSTOMER"],
+   110→      isProspect: isProspect || false,
+   111→      companyNumber,
+   112→      vatNumber,
+   113→      accountReference,
+   114→      financeSettings,
+   115→      createdByUserId: userId,
+   116→    });
+   117→
+   118→    return res.status(201).json({
+   119→      ...contact.toJSON(),
+   120→      name: contact.displayName, // Backward compat
+   121→    });
+   122→  }
+   123→
+   124→  return res.status(405).json({ error: "Method not allowed" });
+   125→}
+   126→
+   127→export default withDealerContext(handler);
+   128→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

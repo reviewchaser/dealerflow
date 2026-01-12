@@ -1,0 +1,54 @@
+/**
+ * Tenant Settings Page - /app/[dealerSlug]/settings
+ */
+
+import Head from "next/head";
+import Link from "next/link";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+
+const settingsLinks = [
+  { name: "General", path: "settings", description: "Dealer info, branding, timezone" },
+  { name: "Team", path: "settings/team", description: "Invite and manage team members" },
+  { name: "Forms", path: "settings/forms", description: "Configure form templates" },
+  { name: "Integrations", path: "settings/integrations", description: "Connect external services" },
+];
+
+// Inner component that uses context
+function SettingsContent({ dealer }) {
+  const { tenantPath } = useDealer();
+
+  return (
+    <>
+      <Head><title>Settings | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-600 mt-1">Configure your dealership</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {settingsLinks.map((item) => (
+          <Link
+            key={item.path}
+            href={tenantPath(item.path)}
+            className="bg-white rounded-xl border border-slate-200 p-6 hover:shadow-lg hover:border-[#0066CC]/30 transition-all"
+          >
+            <h3 className="text-lg font-bold text-slate-900 mb-1">{item.name}</h3>
+            <p className="text-sm text-slate-500">{item.description}</p>
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
+
+export default function TenantSettings({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <SettingsContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

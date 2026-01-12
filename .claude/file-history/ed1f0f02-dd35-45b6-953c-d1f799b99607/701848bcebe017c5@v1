@@ -1,0 +1,76 @@
+import { createContext, useContext, useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+
+const TenantContext = createContext(null);
+
+export function TenantProvider({ children }) {
+  const router = useRouter();
+  const [tenant, setTenant] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Extract dealer slug from URL if using /app/[dealerSlug]/... structure
+  const dealerSlugFromUrl = router.query.dealerSlug;
+
+  useEffect(() => {
+    // Fetch dealer info
+    const fetchDealer = async () => {
+      try {
+        // If we have a slug from URL, use it
+        const url = dealerSlugFromUrl
+          ? `/api/dealer?slug=${dealerSlugFromUrl}`
+          : '/api/dealer';
+
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setTenant(data);
+        }
+      } catch (error) {
+        console.error('Error fetching dealer:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDealer();
+  }, [dealerSlugFromUrl]);
+
+  // Helper to generate tenant-aware URLs
+  const getTenantUrl = (path) => {
+    if (tenant?.slug && router.pathname.startsWith('/app/')) {
+      // Using new tenant URL structure
+      return `/app/${tenant.slug}${path}`;
+    }
+    // Legacy URLs
+    return path;
+  };
+
+  // Helper to navigate within tenant context
+  const navigateTo = (path) => {
+    router.push(getTenantUrl(path));
+  };
+
+  const value = {
+    tenant,
+    isLoading,
+    dealerSlug: tenant?.slug || dealerSlugFromUrl,
+    getTenantUrl,
+    navigateTo,
+  };
+
+  return (
+    <TenantContext.Provider value={value}>
+      {children}
+    </TenantContext.Provider>
+  );
+}
+
+export function useTenant() {
+  const context = useContext(TenantContext);
+  if (!context) {
+    throw new Error('useTenant must be used within a TenantProvider');
+  }
+  return context;
+}
+
+export default TenantContext;

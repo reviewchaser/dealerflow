@@ -1,0 +1,150 @@
+2025-12-08T22:04:18.448Z [DEBUG] Watching for changes in setting files C:\Users\georg\.claude\settings.json, C:\Users\georg\dealerflow\.claude\settings.local.json...
+2025-12-08T22:04:18.498Z [DEBUG] Using bash path: "C:\Program Files\Git\bin\bash.exe"
+2025-12-08T22:04:18.541Z [DEBUG] [LSP MANAGER] initializeLspServerManager() called
+2025-12-08T22:04:18.541Z [DEBUG] [LSP MANAGER] Created manager instance, state=pending
+2025-12-08T22:04:18.541Z [DEBUG] [LSP MANAGER] Starting async initialization (generation 1)
+2025-12-08T22:04:18.541Z [DEBUG] [LSP SERVER MANAGER] initialize() called
+2025-12-08T22:04:18.541Z [DEBUG] [LSP SERVER MANAGER] Calling getAllLspServers()
+2025-12-08T22:04:18.552Z [DEBUG] Applying permission update: Adding 12 allow rule(s) to destination 'localSettings': ["Bash(npm run dev:*)","Bash(npm install)","Bash(npm install:*)","Bash(node scripts/seed-forms-standalone.js:*)","Bash(taskkill:*)","Bash(rm:*)","Bash(ls:*)","Bash(cat:*)","Bash(python:*)","Bash(lsof:*)","Bash(npm run build:*)","Bash(timeout 5 bash:*)"]
+2025-12-08T22:04:18.569Z [DEBUG] Found 0 plugins (0 enabled, 0 disabled)
+2025-12-08T22:04:18.571Z [DEBUG] Total LSP servers loaded: 0
+2025-12-08T22:04:18.571Z [DEBUG] [LSP SERVER MANAGER] getAllLspServers returned 0 server(s)
+2025-12-08T22:04:18.571Z [DEBUG] LSP manager initialized with 0 servers
+2025-12-08T22:04:18.571Z [DEBUG] LSP server manager initialized successfully
+2025-12-08T22:04:18.571Z [DEBUG] LSP notification handlers registered successfully for all 0 server(s)
+2025-12-08T22:04:18.586Z [DEBUG] Loading skills from directories: managed=C:\ProgramData\ClaudeCode\.claude\skills, user=C:\Users\georg\.claude\skills, project=C:\Users\georg\dealerflow\.claude\skills
+2025-12-08T22:04:18.586Z [DEBUG] >>>>> getPluginSkills CALLED <<<<<
+2025-12-08T22:04:18.972Z [DEBUG] installed_plugins.json doesn't exist yet at C:\Users\georg\.claude\plugins\installed_plugins.json, returning empty object
+2025-12-08T22:04:19.054Z [DEBUG] Creating shell snapshot for bash (C:\Program Files\Git\bin\bash.exe)
+2025-12-08T22:04:19.054Z [DEBUG] Looking for shell config file: C:\Users\georg\.bashrc
+2025-12-08T22:04:19.054Z [DEBUG] Shell config file not found: C:\Users\georg\.bashrc, creating snapshot with Claude Code defaults only
+2025-12-08T22:04:19.054Z [DEBUG] Snapshots directory: C:\Users\georg\.claude\shell-snapshots
+2025-12-08T22:04:19.072Z [DEBUG] Creating snapshot at: C:\Users\georg\.claude\shell-snapshots\snapshot-bash-1765231459054-2x3t8k.sh
+2025-12-08T22:04:19.072Z [DEBUG] Shell binary exists: true
+2025-12-08T22:04:19.072Z [DEBUG] Execution timeout: 10000ms
+2025-12-08T22:04:19.080Z [DEBUG] Writing to temp file: C:\Users\georg\.claude\todos\2e7d80b6-5445-4d7c-bef2-a37226fad958-agent-2e7d80b6-5445-4d7c-bef2-a37226fad958.json.tmp.4588.1765231459080
+2025-12-08T22:04:19.082Z [DEBUG] Temp file written successfully, size: 2 bytes
+2025-12-08T22:04:19.082Z [DEBUG] Renaming C:\Users\georg\.claude\todos\2e7d80b6-5445-4d7c-bef2-a37226fad958-agent-2e7d80b6-5445-4d7c-bef2-a37226fad958.json.tmp.4588.1765231459080 to C:\Users\georg\.claude\todos\2e7d80b6-5445-4d7c-bef2-a37226fad958-agent-2e7d80b6-5445-4d7c-bef2-a37226fad958.json
+2025-12-08T22:04:19.083Z [DEBUG] File C:\Users\georg\.claude\todos\2e7d80b6-5445-4d7c-bef2-a37226fad958-agent-2e7d80b6-5445-4d7c-bef2-a37226fad958.json written atomically
+2025-12-08T22:04:19.087Z [DEBUG] getPluginSkills: Processing 0 enabled plugins
+2025-12-08T22:04:19.087Z [DEBUG] Total plugin skills loaded: 0
+2025-12-08T22:04:19.087Z [DEBUG] Total plugin commands loaded: 0
+2025-12-08T22:04:19.087Z [DEBUG] Registered 0 hooks from 0 plugins
+2025-12-08T22:04:19.123Z [DEBUG] Loaded 0 unique skills (managed: 0, user: 0, project: 0, duplicates removed: 0)
+2025-12-08T22:04:19.145Z [DEBUG] getSkills returning: 0 skill dir commands, 0 plugin skills
+2025-12-08T22:04:19.145Z [DEBUG] Total plugin agents loaded: 0
+2025-12-08T22:04:19.169Z [DEBUG] Git remote URL: null
+2025-12-08T22:04:19.169Z [DEBUG] No git remote URL found
+2025-12-08T22:04:19.169Z [DEBUG] Not in a GitHub repository, skipping path mapping update
+2025-12-08T22:04:19.252Z [DEBUG] Ripgrep first use test: PASSED (mode=builtin, path=C:\Users\georg\AppData\Roaming\npm\node_modules\@anthropic-ai\claude-code\vendor\ripgrep\x64-win32\rg.exe)
+2025-12-08T22:04:19.366Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231459366
+2025-12-08T22:04:19.366Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:19.368Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:19.368Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:19.368Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231459366 to C:\Users\georg\.claude.json
+2025-12-08T22:04:19.369Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:19.375Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231459375
+2025-12-08T22:04:19.375Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:19.376Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:19.377Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:19.377Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231459375 to C:\Users\georg\.claude.json
+2025-12-08T22:04:19.378Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:19.384Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231459384
+2025-12-08T22:04:19.384Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:19.386Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:19.386Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:19.386Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231459384 to C:\Users\georg\.claude.json
+2025-12-08T22:04:19.387Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:19.392Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231459392
+2025-12-08T22:04:19.393Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:19.394Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:19.394Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:19.394Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231459392 to C:\Users\georg\.claude.json
+2025-12-08T22:04:19.395Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:19.776Z [DEBUG] Shell snapshot created successfully (342 bytes)
+2025-12-08T22:04:20.620Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231460620
+2025-12-08T22:04:20.620Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:20.622Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:20.623Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:20.623Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231460620 to C:\Users\georg\.claude.json
+2025-12-08T22:04:20.623Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:20.642Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231460642
+2025-12-08T22:04:20.642Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:20.644Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:20.644Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:20.644Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231460642 to C:\Users\georg\.claude.json
+2025-12-08T22:04:20.645Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:20.647Z [DEBUG] Getting matching hook commands for SessionStart with query: startup
+2025-12-08T22:04:20.647Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:04:20.647Z [DEBUG] Matched 0 unique hooks for query "startup" (0 before deduplication)
+2025-12-08T22:04:20.661Z [DEBUG] Skills and commands included in Skill tool:
+2025-12-08T22:04:20.661Z [DEBUG] Slash commands included in SlashCommand tool:
+2025-12-08T22:04:20.730Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231460730
+2025-12-08T22:04:20.730Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:20.732Z [DEBUG] Temp file written successfully, size: 45360 bytes
+2025-12-08T22:04:20.732Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:20.732Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231460730 to C:\Users\georg\.claude.json
+2025-12-08T22:04:20.733Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:20.740Z [DEBUG] performStartupChecks called
+2025-12-08T22:04:20.741Z [DEBUG] Starting background plugin installations
+2025-12-08T22:04:20.741Z [DEBUG] performBackgroundPluginInstallations called
+2025-12-08T22:04:20.770Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T22:04:20.777Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231460777
+2025-12-08T22:04:20.778Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:20.779Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:20.779Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:20.779Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231460777 to C:\Users\georg\.claude.json
+2025-12-08T22:04:20.780Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:20.781Z [DEBUG] Setting installation status: 0 marketplaces, 0 installable plugins, 0 uninstallable plugins
+2025-12-08T22:04:20.781Z [DEBUG] Loaded plugins - Enabled: 0, Disabled: 0, Commands: 0, Agents: 0, Errors: 0
+2025-12-08T22:04:20.796Z [DEBUG] Getting matching hook commands for SubagentStart with query: Explore
+2025-12-08T22:04:20.796Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:04:20.796Z [DEBUG] Matched 0 unique hooks for query "Explore" (0 before deduplication)
+2025-12-08T22:04:20.827Z [DEBUG] Getting matching hook commands for SubagentStart with query: Plan
+2025-12-08T22:04:20.827Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:04:20.827Z [DEBUG] Matched 0 unique hooks for query "Plan" (0 before deduplication)
+2025-12-08T22:04:21.781Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231461781
+2025-12-08T22:04:21.782Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:04:21.783Z [DEBUG] Temp file written successfully, size: 45465 bytes
+2025-12-08T22:04:21.783Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:04:21.783Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231461781 to C:\Users\georg\.claude.json
+2025-12-08T22:04:21.784Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:04:21.798Z [DEBUG] Stream started - received first chunk
+2025-12-08T22:04:22.840Z [DEBUG] Stream started - received first chunk
+2025-12-08T22:04:24.500Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-08T22:04:24.500Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:04:24.500Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T22:04:29.749Z [DEBUG] Getting matching hook commands for SubagentStop with query: undefined
+2025-12-08T22:04:29.749Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:04:29.749Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T22:06:47.059Z [DEBUG] [TeammateMailbox] getTeammateMailboxAttachments called: agentId=undefined, CLAUDE_CODE_AGENT_NAME=undefined, CLAUDE_CODE_AGENT_TYPE=undefined, resolved agentName=undefined, teamName=undefined
+2025-12-08T22:06:47.059Z [DEBUG] [TeammateMailbox] Not checking inbox - no agent name (neither CLAUDE_CODE_AGENT_NAME nor CLAUDE_CODE_AGENT_TYPE set)
+2025-12-08T22:06:47.060Z [DEBUG] LSP Diagnostics: getLSPDiagnosticAttachments called
+2025-12-08T22:06:47.060Z [DEBUG] LSP Diagnostics: Checking registry - 0 pending
+2025-12-08T22:06:47.061Z [DEBUG] Hooks: Found 0 total hooks in registry
+2025-12-08T22:06:47.061Z [DEBUG] Hooks: checkForNewResponses returning 0 responses
+2025-12-08T22:06:47.279Z [DEBUG] Getting matching hook commands for UserPromptSubmit with query: undefined
+2025-12-08T22:06:47.279Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:06:47.279Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T22:06:47.283Z [DEBUG] FileHistory: Added snapshot for 136820a9-a2d6-495c-88b7-650ac6f779aa, tracking 0 files
+2025-12-08T22:06:47.347Z [DEBUG] Total plugin output styles loaded: 0
+2025-12-08T22:06:48.212Z [DEBUG] Stream started - received first chunk
+2025-12-08T22:06:51.193Z [DEBUG] Stream started - received first chunk
+2025-12-08T22:06:54.154Z [DEBUG] Getting matching hook commands for Stop with query: undefined
+2025-12-08T22:06:54.154Z [DEBUG] Found 0 hook matchers in settings
+2025-12-08T22:06:54.154Z [DEBUG] Matched 0 unique hooks for query "no match query" (0 before deduplication)
+2025-12-08T22:06:54.960Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231614960
+2025-12-08T22:06:54.960Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:06:54.962Z [DEBUG] Temp file written successfully, size: 45488 bytes
+2025-12-08T22:06:54.962Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:06:54.962Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231614960 to C:\Users\georg\.claude.json
+2025-12-08T22:06:54.963Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:06:54.988Z [DEBUG] Writing to temp file: C:\Users\georg\.claude.json.tmp.4588.1765231614988
+2025-12-08T22:06:54.988Z [DEBUG] Preserving file permissions: 100666
+2025-12-08T22:06:54.990Z [DEBUG] Temp file written successfully, size: 45515 bytes
+2025-12-08T22:06:54.990Z [DEBUG] Applied original permissions to temp file
+2025-12-08T22:06:54.990Z [DEBUG] Renaming C:\Users\georg\.claude.json.tmp.4588.1765231614988 to C:\Users\georg\.claude.json
+2025-12-08T22:06:54.991Z [DEBUG] File C:\Users\georg\.claude.json written atomically
+2025-12-08T22:07:13.117Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T22:07:17.157Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global
+2025-12-08T22:07:18.412Z [DEBUG] AutoUpdaterWrapper: Installation type: npm-global

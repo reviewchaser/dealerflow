@@ -1,0 +1,442 @@
+Context
+
+Sales drawer is working and deals can load. However:
+
+customer picker results appear behind the drawer (unusable)
+
+you can’t create a customer in-context
+
+the deal progression assumes “payment type” before invoicing, but real workflow often needs invoice-first (broker/finance company)
+
+there’s no way to generate/export deposit receipts or invoices
+
+Reports pages do not load
+
+This must be fixed without breaking other modules.
+
+1) Fix Customer Picker: dropdown behind drawer + add inline create
+Problem
+
+In Deal Drawer → Customer tab, the results list renders behind the drawer (z-index / stacking context issue). Also cannot create a customer inline.
+
+Required outcome
+
+Search results dropdown appears above the drawer content and is clickable.
+
+Must support Create new customer inline when no match exists.
+
+Implementation requirements
+
+A) Render dropdown in a portal
+
+If using Radix/shadcn Popover/Command/Combobox:
+
+ensure content renders via Portal to document.body
+
+apply z-index above the drawer (e.g. z-[10000])
+
+If it’s a custom dropdown:
+
+move to portal rendering
+
+or ensure parent containers do not have overflow: hidden clipping it
+
+B) Fix stacking context
+
+Drawer likely creates a new stacking context (position/transform/backdrop).
+
+Ensure dropdown uses:
+
+position: fixed or portaled content
+
+high z-index
+
+Ensure no parent wrapper has transform that traps z-index.
+
+C) Inline create
+In the search dropdown:
+
+When no results: show Create "<typed text>" option
+
+Clicking it opens a small inline create modal (or creates directly) with:
+
+required: name
+
+optional: email, phone
+
+Create contact → auto-select and attach to sale.
+
+Acceptance tests
+
+Open sale drawer → Customer tab → type “Geo” → dropdown appears above drawer and clickable.
+
+Select existing contact → attaches to deal and readiness updates.
+
+Type a new name → “Create” appears → create → attaches automatically.
+
+Works on desktop + mobile.
+
+2) Fix Sales flow: Deposit vs Invoice-first + “Payment type” semantics
+Problem
+
+Current UI suggests payment type before other actions. In real-world:
+
+Sometimes you take a deposit first (retail)
+
+Sometimes you need to generate an invoice first (broker/finance company), even when nothing is paid yet
+
+Payment type should describe how the balance will be settled, not what has already been paid
+
+Required UX change (Summary tab)
+
+Rename “Payment type” to “Settlement method” (or “How will this be paid?”)
+
+Provide a clear split:
+
+“Next actions” section:
+
+Take deposit
+
+Generate invoice
+
+(later) Mark delivered / complete
+
+Rules / gating
+
+Generate invoice should be enabled when:
+
+customer selected (or invoice recipient selected – see below)
+
+sale classification set (retail/trade/export)
+
+vehicle price set
+
+VAT treatment set
+
+Take deposit should be enabled when:
+
+customer selected
+
+deposit amount > 0
+
+deposit payment method chosen
+
+Add: Invoice recipient choice (important for broker scenario)
+
+Add field in Summary (or Customer tab):
+
+Invoice To
+
+Customer (default)
+
+Finance company / Broker (Contact)
+
+If “Finance company” selected:
+
+allow selecting/creating a contact (business)
+
+invoice document uses that contact’s details
+
+deal can still have “Customer (end buyer)” stored separately (optional but ideal)
+
+Minimal MVP:
+
+Keep “Sold To” = end customer
+
+Add “Invoice To” optional contact for invoice recipient
+
+Acceptance tests
+
+Can generate invoice without taking deposit
+
+Deal balance due remains full until payments recorded
+
+Can set invoice recipient to broker/finance company
+
+Settlement method describes planned method, not completed payment
+
+3) Add document outputs: Deposit receipt + Invoice (PDF + print + email-ready)
+Problem
+
+After taking a deposit there is no receipt output. After invoicing there is no invoice output (print/email/export).
+
+Required outcome
+
+When deposit taken: can view/print/download a Deposit Receipt PDF
+
+When invoice generated: can view/print/download Invoice PDF
+
+“Email” doesn’t need to send email yet, but must generate a ready-to-email PDF and show a modal with copyable subject/body text.
+
+Implementation requirements
+A) Document generation & numbering (ties into settings)
+
+Use existing settings prefixes.
+
+Numbers must be automatic, not editable.
+
+On generating invoice/receipt:
+
+atomically increment counter per dealer
+
+assign document number to sale and lock it
+
+B) UI placement
+
+In Deal Drawer header (top right) add:
+
+Print/Download Invoice (enabled once invoiced)
+
+Print/Download Receipt (enabled once deposit taken)
+
+Optional: “Send” button (opens email draft modal)
+
+Also add these buttons to the Payments tab near deposit entry.
+
+C) PDF content (MVP)
+
+Invoice PDF:
+
+Dealer header + VAT number
+
+Invoice number + date
+
+Invoice To details (customer or finance company)
+
+Vehicle details (make/model/VRM/VIN if available)
+
+Line items: vehicle + add-ons
+
+VAT treatment breakdown (standard/zero/margin/exempt)
+
+Total, paid, balance due
+
+Terms footer
+
+Deposit receipt PDF:
+
+Receipt number + date
+
+Received from (customer)
+
+Vehicle reference
+
+Amount + method
+
+Balance due after deposit
+
+“Non-refundable?” text should be configurable later; for now keep neutral.
+
+D) Storage
+
+Either generate on the fly via server route returning PDF bytes
+
+Or store generated PDF in storage (optional). MVP can be on-the-fly.
+
+Acceptance tests
+
+Take deposit → Receipt button appears → opens PDF
+
+Generate invoice → Invoice button appears → opens PDF
+
+Numbers increment correctly and are unique
+
+Printing works
+
+4) Fix Reports pages not loading (Inventory + VAT)
+Problem
+
+Reports section pages “do not load” (likely route error, API error, missing model registration, or auth).
+
+Required outcome
+
+Reports pages load without crashing
+
+Inventory report returns totals
+
+VAT report returns breakdown for selected date range
+
+CSV export works at minimum (PDF can follow)
+
+Implementation requirements
+
+Check the failing route(s) and console/network errors:
+
+Fix any Next route errors
+
+Fix any API errors and ensure models are imported/registered (common in serverless)
+
+Inventory report (Stock value)
+
+total vehicles in stock (by status optional)
+
+total known SIV
+
+unknown SIV count
+
+average days in stock (for current stock)
+
+VAT report
+
+date range selector (including custom)
+
+Purchases VAT (VAT qualifying purchases within range)
+
+Sales VAT (standard VAT sales within range; also show zero-rated separately)
+
+CSV export:
+
+Purchases lines: vehicle, purchase date, SIV inc VAT, VAT portion, supplier
+
+Sales lines: vehicle, invoice date, sale price, vatTreatment, output VAT, invoiceTo
+
+Acceptance tests
+
+Reports pages load on production deployment
+
+Selecting a date range returns results
+
+CSV exports download and contain correct rows
+
+5) Fix Sales Settings numbering fields: “Next invoice/receipt number” not editable
+Required outcome
+
+Prefix editable (INV/DEP)
+
+A “starting number” may be editable only once OR behind a reset confirmation
+
+“Next number” is read-only display only
+
+System increments on generation using atomic update; no duplicates.
+
+Priority 6 — “Generate Handover Pack” after invoice (bundle invoice + PDI + service receipt)
+Requirement
+
+Once a deal is Invoiced (or “Invoice generated”), add an action:
+
+Generate Handover Pack
+
+This creates a single printable/exportable/shareable bundle containing:
+
+Invoice (with correct Ts & Cs based on classification)
+
+PDI PDF (if allocated to the vehicle)
+
+Service Receipt PDF (if allocated to the vehicle)
+
+UX
+
+In Deal Drawer header (top right) or Summary tab under “Next actions”:
+
+Show button: Generate Handover Pack
+
+Only enabled once invoice exists (deal status Invoiced+)
+
+Clicking opens a modal:
+
+Title: Handover Pack
+
+Checklist:
+
+✅ Include Invoice (always required)
+
+☐ Include PDI (only if a PDI submission exists for this vehicle; otherwise show “No PDI found” disabled)
+
+☐ Include Service Receipt (only if exists)
+
+Show preview of which documents will be included (names + dates)
+
+Actions in modal:
+
+Download PDF
+
+Print
+
+Share link (optional MVP: just download; share link can come later)
+
+Data linkage rules (vehicle ↔ submissions)
+
+Detect whether the vehicle has associated submissions of types:
+
+PDI (pre-delivery inspection)
+
+Service receipt
+
+If association isn’t currently stored, implement one of:
+
+Link submissions to vehicleId at creation time (preferred)
+
+Or match by VRM/vehicleId if already captured in the submission data
+
+Must be multi-tenant safe (dealerSlug scoping).
+
+Terms & Conditions logic (invoice footer/content)
+
+Invoice must include the correct Ts & Cs based on:
+
+Sale Type: Retail / Trade / Export
+
+Retail buyer use: Personal vs Business
+
+Retail channel: In-person vs Distance
+
+Implementation:
+
+Create templates/blocks in settings (or hardcode MVP) for:
+
+Retail personal in-person
+
+Retail personal distance
+
+Retail business
+
+Trade
+
+Export / zero-rated
+
+The invoice PDF generator selects the correct block automatically.
+
+In the handover pack, use the same invoice render (do not duplicate logic).
+
+Output format (MVP)
+
+Generate a single combined PDF:
+
+Page 1..n Invoice
+
+Then appended PDI PDF (if selected)
+
+Then appended Service Receipt PDF (if selected)
+
+Technical approach:
+
+If PDFs are already generated server-side, merge them server-side (preferred).
+
+If submissions are stored as PDFs/files, fetch those files and merge.
+
+If submissions are rendered HTML → PDF, generate PDFs then merge.
+
+Acceptance tests
+
+Invoiced deal shows “Generate Handover Pack”
+
+Modal correctly detects availability of PDI/service receipt
+
+Selecting docs generates one combined PDF in correct order
+
+Invoice includes correct Ts & Cs for distance sale / business use / trade
+
+Works when PDI/service receipt missing (invoice-only pack)
+Final QA checklist
+
+Customer dropdown is usable (not behind drawer) + create works
+
+Deposit and invoice are independent next steps (invoice-first supported)
+
+Invoice-to contact supported (broker scenario)
+
+Deposit receipt and invoice PDFs can be printed/downloaded
+
+Reports pages load and export CSV
+
+Numbering is automatic and not user-editable

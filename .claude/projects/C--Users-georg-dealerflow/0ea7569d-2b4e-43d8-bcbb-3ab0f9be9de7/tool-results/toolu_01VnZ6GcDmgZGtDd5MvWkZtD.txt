@@ -1,0 +1,309 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→/**
+     5→ * Deal Model - Vehicle Sales Management
+     6→ *
+     7→ * Tracks the complete sales lifecycle from lead to completion.
+     8→ * Supports both VAT Qualifying and Margin Scheme sales.
+     9→ *
+    10→ * Status workflow:
+    11→ * DRAFT -> DEPOSIT_TAKEN -> INVOICED -> DELIVERED -> COMPLETED
+    12→ *                                                  -> CANCELLED (from any state)
+    13→ */
+    14→
+    15→// Payment subdocument
+    16→const paymentSchema = new mongoose.Schema({
+    17→  type: {
+    18→    type: String,
+    19→    enum: ["DEPOSIT", "BALANCE", "OTHER"],
+    20→    required: true,
+    21→  },
+    22→  amount: { type: Number, required: true },
+    23→  method: {
+    24→    type: String,
+    25→    enum: ["CASH", "CARD", "BANK_TRANSFER", "FINANCE", "OTHER"],
+    26→    required: true,
+    27→  },
+    28→  paidAt: { type: Date, default: Date.now },
+    29→  reference: { type: String },
+    30→  isRefunded: { type: Boolean, default: false },
+    31→  refundedAt: { type: Date },
+    32→  notes: { type: String },
+    33→}, { _id: true });
+    34→
+    35→// Add-on item subdocument
+    36→const dealAddOnSchema = new mongoose.Schema({
+    37→  addOnProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
+    38→  name: { type: String, required: true },
+    39→  category: { type: String },
+    40→  qty: { type: Number, default: 1 },
+    41→  unitPriceNet: { type: Number, required: true },
+    42→  vatTreatment: {
+    43→    type: String,
+    44→    enum: ["STANDARD", "NO_VAT", "ZERO"],
+    45→    default: "STANDARD",
+    46→  },
+    47→  vatRate: { type: Number, default: 0.2 },
+    48→}, { _id: true });
+    49→
+    50→// Sales request subdocument
+    51→const salesRequestSchema = new mongoose.Schema({
+    52→  title: { type: String, required: true },
+    53→  details: { type: String },
+    54→  type: {
+    55→    type: String,
+    56→    enum: ["PREP", "ACCESSORY", "COSMETIC", "ADMIN", "OTHER"],
+    57→    default: "OTHER",
+    58→  },
+    59→  status: {
+    60→    type: String,
+    61→    enum: ["REQUESTED", "IN_PROGRESS", "DONE", "CANCELLED"],
+    62→    default: "REQUESTED",
+    63→  },
+    64→  estimatedCostNet: { type: Number },
+    65→  linkToIssueId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleIssue" },
+    66→  linkToChecklistTaskId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleTask" },
+    67→  createdAt: { type: Date, default: Date.now },
+    68→  completedAt: { type: Date },
+    69→}, { _id: true });
+    70→
+    71→const dealSchema = new mongoose.Schema(
+    72→  {
+    73→    dealerId: {
+    74→      type: mongoose.Schema.Types.ObjectId,
+    75→      ref: "Dealer",
+    76→      required: true,
+    77→    },
+    78→    vehicleId: {
+    79→      type: mongoose.Schema.Types.ObjectId,
+    80→      ref: "Vehicle",
+    81→      required: true,
+    82→    },
+    83→
+    84→    // Deal reference number (auto-generated per dealer)
+    85→    dealNumber: { type: Number, required: true },
+    86→
+    87→    // Status workflow
+    88→    status: {
+    89→      type: String,
+    90→      enum: [
+    91→        "DRAFT",           // Initial creation
+    92→        "DEPOSIT_TAKEN",   // Deposit received
+    93→        "INVOICED",        // Invoice issued
+    94→        "DELIVERED",       // Vehicle handed over
+    95→        "COMPLETED",       // Post-delivery complete
+    96→        "CANCELLED",       // Deal fell through
+    97→      ],
+    98→      default: "DRAFT",
+    99→    },
+   100→
+   101→    // === PARTIES ===
+   102→    soldToContactId: {
+   103→      type: mongoose.Schema.Types.ObjectId,
+   104→      ref: "Contact",
+   105→    },
+   106→    invoiceToContactId: {
+   107→      type: mongoose.Schema.Types.ObjectId,
+   108→      ref: "Contact",
+   109→    }, // Finance company or other payer
+   110→
+   111→    // Delivery address (if different from customer)
+   112→    deliveryAddress: {
+   113→      isDifferent: { type: Boolean, default: false },
+   114→      line1: { type: String },
+   115→      line2: { type: String },
+   116→      town: { type: String },
+   117→      county: { type: String },
+   118→      postcode: { type: String },
+   119→      country: { type: String, default: "United Kingdom" },
+   120→    },
+   121→
+   122→    // === SALE CLASSIFICATION ===
+   123→    // Step 1: Sale Type (first decision)
+   124→    saleType: {
+   125→      type: String,
+   126→      enum: ["RETAIL", "TRADE", "EXPORT"],
+   127→      default: "RETAIL",
+   128→    },
+   129→    // Step 2: Buyer use (only for Retail)
+   130→    buyerUse: {
+   131→      type: String,
+   132→      enum: ["PERSONAL", "BUSINESS"],
+   133→      default: "PERSONAL",
+   134→    },
+   135→    // Backward compat alias
+   136→    buyerType: {
+   137→      type: String,
+   138→      enum: ["CONSUMER", "BUSINESS"],
+   139→    },
+   140→    // Step 3: Sale channel (only for Retail)
+   141→    saleChannel: {
+   142→      type: String,
+   143→      enum: ["IN_PERSON", "DISTANCE"],
+   144→      default: "IN_PERSON",
+   145→    },
+   146→    // Business details (for Trade/Business buyers)
+   147→    businessDetails: {
+   148→      companyName: { type: String },
+   149→      companyRegNumber: { type: String },
+   150→      vatNumber: { type: String },
+   151→    },
+   152→
+   153→    // === PAYMENT TYPE ===
+   154→    paymentType: {
+   155→      type: String,
+   156→      enum: ["CASH", "CARD", "FINANCE", "BANK_TRANSFER", "MIXED"],
+   157→      default: "CASH",
+   158→    },
+   159→
+   160→    // === FINANCE DETAILS (when paymentType involves finance) ===
+   161→    finance: {
+   162→      provider: { type: String }, // Finance company name
+   163→      financeType: {
+   164→        type: String,
+   165→        enum: ["HP", "PCP", "LEASE", "PERSONAL_LOAN", "OTHER"],
+   166→      },
+   167→      amountFinanced: { type: Number }, // Amount being financed
+   168→      customerDeposit: { type: Number }, // Cash deposit from customer
+   169→      termMonths: { type: Number }, // Loan term
+   170→      apr: { type: Number }, // Annual percentage rate
+   171→      monthlyPayment: { type: Number }, // Monthly payment amount
+   172→      status: {
+   173→        type: String,
+   174→        enum: ["QUOTED", "SUBMITTED", "APPROVED", "DECLINED", "PAID_OUT", "CANCELLED"],
+   175→        default: "QUOTED",
+   176→      },
+   177→      reference: { type: String }, // Finance agreement reference
+   178→      paidOutAt: { type: Date },
+   179→    },
+   180→
+   181→    // === VEHICLE PRICING SNAPSHOT ===
+   182→    vatScheme: {
+   183→      type: String,
+   184→      enum: ["MARGIN", "VAT_QUALIFYING", "NO_VAT"],
+   185→      required: true,
+   186→    },
+   187→    vatRate: { type: Number, default: 0.2 },
+   188→
+   189→    // For VAT_QUALIFYING: store net + VAT
+   190→    vehiclePriceNet: { type: Number },
+   191→    vehicleVatAmount: { type: Number },
+   192→    vehiclePriceGross: { type: Number },
+   193→
+   194→    // For MARGIN scheme: only store gross (no VAT breakdown)
+   195→    // vehiclePriceGross is used for both schemes
+   196→
+   197→    // === PART EXCHANGE ===
+   198→    partExchangeId: { type: mongoose.Schema.Types.ObjectId, ref: "PartExchange" },
+   199→    partExchangeAllowance: { type: Number, default: 0 },
+   200→    partExchangeSettlement: { type: Number, default: 0 },
+   201→
+   202→    // === PAYMENTS ===
+   203→    payments: [paymentSchema],
+   204→
+   205→    // === ADD-ONS ===
+   206→    addOns: [dealAddOnSchema],
+   207→
+   208→    // === SALES REQUESTS ===
+   209→    requests: [salesRequestSchema],
+   210→
+   211→    // === TERMS SNAPSHOT ===
+   212→    termsKey: { type: String }, // e.g., "CONSUMER_IN_PERSON", "BUSINESS_DISTANCE"
+   213→    termsSnapshotText: { type: String },
+   214→
+   215→    // === DOCUMENT LINKS ===
+   216→    linkedSubmissionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" }],
+   217→
+   218→    // === TIMESTAMPS ===
+   219→    depositTakenAt: { type: Date },
+   220→    invoicedAt: { type: Date },
+   221→    deliveredAt: { type: Date },
+   222→    completedAt: { type: Date },
+   223→    cancelledAt: { type: Date },
+   224→    cancelReason: { type: String },
+   225→
+   226→    // === WARRANTY ===
+   227→    warrantyMonths: { type: Number },
+   228→    warrantyStartDate: { type: Date },
+   229→    warrantyEndDate: { type: Date },
+   230→
+   231→    // Notes
+   232→    notes: { type: String },
+   233→    internalNotes: { type: String },
+   234→
+   235→    // Assigned salesperson
+   236→    salesPersonId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   237→
+   238→    // === AUDIT ===
+   239→    createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   240→    updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+   241→  },
+   242→  { timestamps: true }
+   243→);
+   244→
+   245→dealSchema.plugin(toJSON);
+   246→
+   247→// Indexes
+   248→dealSchema.index({ dealerId: 1, dealNumber: 1 }, { unique: true });
+   249→dealSchema.index({ dealerId: 1, vehicleId: 1 });
+   250→dealSchema.index({ dealerId: 1, status: 1 });
+   251→dealSchema.index({ dealerId: 1, createdAt: -1 });
+   252→dealSchema.index({ dealerId: 1, soldToContactId: 1 });
+   253→dealSchema.index({ dealerId: 1, salesPersonId: 1 });
+   254→
+   255→// Virtual: Calculate total deposit paid
+   256→dealSchema.virtual("totalDepositPaid").get(function () {
+   257→  return (this.payments || [])
+   258→    .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
+   259→    .reduce((sum, p) => sum + p.amount, 0);
+   260→});
+   261→
+   262→// Virtual: Calculate total payments received
+   263→dealSchema.virtual("totalPaid").get(function () {
+   264→  return (this.payments || [])
+   265→    .filter(p => !p.isRefunded)
+   266→    .reduce((sum, p) => sum + p.amount, 0);
+   267→});
+   268→
+   269→// Virtual: Calculate add-ons total (net)
+   270→dealSchema.virtual("addOnsNetTotal").get(function () {
+   271→  return (this.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * a.qty), 0);
+   272→});
+   273→
+   274→// Virtual: Calculate add-ons VAT
+   275→dealSchema.virtual("addOnsVatTotal").get(function () {
+   276→  return (this.addOns || []).reduce((sum, a) => {
+   277→    if (a.vatTreatment === "STANDARD") {
+   278→      return sum + (a.unitPriceNet * a.qty * a.vatRate);
+   279→    }
+   280→    return sum;
+   281→  }, 0);
+   282→});
+   283→
+   284→// Virtual: Calculate grand total
+   285→dealSchema.virtual("grandTotal").get(function () {
+   286→  const vehicleGross = this.vehiclePriceGross || 0;
+   287→  const addOnsNet = this.addOnsNetTotal || 0;
+   288→  const addOnsVat = this.addOnsVatTotal || 0;
+   289→  return vehicleGross + addOnsNet + addOnsVat;
+   290→});
+   291→
+   292→// Virtual: Calculate balance due
+   293→dealSchema.virtual("balanceDue").get(function () {
+   294→  const total = this.grandTotal || 0;
+   295→  const paid = this.totalPaid || 0;
+   296→  const pxNet = (this.partExchangeAllowance || 0) - (this.partExchangeSettlement || 0);
+   297→  return total - paid - pxNet;
+   298→});
+   299→
+   300→// Ensure virtuals are included in JSON
+   301→dealSchema.set("toJSON", { virtuals: true });
+   302→dealSchema.set("toObject", { virtuals: true });
+   303→
+   304→export default mongoose.models?.Deal || mongoose.model("Deal", dealSchema);
+   305→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

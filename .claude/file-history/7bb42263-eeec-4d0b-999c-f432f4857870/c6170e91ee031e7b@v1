@@ -1,0 +1,499 @@
+import { useState, useEffect } from "react";
+import { toast } from "react-hot-toast";
+
+// Helper for relative time display
+const relativeTime = (date) => {
+  if (!date) return "";
+  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+  if (days === 0) {
+    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    if (hours === 0) {
+      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    }
+    return `${hours}h ago`;
+  }
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  return `${Math.floor(days / 30)}mo ago`;
+};
+
+// Format date helper
+const formatDate = (date) => {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+const STATUS_LABELS = {
+  in_stock: "In Prep",
+  in_prep: "Advertised",
+  live: "Sold In Progress",
+  reserved: "Completed",
+  delivered: "Delivered",
+};
+
+/**
+ * VehicleDrawer - A reusable component to display vehicle details in a drawer/modal
+ *
+ * Props:
+ * - vehicleId: The ID of the vehicle to display
+ * - isOpen: Whether the drawer is open
+ * - onClose: Function to call when closing the drawer
+ * - isStacked: If true, renders as a stacked drawer (overlays another drawer)
+ * - readOnly: If true, hides editing controls (default: true for warranty context)
+ */
+export default function VehicleDrawer({
+  vehicleId,
+  isOpen,
+  onClose,
+  isStacked = false,
+  readOnly = true,
+}) {
+  const [vehicle, setVehicle] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [expandedIssues, setExpandedIssues] = useState({});
+
+  useEffect(() => {
+    if (isOpen && vehicleId) {
+      fetchVehicle();
+    }
+  }, [isOpen, vehicleId]);
+
+  const fetchVehicle = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`);
+      if (!res.ok) throw new Error("Failed to load vehicle");
+      const data = await res.json();
+      setVehicle(data);
+    } catch (error) {
+      toast.error("Failed to load vehicle details");
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} overflow-hidden`}
+      style={{ touchAction: "none" }}
+    >
+      {/* Backdrop */}
+      <div
+        className={`absolute inset-0 ${isStacked ? "bg-black/30" : "bg-black/50"}`}
+        onClick={onClose}
+      />
+
+      {/* Drawer - Fixed overlay that cannot slide horizontally */}
+      <div
+        className={`relative bg-white h-full flex flex-col ${
+          isStacked ? "w-full max-w-2xl shadow-2xl" : "w-full max-w-3xl"
+        } min-w-0 translate-x-0 overscroll-contain`}
+        style={{
+          touchAction: "pan-y",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <span className="loading loading-spinner loading-lg"></span>
+          </div>
+        ) : !vehicle ? (
+          <div className="flex flex-col items-center justify-center h-full">
+            <p className="text-base-content/60">Vehicle not found</p>
+            <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
+              <div className="flex items-center gap-3">
+                <button
+                  className="btn btn-ghost btn-sm btn-circle"
+                  onClick={onClose}
+                  title="Close"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">
+                    {vehicle.year || ""} {vehicle.make} {vehicle.model}
+                  </h2>
+                  <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">
+                    {vehicle.regCurrent}
+                  </p>
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={onClose}>
+                ✕
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="bg-base-100 border-b border-base-300 px-4">
+              <div className="tabs tabs-bordered">
+                <button
+                  className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("overview")}
+                >
+                  Overview
+                </button>
+                <button
+                  className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("checklist")}
+                >
+                  Checklist {vehicle.tasks?.length > 0 && `(${vehicle.tasks.length})`}
+                </button>
+                <button
+                  className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("issues")}
+                >
+                  Issues {vehicle.issues?.length > 0 && `(${vehicle.issues.length})`}
+                </button>
+                <button
+                  className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
+                  onClick={() => setActiveTab("documents")}
+                >
+                  Documents {vehicle.documents?.length > 0 && `(${vehicle.documents.length})`}
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1">
+              {/* Overview Tab */}
+              {activeTab === "overview" && (
+                <div className="space-y-4">
+                  {/* Identity Section */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Identity</h3>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-slate-500">Registration:</span>
+                        <p className="font-mono font-semibold">{vehicle.regCurrent || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">VIN:</span>
+                        <p className="font-mono text-xs">{vehicle.vin || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status Section */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Status & Location</h3>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-slate-500">Status:</span>
+                        <p className="font-medium">{STATUS_LABELS[vehicle.status] || vehicle.status}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Location:</span>
+                        <p>{vehicle.locationId?.name || "On Site"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Vehicle Type:</span>
+                        <p>{vehicle.type || "Stock"}</p>
+                      </div>
+                      {(vehicle.type === "STOCK" || !vehicle.type) && (
+                        <div>
+                          <span className="text-slate-500">Sale Type:</span>
+                          <p>{vehicle.saleType || "Retail"}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Labels */}
+                  {vehicle.labels?.length > 0 && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Labels</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {vehicle.labels.map((label) => (
+                          <span
+                            key={label.id}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                            style={{
+                              backgroundColor: `${label.colour}20`,
+                              color: label.colour,
+                            }}
+                          >
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+                            {label.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Specs Section */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3">Specifications</h3>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-slate-500">Make:</span>
+                        <p className="font-medium">{vehicle.make || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Model:</span>
+                        <p className="font-medium">{vehicle.model || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Year:</span>
+                        <p>{vehicle.year || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Mileage:</span>
+                        <p>{vehicle.mileageCurrent ? `${vehicle.mileageCurrent.toLocaleString()} miles` : "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Colour:</span>
+                        <p>{vehicle.colour || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-slate-500">Fuel Type:</span>
+                        <p>{vehicle.fuelType || "—"}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-500">MOT Expiry:</span>
+                        <p>{vehicle.motExpiryDate ? formatDate(vehicle.motExpiryDate) : "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* V5 Document */}
+                  {vehicle.v5Url && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-slate-900 mb-3">V5 Document</h3>
+                      <a
+                        href={vehicle.v5Url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm btn-outline w-full"
+                      >
+                        View V5 Document
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Notes */}
+                  {vehicle.notes && (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-slate-900 mb-2">Notes</h3>
+                      <p className="text-sm whitespace-pre-wrap text-slate-600">{vehicle.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Checklist Tab */}
+              {activeTab === "checklist" && (
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-3">Prep Checklist</h3>
+                  {vehicle.tasks?.length > 0 ? (
+                    <div className="space-y-2">
+                      {vehicle.tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-2 p-2 rounded bg-white border border-slate-100"
+                        >
+                          <span
+                            className={`badge badge-sm ${
+                              task.status === "done"
+                                ? "badge-success"
+                                : task.status === "in_progress"
+                                ? "badge-warning"
+                                : task.status === "not_required"
+                                ? "badge-ghost"
+                                : "badge-outline"
+                            }`}
+                          >
+                            {task.status === "done" && "Done"}
+                            {task.status === "in_progress" && "In Progress"}
+                            {task.status === "pending" && "Pending"}
+                            {task.status === "not_required" && "N/A"}
+                            {!task.status && "Pending"}
+                          </span>
+                          <span
+                            className={`flex-1 text-sm ${
+                              task.status === "done" ? "line-through text-slate-400" : ""
+                            }`}
+                          >
+                            {task.name}
+                          </span>
+                          {task.completedAt && (
+                            <span className="text-xs text-slate-400">
+                              {formatDate(task.completedAt)}
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 text-center py-4">No tasks</p>
+                  )}
+                </div>
+              )}
+
+              {/* Issues Tab */}
+              {activeTab === "issues" && (
+                <div className="space-y-3">
+                  {vehicle.issues?.length > 0 ? (
+                    vehicle.issues.map((issue) => (
+                      <div key={issue.id} className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                        {/* Header with badges and status */}
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex gap-1 flex-wrap">
+                            <span className="badge badge-sm">{issue.category}</span>
+                            {issue.subcategory && (
+                              <span className="badge badge-sm badge-ghost">{issue.subcategory}</span>
+                            )}
+                          </div>
+                          <span
+                            className={`badge badge-sm ${
+                              issue.status === "Complete"
+                                ? "badge-success"
+                                : issue.status === "In Progress"
+                                ? "badge-warning"
+                                : issue.status === "Ordered"
+                                ? "badge-info"
+                                : "badge-error"
+                            }`}
+                          >
+                            {issue.status || "Outstanding"}
+                          </span>
+                        </div>
+
+                        {/* Issue details */}
+                        <p className="text-sm font-medium">{issue.description}</p>
+                        {issue.actionNeeded && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            <strong>Action:</strong> {issue.actionNeeded}
+                          </p>
+                        )}
+                        {issue.notes && (
+                          <p className="text-xs text-slate-500 mt-1">
+                            <strong>Notes:</strong> {issue.notes}
+                          </p>
+                        )}
+
+                        {/* Photos */}
+                        {issue.photos?.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            {issue.photos.map((photo, idx) => (
+                              <a
+                                key={idx}
+                                href={photo}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <img
+                                  src={photo}
+                                  alt={`Issue photo ${idx + 1}`}
+                                  className="w-16 h-16 object-cover rounded-lg hover:opacity-80 transition-opacity border border-slate-200"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Updates */}
+                        {issue.updates?.length > 0 && (
+                          <div className="mt-3">
+                            <button
+                              className="btn btn-ghost btn-xs w-full justify-between"
+                              onClick={() =>
+                                setExpandedIssues((prev) => ({
+                                  ...prev,
+                                  [issue.id]: !prev[issue.id],
+                                }))
+                              }
+                            >
+                              <span>
+                                {expandedIssues[issue.id] ? "Hide" : "Show"} Updates ({issue.updates.length})
+                              </span>
+                              <span>{expandedIssues[issue.id] ? "▲" : "▼"}</span>
+                            </button>
+
+                            {expandedIssues[issue.id] && (
+                              <div className="mt-2 space-y-2 pl-3 border-l-2 border-slate-200">
+                                {issue.updates.map((update, idx) => (
+                                  <div key={idx} className="text-xs">
+                                    <p className="font-medium text-slate-700">
+                                      {update.userName || "User"}
+                                    </p>
+                                    <p className="text-slate-600 mt-0.5">{update.content}</p>
+                                    <p className="text-slate-400 mt-0.5">
+                                      {formatDate(update.createdAt)}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
+                      <p className="text-sm text-slate-500">No issues recorded</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Documents Tab */}
+              {activeTab === "documents" && (
+                <div className="space-y-3">
+                  {vehicle.documents?.length > 0 ? (
+                    vehicle.documents.map((doc) => (
+                      <div
+                        key={doc.id}
+                        className="bg-slate-50 border border-slate-200 rounded-lg p-4 flex justify-between items-center"
+                      >
+                        <div>
+                          <p className="text-sm font-medium">{doc.name}</p>
+                          <span className="badge badge-sm badge-ghost mt-1">
+                            {doc.type === "v5" && "V5"}
+                            {doc.type === "service_history" && "Service History"}
+                            {doc.type === "fault_codes" && "Fault Codes"}
+                            {doc.type === "other" && "Other"}
+                          </span>
+                        </div>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-ghost btn-sm"
+                        >
+                          View
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
+                      <p className="text-sm text-slate-500">No documents uploaded</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

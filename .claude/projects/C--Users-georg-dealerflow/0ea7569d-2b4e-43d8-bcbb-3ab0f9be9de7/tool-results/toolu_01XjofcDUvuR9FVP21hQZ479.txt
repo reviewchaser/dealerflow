@@ -1,0 +1,23 @@
+    75→    // REQUIRED — Email 'From' field to be used when sending other emails, like abandoned carts, updates etc..
+    76→    fromAdmin: `Marc at ShipFast <marc@mg.shipfa.st>`,
+    77→    // Email shown to customer if need support. Leave empty if not needed => if empty, set up Crisp above, otherwise you won't be able to offer customer support."
+    78→    supportEmail: "marc@mg.shipfa.st",
+    79→    // When someone replies to supportEmail sent by the app, forward it to the email below (otherwise it's lost). If you set supportEmail to empty, this will be ignored.
+    80→    forwardRepliesTo: "marc.louvion@gmail.com",
+    81→  },
+    82→  colors: {
+    83→    // REQUIRED — The DaisyUI theme to use (added to _document.js). Leave blank for default (light & dark mode). If you any other theme than light/dark, you need to add it in config.tailwind.js in daisyui.themes.
+    84→    theme: "dealerflow",
+    85→    // REQUIRED — This color will be reflected on the whole app outside of the document (loading bar, Chrome tabs, etc..). By default it takes the primary color from your DaisyUI theme (make sure to update your the theme name after "data-theme=")
+    86→    // OR you can just do this to use a custom color: main: "#f37055". HEX only.
+    87→    main: "#0066CC", // Cobalt Blue - new brand color
+    88→  },
+    89→  // REQUIRED — the path you want to redirect users after successfull login (i.e. /dashboard, /private). This is normally a private page for users to manage their accounts. It's used in apiClient (/libs/api.js) upon 401 errors from our API & /hooks/usePrivate.js
+    90→  callbackUrl: "/dashboard",
+    91→};
+    92→
+    93→export default config;
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,65 @@
+     1→/**
+     2→ * AI Health Check Endpoint
+     3→ *
+     4→ * GET /api/ai/health
+     5→ *
+     6→ * Returns the status of the OpenAI configuration.
+     7→ * Used for diagnostics and debugging.
+     8→ *
+     9→ * Response:
+    10→ * - ok: boolean - whether AI is configured and ready
+    11→ * - provider: "openai" - the AI provider (always OpenAI)
+    12→ * - model: string - the default model used
+    13→ * - hasOpenAIKey: boolean - whether the key is present
+    14→ * - keyPrefix: string - first 7 chars of the key for verification
+    15→ * - message: string - human-readable status message
+    16→ * - error: string - error code if not ok
+    17→ */
+    18→
+    19→export default function handler(req, res) {
+    20→  if (req.method !== "GET") {
+    21→    return res.status(405).json({ error: "Method not allowed" });
+    22→  }
+    23→
+    24→  const apiKey = process.env.OPENAI_API_KEY;
+    25→  const model = process.env.AI_MODEL || "gpt-4o-mini";
+    26→
+    27→  if (!apiKey) {
+    28→    return res.status(200).json({
+    29→      ok: false,
+    30→      provider: "openai",
+    31→      model: model,
+    32→      hasOpenAIKey: false,
+    33→      keyPrefix: null,
+    34→      error: "missing OPENAI_API_KEY",
+    35→      message: "OpenAI is not configured. Set OPENAI_API_KEY in .env.local and restart the server.",
+    36→    });
+    37→  }
+    38→
+    39→  // Check key format (should start with sk-)
+    40→  if (!apiKey.startsWith("sk-")) {
+    41→    return res.status(200).json({
+    42→      ok: false,
+    43→      provider: "openai",
+    44→      model: model,
+    45→      hasOpenAIKey: true,
+    46→      keyPrefix: apiKey.slice(0, 7) + "...",
+    47→      error: "invalid OPENAI_API_KEY format",
+    48→      message: "OPENAI_API_KEY should start with 'sk-'. Check your .env.local file.",
+    49→    });
+    50→  }
+    51→
+    52→  return res.status(200).json({
+    53→    ok: true,
+    54→    provider: "openai",
+    55→    model: model,
+    56→    hasOpenAIKey: true,
+    57→    keyPrefix: apiKey.slice(0, 7) + "...",
+    58→    message: "OpenAI is configured and ready",
+    59→  });
+    60→}
+    61→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

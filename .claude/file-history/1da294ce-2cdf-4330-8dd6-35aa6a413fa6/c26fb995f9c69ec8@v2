@@ -1,0 +1,154 @@
+/**
+ * Accept Invite API
+ *
+ * POST - Accept an invitation (requires authentication)
+ * GET  - Validate an invite token (public, for pre-auth display)
+ */
+
+import connectMongo from "@/libs/mongoose";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/authOptions";
+import DealerInvite from "@/models/DealerInvite";
+import DealerMembership from "@/models/DealerMembership";
+import Dealer from "@/models/Dealer";
+import User from "@/models/User";
+import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  // GET - Validate token (public endpoint for showing invite info before auth)
+  if (req.method === "GET") {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: "Token required" });
+    }
+
+    const invite = await DealerInvite.findByToken(token);
+
+    if (!invite) {
+      // Check if token exists but is invalid
+      const tokenHash = DealerInvite.hashToken(token);
+      const existingInvite = await DealerInvite.findOne({ tokenHash });
+
+      if (existingInvite) {
+        if (existingInvite.acceptedAt) {
+          return res.status(400).json({ error: "This invite has already been used" });
+        }
+        if (existingInvite.revokedAt) {
+          return res.status(400).json({ error: "This invite has been revoked" });
+        }
+        if (existingInvite.expiresAt <= new Date()) {
+          return res.status(400).json({ error: "This invite has expired" });
+        }
+      }
+
+      return res.status(404).json({ error: "Invalid or expired invite link" });
+    }
+
+    // Get dealer info for display
+    const dealer = await Dealer.findById(invite.dealerId).lean();
+
+    return res.status(200).json({
+      valid: true,
+      email: invite.email,
+      role: invite.role,
+      dealerName: dealer?.name || "Unknown Dealership",
+      expiresAt: invite.expiresAt,
+    });
+  }
+
+  // POST - Accept invite (requires auth)
+  if (req.method === "POST") {
+    const session = await getServerSession(req, res, authOptions);
+
+    if (!session?.user?.id) {
+      return res.status(401).json({ error: "Please sign in to accept this invitation" });
+    }
+
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: "Token required" });
+    }
+
+    const invite = await DealerInvite.findByToken(token);
+
+    if (!invite) {
+      return res.status(404).json({ error: "Invalid or expired invite link" });
+    }
+
+    // Get user
+    const user = await User.findById(session.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Security check: email must match
+    // Normalize both emails for comparison
+    const inviteEmail = invite.email.toLowerCase().trim();
+    const userEmail = user.email?.toLowerCase().trim();
+
+    if (userEmail !== inviteEmail) {
+      return res.status(403).json({
+        error: `This invitation was sent to ${invite.email}. Please sign in with that email address.`,
+        expectedEmail: invite.email,
+      });
+    }
+
+    // Check if already a member
+    const existingMembership = await DealerMembership.findOne({
+      dealerId: invite.dealerId,
+      userId: user._id,
+      removedAt: null,
+    });
+
+    if (existingMembership) {
+      // Already a member - mark invite as accepted and redirect
+      await invite.markAccepted(user._id);
+      return res.status(200).json({
+        success: true,
+        alreadyMember: true,
+        message: "You're already a member of this team",
+      });
+    }
+
+    // Create membership
+    await DealerMembership.create({
+      dealerId: invite.dealerId,
+      userId: user._id,
+      role: invite.role,
+      lastActiveAt: new Date(),
+    });
+
+    // Mark invite as accepted
+    await invite.markAccepted(user._id);
+
+    // Update user's default dealer if they don't have one
+    if (!user.defaultDealerId) {
+      user.defaultDealerId = invite.dealerId;
+      await user.save();
+    }
+
+    // Get dealer name for response
+    const dealer = await Dealer.findById(invite.dealerId).lean();
+
+    // Log platform activity
+    await PlatformActivity.log(ACTIVITY_TYPES.USER_SIGNED_UP, {
+      targetUserId: user._id,
+      dealerId: invite.dealerId,
+      metadata: { userEmail: user.email, role: invite.role, dealerName: dealer?.name },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Welcome to ${dealer?.name || "the team"}!`,
+      role: invite.role,
+      dealerId: invite.dealerId,
+    });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

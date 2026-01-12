@@ -1,0 +1,5 @@
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js
+C:\Users\georg\dealerflow\pages\api\ai\warranty-summary.js
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js
+C:\Users\georg\dealerflow\pages\api\ai\case-review.js

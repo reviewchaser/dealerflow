@@ -1,0 +1,215 @@
+import connectMongo from "@/libs/mongoose";
+import Deal from "@/models/Deal";
+import Vehicle from "@/models/Vehicle";
+import Dealer from "@/models/Dealer";
+import SalesDocument from "@/models/SalesDocument";
+import Contact from "@/models/Contact";
+import User from "@/models/User";
+import crypto from "crypto";
+import { withDealerContext } from "@/libs/authContext";
+
+/**
+ * Take Deposit API
+ * POST /api/deals/[id]/take-deposit
+ *
+ * Records a deposit payment on a deal and generates a deposit receipt.
+ * Transitions deal status to DEPOSIT_TAKEN.
+ */
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Validate ID format
+  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({ error: "Invalid deal ID" });
+  }
+
+  const {
+    amount,
+    method,
+    reference,
+    buyerSignature, // Base64 data URL
+    dealerSignature,
+    notes,
+  } = req.body;
+
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "Deposit amount is required" });
+  }
+
+  if (!method) {
+    return res.status(400).json({ error: "Payment method is required" });
+  }
+
+  // Get the deal
+  const deal = await Deal.findOne({ _id: id, dealerId })
+    .populate("vehicleId")
+    .populate("soldToContactId");
+
+  if (!deal) {
+    return res.status(404).json({ error: "Deal not found" });
+  }
+
+  // Validate deal can receive deposit
+  if (deal.status === "CANCELLED") {
+    return res.status(400).json({ error: "Cannot take deposit on cancelled deal" });
+  }
+  if (deal.status === "COMPLETED") {
+    return res.status(400).json({ error: "Deal is already completed" });
+  }
+
+  // Customer is required for deposit
+  if (!deal.soldToContactId) {
+    return res.status(400).json({ error: "Customer is required before taking deposit" });
+  }
+
+  // Get dealer for settings and document numbering
+  const dealer = await Dealer.findByIdAndUpdate(
+    dealerId,
+    { $inc: { "salesSettings.nextDepositReceiptNumber": 1 } },
+    { new: false }
+  );
+
+  const prefix = dealer?.salesSettings?.depositReceiptPrefix || "DEP";
+  const receiptNumber = dealer?.salesSettings?.nextDepositReceiptNumber || 1;
+  const documentNumber = `${prefix}${String(receiptNumber).padStart(5, "0")}`;
+
+  // Add payment to deal
+  const payment = {
+    type: "DEPOSIT",
+    amount,
+    method,
+    paidAt: new Date(),
+    reference: reference || documentNumber,
+    notes,
+    isRefunded: false,
+  };
+
+  deal.payments.push(payment);
+  deal.depositTakenAt = deal.depositTakenAt || new Date();
+
+  // Transition status if this is the first deposit
+  if (deal.status === "DRAFT") {
+    deal.status = "DEPOSIT_TAKEN";
+  }
+
+  deal.updatedByUserId = userId;
+  await deal.save();
+
+  // Update vehicle status
+  await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
+    salesStatus: "IN_DEAL",
+  });
+
+  // Create snapshot data for the document
+  const customer = deal.soldToContactId;
+  const vehicle = deal.vehicleId;
+
+  // Get the user who took the deposit
+  let takenByUser = null;
+  if (userId) {
+    takenByUser = await User.findById(userId).select("name email").lean();
+  }
+
+  const snapshotData = {
+    vehicle: {
+      regCurrent: vehicle.regCurrent,
+      vin: vehicle.vin,
+      make: vehicle.make,
+      model: vehicle.model,
+      derivative: vehicle.derivative,
+      year: vehicle.year,
+      mileage: vehicle.mileageCurrent,
+      colour: vehicle.colour,
+    },
+    customer: {
+      name: customer.displayName,
+      companyName: customer.companyName,
+      email: customer.email,
+      phone: customer.phone,
+      address: customer.address,
+    },
+    vatScheme: deal.vatScheme,
+    vehiclePriceGross: deal.vehiclePriceGross,
+    payments: [{
+      type: "DEPOSIT",
+      amount,
+      method,
+      paidAt: new Date(),
+      reference: reference || documentNumber,
+    }],
+    grandTotal: deal.vehiclePriceGross || 0,
+    totalPaid: amount,
+    balanceDue: (deal.vehiclePriceGross || 0) - amount,
+    termsText: deal.termsSnapshotText || dealer?.salesSettings?.terms?.depositTerms || "",
+    // Include agreed work items (requests)
+    requests: (deal.requests || []).map(req => ({
+      title: req.title,
+      details: req.details,
+      type: req.type,
+      status: req.status,
+    })),
+    // User who took the deposit
+    takenBy: takenByUser ? {
+      name: takenByUser.name,
+      email: takenByUser.email,
+    } : null,
+    dealer: {
+      name: dealer.name,
+      companyName: dealer.companyName,
+      address: dealer.companyAddress,
+      phone: dealer.companyPhone,
+      email: dealer.companyEmail,
+      vatNumber: dealer.salesSettings?.vatNumber,
+      companyNumber: dealer.salesSettings?.companyNumber,
+      logoUrl: dealer.logoUrl,
+    },
+  };
+
+  // Generate share token
+  const shareToken = crypto.randomBytes(32).toString("base64url");
+  const shareTokenHash = crypto.createHash("sha256").update(shareToken).digest("hex");
+
+  // Create sales document
+  const salesDoc = await SalesDocument.create({
+    dealerId,
+    dealId: deal._id,
+    type: "DEPOSIT_RECEIPT",
+    documentNumber,
+    status: "ISSUED",
+    issuedAt: new Date(),
+    snapshotData,
+    signature: {
+      required: deal.saleChannel === "IN_PERSON",
+      buyerSignatureImageKey: buyerSignature ? `signatures/${dealerId}/${deal._id}/buyer-${Date.now()}.png` : undefined,
+      dealerSignatureImageKey: dealerSignature ? `signatures/${dealerId}/${deal._id}/dealer-${Date.now()}.png` : undefined,
+      signedAt: (buyerSignature || dealerSignature) ? new Date() : undefined,
+    },
+    shareToken,
+    shareTokenHash,
+    shareExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+    createdByUserId: userId,
+  });
+
+  // TODO: If signatures provided, upload to R2 storage
+
+  return res.status(200).json({
+    success: true,
+    dealId: deal._id.toString(),
+    dealStatus: deal.status,
+    depositReceiptId: salesDoc._id.toString(),
+    documentNumber,
+    shareToken,
+    shareUrl: `${process.env.NEXTAUTH_URL || ""}/public/deposit-receipt/${shareToken}`,
+    totalDepositPaid: deal.payments
+      .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
+      .reduce((sum, p) => sum + p.amount, 0),
+  });
+}
+
+export default withDealerContext(handler);

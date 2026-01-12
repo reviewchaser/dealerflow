@@ -1,0 +1,75 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→export const MEMBERSHIP_ROLES = ["OWNER", "ADMIN", "STAFF", "WORKSHOP"];
+     5→
+     6→const dealerMembershipSchema = new mongoose.Schema(
+     7→  {
+     8→    dealerId: {
+     9→      type: mongoose.Schema.Types.ObjectId,
+    10→      ref: "Dealer",
+    11→      required: true,
+    12→      index: true,
+    13→    },
+    14→    userId: {
+    15→      type: mongoose.Schema.Types.ObjectId,
+    16→      ref: "User",
+    17→      required: true,
+    18→      index: true,
+    19→    },
+    20→    role: {
+    21→      type: String,
+    22→      enum: MEMBERSHIP_ROLES,
+    23→      default: "STAFF",
+    24→      required: true,
+    25→    },
+    26→    // For multi-dealer users: track last active dealer
+    27→    lastActiveAt: { type: Date, default: Date.now },
+    28→    // Soft delete support
+    29→    removedAt: { type: Date, default: null },
+    30→    removedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    31→  },
+    32→  { timestamps: true }
+    33→);
+    34→
+    35→// Compound unique index: one active membership per user per dealer
+    36→// Note: Mongoose can't do partial unique indexes easily, so we enforce in code
+    37→dealerMembershipSchema.index({ dealerId: 1, userId: 1 }, { unique: true });
+    38→
+    39→// Index for finding active memberships
+    40→dealerMembershipSchema.index({ userId: 1, removedAt: 1, lastActiveAt: -1 });
+    41→
+    42→dealerMembershipSchema.plugin(toJSON);
+    43→
+    44→// Static method to find active memberships only
+    45→dealerMembershipSchema.statics.findActive = function (query = {}) {
+    46→  return this.find({ ...query, removedAt: null });
+    47→};
+    48→
+    49→dealerMembershipSchema.statics.findOneActive = function (query = {}) {
+    50→  return this.findOne({ ...query, removedAt: null });
+    51→};
+    52→
+    53→// Static method to count owners for a dealer (for last-owner protection)
+    54→dealerMembershipSchema.statics.countOwners = async function (dealerId) {
+    55→  return this.countDocuments({
+    56→    dealerId,
+    57→    role: "OWNER",
+    58→    removedAt: null,
+    59→  });
+    60→};
+    61→
+    62→// Check if this is the last owner
+    63→dealerMembershipSchema.methods.isLastOwner = async function () {
+    64→  if (this.role !== "OWNER") return false;
+    65→  const ownerCount = await this.constructor.countOwners(this.dealerId);
+    66→  return ownerCount <= 1;
+    67→};
+    68→
+    69→export default mongoose.models?.DealerMembership ||
+    70→  mongoose.model("DealerMembership", dealerMembershipSchema);
+    71→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

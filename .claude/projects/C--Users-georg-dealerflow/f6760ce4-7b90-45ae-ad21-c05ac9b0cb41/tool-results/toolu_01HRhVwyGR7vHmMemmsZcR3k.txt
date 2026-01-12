@@ -1,0 +1,448 @@
+     1→import { useState, useEffect } from "react";
+     2→import Head from "next/head";
+     3→import { useRouter } from "next/router";
+     4→import { toast, Toaster } from "react-hot-toast";
+     5→
+     6→const CONDITION_OPTIONS = [
+     7→  { value: "excellent", label: "Excellent", description: "Trade ready, minor prep only" },
+     8→  { value: "good", label: "Good", description: "Light reconditioning needed" },
+     9→  { value: "fair", label: "Fair", description: "Moderate work required" },
+    10→  { value: "poor", label: "Poor", description: "Significant work/parts needed" },
+    11→];
+    12→
+    13→export default function DealerBuyingForm() {
+    14→  const router = useRouter();
+    15→  const { dealerSlug } = router.query;
+    16→
+    17→  const [dealerInfo, setDealerInfo] = useState(null);
+    18→  const [isLoadingDealer, setIsLoadingDealer] = useState(true);
+    19→  const [isSubmitting, setIsSubmitting] = useState(false);
+    20→  const [isSubmitted, setIsSubmitted] = useState(false);
+    21→  const [isLookingUp, setIsLookingUp] = useState(false);
+    22→  const [dvlaData, setDvlaData] = useState(null);
+    23→
+    24→  const [formData, setFormData] = useState({
+    25→    submitterName: "",
+    26→    submitterEmail: "",
+    27→    submitterPhone: "",
+    28→    submitterCompany: "",
+    29→    vehicleReg: "",
+    30→    vehicleMake: "",
+    31→    vehicleModel: "",
+    32→    vehicleYear: "",
+    33→    mileage: "",
+    34→    colour: "",
+    35→    fuelType: "",
+    36→    conditionRating: "",
+    37→    conditionNotes: "",
+    38→    proposedPurchasePrice: "",
+    39→    hasV5: "",
+    40→    hasServiceHistory: "",
+    41→  });
+    42→
+    43→  useEffect(() => {
+    44→    if (dealerSlug) {
+    45→      fetchDealerInfo();
+    46→    }
+    47→  }, [dealerSlug]);
+    48→
+    49→  const fetchDealerInfo = async () => {
+    50→    try {
+    51→      const res = await fetch(`/api/public/dealer/${dealerSlug}`);
+    52→      if (res.ok) {
+    53→        const data = await res.json();
+    54→        setDealerInfo(data);
+    55→      } else {
+    56→        setDealerInfo(null);
+    57→      }
+    58→    } catch (error) {
+    59→      setDealerInfo(null);
+    60→    } finally {
+    61→      setIsLoadingDealer(false);
+    62→    }
+    63→  };
+    64→
+    65→  const handleVrmLookup = async () => {
+    66→    const vrm = formData.vehicleReg.replace(/\s/g, "").toUpperCase();
+    67→    if (!vrm) return;
+    68→
+    69→    setIsLookingUp(true);
+    70→    try {
+    71→      const res = await fetch(`/api/dvla-lookup?vrm=${vrm}`);
+    72→      if (res.ok) {
+    73→        const data = await res.json();
+    74→        setDvlaData(data);
+    75→        setFormData((prev) => ({
+    76→          ...prev,
+    77→          vehicleReg: vrm,
+    78→          vehicleMake: data.make || prev.vehicleMake,
+    79→          vehicleModel: data.model || prev.vehicleModel,
+    80→          vehicleYear: data.yearOfManufacture || prev.vehicleYear,
+    81→          colour: data.colour || prev.colour,
+    82→          fuelType: data.fuelType || prev.fuelType,
+    83→        }));
+    84→        toast.success("Vehicle details found");
+    85→      } else {
+    86→        toast.error("Vehicle not found - please enter details manually");
+    87→      }
+    88→    } catch (error) {
+    89→      toast.error("Lookup failed - please enter details manually");
+    90→    } finally {
+    91→      setIsLookingUp(false);
+    92→    }
+    93→  };
+    94→
+    95→  const handleSubmit = async (e) => {
+    96→    e.preventDefault();
+    97→
+    98→    if (!formData.submitterName || !formData.submitterEmail || !formData.vehicleReg) {
+    99→      toast.error("Please fill in all required fields");
+   100→      return;
+   101→    }
+   102→
+   103→    setIsSubmitting(true);
+   104→    try {
+   105→      const res = await fetch(`/api/public/appraisal-submit/${dealerSlug}`, {
+   106→        method: "POST",
+   107→        headers: { "Content-Type": "application/json" },
+   108→        body: JSON.stringify(formData),
+   109→      });
+   110→
+   111→      if (res.ok) {
+   112→        setIsSubmitted(true);
+   113→        toast.success("Appraisal submitted successfully!");
+   114→      } else {
+   115→        const data = await res.json();
+   116→        toast.error(data.error || "Failed to submit appraisal");
+   117→      }
+   118→    } catch (error) {
+   119→      toast.error("Failed to submit appraisal");
+   120→    } finally {
+   121→      setIsSubmitting(false);
+   122→    }
+   123→  };
+   124→
+   125→  // Loading state
+   126→  if (isLoadingDealer) {
+   127→    return (
+   128→      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+   129→        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+   130→      </div>
+   131→    );
+   132→  }
+   133→
+   134→  // Invalid dealer
+   135→  if (!dealerInfo) {
+   136→    return (
+   137→      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+   138→        <Head><title>Invalid Link</title></Head>
+   139→        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+   140→          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+   141→            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   142→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   143→            </svg>
+   144→          </div>
+   145→          <h1 className="text-2xl font-bold text-slate-900 mb-2">Invalid Link</h1>
+   146→          <p className="text-slate-600">This appraisal form link is not valid.</p>
+   147→        </div>
+   148→      </div>
+   149→    );
+   150→  }
+   151→
+   152→  // Success state
+   153→  if (isSubmitted) {
+   154→    return (
+   155→      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+   156→        <Head><title>Appraisal Submitted | {dealerInfo.name}</title></Head>
+   157→        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+   158→          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 flex items-center justify-center">
+   159→            <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   160→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   161→            </svg>
+   162→          </div>
+   163→          <h1 className="text-2xl font-bold text-slate-900 mb-2">Thank You!</h1>
+   164→          <p className="text-slate-600">
+   165→            Your vehicle appraisal has been submitted to {dealerInfo.name}.
+   166→            They will review it and contact you shortly.
+   167→          </p>
+   168→        </div>
+   169→        <Toaster position="top-center" />
+   170→      </div>
+   171→    );
+   172→  }
+   173→
+   174→  return (
+   175→    <div className="min-h-screen bg-slate-50 py-8 px-4">
+   176→      <Head>
+   177→        <title>Submit Vehicle Appraisal | {dealerInfo.name}</title>
+   178→      </Head>
+   179→      <Toaster position="top-center" />
+   180→
+   181→      <div className="max-w-2xl mx-auto">
+   182→        {/* Header */}
+   183→        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+   184→          <div className="flex items-center gap-4">
+   185→            {dealerInfo.logoUrl && (
+   186→              <img src={dealerInfo.logoUrl} alt={dealerInfo.name} className="h-12" />
+   187→            )}
+   188→            <div>
+   189→              <h1 className="text-2xl font-bold text-slate-900">Vehicle Appraisal</h1>
+   190→              <p className="text-slate-500">{dealerInfo.name}</p>
+   191→            </div>
+   192→          </div>
+   193→          <p className="text-slate-600 mt-4">
+   194→            Submit details of a vehicle you'd like to offer for sale.
+   195→          </p>
+   196→        </div>
+   197→
+   198→        {/* Form */}
+   199→        <form onSubmit={handleSubmit} className="space-y-6">
+   200→          {/* Your Details */}
+   201→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   202→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Your Details</h2>
+   203→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   204→              <div>
+   205→                <label className="block text-sm font-medium text-slate-700 mb-1">Name *</label>
+   206→                <input
+   207→                  type="text"
+   208→                  required
+   209→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   210→                  value={formData.submitterName}
+   211→                  onChange={(e) => setFormData({ ...formData, submitterName: e.target.value })}
+   212→                />
+   213→              </div>
+   214→              <div>
+   215→                <label className="block text-sm font-medium text-slate-700 mb-1">Company</label>
+   216→                <input
+   217→                  type="text"
+   218→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   219→                  value={formData.submitterCompany}
+   220→                  onChange={(e) => setFormData({ ...formData, submitterCompany: e.target.value })}
+   221→                />
+   222→              </div>
+   223→              <div>
+   224→                <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+   225→                <input
+   226→                  type="email"
+   227→                  required
+   228→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   229→                  value={formData.submitterEmail}
+   230→                  onChange={(e) => setFormData({ ...formData, submitterEmail: e.target.value })}
+   231→                />
+   232→              </div>
+   233→              <div>
+   234→                <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+   235→                <input
+   236→                  type="tel"
+   237→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   238→                  value={formData.submitterPhone}
+   239→                  onChange={(e) => setFormData({ ...formData, submitterPhone: e.target.value })}
+   240→                />
+   241→              </div>
+   242→            </div>
+   243→          </div>
+   244→
+   245→          {/* Vehicle Details */}
+   246→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   247→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
+   248→
+   249→            {/* VRM Lookup */}
+   250→            <div className="mb-4">
+   251→              <label className="block text-sm font-medium text-slate-700 mb-1">Registration *</label>
+   252→              <div className="flex gap-2">
+   253→                <input
+   254→                  type="text"
+   255→                  required
+   256→                  placeholder="AB12 CDE"
+   257→                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono"
+   258→                  value={formData.vehicleReg}
+   259→                  onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })}
+   260→                />
+   261→                <button
+   262→                  type="button"
+   263→                  onClick={handleVrmLookup}
+   264→                  disabled={isLookingUp || !formData.vehicleReg}
+   265→                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
+   266→                >
+   267→                  {isLookingUp ? "Looking up..." : "Lookup"}
+   268→                </button>
+   269→              </div>
+   270→            </div>
+   271→
+   272→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   273→              <div>
+   274→                <label className="block text-sm font-medium text-slate-700 mb-1">Make</label>
+   275→                <input
+   276→                  type="text"
+   277→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   278→                  value={formData.vehicleMake}
+   279→                  onChange={(e) => setFormData({ ...formData, vehicleMake: e.target.value })}
+   280→                />
+   281→              </div>
+   282→              <div>
+   283→                <label className="block text-sm font-medium text-slate-700 mb-1">Model</label>
+   284→                <input
+   285→                  type="text"
+   286→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   287→                  value={formData.vehicleModel}
+   288→                  onChange={(e) => setFormData({ ...formData, vehicleModel: e.target.value })}
+   289→                />
+   290→              </div>
+   291→              <div>
+   292→                <label className="block text-sm font-medium text-slate-700 mb-1">Year</label>
+   293→                <input
+   294→                  type="number"
+   295→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   296→                  value={formData.vehicleYear}
+   297→                  onChange={(e) => setFormData({ ...formData, vehicleYear: e.target.value })}
+   298→                />
+   299→              </div>
+   300→              <div>
+   301→                <label className="block text-sm font-medium text-slate-700 mb-1">Mileage</label>
+   302→                <input
+   303→                  type="number"
+   304→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   305→                  value={formData.mileage}
+   306→                  onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
+   307→                />
+   308→              </div>
+   309→              <div>
+   310→                <label className="block text-sm font-medium text-slate-700 mb-1">Colour</label>
+   311→                <input
+   312→                  type="text"
+   313→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   314→                  value={formData.colour}
+   315→                  onChange={(e) => setFormData({ ...formData, colour: e.target.value })}
+   316→                />
+   317→              </div>
+   318→              <div>
+   319→                <label className="block text-sm font-medium text-slate-700 mb-1">Fuel Type</label>
+   320→                <select
+   321→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   322→                  value={formData.fuelType}
+   323→                  onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}
+   324→                >
+   325→                  <option value="">Select...</option>
+   326→                  <option value="Petrol">Petrol</option>
+   327→                  <option value="Diesel">Diesel</option>
+   328→                  <option value="Electric">Electric</option>
+   329→                  <option value="Hybrid">Hybrid</option>
+   330→                  <option value="PHEV">PHEV</option>
+   331→                </select>
+   332→              </div>
+   333→            </div>
+   334→          </div>
+   335→
+   336→          {/* Condition */}
+   337→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   338→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Condition & Documents</h2>
+   339→
+   340→            <div className="mb-4">
+   341→              <label className="block text-sm font-medium text-slate-700 mb-2">Overall Condition</label>
+   342→              <div className="grid grid-cols-2 gap-3">
+   343→                {CONDITION_OPTIONS.map((option) => (
+   344→                  <label
+   345→                    key={option.value}
+   346→                    className={`flex flex-col p-4 border-2 rounded-xl cursor-pointer transition-all ${
+   347→                      formData.conditionRating === option.value
+   348→                        ? "border-blue-500 bg-blue-50"
+   349→                        : "border-slate-200 hover:border-slate-300"
+   350→                    }`}
+   351→                  >
+   352→                    <input
+   353→                      type="radio"
+   354→                      name="conditionRating"
+   355→                      value={option.value}
+   356→                      checked={formData.conditionRating === option.value}
+   357→                      onChange={(e) => setFormData({ ...formData, conditionRating: e.target.value })}
+   358→                      className="sr-only"
+   359→                    />
+   360→                    <span className="font-medium text-slate-900">{option.label}</span>
+   361→                    <span className="text-sm text-slate-500">{option.description}</span>
+   362→                  </label>
+   363→                ))}
+   364→              </div>
+   365→            </div>
+   366→
+   367→            <div className="mb-4">
+   368→              <label className="block text-sm font-medium text-slate-700 mb-1">Condition Notes</label>
+   369→              <textarea
+   370→                rows={3}
+   371→                placeholder="Any issues, damage, or important notes..."
+   372→                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   373→                value={formData.conditionNotes}
+   374→                onChange={(e) => setFormData({ ...formData, conditionNotes: e.target.value })}
+   375→              />
+   376→            </div>
+   377→
+   378→            <div className="grid grid-cols-2 gap-4">
+   379→              <div>
+   380→                <label className="block text-sm font-medium text-slate-700 mb-1">V5 Present?</label>
+   381→                <select
+   382→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   383→                  value={formData.hasV5}
+   384→                  onChange={(e) => setFormData({ ...formData, hasV5: e.target.value })}
+   385→                >
+   386→                  <option value="">Select...</option>
+   387→                  <option value="yes">Yes</option>
+   388→                  <option value="no">No</option>
+   389→                  <option value="pending">Pending</option>
+   390→                </select>
+   391→              </div>
+   392→              <div>
+   393→                <label className="block text-sm font-medium text-slate-700 mb-1">Service History?</label>
+   394→                <select
+   395→                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   396→                  value={formData.hasServiceHistory}
+   397→                  onChange={(e) => setFormData({ ...formData, hasServiceHistory: e.target.value })}
+   398→                >
+   399→                  <option value="">Select...</option>
+   400→                  <option value="full">Full</option>
+   401→                  <option value="partial">Partial</option>
+   402→                  <option value="none">None</option>
+   403→                </select>
+   404→              </div>
+   405→            </div>
+   406→          </div>
+   407→
+   408→          {/* Price */}
+   409→          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+   410→            <h2 className="text-lg font-semibold text-slate-900 mb-4">Asking Price</h2>
+   411→            <div>
+   412→              <label className="block text-sm font-medium text-slate-700 mb-1">Your Asking Price</label>
+   413→              <div className="relative">
+   414→                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">£</span>
+   415→                <input
+   416→                  type="number"
+   417→                  placeholder="0"
+   418→                  className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+   419→                  value={formData.proposedPurchasePrice}
+   420→                  onChange={(e) => setFormData({ ...formData, proposedPurchasePrice: e.target.value })}
+   421→                />
+   422→              </div>
+   423→            </div>
+   424→          </div>
+   425→
+   426→          {/* Submit */}
+   427→          <button
+   428→            type="submit"
+   429→            disabled={isSubmitting}
+   430→            className="w-full py-4 bg-blue-600 text-white rounded-xl font-semibold text-lg hover:bg-blue-700 disabled:bg-slate-300 transition-colors"
+   431→          >
+   432→            {isSubmitting ? "Submitting..." : "Submit Appraisal"}
+   433→          </button>
+   434→        </form>
+   435→
+   436→        {/* Footer */}
+   437→        <div className="text-center mt-8 text-sm text-slate-500">
+   438→          <p>Powered by DealerFlow</p>
+   439→        </div>
+   440→      </div>
+   441→    </div>
+   442→  );
+   443→}
+   444→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

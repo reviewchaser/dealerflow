@@ -1,0 +1,6 @@
+C:\Users\georg\dealerflow\node_modules\next\dist\client\components\router-reducer\reducers\navigate-reducer.js
+C:\Users\georg\dealerflow\node_modules\next\dist\esm\client\components\router-reducer\reducers\navigate-reducer.js
+C:\Users\georg\dealerflow\node_modules\next\dist\client\components\navigation.js
+C:\Users\georg\dealerflow\node_modules\next\dist\esm\client\components\navigation.js
+C:\Users\georg\dealerflow\node_modules\next\dist\client\components\navigation.react-server.js
+C:\Users\georg\dealerflow\node_modules\next\dist\esm\client\components\navigation.react-server.js

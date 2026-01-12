@@ -1,0 +1,24 @@
+     1→import crypto from "crypto";
+     2→import connectMongo from "@/libs/mongoose";
+     3→import AftercareCase from "@/models/AftercareCase";
+     4→import JobSheetShareLink from "@/models/JobSheetShareLink";
+     5→import User from "@/models/User";
+     6→import Vehicle from "@/models/Vehicle"; // Required for populate
+     7→import Contact from "@/models/Contact"; // Required for populate
+     8→import { withDealerContext } from "@/libs/authContext";
+     9→
+    10→// Generate a secure random token (URL-safe base64)
+    11→function generateToken() {
+    12→  return crypto.randomBytes(32).toString("base64url");
+    13→}
+    14→
+    15→// Hash token with SHA256
+    16→function hashToken(token) {
+    17→  return crypto.createHash("sha256").update(token).digest("hex");
+    18→}
+    19→
+    20→export default withDealerContext(async (req, res, ctx) => {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

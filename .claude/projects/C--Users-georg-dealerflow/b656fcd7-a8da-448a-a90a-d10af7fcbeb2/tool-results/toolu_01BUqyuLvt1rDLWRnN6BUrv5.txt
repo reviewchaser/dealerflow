@@ -1,0 +1,814 @@
+     1→import { useState, useEffect } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→
+     4→// Helper for relative time display
+     5→const relativeTime = (date) => {
+     6→  if (!date) return "";
+     7→  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+     8→  if (days === 0) {
+     9→    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    10→    if (hours === 0) {
+    11→      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+    12→      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    13→    }
+    14→    return `${hours}h ago`;
+    15→  }
+    16→  if (days === 1) return "Yesterday";
+    17→  if (days < 7) return `${days}d ago`;
+    18→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    19→  return `${Math.floor(days / 30)}mo ago`;
+    20→};
+    21→
+    22→// Format date helper
+    23→const formatDate = (date) => {
+    24→  if (!date) return "";
+    25→  return new Date(date).toLocaleDateString("en-GB", {
+    26→    day: "numeric",
+    27→    month: "short",
+    28→    year: "numeric",
+    29→  });
+    30→};
+    31→
+    32→const STATUS_LABELS = {
+    33→  in_stock: "In Prep",
+    34→  in_prep: "Advertised",
+    35→  live: "Sold In Progress",
+    36→  reserved: "Completed",
+    37→  delivered: "Delivered",
+    38→};
+    39→
+    40→/**
+    41→ * VehicleDrawer - A reusable component to display vehicle details in a drawer/modal
+    42→ *
+    43→ * Props:
+    44→ * - vehicleId: The ID of the vehicle to display
+    45→ * - isOpen: Whether the drawer is open
+    46→ * - onClose: Function to call when closing the drawer
+    47→ * - isStacked: If true, renders as a stacked drawer (overlays another drawer)
+    48→ * - readOnly: If true, hides editing controls (default: true for warranty context)
+    49→ */
+    50→export default function VehicleDrawer({
+    51→  vehicleId,
+    52→  isOpen,
+    53→  onClose,
+    54→  isStacked = false,
+    55→  readOnly = true,
+    56→}) {
+    57→  const [vehicle, setVehicle] = useState(null);
+    58→  const [isLoading, setIsLoading] = useState(false);
+    59→  const [activeTab, setActiveTab] = useState("overview");
+    60→  const [expandedIssues, setExpandedIssues] = useState({});
+    61→
+    62→  useEffect(() => {
+    63→    if (isOpen && vehicleId) {
+    64→      fetchVehicle();
+    65→    }
+    66→  }, [isOpen, vehicleId]);
+    67→
+    68→  const fetchVehicle = async () => {
+    69→    setIsLoading(true);
+    70→    try {
+    71→      const res = await fetch(`/api/vehicles/${vehicleId}`);
+    72→      if (!res.ok) throw new Error("Failed to load vehicle");
+    73→      const data = await res.json();
+    74→      setVehicle(data);
+    75→    } catch (error) {
+    76→      toast.error("Failed to load vehicle details");
+    77→      console.error(error);
+    78→    } finally {
+    79→      setIsLoading(false);
+    80→    }
+    81→  };
+    82→
+    83→  if (!isOpen) return null;
+    84→
+    85→  return (
+    86→    <div
+    87→      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} drawer-locked`}
+    88→      style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
+    89→    >
+    90→      {/* Backdrop with blur */}
+    91→      <div
+    92→        className={`absolute inset-0 ${isStacked ? "bg-black/20 backdrop-blur-sm" : "bg-black/40 backdrop-blur-sm"} transition-opacity duration-300`}
+    93→        onClick={onClose}
+    94→      />
+    95→
+    96→      {/* Drawer - Locked horizontal scroll, modern styling */}
+    97→      <div
+    98→        className={`relative bg-[#f8fafc] h-full flex flex-col ${
+    99→          isStacked ? "w-full max-w-2xl" : "w-full max-w-3xl"
+   100→        } min-w-0 translate-x-0 overscroll-y-contain overflow-x-hidden shadow-2xl`}
+   101→        style={{
+   102→          touchAction: "pan-y",
+   103→          WebkitOverflowScrolling: "touch",
+   104→          overscrollBehaviorX: "none",
+   105→        }}
+   106→      >
+   107→        {isLoading ? (
+   108→          <div className="flex items-center justify-center h-full">
+   109→            <span className="loading loading-spinner loading-lg"></span>
+   110→          </div>
+   111→        ) : !vehicle ? (
+   112→          <div className="flex flex-col items-center justify-center h-full">
+   113→            <p className="text-base-content/60">Vehicle not found</p>
+   114→            <button className="btn btn-ghost btn-sm mt-2" onClick={onClose}>
+   115→              Close
+   116→            </button>
+   117→          </div>
+   118→        ) : (
+   119→          <>
+   120→            {/* Header - Modern gradient design */}
+   121→            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+   122→              <div className="flex items-center justify-between">
+   123→                <div className="flex items-center gap-3">
+   124→                  <button
+   125→                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+   126→                    onClick={onClose}
+   127→                    title="Close"
+   128→                  >
+   129→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   130→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   131→                    </svg>
+   132→                  </button>
+   133→                  <div>
+   134→                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+   135→                      {vehicle.year || ""} {vehicle.make} {vehicle.model}
+   136→                    </h2>
+   137→                    <div className="flex items-center gap-2 mt-1">
+   138→                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+   139→                        {vehicle.regCurrent}
+   140→                      </span>
+   141→                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${
+   142→                        vehicle.status === "delivered" ? "bg-emerald-100 text-emerald-700" :
+   143→                        vehicle.status === "live" ? "bg-blue-100 text-blue-700" :
+   144→                        vehicle.status === "in_prep" ? "bg-amber-100 text-amber-700" :
+   145→                        vehicle.status === "reserved" ? "bg-pink-100 text-pink-700" :
+   146→                        "bg-slate-100 text-slate-600"
+   147→                      }`}>
+   148→                        {STATUS_LABELS[vehicle.status] || vehicle.status}
+   149→                      </span>
+   150→                    </div>
+   151→                  </div>
+   152→                </div>
+   153→                <button
+   154→                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+   155→                  onClick={onClose}
+   156→                >
+   157→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   158→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   159→                  </svg>
+   160→                </button>
+   161→              </div>
+   162→            </div>
+   163→
+   164→            {/* Tabs - Modern pill style */}
+   165→            <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
+   166→              <div className="flex items-center gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
+   167→                {[
+   168→                  { id: "overview", label: "Overview", icon: (
+   169→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   170→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   171→                    </svg>
+   172→                  )},
+   173→                  { id: "checklist", label: "Checklist", count: vehicle.tasks?.length, icon: (
+   174→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   175→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+   176→                    </svg>
+   177→                  )},
+   178→                  { id: "issues", label: "Issues", count: vehicle.issues?.length, icon: (
+   179→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   180→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   181→                    </svg>
+   182→                  )},
+   183→                  { id: "documents", label: "Documents", count: vehicle.documents?.length, icon: (
+   184→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   185→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+   186→                    </svg>
+   187→                  )},
+   188→                ].map((tab) => (
+   189→                  <button
+   190→                    key={tab.id}
+   191→                    onClick={() => setActiveTab(tab.id)}
+   192→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   193→                      activeTab === tab.id
+   194→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   195→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+   196→                    }`}
+   197→                  >
+   198→                    {tab.icon}
+   199→                    <span>{tab.label}</span>
+   200→                    {tab.count > 0 && (
+   201→                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   202→                        activeTab === tab.id
+   203→                          ? "bg-white/20 text-white"
+   204→                          : "bg-slate-200 text-slate-600"
+   205→                      }`}>
+   206→                        {tab.count}
+   207→                      </span>
+   208→                    )}
+   209→                  </button>
+   210→                ))}
+   211→              </div>
+   212→            </div>
+   213→
+   214→            {/* Content - Scrollable region with safe area padding */}
+   215→            <div
+   216→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto min-w-0"
+   217→              style={{
+   218→                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+   219→              }}
+   220→            >
+   221→              {/* Overview Tab */}
+   222→              {activeTab === "overview" && (
+   223→                <div className="space-y-4">
+   224→                  {/* Identity Section */}
+   225→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   226→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   227→                      <div className="flex items-center gap-2">
+   228→                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+   229→                          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   230→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+   231→                          </svg>
+   232→                        </div>
+   233→                        <h3 className="text-sm font-bold text-slate-800">Identity</h3>
+   234→                      </div>
+   235→                    </div>
+   236→                    <div className="p-4 grid grid-cols-2 gap-4">
+   237→                      <div>
+   238→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Registration</span>
+   239→                        <p className="font-mono font-bold text-slate-900 mt-0.5">{vehicle.regCurrent || "—"}</p>
+   240→                      </div>
+   241→                      <div>
+   242→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">VIN</span>
+   243→                        <p className="font-mono text-xs text-slate-700 mt-0.5 break-all">{vehicle.vin || "—"}</p>
+   244→                      </div>
+   245→                    </div>
+   246→                  </div>
+   247→
+   248→                  {/* Quick Stats Row */}
+   249→                  <div className="grid grid-cols-3 gap-3">
+   250→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   251→                      <p className="text-2xl font-bold text-slate-900">{vehicle.year || "—"}</p>
+   252→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Year</p>
+   253→                    </div>
+   254→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   255→                      <p className="text-lg font-bold text-slate-900">{vehicle.mileageCurrent ? `${(vehicle.mileageCurrent / 1000).toFixed(0)}k` : "—"}</p>
+   256→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Miles</p>
+   257→                    </div>
+   258→                    <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3 text-center">
+   259→                      <p className="text-lg font-bold text-slate-900">{vehicle.fuelType ? vehicle.fuelType.charAt(0).toUpperCase() : "—"}</p>
+   260→                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide mt-0.5">Fuel</p>
+   261→                    </div>
+   262→                  </div>
+   263→
+   264→                  {/* Labels */}
+   265→                  {vehicle.labels?.length > 0 && (
+   266→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   267→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   268→                        <div className="flex items-center gap-2">
+   269→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+   270→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   271→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+   272→                            </svg>
+   273→                          </div>
+   274→                          <h3 className="text-sm font-bold text-slate-800">Labels</h3>
+   275→                        </div>
+   276→                      </div>
+   277→                      <div className="p-4 flex flex-wrap gap-2">
+   278→                        {vehicle.labels.map((label) => (
+   279→                          <span
+   280→                            key={label.id}
+   281→                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-sm"
+   282→                            style={{
+   283→                              backgroundColor: `${label.colour}15`,
+   284→                              color: label.colour,
+   285→                              border: `1px solid ${label.colour}30`,
+   286→                            }}
+   287→                          >
+   288→                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
+   289→                            {label.name}
+   290→                          </span>
+   291→                        ))}
+   292→                      </div>
+   293→                    </div>
+   294→                  )}
+   295→
+   296→                  {/* Specifications Section */}
+   297→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   298→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   299→                      <div className="flex items-center gap-2">
+   300→                        <div className="w-8 h-8 rounded-lg bg-[#14B8A6]/10 flex items-center justify-center">
+   301→                          <svg className="w-4 h-4 text-[#14B8A6]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   302→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   303→                          </svg>
+   304→                        </div>
+   305→                        <h3 className="text-sm font-bold text-slate-800">Specifications</h3>
+   306→                      </div>
+   307→                    </div>
+   308→                    <div className="p-4 grid grid-cols-2 gap-4 text-sm">
+   309→                      <div>
+   310→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Make</span>
+   311→                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.make || "—"}</p>
+   312→                      </div>
+   313→                      <div>
+   314→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Model</span>
+   315→                        <p className="font-semibold text-slate-900 mt-0.5">{vehicle.model || "—"}</p>
+   316→                      </div>
+   317→                      <div>
+   318→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Colour</span>
+   319→                        <p className="text-slate-700 mt-0.5">{vehicle.colour || "—"}</p>
+   320→                      </div>
+   321→                      <div>
+   322→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Fuel Type</span>
+   323→                        <p className="text-slate-700 mt-0.5">{vehicle.fuelType || "—"}</p>
+   324→                      </div>
+   325→                      <div>
+   326→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Location</span>
+   327→                        <p className="text-slate-700 mt-0.5">{vehicle.locationId?.name || "On Site"}</p>
+   328→                      </div>
+   329→                      <div>
+   330→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Type</span>
+   331→                        <p className="text-slate-700 mt-0.5">{vehicle.type || "Stock"}</p>
+   332→                      </div>
+   333→                      <div className="col-span-2">
+   334→                        <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">MOT Expiry</span>
+   335→                        <p className={`font-medium mt-0.5 ${
+   336→                          vehicle.motExpiryDate && new Date(vehicle.motExpiryDate) < new Date()
+   337→                            ? "text-red-600"
+   338→                            : "text-slate-700"
+   339→                        }`}>
+   340→                          {vehicle.motExpiryDate ? formatDate(vehicle.motExpiryDate) : "—"}
+   341→                        </p>
+   342→                      </div>
+   343→                    </div>
+   344→                  </div>
+   345→
+   346→                  {/* Safety Recalls Check */}
+   347→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   348→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   349→                      <div className="flex items-center gap-2">
+   350→                        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+   351→                          <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   352→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   353→                          </svg>
+   354→                        </div>
+   355→                        <h3 className="text-sm font-bold text-slate-800">Safety Recalls</h3>
+   356→                      </div>
+   357→                    </div>
+   358→                    <div className="p-4">
+   359→                      <p className="text-xs text-slate-500 mb-3">Check for outstanding manufacturer safety recalls on this vehicle via the official DVSA service.</p>
+   360→                      <a
+   361→                        href="https://www.check-vehicle-recall.service.gov.uk/start"
+   362→                        target="_blank"
+   363→                        rel="noopener noreferrer"
+   364→                        className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-xl transition-colors border border-amber-200"
+   365→                      >
+   366→                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   367→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+   368→                        </svg>
+   369→                        Check for Recalls
+   370→                      </a>
+   371→                      <p className="text-xs text-slate-400 mt-2 text-center">VRM: <span className="font-mono font-medium text-slate-600">{vehicle.regCurrent || vehicle.vrm}</span></p>
+   372→                    </div>
+   373→                  </div>
+   374→
+   375→                  {/* V5 Document */}
+   376→                  {vehicle.v5Url && (
+   377→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   378→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   379→                        <div className="flex items-center gap-2">
+   380→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+   381→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   382→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   383→                            </svg>
+   384→                          </div>
+   385→                          <h3 className="text-sm font-bold text-slate-800">V5 Document</h3>
+   386→                        </div>
+   387→                      </div>
+   388→                      <div className="p-4">
+   389→                        <a
+   390→                          href={vehicle.v5Url}
+   391→                          target="_blank"
+   392→                          rel="noopener noreferrer"
+   393→                          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#0066CC]/10 hover:bg-[#0066CC]/20 text-[#0066CC] font-medium rounded-xl transition-colors"
+   394→                        >
+   395→                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   396→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+   397→                          </svg>
+   398→                          View V5 Document
+   399→                        </a>
+   400→                      </div>
+   401→                    </div>
+   402→                  )}
+   403→
+   404→                  {/* Notes */}
+   405→                  {vehicle.notes && (
+   406→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   407→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   408→                        <div className="flex items-center gap-2">
+   409→                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+   410→                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   411→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+   412→                            </svg>
+   413→                          </div>
+   414→                          <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+   415→                        </div>
+   416→                      </div>
+   417→                      <div className="p-4">
+   418→                        <p className="text-sm whitespace-pre-wrap text-slate-600 leading-relaxed">{vehicle.notes}</p>
+   419→                      </div>
+   420→                    </div>
+   421→                  )}
+   422→                </div>
+   423→              )}
+   424→
+   425→              {/* Checklist Tab */}
+   426→              {activeTab === "checklist" && (
+   427→                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   428→                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   429→                    <div className="flex items-center justify-between">
+   430→                      <div className="flex items-center gap-2">
+   431→                        <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+   432→                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   433→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+   434→                          </svg>
+   435→                        </div>
+   436→                        <h3 className="text-sm font-bold text-slate-800">Prep Checklist</h3>
+   437→                      </div>
+   438→                      {vehicle.tasks?.length > 0 && (
+   439→                        <span className="text-xs font-medium text-slate-500">
+   440→                          {vehicle.tasks.filter(t => t.status === "done").length}/{vehicle.tasks.length} Complete
+   441→                        </span>
+   442→                      )}
+   443→                    </div>
+   444→                  </div>
+   445→                  <div className="p-4">
+   446→                    {vehicle.tasks?.length > 0 ? (
+   447→                      <div className="space-y-2">
+   448→                        {vehicle.tasks.map((task) => (
+   449→                          <div
+   450→                            key={task.id}
+   451→                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+   452→                              task.status === "done"
+   453→                                ? "bg-emerald-50/50 border-emerald-100"
+   454→                                : task.status === "in_progress"
+   455→                                ? "bg-amber-50/50 border-amber-100"
+   456→                                : "bg-white border-slate-100"
+   457→                            }`}
+   458→                          >
+   459→                            {/* Status Icon */}
+   460→                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+   461→                              task.status === "done"
+   462→                                ? "bg-emerald-500 text-white"
+   463→                                : task.status === "in_progress"
+   464→                                ? "bg-amber-500 text-white"
+   465→                                : task.status === "not_required"
+   466→                                ? "bg-slate-200 text-slate-400"
+   467→                                : "bg-slate-100 text-slate-400"
+   468→                            }`}>
+   469→                              {task.status === "done" ? (
+   470→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   471→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+   472→                                </svg>
+   473→                              ) : task.status === "in_progress" ? (
+   474→                                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   475→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+   476→                                </svg>
+   477→                              ) : task.status === "not_required" ? (
+   478→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   479→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+   480→                                </svg>
+   481→                              ) : (
+   482→                                <span className="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+   483→                              )}
+   484→                            </div>
+   485→                            {/* Task Name */}
+   486→                            <span className={`flex-1 text-sm font-medium ${
+   487→                              task.status === "done" ? "line-through text-slate-400" : "text-slate-700"
+   488→                            }`}>
+   489→                              {task.name}
+   490→                            </span>
+   491→                            {/* Completion Date */}
+   492→                            {task.completedAt && (
+   493→                              <span className="text-xs text-emerald-600 font-medium bg-emerald-100 px-2 py-1 rounded-lg">
+   494→                                {formatDate(task.completedAt)}
+   495→                              </span>
+   496→                            )}
+   497→                          </div>
+   498→                        ))}
+   499→                      </div>
+   500→                    ) : (
+   501→                      <div className="text-center py-8">
+   502→                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+   503→                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   504→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+   505→                          </svg>
+   506→                        </div>
+   507→                        <p className="text-sm font-medium text-slate-600">No tasks</p>
+   508→                        <p className="text-xs text-slate-400 mt-1">This vehicle has no prep tasks</p>
+   509→                      </div>
+   510→                    )}
+   511→                  </div>
+   512→                </div>
+   513→              )}
+   514→
+   515→              {/* Issues Tab */}
+   516→              {activeTab === "issues" && (
+   517→                <div className="space-y-4">
+   518→                  {vehicle.issues?.length > 0 ? (
+   519→                    vehicle.issues.map((issue) => (
+   520→                      <div
+   521→                        key={issue.id}
+   522→                        className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
+   523→                      >
+   524→                        {/* Issue Card Header */}
+   525→                        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100">
+   526→                          <div className="flex items-center justify-between gap-3">
+   527→                            {/* Category & Subcategory Badges */}
+   528→                            <div className="flex items-center gap-2 flex-wrap min-w-0">
+   529→                              <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+   530→                                {issue.category}
+   531→                              </span>
+   532→                              {issue.subcategory && (
+   533→                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+   534→                                  {issue.subcategory}
+   535→                                </span>
+   536→                              )}
+   537→                            </div>
+   538→                            {/* Status Badge */}
+   539→                            <span
+   540→                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${
+   541→                                issue.status === "Complete"
+   542→                                  ? "bg-emerald-100 text-emerald-700"
+   543→                                  : issue.status === "In Progress"
+   544→                                  ? "bg-amber-100 text-amber-700"
+   545→                                  : issue.status === "Ordered"
+   546→                                  ? "bg-blue-100 text-blue-700"
+   547→                                  : "bg-red-100 text-red-700"
+   548→                              }`}
+   549→                            >
+   550→                              {issue.status || "Outstanding"}
+   551→                            </span>
+   552→                          </div>
+   553→                        </div>
+   554→
+   555→                        {/* Issue Card Body */}
+   556→                        <div className="p-4 space-y-3">
+   557→                          {/* Description */}
+   558→                          <p className="text-sm font-medium text-slate-900">{issue.description}</p>
+   559→
+   560→                          {/* Details Grid */}
+   561→                          <div className="space-y-2">
+   562→                            {issue.actionNeeded && (
+   563→                              <div className="flex items-start gap-2">
+   564→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   565→                                  Action
+   566→                                </span>
+   567→                                <p className="text-sm text-slate-600">{issue.actionNeeded}</p>
+   568→                              </div>
+   569→                            )}
+   570→                            {issue.priority && (
+   571→                              <div className="flex items-center gap-2">
+   572→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+   573→                                  Priority
+   574→                                </span>
+   575→                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+   576→                                  issue.priority === "high" ? "bg-red-50 text-red-700" :
+   577→                                  issue.priority === "medium" ? "bg-amber-50 text-amber-700" :
+   578→                                  "bg-slate-100 text-slate-600"
+   579→                                }`}>
+   580→                                  {issue.priority}
+   581→                                </span>
+   582→                              </div>
+   583→                            )}
+   584→                            {issue.location && (
+   585→                              <div className="flex items-center gap-2">
+   586→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+   587→                                  Location
+   588→                                </span>
+   589→                                <p className="text-sm text-slate-600">{issue.location}</p>
+   590→                              </div>
+   591→                            )}
+   592→                            {issue.partsRequired && (
+   593→                              <div className="flex items-start gap-2">
+   594→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   595→                                  Parts Details
+   596→                                </span>
+   597→                                <div>
+   598→                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC] mb-1">
+   599→                                    Required
+   600→                                  </span>
+   601→                                  {issue.partsDetails && (
+   602→                                    <p className="text-sm text-slate-600">{issue.partsDetails}</p>
+   603→                                  )}
+   604→                                </div>
+   605→                              </div>
+   606→                            )}
+   607→                            {issue.notes && (
+   608→                              <div className="flex items-start gap-2">
+   609→                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
+   610→                                  Notes
+   611→                                </span>
+   612→                                <p className="text-sm text-slate-600">{issue.notes}</p>
+   613→                              </div>
+   614→                            )}
+   615→                          </div>
+   616→
+   617→                          {/* Photos */}
+   618→                          {issue.photos?.length > 0 && (
+   619→                            <div className="pt-2">
+   620→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+   621→                                Photos ({issue.photos.length})
+   622→                              </p>
+   623→                              <div className="flex flex-wrap gap-2">
+   624→                                {issue.photos.map((photo, idx) => (
+   625→                                  <a
+   626→                                    key={idx}
+   627→                                    href={photo}
+   628→                                    target="_blank"
+   629→                                    rel="noopener noreferrer"
+   630→                                    className="block"
+   631→                                  >
+   632→                                    <img
+   633→                                      src={photo}
+   634→                                      alt={`Issue photo ${idx + 1}`}
+   635→                                      className="w-16 h-16 object-cover rounded-lg hover:opacity-90 hover:scale-105 transition-all border-2 border-slate-200 hover:border-[#0066CC]"
+   636→                                    />
+   637→                                  </a>
+   638→                                ))}
+   639→                              </div>
+   640→                            </div>
+   641→                          )}
+   642→
+   643→                          {/* Attachments */}
+   644→                          {issue.attachments?.length > 0 && (
+   645→                            <div className="pt-2">
+   646→                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+   647→                                Attachments ({issue.attachments.length})
+   648→                              </p>
+   649→                              <div className="flex flex-wrap gap-2">
+   650→                                {issue.attachments.map((attachment, idx) => (
+   651→                                  <a
+   652→                                    key={idx}
+   653→                                    href={attachment}
+   654→                                    target="_blank"
+   655→                                    rel="noopener noreferrer"
+   656→                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-medium text-slate-700 transition-colors"
+   657→                                  >
+   658→                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   659→                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+   660→                                    </svg>
+   661→                                    File {idx + 1}
+   662→                                  </a>
+   663→                                ))}
+   664→                              </div>
+   665→                            </div>
+   666→                          )}
+   667→                        </div>
+   668→
+   669→                        {/* Updates Accordion */}
+   670→                        {issue.updates?.length > 0 && (
+   671→                          <div className="border-t border-slate-100">
+   672→                            <button
+   673→                              className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+   674→                              onClick={() =>
+   675→                                setExpandedIssues((prev) => ({
+   676→                                  ...prev,
+   677→                                  [issue.id]: !prev[issue.id],
+   678→                                }))
+   679→                              }
+   680→                            >
+   681→                              <span className="flex items-center gap-2">
+   682→                                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   683→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+   684→                                </svg>
+   685→                                {issue.updates.length} Update{issue.updates.length !== 1 ? "s" : ""}
+   686→                              </span>
+   687→                              <svg
+   688→                                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+   689→                                  expandedIssues[issue.id] ? "rotate-180" : ""
+   690→                                }`}
+   691→                                fill="none"
+   692→                                stroke="currentColor"
+   693→                                viewBox="0 0 24 24"
+   694→                              >
+   695→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+   696→                              </svg>
+   697→                            </button>
+   698→
+   699→                            {expandedIssues[issue.id] && (
+   700→                              <div className="px-4 pb-4 space-y-3 bg-slate-50/50">
+   701→                                {issue.updates.map((update, idx) => (
+   702→                                  <div
+   703→                                    key={idx}
+   704→                                    className="pl-4 border-l-2 border-[#0066CC]/30"
+   705→                                  >
+   706→                                    <div className="flex items-center gap-2 mb-1">
+   707→                                      <p className="text-sm font-semibold text-slate-700">
+   708→                                        {update.userName || "User"}
+   709→                                      </p>
+   710→                                      <span className="text-xs text-slate-400">
+   711→                                        {formatDate(update.createdAt)}
+   712→                                      </span>
+   713→                                    </div>
+   714→                                    <p className="text-sm text-slate-600">{update.content}</p>
+   715→                                  </div>
+   716→                                ))}
+   717→                              </div>
+   718→                            )}
+   719→                          </div>
+   720→                        )}
+   721→                      </div>
+   722→                    ))
+   723→                  ) : (
+   724→                    <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
+   725→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+   726→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   727→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   728→                        </svg>
+   729→                      </div>
+   730→                      <p className="text-sm font-medium text-slate-600">No issues recorded</p>
+   731→                      <p className="text-xs text-slate-400 mt-1">This vehicle has no reported issues</p>
+   732→                    </div>
+   733→                  )}
+   734→                </div>
+   735→              )}
+   736→
+   737→              {/* Documents Tab */}
+   738→              {activeTab === "documents" && (
+   739→                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   740→                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   741→                    <div className="flex items-center gap-2">
+   742→                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+   743→                        <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   744→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+   745→                        </svg>
+   746→                      </div>
+   747→                      <h3 className="text-sm font-bold text-slate-800">Documents</h3>
+   748→                    </div>
+   749→                  </div>
+   750→                  <div className="p-4">
+   751→                    {vehicle.documents?.length > 0 ? (
+   752→                      <div className="space-y-2">
+   753→                        {vehicle.documents.map((doc) => (
+   754→                          <a
+   755→                            key={doc.id}
+   756→                            href={doc.url}
+   757→                            target="_blank"
+   758→                            rel="noopener noreferrer"
+   759→                            className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group"
+   760→                          >
+   761→                            {/* Document Icon */}
+   762→                            <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-[#0066CC]/10 flex items-center justify-center shrink-0 transition-colors">
+   763→                              <svg className="w-5 h-5 text-slate-400 group-hover:text-[#0066CC] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   764→                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   765→                              </svg>
+   766→                            </div>
+   767→                            {/* Document Info */}
+   768→                            <div className="flex-1 min-w-0">
+   769→                              <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
+   770→                              <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-semibold uppercase tracking-wide ${
+   771→                                doc.type === "v5" ? "bg-amber-100 text-amber-700" :
+   772→                                doc.type === "service_history" ? "bg-[#14B8A6]/10 text-[#14B8A6]" :
+   773→                                doc.type === "fault_codes" ? "bg-red-100 text-red-600" :
+   774→                                "bg-slate-100 text-slate-600"
+   775→                              }`}>
+   776→                                {doc.type === "v5" && "V5"}
+   777→                                {doc.type === "service_history" && "Service History"}
+   778→                                {doc.type === "fault_codes" && "Fault Codes"}
+   779→                                {doc.type === "other" && "Other"}
+   780→                              </span>
+   781→                            </div>
+   782→                            {/* View Arrow */}
+   783→                            <svg className="w-5 h-5 text-slate-300 group-hover:text-[#0066CC] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   784→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+   785→                            </svg>
+   786→                          </a>
+   787→                        ))}
+   788→                      </div>
+   789→                    ) : (
+   790→                      <div className="text-center py-8">
+   791→                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+   792→                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   793→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+   794→                          </svg>
+   795→                        </div>
+   796→                        <p className="text-sm font-medium text-slate-600">No documents</p>
+   797→                        <p className="text-xs text-slate-400 mt-1">No documents have been uploaded</p>
+   798→                      </div>
+   799→                    )}
+   800→                  </div>
+   801→                </div>
+   802→              )}
+   803→            </div>
+   804→          </>
+   805→        )}
+   806→      </div>
+   807→    </div>
+   808→  );
+   809→}
+   810→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

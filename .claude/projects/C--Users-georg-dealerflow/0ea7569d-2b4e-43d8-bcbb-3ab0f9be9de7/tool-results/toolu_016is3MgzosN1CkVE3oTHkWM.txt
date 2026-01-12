@@ -1,0 +1,104 @@
+  1380→                        {/* Delete/Cancel actions */}
+  1381→                        <div className="pt-2 border-t border-slate-100">
+  1382→                          {deal.status === "DRAFT" ? (
+  1383→                            <button
+  1384→                              onClick={() => setShowDeleteConfirm(true)}
+  1385→                              disabled={actionLoading}
+  1386→                              className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50"
+  1387→                            >
+  1388→                              Delete Draft
+  1389→                            </button>
+  1390→                          ) : (
+  1391→                            <button
+  1392→                              onClick={handleCancelDeal}
+  1393→                              disabled={actionLoading}
+  1394→                              className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50"
+  1395→                            >
+  1396→                              Cancel Deal
+  1397→                            </button>
+  1398→                          )}
+  1399→                        </div>
+  1400→                      </div>
+  1401→                    </div>
+  1402→                  )}
+  1403→
+  1404→                  {/* Pricing Summary */}
+  1405→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1406→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1407→                      <div className="flex items-center justify-between">
+  1408→                        <div className="flex items-center gap-2">
+  1409→                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1410→                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1411→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1412→                            </svg>
+  1413→                          </div>
+  1414→                          <h3 className="text-sm font-bold text-slate-800">Pricing</h3>
+  1415→                        </div>
+  1416→                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+  1417→                          deal.vatScheme === "VAT_QUALIFYING"
+  1418→                            ? "bg-blue-100 text-blue-700"
+  1419→                            : "bg-slate-100 text-slate-600"
+  1420→                        }`}>
+  1421→                          {VAT_SCHEME_LABELS[deal.vatScheme] || deal.vatScheme}
+  1422→                        </span>
+  1423→                      </div>
+  1424→                    </div>
+  1425→                    <div className="p-4 space-y-3">
+  1426→                      {/* Vehicle Price - Editable for Draft */}
+  1427→                      <div className="flex justify-between items-center">
+  1428→                        <span className="text-sm text-slate-600">Vehicle</span>
+  1429→                        {deal.status === "DRAFT" && isEditingPrice ? (
+  1430→                          <div className="flex items-center gap-2">
+  1431→                            <div className="relative w-28">
+  1432→                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1433→                              <input
+  1434→                                type="number"
+  1435→                                step="0.01"
+  1436→                                className="input input-sm input-bordered w-full pl-6 pr-2 text-right"
+  1437→                                value={priceInput}
+  1438→                                onChange={(e) => setPriceInput(e.target.value)}
+  1439→                                onKeyDown={(e) => {
+  1440→                                  if (e.key === "Enter") handleUpdatePrice();
+  1441→                                  if (e.key === "Escape") setIsEditingPrice(false);
+  1442→                                }}
+  1443→                                autoFocus
+  1444→                              />
+  1445→                            </div>
+  1446→                            <button
+  1447→                              onClick={handleUpdatePrice}
+  1448→                              disabled={actionLoading === "field"}
+  1449→                              className="btn btn-xs btn-ghost text-emerald-600"
+  1450→                            >
+  1451→                              ✓
+  1452→                            </button>
+  1453→                            <button
+  1454→                              onClick={() => setIsEditingPrice(false)}
+  1455→                              className="btn btn-xs btn-ghost text-slate-400"
+  1456→                            >
+  1457→                              ✕
+  1458→                            </button>
+  1459→                          </div>
+  1460→                        ) : (
+  1461→                          <div className="flex items-center gap-2">
+  1462→                            <span className="font-semibold text-slate-900">
+  1463→                              {deal.vehiclePriceGross > 0
+  1464→                                ? formatCurrency(deal.vehiclePriceGross)
+  1465→                                : "—"}
+  1466→                            </span>
+  1467→                            {deal.status === "DRAFT" && (
+  1468→                              <button
+  1469→                                onClick={() => {
+  1470→                                  setPriceInput(deal.vehiclePriceGross?.toString() || "");
+  1471→                                  setIsEditingPrice(true);
+  1472→                                }}
+  1473→                                className="btn btn-xs btn-ghost text-[#0066CC]"
+  1474→                              >
+  1475→                                Edit
+  1476→                              </button>
+  1477→                            )}
+  1478→                          </div>
+  1479→                        )}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

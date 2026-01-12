@@ -11,7 +11,7 @@ import { Portal } from "@/components/ui/Portal";
 const FORM_TYPE_LABELS = {
   PDI: "PDI",
   TEST_DRIVE: "Test Drive",
-  WARRANTY_CLAIM: "Warranty",
+  WARRANTY_CLAIM: "Problem Report",
   COURTESY_OUT: "Courtesy Out",
   COURTESY_IN: "Courtesy In",
   SERVICE_RECEIPT: "Service",
@@ -143,33 +143,55 @@ const CogIcon = ({ className }) => (
   </svg>
 );
 
+const CurrencyPoundIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.121 7.629A3 3 0 009.017 9.43c0 1.886.784 3.451 1.66 4.692.877 1.242 1.866 2.217 2.477 2.825H6.75v2.304h10.5v-2.304H15m0-9a3 3 0 00-3-3m0 0V3m0 3v.75M6 12h6" />
+  </svg>
+);
+
 const ChevronDownIcon = ({ className }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
   </svg>
 );
 
-// Navigation structure:
-// - Main (0-2): Dashboard, Stock & Prep, Aftersales
-// - Management (3-6): Appraisals, Submissions, Reviews, Calendar
-// - HR (7-8): Holidays, Overtime
-// - System (9): Settings
+// Navigation structure with permission requirements:
+// - section: "main" | "management" | "hr" | "system"
+// - requiresPermission: "sales" | "workshop" | "admin" | null (null = everyone)
 const navigation = [
-  // Main
-  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
-  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
-  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
-  // Management
-  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
-  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
-  { name: "Reviews", href: "/reviews", Icon: StarIcon },
-  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
-  // HR
-  { name: "Holidays", href: "/holidays", Icon: SunIcon },
-  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
-  // System
-  { name: "Settings", href: "/settings", Icon: CogIcon },
+  // Main Section
+  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon, section: "main" },
+  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon, section: "main" },
+  { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon, requiresPermission: "sales", section: "main" },
+  { name: "Aftersales", href: "/warranty", Icon: WrenchIcon, section: "main" },
+  // Management Section
+  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon, section: "management" },
+  { name: "Contacts", href: "/contacts", Icon: UsersIcon, requiresPermission: "sales", section: "management" },
+  { name: "Reports", href: "/reports", Icon: ChartBarIcon, requiresPermission: "sales", section: "management" },
+  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon, section: "management" },
+  { name: "Reviews", href: "/reviews", Icon: StarIcon, section: "management" },
+  { name: "Calendar", href: "/calendar", Icon: CalendarIcon, section: "management" },
+  // HR Section
+  { name: "Holidays", href: "/holidays", Icon: SunIcon, section: "hr" },
+  { name: "Overtime", href: "/overtime", Icon: ClockIcon, section: "hr" },
+  // System Section
+  { name: "Settings", href: "/settings", Icon: CogIcon, requiresPermission: "admin", section: "system" },
 ];
+
+// Role permission mapping (client-side version of ROLE_PERMISSIONS)
+const CLIENT_ROLE_PERMISSIONS = {
+  OWNER: { sales: true, workshop: true, admin: true },
+  ADMIN: { sales: true, workshop: true, admin: true },
+  SALES: { sales: true, workshop: false, admin: false },
+  STAFF: { sales: false, workshop: true, admin: false },
+  WORKSHOP: { sales: false, workshop: true, admin: false },
+  VIEWER: { sales: true, workshop: true, admin: false },
+};
+
+// Check if role has permission
+const hasClientPermission = (role, permission) => {
+  return CLIENT_ROLE_PERMISSIONS[role]?.[permission] ?? false;
+};
 
 // Cache key for logo URL in localStorage
 const LOGO_CACHE_KEY = "dealerflow_logo_url";
@@ -183,8 +205,18 @@ export default function DashboardLayout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const [forms, setForms] = useState([]);
+
+  // Auto-expand menus based on current path
+  useEffect(() => {
+    navigation.forEach((item) => {
+      if (item.children && router.pathname.startsWith(item.href)) {
+        setExpandedMenus((prev) => ({ ...prev, [item.name]: true }));
+      }
+    });
+  }, [router.pathname]);
   const [dealer, setDealer] = useState(null);
   const [dealerLoading, setDealerLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null); // User's membership role (OWNER, ADMIN, SALES, etc.)
   const [cachedLogo, setCachedLogo] = useState(null);
   const [cachedName, setCachedName] = useState(null);
   const [debugContext, setDebugContext] = useState(null);
@@ -326,6 +358,11 @@ export default function DashboardLayout({ children }) {
 
         setDealer(data);
 
+        // Store user's role for permission filtering
+        if (data.currentUserRole) {
+          setUserRole(data.currentUserRole);
+        }
+
         // Cache logo URL for instant display on next load
         try {
           if (data.logoUrl) {
@@ -357,6 +394,16 @@ export default function DashboardLayout({ children }) {
       router.push(`/forms/fill/${form.id || form._id}`);
     }
   };
+
+  // Filter navigation based on user's role permissions
+  const filteredNavigation = navigation.filter((item) => {
+    // If no permission required, show to everyone
+    if (!item.requiresPermission) return true;
+    // If role hasn't loaded yet, show all items (will re-filter when role loads)
+    if (!userRole) return true;
+    // Check if user's role has the required permission
+    return hasClientPermission(userRole, item.requiresPermission);
+  });
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -435,7 +482,7 @@ export default function DashboardLayout({ children }) {
             </p>
           )}
           <ul className="space-y-1">
-            {navigation.slice(0, 3).map((item) => {
+            {filteredNavigation.filter(item => item.section === "main").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
               const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
@@ -492,12 +539,12 @@ export default function DashboardLayout({ children }) {
           )}
           {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
           <ul className="space-y-1">
-            {navigation.slice(3, 7).map((item) => {
+            {filteredNavigation.filter(item => item.section === "management").map((item) => {
               const { Icon } = item;
 
               if (item.children) {
                 const isExpanded = expandedMenus[item.name];
-                const isActive = router.pathname.startsWith("/forms");
+                const isActive = router.pathname.startsWith(item.href);
 
                 return (
                   <li key={item.name}>
@@ -614,7 +661,7 @@ export default function DashboardLayout({ children }) {
           )}
           {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
           <ul className="space-y-1">
-            {navigation.slice(7, 9).map((item) => {
+            {filteredNavigation.filter(item => item.section === "hr").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
               const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
@@ -668,7 +715,7 @@ export default function DashboardLayout({ children }) {
           )}
           {sidebarCollapsed && <div className="my-4 border-t border-slate-100" />}
           <ul className="space-y-1">
-            {navigation.slice(9).map((item) => {
+            {filteredNavigation.filter(item => item.section === "system").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
               const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
@@ -820,15 +867,25 @@ export default function DashboardLayout({ children }) {
                   <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-xl bg-white rounded-2xl w-52 mb-3 border border-slate-100">
                     <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">Management</li>
                     <li><Link href={getPath("/appraisals")} className="text-sm py-2.5 rounded-xl">Appraisals</Link></li>
+                    {hasClientPermission(userRole, "sales") && (
+                      <li><Link href={getPath("/contacts")} className="text-sm py-2.5 rounded-xl">Contacts</Link></li>
+                    )}
+                    {hasClientPermission(userRole, "sales") && (
+                      <li><Link href={getPath("/reports")} className="text-sm py-2.5 rounded-xl">Reports</Link></li>
+                    )}
                     <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>
                     <li><Link href={getPath("/calendar")} className="text-sm py-2.5 rounded-xl">Calendar</Link></li>
                     <div className="divider my-1 px-3"></div>
                     <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">HR</li>
                     <li><Link href={getPath("/holidays")} className="text-sm py-2.5 rounded-xl">Holidays</Link></li>
                     <li><Link href={getPath("/overtime")} className="text-sm py-2.5 rounded-xl">Overtime</Link></li>
-                    <div className="divider my-1 px-3"></div>
-                    <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
-                    <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+                    {hasClientPermission(userRole, "admin") && (
+                      <>
+                        <div className="divider my-1 px-3"></div>
+                        <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-2">System</li>
+                        <li><Link href={getPath("/settings")} className="text-sm py-2.5 rounded-xl">Settings</Link></li>
+                      </>
+                    )}
                   </ul>
                 </div>
               );
@@ -947,6 +1004,18 @@ export default function DashboardLayout({ children }) {
               <span className="font-medium text-slate-900">Add Vehicle</span>
             </Link>
             <Link
+              href={getPath("/sales?create=1")}
+              onClick={() => setShowMobileQuickAdd(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <span className="font-medium text-slate-900">Create Sale</span>
+            </Link>
+            <Link
               href={getPath("/warranty?addCase=1")}
               onClick={() => setShowMobileQuickAdd(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
@@ -1021,6 +1090,18 @@ export default function DashboardLayout({ children }) {
                     <TruckIcon className="w-4 h-4 text-emerald-600" />
                   </div>
                   <span className="text-sm font-medium text-slate-900">Add Vehicle</span>
+                </Link>
+                <Link
+                  href={getPath("/sales?create=1")}
+                  onClick={() => setShowDesktopQuickAdd(false)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-slate-900">Create Sale</span>
                 </Link>
                 <Link
                   href={getPath("/warranty?addCase=1")}

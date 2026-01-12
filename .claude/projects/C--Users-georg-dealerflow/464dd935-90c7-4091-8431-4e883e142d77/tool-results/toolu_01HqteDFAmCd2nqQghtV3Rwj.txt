@@ -1,0 +1,84 @@
+   550→    } finally {
+   551→      setIsGeneratingAI(false);
+   552→    }
+   553→  };
+   554→
+   555→  // Fetch AI diagnostic suggestions
+   556→  const fetchAIDiagnostics = async () => {
+   557→    if (!selectedCase) return;
+   558→    setIsLoadingDiagnostics(true);
+   559→    setAiDiagnostics(null);
+   560→    try {
+   561→      const vehicle = selectedCase.vehicleId;
+   562→      const res = await fetch("/api/ai/warranty-suggestions", {
+   563→        method: "POST",
+   564→        headers: { "Content-Type": "application/json" },
+   565→        body: JSON.stringify({
+   566→          vehicleMake: vehicle?.make,
+   567→          vehicleModel: vehicle?.model,
+   568→          vehicleYear: vehicle?.year,
+   569→          mileage: vehicle?.mileage,
+   570→          fuelType: vehicle?.fuelType,
+   571→          symptomDescription: selectedCase.summary || selectedCase.details?.description || "",
+   572→          faultCodes: selectedCase.details?.faultCodes,
+   573→          warrantyType: selectedCase.warrantyType,
+   574→          additionalContext: selectedCase.details ? JSON.stringify(selectedCase.details) : null,
+   575→        }),
+   576→      });
+   577→      const data = await res.json();
+   578→      if (data.success) {
+   579→        setAiDiagnostics({
+   580→          suggestions: data.suggestions,
+   581→          isDummy: data.isDummy,
+   582→        });
+   583→      } else {
+   584→        toast.error(data.error || "Failed to get AI suggestions");
+   585→      }
+   586→    } catch (error) {
+   587→      console.error("AI diagnostics error:", error);
+   588→      toast.error("Failed to get AI suggestions");
+   589→    } finally {
+   590→      setIsLoadingDiagnostics(false);
+   591→    }
+   592→  };
+   593→
+   594→  const copyToClipboard = (text, label) => {
+   595→    navigator.clipboard.writeText(text);
+   596→    toast.success(`${label} copied to clipboard`);
+   597→  };
+   598→
+   599→  // Filter cases by search query and filters
+   600→  const getFilteredCases = () => {
+   601→    let filtered = cases;
+   602→
+   603→    // Apply search query filter
+   604→    if (searchQuery.trim()) {
+   605→      const query = searchQuery.toUpperCase().replace(/\s/g, "");
+   606→      filtered = filtered.filter(c => {
+   607→        // Search by VRM
+   608→        const regAtPurchase = (c.regAtPurchase || "").toUpperCase().replace(/\s/g, "");
+   609→        const currentReg = (c.currentReg || "").toUpperCase().replace(/\s/g, "");
+   610→        const detailsReg = (c.details?.vehicleReg || "").toUpperCase().replace(/\s/g, "");
+   611→        // Search by customer name
+   612→        const customerName = (c.contactId?.name || "").toUpperCase();
+   613→        return regAtPurchase.includes(query) ||
+   614→               currentReg.includes(query) ||
+   615→               detailsReg.includes(query) ||
+   616→               customerName.includes(query);
+   617→      });
+   618→    }
+   619→
+   620→    // Apply location filter
+   621→    if (filters.location !== "all") {
+   622→      filtered = filtered.filter(c => (c.repairLocationType || "WITH_CUSTOMER") === filters.location);
+   623→    }
+   624→
+   625→    // Apply booked filter
+   626→    if (filters.booked === "booked") {
+   627→      filtered = filtered.filter(c => c.bookedInAt);
+   628→    } else if (filters.booked === "not_booked") {
+   629→      filtered = filtered.filter(c => !c.bookedInAt);
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

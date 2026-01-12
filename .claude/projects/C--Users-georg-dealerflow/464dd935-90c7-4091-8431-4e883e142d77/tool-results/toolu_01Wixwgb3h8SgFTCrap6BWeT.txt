@@ -1,0 +1,21 @@
+C:\Users\georg\dealerflow\pages\api\ai\health.js:7: * Used for diagnostics and debugging.
+C:\Users\georg\dealerflow\pages\warranty.js:161:  const [aiDiagnostics, setAiDiagnostics] = useState(null);
+C:\Users\georg\dealerflow\pages\warranty.js:162:  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+C:\Users\georg\dealerflow\pages\warranty.js:239:    // Clear AI diagnostics when switching cases
+C:\Users\georg\dealerflow\pages\warranty.js:240:    setAiDiagnostics(null);
+C:\Users\georg\dealerflow\pages\warranty.js:556:  const fetchAIDiagnostics = async () => {
+C:\Users\georg\dealerflow\pages\warranty.js:558:    setIsLoadingDiagnostics(true);
+C:\Users\georg\dealerflow\pages\warranty.js:559:    setAiDiagnostics(null);
+C:\Users\georg\dealerflow\pages\warranty.js:579:        setAiDiagnostics({
+C:\Users\georg\dealerflow\pages\warranty.js:587:      console.error("AI diagnostics error:", error);
+C:\Users\georg\dealerflow\pages\warranty.js:590:      setIsLoadingDiagnostics(false);
+C:\Users\georg\dealerflow\pages\warranty.js:2007:              {/* AI Diagnostics Panel */}
+C:\Users\georg\dealerflow\pages\warranty.js:2010:                  <h3 className="text-sm font-semibold text-slate-900">AI Diagnostics</h3>
+C:\Users\georg\dealerflow\pages\warranty.js:2013:                    onClick={fetchAIDiagnostics}
+C:\Users\georg\dealerflow\pages\warranty.js:2014:                    disabled={isLoadingDiagnostics}
+C:\Users\georg\dealerflow\pages\warranty.js:2016:                    {isLoadingDiagnostics ? (
+C:\Users\georg\dealerflow\pages\warranty.js:2018:                    ) : aiDiagnostics ? (
+C:\Users\georg\dealerflow\pages\warranty.js:2035:                {(aiDiagnostics || isLoadingDiagnostics) && (
+C:\Users\georg\dealerflow\pages\warranty.js:2037:                    suggestions={aiDiagnostics?.suggestions}
+C:\Users\georg\dealerflow\pages\warranty.js:2038:                    isLoading={isLoadingDiagnostics}
+C:\Users\georg\dealerflow\pages\warranty.js:2039:                    isDummy={aiDiagnostics?.isDummy}

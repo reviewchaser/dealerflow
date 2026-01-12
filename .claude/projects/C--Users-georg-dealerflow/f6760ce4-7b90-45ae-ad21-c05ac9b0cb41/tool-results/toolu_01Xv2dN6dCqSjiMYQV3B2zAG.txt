@@ -1,0 +1,640 @@
+     1→@tailwind base;
+     2→@tailwind components;
+     3→@tailwind utilities;
+     4→
+     5→/* ============================================
+     6→   DESIGN SYSTEM TOKENS - DealerFlow 2.0
+     7→   Modern SaaS aesthetic with cobalt/teal palette
+     8→   ============================================ */
+     9→
+    10→:root {
+    11→  /* Brand Colors - Modern Cobalt/Teal */
+    12→  --brand: 210 100% 45%; /* Cobalt Blue #0066CC */
+    13→  --brand-light: 210 100% 55%;
+    14→  --brand-dark: 210 100% 35%;
+    15→  --brand-50: 210 100% 97%;
+    16→  --brand-100: 210 100% 92%;
+    17→  --brand-500: 210 100% 45%;
+    18→  --brand-600: 210 100% 40%;
+    19→  --brand-700: 210 100% 35%;
+    20→
+    21→  /* Secondary Accent - Teal */
+    22→  --accent: 175 75% 45%; /* Teal #14B8A6 */
+    23→  --accent-light: 175 75% 55%;
+    24→  --accent-50: 175 75% 95%;
+    25→
+    26→  /* Semantic Colors */
+    27→  --success: 152 69% 40%; /* Emerald #059669 */
+    28→  --success-light: 152 69% 95%;
+    29→  --warning: 38 92% 50%; /* Amber #F59E0B */
+    30→  --warning-light: 38 92% 95%;
+    31→  --danger: 0 72% 51%; /* Red #DC2626 */
+    32→  --danger-light: 0 72% 95%;
+    33→  --info: 199 89% 48%; /* Cyan #0EA5E9 */
+    34→  --info-light: 199 89% 95%;
+    35→
+    36→  /* Backgrounds & Surfaces */
+    37→  --bg: 220 14% 97%; /* Light grey page background */
+    38→  --surface: 0 0% 100%; /* White cards */
+    39→  --surface-2: 220 14% 96%; /* Slightly darker surface */
+    40→  --surface-hover: 220 14% 94%;
+    41→
+    42→  /* Borders */
+    43→  --border: 220 13% 91%;
+    44→  --border-light: 220 13% 95%;
+    45→  --border-focus: 210 100% 45%;
+    46→
+    47→  /* Text */
+    48→  --text: 222 47% 11%; /* Slate 900 */
+    49→  --text-secondary: 215 16% 47%; /* Slate 500 */
+    50→  --text-muted: 215 20% 65%; /* Slate 400 */
+    51→  --text-inverted: 0 0% 100%;
+    52→
+    53→  /* Gradients */
+    54→  --gradient-brand: linear-gradient(135deg, hsl(210 100% 45%) 0%, hsl(195 90% 50%) 100%);
+    55→  --gradient-hero: linear-gradient(135deg, hsl(210 100% 50% / 0.08) 0%, hsl(175 75% 50% / 0.05) 100%);
+    56→  --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+    57→
+    58→  /* Shadows */
+    59→  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    60→  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    61→  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+    62→  --shadow-brand: 0 4px 14px 0 hsl(210 100% 45% / 0.25);
+    63→
+    64→  /* Radius */
+    65→  --radius-sm: 0.375rem;
+    66→  --radius-md: 0.5rem;
+    67→  --radius-lg: 0.75rem;
+    68→  --radius-xl: 1rem;
+    69→  --radius-2xl: 1.25rem;
+    70→  --radius-full: 9999px;
+    71→
+    72→  /* Safe area insets for iOS */
+    73→  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+    74→  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    75→  --safe-area-inset-left: env(safe-area-inset-left, 0px);
+    76→  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+    77→  --bottom-nav-height: 4rem; /* 64px */
+    78→}
+    79→
+    80→/* Dark mode overrides (if needed in future) */
+    81→[data-theme="dark"] {
+    82→  --bg: 222 47% 11%;
+    83→  --surface: 222 47% 15%;
+    84→  --surface-2: 222 47% 18%;
+    85→  --border: 222 47% 25%;
+    86→  --text: 0 0% 95%;
+    87→  --text-secondary: 215 20% 65%;
+    88→}
+    89→
+    90→/* ============================================
+    91→   GLOBAL MOBILE OPTIMIZATION & OVERFLOW FIXES
+    92→   ============================================ */
+    93→
+    94→/* Prevent horizontal scroll on the entire app */
+    95→html, body {
+    96→  width: 100%;
+    97→  max-width: 100vw;
+    98→  overflow-x: hidden;
+    99→  background-color: hsl(var(--bg));
+   100→}
+   101→
+   102→/* Root container overflow protection */
+   103→#__next {
+   104→  width: 100%;
+   105→  max-width: 100vw;
+   106→  overflow-x: hidden;
+   107→}
+   108→
+   109→/* Ensure flex children don't overflow */
+   110→.min-w-0 { min-width: 0; }
+   111→
+   112→/* Text overflow utilities */
+   113→.break-anywhere { word-break: break-word; overflow-wrap: anywhere; }
+   114→
+   115→/* Hide scrollbar but keep functionality */
+   116→.scrollbar-hide {
+   117→  -ms-overflow-style: none;
+   118→  scrollbar-width: none;
+   119→}
+   120→.scrollbar-hide::-webkit-scrollbar {
+   121→  display: none;
+   122→}
+   123→
+   124→/* Horizontal scroll with fade hints */
+   125→.scroll-fade-x {
+   126→  position: relative;
+   127→}
+   128→.scroll-fade-x::before,
+   129→.scroll-fade-x::after {
+   130→  content: '';
+   131→  position: absolute;
+   132→  top: 0;
+   133→  bottom: 0;
+   134→  width: 24px;
+   135→  pointer-events: none;
+   136→  z-index: 10;
+   137→}
+   138→.scroll-fade-x::before {
+   139→  left: 0;
+   140→  background: linear-gradient(to right, white, transparent);
+   141→}
+   142→.scroll-fade-x::after {
+   143→  right: 0;
+   144→  background: linear-gradient(to left, white, transparent);
+   145→}
+   146→
+   147→/* Bottom nav safe spacing for content */
+   148→.pb-safe {
+   149→  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom) + 1rem);
+   150→}
+   151→
+   152→/* FAB positioning above bottom nav */
+   153→.fab-safe {
+   154→  bottom: calc(var(--bottom-nav-height) + var(--safe-area-inset-bottom) + 1rem);
+   155→}
+   156→
+   157→/* On desktop, FABs can be positioned normally */
+   158→@media (min-width: 768px) {
+   159→  .fab-safe {
+   160→    bottom: 1.5rem;
+   161→  }
+   162→}
+   163→
+   164→/* Sticky header that respects safe area */
+   165→.sticky-header-safe {
+   166→  position: sticky;
+   167→  top: 0;
+   168→  z-index: 40;
+   169→  padding-top: var(--safe-area-inset-top);
+   170→}
+   171→
+   172→/* Mobile full-width buttons */
+   173→@media (max-width: 640px) {
+   174→  .btn-mobile-full {
+   175→    width: 100%;
+   176→  }
+   177→}
+   178→
+   179→/* Card base style for consistent UI */
+   180→.card-modern {
+   181→  background: white;
+   182→  border: 1px solid #e2e8f0;
+   183→  border-radius: 0.75rem;
+   184→  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+   185→}
+   186→
+   187→/* Stage tabs horizontal scroll with snap */
+   188→.stage-tabs-scroll {
+   189→  display: flex;
+   190→  overflow-x: auto;
+   191→  scroll-snap-type: x mandatory;
+   192→  -webkit-overflow-scrolling: touch;
+   193→  scrollbar-width: none;
+   194→  -ms-overflow-style: none;
+   195→}
+   196→.stage-tabs-scroll::-webkit-scrollbar {
+   197→  display: none;
+   198→}
+   199→.stage-tabs-scroll > * {
+   200→  scroll-snap-align: start;
+   201→  flex-shrink: 0;
+   202→}
+   203→
+   204→/* Bottom sheet overlay */
+   205→.bottom-sheet-overlay {
+   206→  position: fixed;
+   207→  inset: 0;
+   208→  background: rgba(0, 0, 0, 0.5);
+   209→  z-index: 50;
+   210→}
+   211→
+   212→/* Bottom sheet content */
+   213→.bottom-sheet-content {
+   214→  position: fixed;
+   215→  bottom: 0;
+   216→  left: 0;
+   217→  right: 0;
+   218→  max-height: 90vh;
+   219→  background: white;
+   220→  border-radius: 1rem 1rem 0 0;
+   221→  z-index: 51;
+   222→  display: flex;
+   223→  flex-direction: column;
+   224→  padding-bottom: var(--safe-area-inset-bottom);
+   225→}
+   226→
+   227→/* Mobile drawer full screen */
+   228→@media (max-width: 768px) {
+   229→  .drawer-mobile-full {
+   230→    position: fixed !important;
+   231→    inset: 0 !important;
+   232→    width: 100% !important;
+   233→    max-width: 100% !important;
+   234→    border-radius: 0 !important;
+   235→  }
+   236→}
+   237→
+   238→/* Make modals nearly full-screen on mobile */
+   239→@media (max-width: 640px) {
+   240→  .modal-box {
+   241→    width: calc(100% - 1rem) !important;
+   242→    max-width: calc(100% - 1rem) !important;
+   243→    max-height: calc(100vh - 2rem) !important;
+   244→    margin: 0.5rem !important;
+   245→    border-radius: 1rem !important;
+   246→  }
+   247→
+   248→  /* Optionally make some modals truly full-screen */
+   249→  .modal-box.modal-fullscreen-mobile {
+   250→    width: 100% !important;
+   251→    max-width: 100% !important;
+   252→    max-height: 100vh !important;
+   253→    height: 100vh !important;
+   254→    margin: 0 !important;
+   255→    border-radius: 0 !important;
+   256→  }
+   257→
+   258→  /* Make DaisyUI drawers full-width on mobile */
+   259→  .drawer-side > *:not(.drawer-overlay) {
+   260→    width: 100% !important;
+   261→    max-width: 100% !important;
+   262→  }
+   263→}
+   264→
+   265→/* Custom scrollbar */
+   266→::-webkit-scrollbar {
+   267→  width: 8px;
+   268→  height: 8px;
+   269→}
+   270→
+   271→::-webkit-scrollbar-track {
+   272→  background: hsl(var(--b2));
+   273→}
+   274→
+   275→::-webkit-scrollbar-thumb {
+   276→  background: hsl(var(--bc) / 0.3);
+   277→  border-radius: 4px;
+   278→}
+   279→
+   280→::-webkit-scrollbar-thumb:hover {
+   281→  background: hsl(var(--bc) / 0.5);
+   282→}
+   283→
+   284→/* Slim scrollbar for dashboard lists */
+   285→.scrollbar-thin::-webkit-scrollbar {
+   286→  width: 4px;
+   287→  height: 4px;
+   288→}
+   289→
+   290→.scrollbar-thin::-webkit-scrollbar-track {
+   291→  background: transparent;
+   292→}
+   293→
+   294→.scrollbar-thin::-webkit-scrollbar-thumb {
+   295→  background: #e2e8f0;
+   296→  border-radius: 2px;
+   297→}
+   298→
+   299→.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+   300→  background: #cbd5e1;
+   301→}
+   302→
+   303→/* Kanban board horizontal scroll */
+   304→.kanban-board {
+   305→  display: flex;
+   306→  overflow-x: auto;
+   307→  gap: 1rem;
+   308→  padding-bottom: 1rem;
+   309→}
+   310→
+   311→.kanban-column {
+   312→  flex-shrink: 0;
+   313→  width: 18rem;
+   314→}
+   315→
+   316→/* ============================================
+   317→   MODERN DESIGN SYSTEM UTILITIES
+   318→   Premium SaaS aesthetic
+   319→   ============================================ */
+   320→
+   321→/* Gradient backgrounds for stat cards */
+   322→.stat-card-primary {
+   323→  background: linear-gradient(135deg, #0066CC 0%, #0EA5E9 100%);
+   324→  color: white;
+   325→}
+   326→
+   327→.stat-card-success {
+   328→  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+   329→  color: white;
+   330→}
+   331→
+   332→.stat-card-warning {
+   333→  background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+   334→  color: white;
+   335→}
+   336→
+   337→.stat-card-danger {
+   338→  background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+   339→  color: white;
+   340→}
+   341→
+   342→.stat-card-accent {
+   343→  background: linear-gradient(135deg, #14B8A6 0%, #06B6D4 100%);
+   344→  color: white;
+   345→}
+   346→
+   347→.stat-card-info {
+   348→  background: linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%);
+   349→  color: white;
+   350→}
+   351→
+   352→/* Soft tinted backgrounds */
+   353→.bg-tint-primary { background: linear-gradient(135deg, rgba(0,102,204,0.08) 0%, rgba(14,165,233,0.05) 100%); }
+   354→.bg-tint-success { background: linear-gradient(135deg, rgba(5,150,105,0.08) 0%, rgba(16,185,129,0.05) 100%); }
+   355→.bg-tint-warning { background: linear-gradient(135deg, rgba(217,119,6,0.08) 0%, rgba(245,158,11,0.05) 100%); }
+   356→.bg-tint-danger { background: linear-gradient(135deg, rgba(220,38,38,0.08) 0%, rgba(239,68,68,0.05) 100%); }
+   357→.bg-tint-accent { background: linear-gradient(135deg, rgba(20,184,166,0.08) 0%, rgba(6,182,212,0.05) 100%); }
+   358→
+   359→/* Premium card styles */
+   360→.card-elevated {
+   361→  background: white;
+   362→  border-radius: 1rem;
+   363→  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+   364→  border: 1px solid rgba(0,0,0,0.05);
+   365→}
+   366→
+   367→.card-elevated:hover {
+   368→  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+   369→}
+   370→
+   371→.card-gradient {
+   372→  background: linear-gradient(180deg, white 0%, #f8fafc 100%);
+   373→  border-radius: 1rem;
+   374→  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+   375→  border: 1px solid rgba(0,0,0,0.05);
+   376→}
+   377→
+   378→/* Icon containers */
+   379→.icon-container {
+   380→  display: flex;
+   381→  align-items: center;
+   382→  justify-content: center;
+   383→  border-radius: 0.75rem;
+   384→  flex-shrink: 0;
+   385→}
+   386→
+   387→.icon-container-sm { width: 2rem; height: 2rem; }
+   388→.icon-container-md { width: 2.5rem; height: 2.5rem; }
+   389→.icon-container-lg { width: 3rem; height: 3rem; }
+   390→.icon-container-xl { width: 3.5rem; height: 3.5rem; }
+   391→
+   392→.icon-primary { background: rgba(0,102,204,0.1); color: #0066CC; }
+   393→.icon-success { background: rgba(5,150,105,0.1); color: #059669; }
+   394→.icon-warning { background: rgba(217,119,6,0.1); color: #D97706; }
+   395→.icon-danger { background: rgba(220,38,38,0.1); color: #DC2626; }
+   396→.icon-accent { background: rgba(20,184,166,0.1); color: #14B8A6; }
+   397→.icon-info { background: rgba(14,165,233,0.1); color: #0EA5E9; }
+   398→
+   399→/* Solid icon containers */
+   400→.icon-solid-primary { background: #0066CC; color: white; }
+   401→.icon-solid-success { background: #059669; color: white; }
+   402→.icon-solid-warning { background: #D97706; color: white; }
+   403→.icon-solid-danger { background: #DC2626; color: white; }
+   404→.icon-solid-accent { background: #14B8A6; color: white; }
+   405→.icon-solid-info { background: #0EA5E9; color: white; }
+   406→
+   407→/* Section headers */
+   408→.section-header {
+   409→  display: flex;
+   410→  align-items: center;
+   411→  gap: 0.75rem;
+   412→  margin-bottom: 1rem;
+   413→}
+   414→
+   415→.section-header h2,
+   416→.section-header h3 {
+   417→  font-weight: 700;
+   418→  color: #0f172a;
+   419→}
+   420→
+   421→/* Modern pills/badges */
+   422→.pill {
+   423→  display: inline-flex;
+   424→  align-items: center;
+   425→  gap: 0.375rem;
+   426→  padding: 0.25rem 0.75rem;
+   427→  border-radius: 9999px;
+   428→  font-size: 0.75rem;
+   429→  font-weight: 600;
+   430→  white-space: nowrap;
+   431→}
+   432→
+   433→.pill-primary { background: rgba(0,102,204,0.1); color: #0066CC; }
+   434→.pill-success { background: rgba(5,150,105,0.1); color: #059669; }
+   435→.pill-warning { background: rgba(217,119,6,0.1); color: #D97706; }
+   436→.pill-danger { background: rgba(220,38,38,0.1); color: #DC2626; }
+   437→.pill-accent { background: rgba(20,184,166,0.1); color: #14B8A6; }
+   438→.pill-info { background: rgba(14,165,233,0.1); color: #0EA5E9; }
+   439→.pill-neutral { background: #f1f5f9; color: #64748b; }
+   440→
+   441→/* Solid pills */
+   442→.pill-solid-primary { background: #0066CC; color: white; }
+   443→.pill-solid-success { background: #059669; color: white; }
+   444→.pill-solid-warning { background: #D97706; color: white; }
+   445→.pill-solid-danger { background: #DC2626; color: white; }
+   446→
+   447→/* Alert/attention boxes */
+   448→.alert-box {
+   449→  border-radius: 0.75rem;
+   450→  padding: 1rem;
+   451→  display: flex;
+   452→  align-items: flex-start;
+   453→  gap: 0.75rem;
+   454→}
+   455→
+   456→.alert-box-warning {
+   457→  background: linear-gradient(135deg, rgba(217,119,6,0.1) 0%, rgba(245,158,11,0.05) 100%);
+   458→  border: 1px solid rgba(217,119,6,0.2);
+   459→}
+   460→
+   461→.alert-box-danger {
+   462→  background: linear-gradient(135deg, rgba(220,38,38,0.1) 0%, rgba(239,68,68,0.05) 100%);
+   463→  border: 1px solid rgba(220,38,38,0.2);
+   464→}
+   465→
+   466→.alert-box-success {
+   467→  background: linear-gradient(135deg, rgba(5,150,105,0.1) 0%, rgba(16,185,129,0.05) 100%);
+   468→  border: 1px solid rgba(5,150,105,0.2);
+   469→}
+   470→
+   471→.alert-box-info {
+   472→  background: linear-gradient(135deg, rgba(14,165,233,0.1) 0%, rgba(56,189,248,0.05) 100%);
+   473→  border: 1px solid rgba(14,165,233,0.2);
+   474→}
+   475→
+   476→/* Hero gradient for page headers */
+   477→.hero-gradient {
+   478→  background: linear-gradient(135deg, rgba(0,102,204,0.06) 0%, rgba(20,184,166,0.04) 50%, rgba(14,165,233,0.03) 100%);
+   479→}
+   480→
+   481→/* Action cards */
+   482→.action-card {
+   483→  display: flex;
+   484→  align-items: center;
+   485→  gap: 0.875rem;
+   486→  padding: 1rem;
+   487→  background: white;
+   488→  border: 1px solid #e2e8f0;
+   489→  border-radius: 0.875rem;
+   490→  transition: all 0.2s ease;
+   491→  cursor: pointer;
+   492→}
+   493→
+   494→.action-card:hover {
+   495→  border-color: #0066CC;
+   496→  box-shadow: 0 4px 12px rgba(0,102,204,0.15);
+   497→  transform: translateY(-1px);
+   498→}
+   499→
+   500→/* Modern form inputs */
+   501→.input-modern {
+   502→  width: 100%;
+   503→  padding: 0.75rem 1rem;
+   504→  background: #f8fafc;
+   505→  border: 2px solid transparent;
+   506→  border-radius: 0.75rem;
+   507→  font-size: 0.875rem;
+   508→  color: #0f172a;
+   509→  transition: all 0.2s ease;
+   510→}
+   511→
+   512→.input-modern:focus {
+   513→  background: white;
+   514→  border-color: #0066CC;
+   515→  box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+   516→  outline: none;
+   517→}
+   518→
+   519→.input-modern::placeholder {
+   520→  color: #94a3b8;
+   521→}
+   522→
+   523→/* Drawer lock - prevent horizontal scroll */
+   524→.drawer-locked {
+   525→  overflow-x: hidden !important;
+   526→  touch-action: pan-y !important;
+   527→  overscroll-behavior-x: none !important;
+   528→}
+   529→
+   530→/* Issue card modern style */
+   531→.issue-card {
+   532→  background: white;
+   533→  border-radius: 0.875rem;
+   534→  border: 1px solid #e2e8f0;
+   535→  overflow: hidden;
+   536→  transition: all 0.2s ease;
+   537→}
+   538→
+   539→.issue-card:hover {
+   540→  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+   541→}
+   542→
+   543→.issue-card-header {
+   544→  display: flex;
+   545→  align-items: center;
+   546→  justify-content: space-between;
+   547→  padding: 0.875rem 1rem;
+   548→  background: #f8fafc;
+   549→  border-bottom: 1px solid #e2e8f0;
+   550→}
+   551→
+   552→.issue-card-body {
+   553→  padding: 1rem;
+   554→}
+   555→
+   556→.issue-card-footer {
+   557→  padding: 0.75rem 1rem;
+   558→  background: #f8fafc;
+   559→  border-top: 1px solid #e2e8f0;
+   560→  display: flex;
+   561→  align-items: center;
+   562→  justify-content: space-between;
+   563→}
+   564→
+   565→/* Photo grid */
+   566→.photo-grid {
+   567→  display: grid;
+   568→  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+   569→  gap: 0.5rem;
+   570→}
+   571→
+   572→.photo-thumb {
+   573→  aspect-ratio: 1;
+   574→  border-radius: 0.5rem;
+   575→  overflow: hidden;
+   576→  cursor: pointer;
+   577→  border: 2px solid transparent;
+   578→  transition: all 0.2s ease;
+   579→}
+   580→
+   581→.photo-thumb:hover {
+   582→  border-color: #0066CC;
+   583→  transform: scale(1.02);
+   584→}
+   585→
+   586→.photo-thumb img {
+   587→  width: 100%;
+   588→  height: 100%;
+   589→  object-fit: cover;
+   590→}
+   591→
+   592→/* Status indicator dots */
+   593→.status-dot {
+   594→  width: 0.5rem;
+   595→  height: 0.5rem;
+   596→  border-radius: 9999px;
+   597→  flex-shrink: 0;
+   598→}
+   599→
+   600→.status-dot-success { background: #059669; }
+   601→.status-dot-warning { background: #D97706; }
+   602→.status-dot-danger { background: #DC2626; }
+   603→.status-dot-info { background: #0EA5E9; }
+   604→.status-dot-neutral { background: #94a3b8; }
+   605→
+   606→/* Pulsing status dot */
+   607→.status-dot-pulse {
+   608→  animation: pulse 2s infinite;
+   609→}
+   610→
+   611→@keyframes pulse {
+   612→  0%, 100% { opacity: 1; }
+   613→  50% { opacity: 0.5; }
+   614→}
+   615→
+   616→/* Quick stats mini card */
+   617→.mini-stat {
+   618→  display: flex;
+   619→  align-items: center;
+   620→  gap: 0.75rem;
+   621→  padding: 0.75rem;
+   622→  background: #f8fafc;
+   623→  border-radius: 0.75rem;
+   624→}
+   625→
+   626→.mini-stat-value {
+   627→  font-size: 1.25rem;
+   628→  font-weight: 700;
+   629→  color: #0f172a;
+   630→}
+   631→
+   632→.mini-stat-label {
+   633→  font-size: 0.75rem;
+   634→  color: #64748b;
+   635→}
+   636→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

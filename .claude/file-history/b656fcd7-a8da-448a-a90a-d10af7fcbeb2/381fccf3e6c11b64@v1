@@ -1,0 +1,85 @@
+/**
+ * Legacy Route Redirect Helper
+ *
+ * Redirects old routes (/dashboard, /sales-prep, etc.) to tenant-aware routes
+ * (/app/[dealerSlug]/dashboard, /app/[dealerSlug]/stock, etc.)
+ */
+
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/libs/authOptions";
+import DealerMembership from "@/models/DealerMembership";
+import User from "@/models/User";
+import Dealer from "@/models/Dealer";
+import connectMongo from "@/libs/mongoose";
+
+/**
+ * Get the user's default dealer slug for redirect
+ */
+export async function getDefaultDealerSlug(req, res) {
+  await connectMongo();
+
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user?.id) {
+    return null;
+  }
+
+  const userId = session.user.id;
+  const user = await User.findById(userId).lean();
+
+  // Try preferred dealer first
+  if (user?.defaultDealerId) {
+    const dealer = await Dealer.findById(user.defaultDealerId).lean();
+    if (dealer?.slug) return dealer.slug;
+  }
+
+  // Fall back to most recently active membership
+  const membership = await DealerMembership.findOneActive({ userId })
+    .sort({ lastActiveAt: -1 })
+    .populate("dealerId", "slug")
+    .lean();
+
+  return membership?.dealerId?.slug || null;
+}
+
+/**
+ * Create getServerSideProps for legacy route redirect
+ *
+ * @param {string} targetPath - The path to redirect to (e.g., "dashboard", "stock")
+ */
+export function createLegacyRedirect(targetPath) {
+  return async function getServerSideProps(context) {
+    const { req, res } = context;
+
+    try {
+      const dealerSlug = await getDefaultDealerSlug(req, res);
+
+      if (!dealerSlug) {
+        // Not authenticated or no dealer - redirect to sign in
+        return {
+          redirect: {
+            destination: `/auth/signin?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
+            permanent: false,
+          },
+        };
+      }
+
+      // Redirect to tenant-aware route
+      return {
+        redirect: {
+          destination: `/app/${dealerSlug}/${targetPath}`,
+          permanent: false,
+        },
+      };
+    } catch (error) {
+      console.error("[legacyRedirect] Error:", error.message);
+      return {
+        redirect: {
+          destination: `/auth/signin?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
+          permanent: false,
+        },
+      };
+    }
+  };
+}
+
+export default { getDefaultDealerSlug, createLegacyRedirect };

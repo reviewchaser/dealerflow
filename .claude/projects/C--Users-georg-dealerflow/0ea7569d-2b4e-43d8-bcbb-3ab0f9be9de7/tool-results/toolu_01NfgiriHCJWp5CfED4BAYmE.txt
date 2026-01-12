@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\holidays.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useEffect, useState } from "react";
+     2→import { useSession } from "next-auth/react";
+     3→import { useRouter } from "next/router";
+     4→import Head from "next/head";
+     5→import Link from "next/link";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import { PageHint } from "@/components/ui";
+     8→import { toast } from "react-hot-toast";
+     9→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    10→
+    11→export default function HolidaySettings() {
+    12→  const router = useRouter();
+    13→  const { data: session } = useSession();

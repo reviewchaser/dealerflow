@@ -1,0 +1,23 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\[id]\issues.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    59→
+    60→      const mappedCategory = categoryMap[category.toLowerCase()] || 'Other';
+    61→      const mappedStatus = statusMap[(status || 'outstanding').toLowerCase()] || 'Outstanding';
+    62→
+    63→      const issue = await VehicleIssue.create({
+    64→        vehicleId: id,
+    65→        category: mappedCategory,
+    66→        subcategory,
+    67→        description,
+    68→        photos: photos || [],
+    69→        actionNeeded,
+    70→        priority: priority || "medium",
+    71→        location: location || null,
+    72→        status: mappedStatus,
+    73→        notes,
+    74→        partsRequired: partsRequired || false,
+    75→        partsDetails: partsDetails || null,
+    76→      });
+    77→
+    78→      // Log activity
+    79→      const actor = await User.findById(userId).lean();
+    80→      const actorName = actor?.name || user?.name || user?.email || "System";

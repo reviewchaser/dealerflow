@@ -1,0 +1,198 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import VehicleIssue from "@/models/VehicleIssue";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import VehicleActivity from "@/models/VehicleActivity";
+     5→import User from "@/models/User";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→async function handler(req, res, ctx) {
+     9→  await connectMongo();
+    10→  const { dealerId, userId, user } = ctx;
+    11→  const { issueId } = req.query;
+    12→
+    13→  // Get the issue and verify it belongs to a vehicle in this dealer
+    14→  const issue = await VehicleIssue.findById(issueId);
+    15→  if (!issue) {
+    16→    return res.status(404).json({ error: "Issue not found" });
+    17→  }
+    18→
+    19→  const vehicle = await Vehicle.findOne({ _id: issue.vehicleId, dealerId }).lean();
+    20→  if (!vehicle) {
+    21→    return res.status(404).json({ error: "Vehicle not found" });
+    22→  }
+    23→
+    24→  // Get actor info for activity logging
+    25→  const actor = await User.findById(userId).lean();
+    26→  const actorName = actor?.name || user?.name || user?.email || "System";
+    27→
+    28→  if (req.method === "PUT") {
+    29→    try {
+    30→      const updates = { ...req.body };
+    31→      const previousStatus = issue.status;
+    32→
+    33→      // Map status if provided (handle both lowercase and proper case)
+    34→      if (updates.status) {
+    35→        const statusMap = {
+    36→          'outstanding': 'Outstanding',
+    37→          'ordered': 'Ordered',
+    38→          'in_progress': 'In Progress',
+    39→          'in progress': 'In Progress',
+    40→          'resolved': 'Complete',
+    41→          'complete': 'Complete'
+    42→        };
+    43→        const lowerStatus = updates.status.toLowerCase();
+    44→        // If it's already in proper case and valid, keep it; otherwise map it
+    45→        if (['Outstanding', 'Ordered', 'In Progress', 'Complete'].includes(updates.status)) {
+    46→          // Already in correct format, keep as is
+    47→        } else {
+    48→          updates.status = statusMap[lowerStatus] || updates.status;
+    49→        }
+    50→      }
+    51→
+    52→      // If status is being set to Complete, add completedAt timestamp
+    53→      if (updates.status === "Complete" && !updates.completedAt) {
+    54→        updates.completedAt = new Date();
+    55→      }
+    56→
+    57→      updates.updatedByUserId = userId;
+    58→
+    59→      const updatedIssue = await VehicleIssue.findByIdAndUpdate(
+    60→        issueId,
+    61→        updates,
+    62→        { new: true, runValidators: true }
+    63→      ).lean();
+    64→
+    65→      // Log activity for status changes
+    66→      if (updates.status && updates.status !== previousStatus) {
+    67→        const isResolved = updates.status === "Complete";
+    68→        await VehicleActivity.log({
+    69→          dealerId,
+    70→          vehicleId: issue.vehicleId,
+    71→          actorId: userId,
+    72→          actorName,
+    73→          type: isResolved ? "ISSUE_RESOLVED" : "ISSUE_UPDATED",
+    74→          message: isResolved
+    75→            ? `Resolved issue: ${issue.category} - ${issue.subcategory}`
+    76→            : `Issue status changed: ${issue.category} - ${issue.subcategory} (${previousStatus} → ${updates.status})`,
+    77→          meta: {
+    78→            issueId: issue._id,
+    79→            category: issue.category,
+    80→            subcategory: issue.subcategory,
+    81→            from: previousStatus,
+    82→            to: updates.status,
+    83→          },
+    84→        });
+    85→      } else if (Object.keys(updates).length > 1) {
+    86→        // Log general update if other fields changed (not just status)
+    87→        await VehicleActivity.log({
+    88→          dealerId,
+    89→          vehicleId: issue.vehicleId,
+    90→          actorId: userId,
+    91→          actorName,
+    92→          type: "ISSUE_UPDATED",
+    93→          message: `Updated issue: ${issue.category} - ${issue.subcategory}`,
+    94→          meta: {
+    95→            issueId: issue._id,
+    96→            category: issue.category,
+    97→            subcategory: issue.subcategory,
+    98→          },
+    99→        });
+   100→      }
+   101→
+   102→      // Transform _id to id
+   103→      updatedIssue.id = updatedIssue._id.toString();
+   104→      delete updatedIssue._id;
+   105→
+   106→      return res.status(200).json(updatedIssue);
+   107→    } catch (error) {
+   108→      console.error("Error updating issue:", error);
+   109→      return res.status(500).json({ error: error.message || "Failed to update issue" });
+   110→    }
+   111→  }
+   112→
+   113→  if (req.method === "DELETE") {
+   114→    try {
+   115→      // Log activity before deletion
+   116→      await VehicleActivity.log({
+   117→        dealerId,
+   118→        vehicleId: issue.vehicleId,
+   119→        actorId: userId,
+   120→        actorName,
+   121→        type: "ISSUE_DELETED",
+   122→        message: `Removed issue: ${issue.category} - ${issue.subcategory}`,
+   123→        meta: {
+   124→          issueId: issue._id,
+   125→          category: issue.category,
+   126→          subcategory: issue.subcategory,
+   127→        },
+   128→      });
+   129→
+   130→      await VehicleIssue.findByIdAndDelete(issueId);
+   131→      return res.status(200).json({ message: "Issue deleted" });
+   132→    } catch (error) {
+   133→      console.error("Error deleting issue:", error);
+   134→      return res.status(500).json({ error: "Failed to delete issue" });
+   135→    }
+   136→  }
+   137→
+   138→  if (req.method === "POST") {
+   139→    // Add update/comment to issue
+   140→    try {
+   141→      const { content } = req.body;
+   142→
+   143→      if (!content || !content.trim()) {
+   144→        return res.status(400).json({ error: "Update content is required" });
+   145→      }
+   146→
+   147→      // Initialize updates array if it doesn't exist
+   148→      if (!issue.updates) {
+   149→        issue.updates = [];
+   150→      }
+   151→
+   152→      // Add new update with proper user info
+   153→      issue.updates.push({
+   154→        userId,
+   155→        userName: actorName,
+   156→        content: content.trim(),
+   157→        createdAt: new Date(),
+   158→      });
+   159→
+   160→      await issue.save();
+   161→
+   162→      // Log activity for comment
+   163→      await VehicleActivity.log({
+   164→        dealerId,
+   165→        vehicleId: issue.vehicleId,
+   166→        actorId: userId,
+   167→        actorName,
+   168→        type: "ISSUE_COMMENT_ADDED",
+   169→        message: `Added comment to issue: ${issue.category} - ${issue.subcategory}`,
+   170→        meta: {
+   171→          issueId: issue._id,
+   172→          category: issue.category,
+   173→          subcategory: issue.subcategory,
+   174→          comment: content.trim().substring(0, 100), // Truncate for meta
+   175→        },
+   176→      });
+   177→
+   178→      // Return updated issue in the same format as other endpoints
+   179→      const updatedIssue = issue.toJSON();
+   180→      updatedIssue.id = updatedIssue._id.toString();
+   181→      delete updatedIssue._id;
+   182→
+   183→      return res.status(201).json(updatedIssue);
+   184→    } catch (error) {
+   185→      console.error("Error adding issue update:", error);
+   186→      return res.status(500).json({ error: "Failed to add update" });
+   187→    }
+   188→  }
+   189→
+   190→  return res.status(405).json({ error: "Method not allowed" });
+   191→}
+   192→
+   193→export default withDealerContext(handler);
+   194→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

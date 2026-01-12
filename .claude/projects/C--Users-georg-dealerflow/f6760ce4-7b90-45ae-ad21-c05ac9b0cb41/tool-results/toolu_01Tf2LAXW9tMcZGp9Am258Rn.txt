@@ -1,0 +1,23 @@
+The file C:\Users\georg\dealerflow\components\ui\BottomSheet.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    80→
+    81→  // Determine which breakpoint to hide at
+    82→  const hideClass = hideAbove === "lg" ? "lg:hidden" : "md:hidden";
+    83→
+    84→  return (
+    85→    <Portal>
+    86→      <div
+    87→        className={`fixed inset-0 z-[9999] ${hideClass}`}
+    88→        style={{ touchAction: "none", overscrollBehavior: "contain" }}
+    89→      >
+    90→        {/* Backdrop - prevent touch events from reaching background */}
+    91→        <div
+    92→          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+    93→          onClick={onClose}
+    94→          onTouchMove={(e) => e.preventDefault()}
+    95→          aria-hidden="true"
+    96→          style={{ touchAction: "none" }}
+    97→        />
+    98→
+    99→        {/* Sheet - Fixed to viewport bottom */}
+   100→        <div
+   101→          ref={sheetRef}

@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   171→                </button>
+   172→              </div>
+   173→            </div>
+   174→
+   175→            {/* Content - Scrollable region with safe area padding */}
+   176→            <div
+   177→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto min-w-0"
+   178→              style={{
+   179→                paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom, 0px))",
+   180→              }}
+   181→            >
+   182→              {/* Overview Tab */}
+   183→              {activeTab === "overview" && (
+   184→                <div className="space-y-4">
+   185→                  {/* Identity Section */}

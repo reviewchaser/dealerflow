@@ -1,0 +1,18 @@
+Found 17 files
+pages\api\customer-px\index.js
+pages\api\user\default-dealer.js
+pages\api\dvla\vehicle-enquiry.js
+pages\api\dealers\memberships.js
+pages\api\dealers\by-slug\[slug].js
+pages\api\ai-hints.js
+middleware.js
+libs\authOptions.js
+pages\api\debug\context.js
+pages\api\team\accept-invite.js
+pages\api\onboarding\create-dealer.js
+libs\authContext.js
+pages\api\stripe\create-checkout.js
+pages\api\forms\stats.js
+pages\api\forms\submissions\[id].js
+pages\api\forms\[id]\fields.js
+pages\api\auth\[...nextauth].js

@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\pages\warranty.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { MobileStageSelector } from "@/components/ui/PageShell";
+     9→import { PageHint } from "@/components/ui";
+    10→import { toast } from "react-hot-toast";
+    11→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    12→
+    13→// Column config matching Sales & Prep style

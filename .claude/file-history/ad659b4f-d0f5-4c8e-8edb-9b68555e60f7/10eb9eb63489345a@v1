@@ -1,0 +1,206 @@
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+const statusColors = {
+  in_stock: "badge-ghost",
+  in_prep: "badge-warning",
+  live: "badge-primary",
+  reserved: "badge-secondary",
+  sold: "badge-success",
+};
+
+export default function Vehicles() {
+  const [vehicles, setVehicles] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
+
+  useEffect(() => {
+    fetchVehicles();
+  }, [filter]);
+
+  const fetchVehicles = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/vehicles?status=${filter}`);
+      if (!response.ok) throw new Error("Failed to fetch vehicles");
+      const data = await response.json();
+      setVehicles(data);
+    } catch (error) {
+      console.error(error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to delete this vehicle?")) return;
+    
+    try {
+      const response = await fetch(`/api/vehicles/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete");
+      toast.success("Vehicle deleted");
+      fetchVehicles();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      const response = await fetch(`/api/vehicles/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!response.ok) throw new Error("Failed to update");
+      toast.success(`Status updated to ${newStatus.replace("_", " ")}`);
+      fetchVehicles();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <Head>
+        <title>Vehicles | DealerFlow</title>
+      </Head>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Vehicles</h1>
+          <p className="text-base-content/60 mt-2">Manage your vehicle stock</p>
+        </div>
+        <Link href="/vehicles/new" className="btn btn-primary">
+          + Add Vehicle
+        </Link>
+      </div>
+
+      {/* Filter */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {["all", "in_stock", "in_prep", "live", "reserved", "sold"].map((status) => (
+          <button
+            key={status}
+            className={`btn btn-sm ${filter === status ? "btn-primary" : "btn-ghost"}`}
+            onClick={() => setFilter(status)}
+          >
+            {status === "all" ? "All" : status.replace("_", " ").charAt(0).toUpperCase() + status.replace("_", " ").slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      ) : error ? (
+        <div className="alert alert-error">
+          <span>Error: {error}</span>
+        </div>
+      ) : vehicles.length === 0 ? (
+        <div className="card bg-base-200">
+          <div className="card-body text-center py-16">
+            <p className="text-lg text-base-content/60">No vehicles found</p>
+            <p className="text-sm text-base-content/40 mt-2">
+              Add your first vehicle to get started
+            </p>
+            <div className="mt-6">
+              <Link href="/vehicles/new" className="btn btn-primary">
+                Add First Vehicle
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vehicles.map((vehicle) => (
+            <div key={vehicle.id} className="card bg-base-200 hover:shadow-lg transition-shadow">
+              <div className="card-body">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="card-title text-lg">
+                      {vehicle.make} {vehicle.model}
+                    </h3>
+                    <p className="font-mono text-base-content/60">{vehicle.regCurrent || vehicle.vehicleReg}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className={`badge ${statusColors[vehicle.status] || "badge-ghost"}`}>
+                      {vehicle.status.replace("_", " ")}
+                    </div>
+                    {(vehicle.status === "sold" || vehicle.status === "delivered") && vehicle.soldAt && (
+                      <p className="text-xs text-base-content/50 mt-1">
+                        Sold {Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24))} days ago
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-sm mt-4">
+                  <div>
+                    <span className="text-base-content/60">Year:</span> {vehicle.year || "—"}
+                  </div>
+                  <div>
+                    <span className="text-base-content/60">Mileage:</span> {vehicle.mileage?.toLocaleString() || "—"}
+                  </div>
+                  <div>
+                    <span className="text-base-content/60">Colour:</span> {vehicle.colour || "—"}
+                  </div>
+                  <div>
+                    <span className="text-base-content/60">Fuel:</span> {vehicle.fuelType || "—"}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-base-300">
+                  <div>
+                    <p className="text-xs text-base-content/60">Purchase</p>
+                    <p className="font-semibold">
+                      {vehicle.purchasePrice ? `£${vehicle.purchasePrice.toLocaleString()}` : "—"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-base-content/60">Sale Price</p>
+                    <p className="font-semibold text-success">
+                      {vehicle.salePrice ? `£${vehicle.salePrice.toLocaleString()}` : "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="card-actions justify-between mt-4">
+                  <select
+                    className="select select-bordered select-sm"
+                    value={vehicle.status}
+                    onChange={(e) => handleStatusChange(vehicle.id, e.target.value)}
+                  >
+                    <option value="in_stock">In Stock</option>
+                    <option value="in_prep">In Prep</option>
+                    <option value="live">Live</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="sold">Sold</option>
+                  </select>
+                  <div className="flex gap-2">
+                    <Link href={`/vehicles/${vehicle.id}`} className="btn btn-ghost btn-sm">
+                      View
+                    </Link>
+                    <button 
+                      className="btn btn-ghost btn-sm text-error"
+                      onClick={() => handleDelete(vehicle.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

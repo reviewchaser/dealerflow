@@ -1,0 +1,33 @@
+C:\Users\georg\dealerflow\pages\onboarding.js:774:              {vehicleData.isDummy && (
+C:\Users\georg\dealerflow\pages\appraisals\new.js:122:      if (data.isDummy) showDummyNotification("DVLA API");
+C:\Users\georg\dealerflow\pages\appraisals\new.js:152:      if (data.isDummy) showDummyNotification("AI Hints");
+C:\Users\georg\dealerflow\pages\appraisals\new.js:307:                      dvlaData.isDummy ? "alert-warning" : "alert-success"
+C:\Users\georg\dealerflow\pages\appraisals\new.js:311:                      {dvlaData.isDummy ? "⚠️ Demo data – " : "✅ "}
+C:\Users\georg\dealerflow\pages\appraisals\new.js:692:                  {aiHints.isDummy && (
+C:\Users\georg\dealerflow\pages\api\ai-hints.js:42:        isDummy: false,
+C:\Users\georg\dealerflow\pages\api\ai-hints.js:65:      isDummy: !process.env.OPENAI_API_KEY,
+C:\Users\georg\dealerflow\pages\warranty.js:581:          isDummy: data.isDummy,
+C:\Users\georg\dealerflow\pages\warranty.js:2039:                    isDummy={aiDiagnostics?.isDummy}
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:144:      isDummy: false,
+C:\Users\georg\dealerflow\pages\api\dvla-lookup.js:237:    isDummy: true,
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:87:  if (result.isDummy) {
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:90:      isDummy: true,
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js:98:    isDummy: false,
+C:\Users\georg\dealerflow\pages\api\ai\health.js:4: * GET /api/ai/health
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:82:  if (result.isDummy) {
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:85:      isDummy: true,
+C:\Users\georg\dealerflow\pages\api\ai\warranty-suggestions.js:93:    isDummy: false,
+C:\Users\georg\dealerflow\pages\vehicles\new.js:153:      if (dvlaResult.isDummy) {
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:93:        isDummy: true,
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:171:      isDummy: false,
+C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js:182:        isDummy: true,
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:299:                    <div className={`alert ${dvlaData.isDummy ? "alert-warning" : "alert-success"} mt-4`}>
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:301:                        {dvlaData.isDummy ? "Demo data - " : ""}
+C:\Users\georg\dealerflow\pages\public\px-valuation.js:602:                    {aiHints.isDummy && (
+C:\Users\georg\dealerflow\pages\api\health\openai.js:4: * GET /api/health/openai
+C:\Users\georg\dealerflow\pages\sales-prep.js:366:      if (data.isDummy) showDummyNotification("DVLA API");
+C:\Users\georg\dealerflow\pages\sales-prep.js:4440:      if (data.isDummy) showDummyNotification("DVLA API");
+C:\Users\georg\dealerflow\pages\px\[dealerSlug].js:373:              <div className={`mt-4 p-3 rounded-lg ${dvlaData.isDummy ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+C:\Users\georg\dealerflow\pages\px\[dealerSlug].js:374:                {dvlaData.isDummy && <span className="font-medium">Demo: </span>}
+C:\Users\georg\dealerflow\pages\px\a\[token].js:274:              <div className={`mt-4 p-3 rounded-lg ${dvlaData.isDummy ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}`}>
+C:\Users\georg\dealerflow\pages\px\a\[token].js:275:                {dvlaData.isDummy && <span className="font-medium">Demo: </span>}

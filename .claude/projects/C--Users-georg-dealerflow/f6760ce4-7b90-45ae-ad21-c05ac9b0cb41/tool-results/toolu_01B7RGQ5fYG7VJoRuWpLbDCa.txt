@@ -1,0 +1,739 @@
+     1→import { useEffect, useState } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import Link from "next/link";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { Card, CardHeader, CardContent } from "@/components/ui/Card";
+     8→import { KeyValue, KeyValueGrid } from "@/components/ui/KeyValue";
+     9→import { Badge, StatusBadge } from "@/components/ui/Badge";
+    10→import { PhotoGallery } from "@/components/ui/PhotoGallery";
+    11→
+    12→// Categories must match CustomerPXIssue model schema (lowercase)
+    13→const ISSUE_CATEGORIES = ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"];
+    14→const ISSUE_SUBCATEGORIES = {
+    15→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    16→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    17→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    18→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    19→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    20→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    21→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    22→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    23→  other: ["General", "Misc"],
+    24→};
+    25→const CATEGORY_LABELS = {
+    26→  mechanical: "Mechanical",
+    27→  electrical: "Electrical",
+    28→  bodywork: "Bodywork",
+    29→  interior: "Interior",
+    30→  tyres: "Tyres",
+    31→  mot: "MOT",
+    32→  service: "Service",
+    33→  fault_codes: "Fault Codes",
+    34→  other: "Other",
+    35→};
+    36→
+    37→export default function CustomerPXAppraisalDetail() {
+    38→  const router = useRouter();
+    39→  const { id } = router.query;
+    40→  const [appraisal, setAppraisal] = useState(null);
+    41→  const [issues, setIssues] = useState([]);
+    42→  const [isLoading, setIsLoading] = useState(true);
+    43→  const [isConverting, setIsConverting] = useState(false);
+    44→
+    45→  // Issue modal state
+    46→  const [showIssueModal, setShowIssueModal] = useState(false);
+    47→  const [issueForm, setIssueForm] = useState({
+    48→    category: "mechanical",
+    49→    subcategory: "Engine",
+    50→    description: "",
+    51→    actionNeeded: "",
+    52→    estimatedCost: "",
+    53→    notes: "",
+    54→  });
+    55→  const [photoFiles, setPhotoFiles] = useState([]);
+    56→  const [photoPreviews, setPhotoPreviews] = useState([]);
+    57→  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+    58→  const [isAddingIssue, setIsAddingIssue] = useState(false);
+    59→
+    60→  useEffect(() => {
+    61→    if (id) {
+    62→      fetchAppraisal();
+    63→      fetchIssues();
+    64→    }
+    65→  }, [id]);
+    66→
+    67→  const fetchAppraisal = async () => {
+    68→    try {
+    69→      const res = await fetch(`/api/customer-px/${id}`);
+    70→      const data = await res.json();
+    71→      setAppraisal(data);
+    72→    } catch (error) {
+    73→      toast.error("Failed to load");
+    74→    } finally {
+    75→      setIsLoading(false);
+    76→    }
+    77→  };
+    78→
+    79→  const fetchIssues = async () => {
+    80→    try {
+    81→      const res = await fetch(`/api/customer-px/issues?customerPXAppraisalId=${id}`);
+    82→      const data = await res.json();
+    83→      setIssues(Array.isArray(data) ? data : []);
+    84→    } catch (error) {
+    85→      console.error("Failed to load issues:", error);
+    86→      setIssues([]);
+    87→    }
+    88→  };
+    89→
+    90→  const handleDecision = async (decision) => {
+    91→    try {
+    92→      await fetch(`/api/customer-px/${id}`, {
+    93→        method: "PUT",
+    94→        headers: { "Content-Type": "application/json" },
+    95→        body: JSON.stringify({ decision }),
+    96→      });
+    97→      toast.success(`Marked as ${decision}`);
+    98→      fetchAppraisal();
+    99→    } catch (error) {
+   100→      toast.error("Failed to update");
+   101→    }
+   102→  };
+   103→
+   104→  const handleConvert = async () => {
+   105→    setIsConverting(true);
+   106→    try {
+   107→      const res = await fetch(`/api/customer-px/${id}/convert`, {
+   108→        method: "POST",
+   109→        headers: { "Content-Type": "application/json" },
+   110→        body: JSON.stringify({ initialStatus: "in_stock" }),
+   111→      });
+   112→      if (!res.ok) throw new Error("Failed to convert");
+   113→      toast.success("Vehicle created!");
+   114→      router.push("/sales-prep");
+   115→    } catch (error) {
+   116→      toast.error(error.message);
+   117→    } finally {
+   118→      setIsConverting(false);
+   119→    }
+   120→  };
+   121→
+   122→  const handlePhotoChange = (e) => {
+   123→    const files = Array.from(e.target.files);
+   124→    setPhotoFiles(prev => [...prev, ...files]);
+   125→
+   126→    files.forEach(file => {
+   127→      const reader = new FileReader();
+   128→      reader.onloadend = () => {
+   129→        setPhotoPreviews(prev => [...prev, reader.result]);
+   130→      };
+   131→      reader.readAsDataURL(file);
+   132→    });
+   133→  };
+   134→
+   135→  const removePhoto = (index) => {
+   136→    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+   137→    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+   138→  };
+   139→
+   140→  const uploadPhotos = async () => {
+   141→    const uploadedUrls = [];
+   142→    for (const file of photoFiles) {
+   143→      const formData = new FormData();
+   144→      formData.append("file", file);
+   145→      try {
+   146→        const res = await fetch("/api/vehicles/upload", {
+   147→          method: "POST",
+   148→          body: formData,
+   149→        });
+   150→        if (res.ok) {
+   151→          const data = await res.json();
+   152→          uploadedUrls.push(data.url);
+   153→        }
+   154→      } catch (error) {
+   155→        console.error("Photo upload failed:", error);
+   156→      }
+   157→    }
+   158→    return uploadedUrls;
+   159→  };
+   160→
+   161→  const handleAddIssue = async () => {
+   162→    if (!issueForm.description.trim()) {
+   163→      toast.error("Description is required");
+   164→      return;
+   165→    }
+   166→
+   167→    setIsAddingIssue(true);
+   168→
+   169→    try {
+   170→      let photoUrls = [];
+   171→      if (photoFiles.length > 0) {
+   172→        setIsUploadingPhotos(true);
+   173→        photoUrls = await uploadPhotos();
+   174→        setIsUploadingPhotos(false);
+   175→      }
+   176→
+   177→      const res = await fetch("/api/customer-px/issues", {
+   178→        method: "POST",
+   179→        headers: { "Content-Type": "application/json" },
+   180→        body: JSON.stringify({
+   181→          customerPXAppraisalId: id,
+   182→          ...issueForm,
+   183→          estimatedCost: issueForm.estimatedCost ? parseFloat(issueForm.estimatedCost) : undefined,
+   184→          photos: photoUrls,
+   185→        }),
+   186→      });
+   187→
+   188→      if (!res.ok) throw new Error("Failed to add issue");
+   189→
+   190→      toast.success("Issue added");
+   191→      setShowIssueModal(false);
+   192→      setIssueForm({
+   193→        category: "mechanical",
+   194→        subcategory: "Engine",
+   195→        description: "",
+   196→        actionNeeded: "",
+   197→        estimatedCost: "",
+   198→        notes: "",
+   199→      });
+   200→      setPhotoFiles([]);
+   201→      setPhotoPreviews([]);
+   202→      fetchIssues();
+   203→    } catch (error) {
+   204→      toast.error(error.message);
+   205→    } finally {
+   206→      setIsAddingIssue(false);
+   207→    }
+   208→  };
+   209→
+   210→  const handleDeleteIssue = async (issueId) => {
+   211→    if (!confirm("Delete this issue?")) return;
+   212→
+   213→    try {
+   214→      await fetch(`/api/customer-px/issues/${issueId}`, { method: "DELETE" });
+   215→      toast.success("Issue deleted");
+   216→      fetchIssues();
+   217→    } catch (error) {
+   218→      toast.error("Failed to delete");
+   219→    }
+   220→  };
+   221→
+   222→  const totalEstimatedCost = issues.reduce((sum, issue) => sum + (issue.estimatedCost || 0), 0);
+   223→
+   224→  if (isLoading) {
+   225→    return (
+   226→      <DashboardLayout>
+   227→        <div className="flex justify-center py-20">
+   228→          <span className="loading loading-spinner loading-lg"></span>
+   229→        </div>
+   230→      </DashboardLayout>
+   231→    );
+   232→  }
+   233→
+   234→  if (!appraisal) {
+   235→    return (
+   236→      <DashboardLayout>
+   237→        <div className="alert alert-error">Customer PX Appraisal not found</div>
+   238→      </DashboardLayout>
+   239→    );
+   240→  }
+   241→
+   242→  return (
+   243→    <DashboardLayout>
+   244→      <Head><title>PX Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+   245→
+   246→      <div className="mb-8">
+   247→        <Link href="/appraisals" className="btn btn-ghost btn-sm mb-4">← Back</Link>
+   248→        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+   249→          <div>
+   250→            <div className="flex items-center gap-3">
+   251→              <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+   252→              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Customer PX</span>
+   253→            </div>
+   254→            <p className="text-base-content/60 mt-2">
+   255→              {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
+   256→            </p>
+   257→          </div>
+   258→          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border ${
+   259→            appraisal.decision === "converted" ? "bg-emerald-50 text-emerald-700 border-emerald-200" :
+   260→            appraisal.decision === "declined" ? "bg-red-50 text-red-700 border-red-200" :
+   261→            appraisal.decision === "reviewed" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-amber-50 text-amber-700 border-amber-200"
+   262→          }`}>
+   263→            {appraisal.decision === "pending" ? "New" :
+   264→             appraisal.decision === "reviewed" ? "Reviewed" :
+   265→             appraisal.decision === "converted" ? "Converted" :
+   266→             appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+   267→          </span>
+   268→        </div>
+   269→      </div>
+   270→
+   271→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   272→        <div className="lg:col-span-2 space-y-6">
+   273→          {/* Customer Details */}
+   274→          <Card>
+   275→            <CardHeader title="Customer Details" />
+   276→            <CardContent>
+   277→              <KeyValueGrid cols={3}>
+   278→                <KeyValue label="Name" value={appraisal.customerName || appraisal.contactId?.name} />
+   279→                <KeyValue label="Email" value={appraisal.customerEmail || appraisal.contactId?.email} />
+   280→                <KeyValue label="Phone" value={appraisal.customerPhone || appraisal.contactId?.phone} />
+   281→                {appraisal.interestedInVehicle && (
+   282→                  <div className="md:col-span-3">
+   283→                    <KeyValue label="Interested In Vehicle" value={appraisal.interestedInVehicle} />
+   284→                  </div>
+   285→                )}
+   286→              </KeyValueGrid>
+   287→            </CardContent>
+   288→          </Card>
+   289→
+   290→          {/* Vehicle Details */}
+   291→          <Card>
+   292→            <CardHeader title="Vehicle Details" />
+   293→            <CardContent>
+   294→              <KeyValueGrid cols={2}>
+   295→                <KeyValue label="Make" value={appraisal.vehicleMake} />
+   296→                <KeyValue label="Model" value={appraisal.vehicleModel} />
+   297→                <KeyValue label="Year" value={appraisal.vehicleYear} />
+   298→                <KeyValue label="Mileage" value={appraisal.mileage ? `${appraisal.mileage.toLocaleString()} mi` : null} />
+   299→                <KeyValue label="Colour" value={appraisal.colour} />
+   300→                <KeyValue label="Fuel Type" value={appraisal.fuelType} />
+   301→                {appraisal.conditionRating && (
+   302→                  <KeyValue label="Condition" value={<Badge variant={
+   303→                    appraisal.conditionRating === 'excellent' ? 'success' :
+   304→                    appraisal.conditionRating === 'good' ? 'info' :
+   305→                    appraisal.conditionRating === 'fair' ? 'warning' : 'danger'
+   306→                  }>{appraisal.conditionRating}</Badge>} />
+   307→                )}
+   308→                {appraisal.outstandingFinanceAmount > 0 && (
+   309→                  <KeyValue label="Outstanding Finance" value={<span className="text-red-600 font-bold">£{appraisal.outstandingFinanceAmount?.toLocaleString()}</span>} />
+   310→                )}
+   311→                {appraisal.proposedPurchasePrice > 0 && (
+   312→                  <KeyValue label="Proposed Price" value={<span className="text-lg font-bold text-emerald-600">£{appraisal.proposedPurchasePrice?.toLocaleString()}</span>} size="lg" />
+   313→                )}
+   314→              </KeyValueGrid>
+   315→            </CardContent>
+   316→          </Card>
+   317→
+   318→          {/* Condition Notes */}
+   319→          <Card>
+   320→            <CardHeader title="Condition Notes" />
+   321→            <CardContent>
+   322→              <p className="whitespace-pre-wrap text-slate-700">{appraisal.conditionNotes || <span className="text-slate-400 italic">No notes recorded</span>}</p>
+   323→            </CardContent>
+   324→          </Card>
+   325→
+   326→          {/* Vehicle Photos Gallery */}
+   327→          {appraisal.photos && (
+   328→            (appraisal.photos.exterior?.length > 0 || appraisal.photos.interior?.length > 0 ||
+   329→             appraisal.photos.dashboard || appraisal.photos.odometer) && (
+   330→              <Card>
+   331→                <CardHeader title="Vehicle Photos" icon="📷" />
+   332→                <CardContent>
+   333→                  <PhotoGallery
+   334→                    photos={[
+   335→                      ...(appraisal.photos.exterior || []).map(url => ({ url, category: 'exterior' })),
+   336→                      ...(appraisal.photos.interior || []).map(url => ({ url, category: 'interior' })),
+   337→                      ...(appraisal.photos.dashboard ? [{ url: appraisal.photos.dashboard, category: 'dashboard', caption: 'Dashboard' }] : []),
+   338→                      ...(appraisal.photos.odometer ? [{ url: appraisal.photos.odometer, category: 'odometer', caption: 'Odometer' }] : []),
+   339→                    ]}
+   340→                    groupByCategory
+   341→                    showCount={false}
+   342→                  />
+   343→                </CardContent>
+   344→              </Card>
+   345→            )
+   346→          )}
+   347→
+   348→          {/* Issues Section */}
+   349→          <Card>
+   350→            <CardHeader
+   351→              title="Issues & Damage"
+   352→              icon="⚠️"
+   353→              subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
+   354→              action={
+   355→                <button
+   356→                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
+   357→                  onClick={() => setShowIssueModal(true)}
+   358→                >
+   359→                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   360→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+   361→                  </svg>
+   362→                  Add Issue
+   363→                </button>
+   364→              }
+   365→            />
+   366→            <CardContent>
+   367→              {issues.length === 0 ? (
+   368→                <div className="text-center py-8">
+   369→                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+   370→                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   371→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+   372→                    </svg>
+   373→                  </div>
+   374→                  <p className="text-slate-600 font-medium">No issues recorded</p>
+   375→                  <p className="text-sm text-slate-400 mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
+   376→                </div>
+   377→              ) : (
+   378→                <div className="space-y-3">
+   379→                  {issues.map((issue) => (
+   380→                    <div key={issue.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+   381→                      <div className="flex items-start justify-between gap-2 mb-2">
+   382→                        <div className="flex items-center gap-2 flex-wrap">
+   383→                          <Badge variant={
+   384→                            issue.category === 'mechanical' ? 'danger' :
+   385→                            issue.category === 'electrical' ? 'warning' :
+   386→                            issue.category === 'bodywork' ? 'info' :
+   387→                            issue.category === 'fault_codes' ? 'danger' :
+   388→                            issue.category === 'mot' ? 'secondary' : 'default'
+   389→                          }>
+   390→                            {CATEGORY_LABELS[issue.category] || issue.category}
+   391→                          </Badge>
+   392→                          <span className="font-semibold text-slate-800">{issue.subcategory}</span>
+   393→                        </div>
+   394→                        <button
+   395→                          className="text-xs text-red-500 hover:text-red-700 hover:underline transition-colors"
+   396→                          onClick={() => handleDeleteIssue(issue.id)}
+   397→                        >
+   398→                          Delete
+   399→                        </button>
+   400→                      </div>
+   401→                      <p className="text-sm text-slate-700 mb-2">{issue.description}</p>
+   402→                      {issue.actionNeeded && (
+   403→                        <p className="text-xs text-slate-500 mb-1">
+   404→                          <span className="font-medium text-slate-600">Action needed:</span> {issue.actionNeeded}
+   405→                        </p>
+   406→                      )}
+   407→                      {issue.estimatedCost > 0 && (
+   408→                        <p className="text-sm font-semibold text-red-600">
+   409→                          Est. cost: £{issue.estimatedCost.toLocaleString()}
+   410→                        </p>
+   411→                      )}
+   412→                      {/* Photos - use PhotoGallery component */}
+   413→                      {issue.photos && issue.photos.length > 0 && (
+   414→                        <div className="mt-3 pt-3 border-t border-slate-200">
+   415→                          <PhotoGallery
+   416→                            photos={issue.photos}
+   417→                            thumbnailSize="sm"
+   418→                            showCount={false}
+   419→                          />
+   420→                        </div>
+   421→                      )}
+   422→                      {/* Attachments format */}
+   423→                      {issue.attachments && issue.attachments.length > 0 && (
+   424→                        <div className="mt-3 pt-3 border-t border-slate-200">
+   425→                          <PhotoGallery
+   426→                            photos={issue.attachments.map(a => ({ url: a.url, caption: a.caption }))}
+   427→                            thumbnailSize="sm"
+   428→                            showCount={false}
+   429→                          />
+   430→                        </div>
+   431→                      )}
+   432→                    </div>
+   433→                  ))}
+   434→                </div>
+   435→              )}
+   436→            </CardContent>
+   437→          </Card>
+   438→
+   439→          {/* Documents Section */}
+   440→          {(appraisal.v5Url || appraisal.serviceHistoryUrl || (appraisal.otherDocuments && appraisal.otherDocuments.length > 0)) && (
+   441→            <Card>
+   442→              <CardHeader title="Documents" icon="📄" />
+   443→              <CardContent>
+   444→                <div className="flex flex-wrap gap-2">
+   445→                  {appraisal.v5Url && (
+   446→                    <a
+   447→                      href={appraisal.v5Url}
+   448→                      target="_blank"
+   449→                      rel="noopener noreferrer"
+   450→                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+   451→                    >
+   452→                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   453→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   454→                      </svg>
+   455→                      V5 Document
+   456→                    </a>
+   457→                  )}
+   458→                  {appraisal.serviceHistoryUrl && (
+   459→                    <a
+   460→                      href={appraisal.serviceHistoryUrl}
+   461→                      target="_blank"
+   462→                      rel="noopener noreferrer"
+   463→                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+   464→                    >
+   465→                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   466→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   467→                      </svg>
+   468→                      Service History
+   469→                    </a>
+   470→                  )}
+   471→                  {appraisal.otherDocuments?.map((doc, idx) => (
+   472→                    <a
+   473→                      key={idx}
+   474→                      href={doc.url}
+   475→                      target="_blank"
+   476→                      rel="noopener noreferrer"
+   477→                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+   478→                    >
+   479→                      <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   480→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   481→                      </svg>
+   482→                      {doc.name || "Document"}
+   483→                    </a>
+   484→                  ))}
+   485→                </div>
+   486→              </CardContent>
+   487→            </Card>
+   488→          )}
+   489→
+   490→          {/* AI Hints */}
+   491→          {appraisal.aiHintText && (
+   492→            <Card variant="accent">
+   493→              <CardHeader title="AI Suggestions" icon="🤖" />
+   494→              <CardContent>
+   495→                <p className="whitespace-pre-wrap text-sm text-slate-700">{appraisal.aiHintText}</p>
+   496→              </CardContent>
+   497→            </Card>
+   498→          )}
+   499→        </div>
+   500→
+   501→        {/* Actions Sidebar */}
+   502→        <div className="lg:col-span-1">
+   503→          <Card className="sticky top-20">
+   504→            <CardHeader title="Actions" />
+   505→            <CardContent className="space-y-4">
+   506→              {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
+   507→                <div className="space-y-3">
+   508→                  <button
+   509→                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+   510→                    onClick={handleConvert}
+   511→                    disabled={isConverting}
+   512→                  >
+   513→                    {isConverting ? (
+   514→                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+   515→                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+   516→                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+   517→                      </svg>
+   518→                    ) : (
+   519→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   520→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   521→                      </svg>
+   522→                    )}
+   523→                    Convert to Stock
+   524→                  </button>
+   525→                  <button
+   526→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+   527→                    onClick={() => handleDecision("reviewed")}
+   528→                  >
+   529→                    Mark as Reviewed
+   530→                  </button>
+   531→                  <button
+   532→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+   533→                    onClick={() => handleDecision("declined")}
+   534→                  >
+   535→                    Decline
+   536→                  </button>
+   537→                  <p className="text-xs text-slate-500 text-center">Converting will create a vehicle and default prep tasks.</p>
+   538→                </div>
+   539→              )}
+   540→
+   541→              {appraisal.decision === "converted" || appraisal.vehicleId ? (
+   542→                <div className="space-y-3">
+   543→                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 text-center">
+   544→                    Vehicle added to stock
+   545→                  </div>
+   546→                  <Link
+   547→                    href="/sales-prep"
+   548→                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
+   549→                  >
+   550→                    View in Stock & Prep
+   551→                  </Link>
+   552→                </div>
+   553→              ) : null}
+   554→
+   555→              {appraisal.decision === "declined" && (
+   556→                <div className="space-y-3">
+   557→                  <div className="p-3 rounded-lg bg-slate-100 border border-slate-200 text-sm text-slate-600 text-center">
+   558→                    This appraisal was declined
+   559→                  </div>
+   560→                  <button
+   561→                    className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+   562→                    onClick={() => handleDecision("pending")}
+   563→                  >
+   564→                    Re-open
+   565→                  </button>
+   566→                </div>
+   567→              )}
+   568→
+   569→              {/* Issues Summary */}
+   570→              {issues.length > 0 && (
+   571→                <div className="pt-4 border-t border-slate-200">
+   572→                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Issues Summary</p>
+   573→                  <p className="text-sm text-slate-700">{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+   574→                  {totalEstimatedCost > 0 && (
+   575→                    <p className="text-sm font-semibold text-red-600">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+   576→                  )}
+   577→                </div>
+   578→              )}
+   579→
+   580→              <div className="pt-4 border-t border-slate-200">
+   581→                <button
+   582→                  className="w-full px-4 py-2 text-sm font-medium rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+   583→                  onClick={async () => {
+   584→                    if (confirm("Delete this appraisal?")) {
+   585→                      await fetch(`/api/customer-px/${id}`, { method: "DELETE" });
+   586→                      router.push("/appraisals");
+   587→                    }
+   588→                  }}
+   589→                >
+   590→                  Delete Appraisal
+   591→                </button>
+   592→              </div>
+   593→            </CardContent>
+   594→          </Card>
+   595→        </div>
+   596→      </div>
+   597→
+   598→      {/* Add Issue Modal */}
+   599→      {showIssueModal && (
+   600→        <div className="modal modal-open">
+   601→          <div className="modal-box max-w-lg">
+   602→            <h3 className="font-bold text-lg mb-4">Add Issue</h3>
+   603→
+   604→            <div className="space-y-4">
+   605→              <div className="grid grid-cols-2 gap-4">
+   606→                <div className="form-control">
+   607→                  <label className="label"><span className="label-text">Category</span></label>
+   608→                  <select
+   609→                    className="select select-bordered w-full"
+   610→                    value={issueForm.category}
+   611→                    onChange={(e) => {
+   612→                      const newCat = e.target.value;
+   613→                      setIssueForm({
+   614→                        ...issueForm,
+   615→                        category: newCat,
+   616→                        subcategory: ISSUE_SUBCATEGORIES[newCat][0],
+   617→                      });
+   618→                    }}
+   619→                  >
+   620→                    {ISSUE_CATEGORIES.map((cat) => (
+   621→                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+   622→                    ))}
+   623→                  </select>
+   624→                </div>
+   625→                <div className="form-control">
+   626→                  <label className="label"><span className="label-text">Subcategory</span></label>
+   627→                  <select
+   628→                    className="select select-bordered w-full"
+   629→                    value={issueForm.subcategory}
+   630→                    onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
+   631→                  >
+   632→                    {ISSUE_SUBCATEGORIES[issueForm.category].map((sub) => (
+   633→                      <option key={sub} value={sub}>{sub}</option>
+   634→                    ))}
+   635→                  </select>
+   636→                </div>
+   637→              </div>
+   638→
+   639→              <div className="form-control">
+   640→                <label className="label"><span className="label-text">Description *</span></label>
+   641→                <textarea
+   642→                  className="textarea textarea-bordered"
+   643→                  rows={3}
+   644→                  placeholder="Describe the issue..."
+   645→                  value={issueForm.description}
+   646→                  onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
+   647→                />
+   648→              </div>
+   649→
+   650→              <div className="form-control">
+   651→                <label className="label"><span className="label-text">Action Needed</span></label>
+   652→                <input
+   653→                  type="text"
+   654→                  className="input input-bordered"
+   655→                  placeholder="e.g., Replace bumper, repaint"
+   656→                  value={issueForm.actionNeeded}
+   657→                  onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
+   658→                />
+   659→              </div>
+   660→
+   661→              <div className="form-control">
+   662→                <label className="label"><span className="label-text">Estimated Repair Cost (£)</span></label>
+   663→                <input
+   664→                  type="number"
+   665→                  className="input input-bordered"
+   666→                  placeholder="0"
+   667→                  value={issueForm.estimatedCost}
+   668→                  onChange={(e) => setIssueForm({ ...issueForm, estimatedCost: e.target.value })}
+   669→                />
+   670→              </div>
+   671→
+   672→              {/* Photo Upload */}
+   673→              <div className="form-control">
+   674→                <label className="label"><span className="label-text">Photos</span></label>
+   675→                <input
+   676→                  type="file"
+   677→                  accept="image/*"
+   678→                  multiple
+   679→                  className="file-input file-input-bordered w-full"
+   680→                  onChange={handlePhotoChange}
+   681→                />
+   682→                {photoPreviews.length > 0 && (
+   683→                  <div className="flex flex-wrap gap-2 mt-2">
+   684→                    {photoPreviews.map((preview, idx) => (
+   685→                      <div key={idx} className="relative">
+   686→                        <img src={preview} alt={`Preview ${idx + 1}`} className="w-16 h-16 object-cover rounded-lg" />
+   687→                        <button
+   688→                          type="button"
+   689→                          className="absolute -top-1 -right-1 btn btn-circle btn-xs btn-error"
+   690→                          onClick={() => removePhoto(idx)}
+   691→                        >
+   692→                          ×
+   693→                        </button>
+   694→                      </div>
+   695→                    ))}
+   696→                  </div>
+   697→                )}
+   698→              </div>
+   699→            </div>
+   700→
+   701→            <div className="modal-action">
+   702→              <button
+   703→                className="btn btn-ghost"
+   704→                onClick={() => {
+   705→                  setShowIssueModal(false);
+   706→                  setPhotoFiles([]);
+   707→                  setPhotoPreviews([]);
+   708→                }}
+   709→              >
+   710→                Cancel
+   711→              </button>
+   712→              <button
+   713→                className="btn btn-primary"
+   714→                onClick={handleAddIssue}
+   715→                disabled={isAddingIssue}
+   716→              >
+   717→                {isAddingIssue ? (
+   718→                  <>
+   719→                    <span className="loading loading-spinner loading-sm"></span>
+   720→                    {isUploadingPhotos ? "Uploading..." : "Saving..."}
+   721→                  </>
+   722→                ) : (
+   723→                  "Add Issue"
+   724→                )}
+   725→              </button>
+   726→            </div>
+   727→          </div>
+   728→          <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+   729→        </div>
+   730→      )}
+   731→
+   732→    </DashboardLayout>
+   733→  );
+   734→}
+   735→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

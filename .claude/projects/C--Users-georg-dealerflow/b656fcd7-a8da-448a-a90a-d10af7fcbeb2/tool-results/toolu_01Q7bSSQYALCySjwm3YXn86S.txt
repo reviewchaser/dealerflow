@@ -1,0 +1,875 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import { showDummyNotification } from "@/utils/notifications";
+     7→
+     8→export default function Settings() {
+     9→  const [labels, setLabels] = useState([]);
+    10→  const [categories, setCategories] = useState([]);
+    11→  const [locations, setLocations] = useState([]);
+    12→  const [prepTasks, setPrepTasks] = useState([]);
+    13→  const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
+    14→  const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
+    15→  const [newLocation, setNewLocation] = useState("");
+    16→  const [newPrepTask, setNewPrepTask] = useState("");
+    17→
+    18→  // Dealer branding state
+    19→  const [dealer, setDealer] = useState(null);
+    20→  const [dealerForm, setDealerForm] = useState({
+    21→    name: "",
+    22→    companyName: "",
+    23→    companyAddress: "",
+    24→    companyPhone: "",
+    25→    companyEmail: "",
+    26→    googleReviewUrl: "",
+    27→    slug: "",
+    28→  });
+    29→  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    30→  const [isSavingDealer, setIsSavingDealer] = useState(false);
+    31→
+    32→  // Theme state
+    33→  const [theme, setTheme] = useState("light");
+    34→
+    35→  // Load theme from localStorage on mount
+    36→  useEffect(() => {
+    37→    const savedTheme = localStorage.getItem("theme") || "system";
+    38→    setTheme(savedTheme);
+    39→    applyTheme(savedTheme);
+    40→  }, []);
+    41→
+    42→  const applyTheme = (selectedTheme) => {
+    43→    const root = document.documentElement;
+    44→    if (selectedTheme === "system") {
+    45→      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    46→      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+    47→      root.classList.toggle("dark", prefersDark);
+    48→    } else {
+    49→      root.setAttribute("data-theme", selectedTheme);
+    50→      root.classList.toggle("dark", selectedTheme === "dark");
+    51→    }
+    52→  };
+    53→
+    54→  const handleThemeChange = (newTheme) => {
+    55→    setTheme(newTheme);
+    56→    localStorage.setItem("theme", newTheme);
+    57→    applyTheme(newTheme);
+    58→    toast.success(`Theme changed to ${newTheme}`);
+    59→  };
+    60→
+    61→  useEffect(() => {
+    62→    fetchLabels();
+    63→    fetchCategories();
+    64→    fetchLocations();
+    65→    fetchPrepTasks();
+    66→    fetchDealer();
+    67→  }, []);
+    68→
+    69→  const fetchLabels = async () => {
+    70→    try {
+    71→      const res = await fetch("/api/labels");
+    72→      const data = await res.json();
+    73→      setLabels(data);
+    74→    } catch (error) {
+    75→      console.error("Failed to load labels");
+    76→    }
+    77→  };
+    78→
+    79→  const fetchCategories = async () => {
+    80→    try {
+    81→      const res = await fetch("/api/calendar/categories");
+    82→      const data = await res.json();
+    83→      // Ensure data is an array and normalize fields
+    84→      const categoriesArray = Array.isArray(data) ? data : (data?.categories ?? []);
+    85→      setCategories(
+    86→        categoriesArray.map((c) => ({
+    87→          id: c.id ?? c._id,
+    88→          name: c.name ?? "",
+    89→          colour: c.colour ?? c.color ?? "#6366f1",
+    90→        }))
+    91→      );
+    92→    } catch (error) {
+    93→      console.error("Failed to load categories");
+    94→      setCategories([]); // Reset to empty array on error
+    95→    }
+    96→  };
+    97→
+    98→  const addLabel = async (e) => {
+    99→    e.preventDefault();
+   100→    if (!newLabel.name) return toast.error("Label name required");
+   101→    try {
+   102→      await fetch("/api/labels", {
+   103→        method: "POST",
+   104→        headers: { "Content-Type": "application/json" },
+   105→        body: JSON.stringify(newLabel),
+   106→      });
+   107→      setNewLabel({ name: "", colour: "#6366f1" });
+   108→      fetchLabels();
+   109→      toast.success("Label added");
+   110→    } catch (error) {
+   111→      toast.error("Failed to add label");
+   112→    }
+   113→  };
+   114→
+   115→  const deleteLabel = async (labelId) => {
+   116→    if (!confirm("Delete this label?")) return;
+   117→    try {
+   118→      await fetch(`/api/labels/${labelId}`, { method: "DELETE" });
+   119→      fetchLabels();
+   120→      toast.success("Label deleted");
+   121→    } catch (error) {
+   122→      toast.error("Failed to delete label");
+   123→    }
+   124→  };
+   125→
+   126→  const addCategory = async (e) => {
+   127→    e.preventDefault();
+   128→    if (!newCategory.name) return toast.error("Category name required");
+   129→    try {
+   130→      await fetch("/api/calendar/categories", {
+   131→        method: "POST",
+   132→        headers: { "Content-Type": "application/json" },
+   133→        body: JSON.stringify(newCategory),
+   134→      });
+   135→      setNewCategory({ name: "", colour: "#3b82f6" });
+   136→      fetchCategories();
+   137→      toast.success("Category added");
+   138→    } catch (error) {
+   139→      toast.error("Failed to add category");
+   140→    }
+   141→  };
+   142→
+   143→  const fetchLocations = async () => {
+   144→    try {
+   145→      const res = await fetch("/api/locations");
+   146→      const data = await res.json();
+   147→      setLocations(data);
+   148→    } catch (error) {
+   149→      console.error("Failed to load locations");
+   150→    }
+   151→  };
+   152→
+   153→  const fetchPrepTasks = async () => {
+   154→    try {
+   155→      const res = await fetch("/api/prep-tasks");
+   156→      const data = await res.json();
+   157→      setPrepTasks(data);
+   158→    } catch (error) {
+   159→      console.error("Failed to load prep tasks");
+   160→    }
+   161→  };
+   162→
+   163→  const fetchDealer = async () => {
+   164→    try {
+   165→      const res = await fetch("/api/dealer");
+   166→      const data = await res.json();
+   167→      setDealer(data);
+   168→      setDealerForm({
+   169→        name: data.name || "",
+   170→        companyName: data.companyName || "",
+   171→        companyAddress: data.companyAddress || "",
+   172→        companyPhone: data.companyPhone || "",
+   173→        companyEmail: data.companyEmail || "",
+   174→        googleReviewUrl: data.googleReviewUrl || "",
+   175→        slug: data.slug || "",
+   176→      });
+   177→    } catch (error) {
+   178→      console.error("Failed to load dealer");
+   179→    }
+   180→  };
+   181→
+   182→  const handleLogoUpload = async (e) => {
+   183→    const file = e.target.files?.[0];
+   184→    if (!file) return;
+   185→
+   186→    // Validate file type
+   187→    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"];
+   188→    if (!validTypes.includes(file.type)) {
+   189→      toast.error("Please upload PNG, JPEG, WebP, or GIF");
+   190→      return;
+   191→    }
+   192→
+   193→    // Validate file size (max 5MB)
+   194→    const maxSize = 5 * 1024 * 1024;
+   195→    if (file.size > maxSize) {
+   196→      toast.error(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 5MB.`);
+   197→      return;
+   198→    }
+   199→
+   200→    setIsUploadingLogo(true);
+   201→    try {
+   202→      const formData = new FormData();
+   203→      formData.append("file", file);
+   204→
+   205→      // Use dedicated dealer logo endpoint (tenant-scoped, handles DB update)
+   206→      const uploadRes = await fetch("/api/dealer/logo", {
+   207→        method: "POST",
+   208→        body: formData,
+   209→      });
+   210→
+   211→      const contentType = uploadRes.headers.get("content-type") || "";
+   212→      if (!contentType.includes("application/json")) {
+   213→        if (process.env.NODE_ENV !== "production") {
+   214→          console.error("[Logo Upload] Non-JSON response:", uploadRes.status);
+   215→        }
+   216→        throw new Error("Server error (LOGO_UPLOAD_SERVER_ERROR)");
+   217→      }
+   218→
+   219→      const uploadData = await uploadRes.json();
+   220→
+   221→      if (!uploadRes.ok) {
+   222→        const errorMsg = uploadData.error || "Upload failed";
+   223→        const errorCode = uploadData.code || "UNKNOWN";
+   224→        if (process.env.NODE_ENV !== "production") {
+   225→          console.error("[Logo Upload] Error:", errorCode, errorMsg, uploadData.details);
+   226→        }
+   227→        throw new Error(`${errorMsg} (${errorCode})`);
+   228→      }
+   229→
+   230→      // Dealer logo endpoint updates dealer record automatically
+   231→      // Refresh dealer to get the updated logoUrl
+   232→      const dealerRes = await fetch("/api/dealer");
+   233→      if (!dealerRes.ok) throw new Error("Failed to refresh dealer profile");
+   234→      const updatedDealer = await dealerRes.json();
+   235→      setDealer(updatedDealer);
+   236→      toast.success("Logo uploaded");
+   237→    } catch (error) {
+   238→      if (process.env.NODE_ENV !== "production") {
+   239→        console.error("[Logo Upload] Exception:", error);
+   240→      }
+   241→      toast.error(error.message || "Failed to upload logo");
+   242→    } finally {
+   243→      setIsUploadingLogo(false);
+   244→    }
+   245→  };
+   246→
+   247→  const removeLogo = async () => {
+   248→    try {
+   249→      const res = await fetch("/api/dealer", {
+   250→        method: "PUT",
+   251→        headers: { "Content-Type": "application/json" },
+   252→        body: JSON.stringify({ logoUrl: "", logoKey: "" }),
+   253→      });
+   254→      if (!res.ok) throw new Error("Failed to remove logo");
+   255→      const updatedDealer = await res.json();
+   256→      setDealer(updatedDealer);
+   257→      toast.success("Logo removed");
+   258→    } catch (error) {
+   259→      toast.error("Failed to remove logo");
+   260→    }
+   261→  };
+   262→
+   263→  const saveDealer = async (e) => {
+   264→    e.preventDefault();
+   265→    setIsSavingDealer(true);
+   266→    try {
+   267→      const res = await fetch("/api/dealer", {
+   268→        method: "PUT",
+   269→        headers: { "Content-Type": "application/json" },
+   270→        body: JSON.stringify(dealerForm),
+   271→      });
+   272→      if (!res.ok) throw new Error("Failed to save");
+   273→      const updatedDealer = await res.json();
+   274→      setDealer(updatedDealer);
+   275→      toast.success("Profile saved");
+   276→    } catch (error) {
+   277→      toast.error("Failed to save profile");
+   278→    } finally {
+   279→      setIsSavingDealer(false);
+   280→    }
+   281→  };
+   282→
+   283→  const addLocation = async (e) => {
+   284→    e.preventDefault();
+   285→    if (!newLocation.trim()) return toast.error("Location name required");
+   286→    try {
+   287→      await fetch("/api/locations", {
+   288→        method: "POST",
+   289→        headers: { "Content-Type": "application/json" },
+   290→        body: JSON.stringify({ name: newLocation }),
+   291→      });
+   292→      setNewLocation("");
+   293→      fetchLocations();
+   294→      toast.success("Location added");
+   295→    } catch (error) {
+   296→      toast.error("Failed to add location");
+   297→    }
+   298→  };
+   299→
+   300→  const deleteLocation = async (locationId) => {
+   301→    if (!confirm("Delete this location?")) return;
+   302→    try {
+   303→      await fetch(`/api/locations/${locationId}`, { method: "DELETE" });
+   304→      fetchLocations();
+   305→      toast.success("Location deleted");
+   306→    } catch (error) {
+   307→      toast.error("Failed to delete location");
+   308→    }
+   309→  };
+   310→
+   311→  const addPrepTask = async (e) => {
+   312→    e.preventDefault();
+   313→    if (!newPrepTask.trim()) return toast.error("Task name required");
+   314→    try {
+   315→      await fetch("/api/prep-tasks", {
+   316→        method: "POST",
+   317→        headers: { "Content-Type": "application/json" },
+   318→        body: JSON.stringify({ name: newPrepTask }),
+   319→      });
+   320→      setNewPrepTask("");
+   321→      fetchPrepTasks();
+   322→      toast.success("Task added");
+   323→    } catch (error) {
+   324→      toast.error("Failed to add task");
+   325→    }
+   326→  };
+   327→
+   328→  const deletePrepTask = async (taskId) => {
+   329→    if (!confirm("Delete this task from template?")) return;
+   330→    try {
+   331→      await fetch(`/api/prep-tasks/${taskId}`, { method: "DELETE" });
+   332→      fetchPrepTasks();
+   333→      toast.success("Task deleted");
+   334→    } catch (error) {
+   335→      toast.error("Failed to delete task");
+   336→    }
+   337→  };
+   338→
+   339→  const reorderPrepTask = async (taskId, direction) => {
+   340→    try {
+   341→      await fetch(`/api/prep-tasks/${taskId}/reorder`, {
+   342→        method: "POST",
+   343→        headers: { "Content-Type": "application/json" },
+   344→        body: JSON.stringify({ direction }),
+   345→      });
+   346→      fetchPrepTasks();
+   347→    } catch (error) {
+   348→      toast.error("Failed to reorder task");
+   349→    }
+   350→  };
+   351→
+   352→  const resetPrepTasksToDefaults = async () => {
+   353→    if (!confirm("Reset prep checklist to defaults? This will replace all current tasks.")) return;
+   354→    try {
+   355→      const res = await fetch("/api/prep-tasks", {
+   356→        method: "POST",
+   357→        headers: { "Content-Type": "application/json" },
+   358→        body: JSON.stringify({ resetToDefaults: true }),
+   359→      });
+   360→      const data = await res.json();
+   361→      setPrepTasks(data);
+   362→      toast.success("Reset to defaults");
+   363→    } catch (error) {
+   364→      toast.error("Failed to reset");
+   365→    }
+   366→  };
+   367→
+   368→  return (
+   369→    <DashboardLayout>
+   370→      <Head><title>Settings | DealerFlow</title></Head>
+   371→
+   372→      <div className="mb-8">
+   373→        <h1 className="text-3xl font-bold">Settings</h1>
+   374→        <p className="text-base-content/60 mt-2">Configure your dealership</p>
+   375→      </div>
+   376→
+   377→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   378→        {/* Appearance Card */}
+   379→        <div className="card bg-base-200">
+   380→          <div className="card-body">
+   381→            <h2 className="card-title">Appearance</h2>
+   382→            <p className="text-sm text-base-content/60">Customize how DealerFlow looks</p>
+   383→
+   384→            <div className="form-control mt-4">
+   385→              <label className="label"><span className="label-text">Theme</span></label>
+   386→              <div className="flex gap-2">
+   387→                <button
+   388→                  className={`btn btn-sm flex-1 ${theme === "light" ? "btn-primary" : "btn-outline"}`}
+   389→                  onClick={() => handleThemeChange("light")}
+   390→                >
+   391→                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   392→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+   393→                  </svg>
+   394→                  Light
+   395→                </button>
+   396→                <button
+   397→                  className={`btn btn-sm flex-1 ${theme === "dark" ? "btn-primary" : "btn-outline"}`}
+   398→                  onClick={() => handleThemeChange("dark")}
+   399→                >
+   400→                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   401→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+   402→                  </svg>
+   403→                  Dark
+   404→                </button>
+   405→                <button
+   406→                  className={`btn btn-sm flex-1 ${theme === "system" ? "btn-primary" : "btn-outline"}`}
+   407→                  onClick={() => handleThemeChange("system")}
+   408→                >
+   409→                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+   410→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+   411→                  </svg>
+   412→                  System
+   413→                </button>
+   414→              </div>
+   415→              <label className="label">
+   416→                <span className="label-text-alt text-base-content/50">System follows your device preference</span>
+   417→              </label>
+   418→            </div>
+   419→          </div>
+   420→        </div>
+   421→
+   422→        {/* Form Templates Card */}
+   423→        <div className="card bg-base-200">
+   424→          <div className="card-body">
+   425→            <h2 className="card-title">Form Templates</h2>
+   426→            <p className="text-sm text-base-content/60">Customize form fields for PDI, Appraisals, Delivery checklists, and more</p>
+   427→            <div className="mt-4">
+   428→              <Link href="/settings/forms" className="btn btn-primary">
+   429→                Manage Form Templates
+   430→              </Link>
+   431→            </div>
+   432→          </div>
+   433→        </div>
+   434→
+   435→        {/* Team Management Card */}
+   436→        <div className="card bg-base-200">
+   437→          <div className="card-body">
+   438→            <h2 className="card-title">Team Members</h2>
+   439→            <p className="text-sm text-base-content/60">Invite team members, manage roles, and access permissions</p>
+   440→            <div className="mt-4">
+   441→              <Link href="/settings/team" className="btn btn-primary">
+   442→                Manage Team
+   443→              </Link>
+   444→            </div>
+   445→          </div>
+   446→        </div>
+   447→
+   448→        {/* Holiday Requests Card */}
+   449→        <div className="card bg-base-200">
+   450→          <div className="card-body">
+   451→            <h2 className="card-title">Holiday Requests</h2>
+   452→            <p className="text-sm text-base-content/60">Manage team holiday requests and time off approvals</p>
+   453→            <div className="mt-4">
+   454→              <Link href="/settings/holidays" className="btn btn-primary">
+   455→                Manage Holidays
+   456→              </Link>
+   457→            </div>
+   458→          </div>
+   459→        </div>
+   460→
+   461→        {/* Setup Wizard Card */}
+   462→        <div className="card bg-base-200">
+   463→          <div className="card-body">
+   464→            <h2 className="card-title">Setup Wizard</h2>
+   465→            <p className="text-sm text-base-content/60">Re-run the initial setup to reconfigure your workflow templates and defaults</p>
+   466→            <div className="mt-4">
+   467→              <Link
+   468→                href="/onboarding"
+   469→                className="btn btn-outline"
+   470→                onClick={async (e) => {
+   471→                  e.preventDefault();
+   472→                  // Reset onboarding flag so we can re-run
+   473→                  await fetch("/api/dealer", {
+   474→                    method: "PUT",
+   475→                    headers: { "Content-Type": "application/json" },
+   476→                    body: JSON.stringify({ completedOnboarding: false }),
+   477→                  });
+   478→                  window.location.href = "/onboarding";
+   479→                }}
+   480→              >
+   481→                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   482→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+   483→                </svg>
+   484→                Re-run Setup Wizard
+   485→              </Link>
+   486→            </div>
+   487→          </div>
+   488→        </div>
+   489→
+   490→        {/* Dealer Branding */}
+   491→        <div className="card bg-base-200">
+   492→          <div className="card-body">
+   493→            <h2 className="card-title">Dealer Branding</h2>
+   494→            <p className="text-sm text-base-content/60">Your logo appears in the sidebar and on public forms</p>
+   495→
+   496→            {/* Logo Upload */}
+   497→            <div className="mt-4">
+   498→              <label className="label"><span className="label-text">Dealership Logo</span></label>
+   499→              <div className="flex items-center gap-4">
+   500→                {dealer?.logoUrl ? (
+   501→                  <div className="relative">
+   502→                    <img
+   503→                      src={dealer.logoUrl}
+   504→                      alt="Dealer Logo"
+   505→                      className="w-24 h-24 object-contain bg-white rounded-lg border border-base-300 p-2"
+   506→                    />
+   507→                    <button
+   508→                      onClick={removeLogo}
+   509→                      className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+   510→                    >
+   511→                      ✕
+   512→                    </button>
+   513→                  </div>
+   514→                ) : (
+   515→                  <div className="w-24 h-24 bg-base-300 rounded-lg flex items-center justify-center text-base-content/40 text-xs">
+   516→                    No logo
+   517→                  </div>
+   518→                )}
+   519→                <div className="flex flex-col gap-2">
+   520→                  <label className="btn btn-sm btn-outline">
+   521→                    {isUploadingLogo ? (
+   522→                      <span className="loading loading-spinner loading-sm"></span>
+   523→                    ) : (
+   524→                      <>Upload Logo</>
+   525→                    )}
+   526→                    <input
+   527→                      type="file"
+   528→                      accept="image/png,image/jpeg,image/svg+xml"
+   529→                      onChange={handleLogoUpload}
+   530→                      className="hidden"
+   531→                      disabled={isUploadingLogo}
+   532→                    />
+   533→                  </label>
+   534→                  <span className="text-xs text-base-content/50">PNG, JPG, SVG (max 2MB)</span>
+   535→                </div>
+   536→              </div>
+   537→            </div>
+   538→          </div>
+   539→        </div>
+   540→
+   541→        {/* Dealer Profile */}
+   542→        <div className="card bg-base-200 lg:col-span-2">
+   543→          <div className="card-body">
+   544→            <h2 className="card-title">Business Details</h2>
+   545→            <p className="text-sm text-base-content/60">Used on forms, invoices, and public pages</p>
+   546→            <form onSubmit={saveDealer}>
+   547→              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+   548→                <div className="form-control">
+   549→                  <label className="label"><span className="label-text">Display Name</span></label>
+   550→                  <input
+   551→                    type="text"
+   552→                    className="input input-bordered"
+   553→                    placeholder="My Dealership"
+   554→                    value={dealerForm.name}
+   555→                    onChange={(e) => setDealerForm({ ...dealerForm, name: e.target.value })}
+   556→                  />
+   557→                  <label className="label"><span className="label-text-alt text-base-content/50">Shown in sidebar & dashboard</span></label>
+   558→                </div>
+   559→                <div className="form-control">
+   560→                  <label className="label"><span className="label-text">Legal Company Name</span></label>
+   561→                  <input
+   562→                    type="text"
+   563→                    className="input input-bordered"
+   564→                    placeholder="My New Motor LTD"
+   565→                    value={dealerForm.companyName}
+   566→                    onChange={(e) => setDealerForm({ ...dealerForm, companyName: e.target.value })}
+   567→                  />
+   568→                  <label className="label"><span className="label-text-alt text-base-content/50">Used in T&Cs and legal text on forms</span></label>
+   569→                </div>
+   570→                <div className="form-control md:col-span-2">
+   571→                  <label className="label"><span className="label-text">Company Address</span></label>
+   572→                  <textarea
+   573→                    className="textarea textarea-bordered"
+   574→                    placeholder="123 High Street&#10;London&#10;SW1A 1AA"
+   575→                    rows={3}
+   576→                    value={dealerForm.companyAddress}
+   577→                    onChange={(e) => setDealerForm({ ...dealerForm, companyAddress: e.target.value })}
+   578→                  />
+   579→                </div>
+   580→                <div className="form-control">
+   581→                  <label className="label"><span className="label-text">Contact Phone</span></label>
+   582→                  <input
+   583→                    type="tel"
+   584→                    className="input input-bordered"
+   585→                    placeholder="01onal761 569871"
+   586→                    value={dealerForm.companyPhone}
+   587→                    onChange={(e) => setDealerForm({ ...dealerForm, companyPhone: e.target.value })}
+   588→                  />
+   589→                </div>
+   590→                <div className="form-control">
+   591→                  <label className="label"><span className="label-text">Contact Email</span></label>
+   592→                  <input
+   593→                    type="email"
+   594→                    className="input input-bordered"
+   595→                    placeholder="info@mydealership.com"
+   596→                    value={dealerForm.companyEmail}
+   597→                    onChange={(e) => setDealerForm({ ...dealerForm, companyEmail: e.target.value })}
+   598→                  />
+   599→                </div>
+   600→                <div className="form-control">
+   601→                  <label className="label"><span className="label-text">Public Forms URL Slug</span></label>
+   602→                  <div className="join">
+   603→                    <span className="join-item btn btn-disabled text-xs">/px/</span>
+   604→                    <input
+   605→                      type="text"
+   606→                      className="input input-bordered join-item flex-1"
+   607→                      placeholder="my-dealership"
+   608→                      value={dealerForm.slug}
+   609→                      onChange={(e) => setDealerForm({ ...dealerForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+   610→                    />
+   611→                  </div>
+   612→                  <label className="label"><span className="label-text-alt text-base-content/50">Used for public form links</span></label>
+   613→                </div>
+   614→                <div className="form-control">
+   615→                  <label className="label"><span className="label-text">Google Review URL</span></label>
+   616→                  <input
+   617→                    type="url"
+   618→                    className="input input-bordered"
+   619→                    placeholder="https://g.page/..."
+   620→                    value={dealerForm.googleReviewUrl}
+   621→                    onChange={(e) => setDealerForm({ ...dealerForm, googleReviewUrl: e.target.value })}
+   622→                  />
+   623→                </div>
+   624→              </div>
+   625→              <button type="submit" className="btn btn-primary mt-6" disabled={isSavingDealer}>
+   626→                {isSavingDealer ? <span className="loading loading-spinner loading-sm"></span> : "Save Business Details"}
+   627→              </button>
+   628→            </form>
+   629→          </div>
+   630→        </div>
+   631→
+   632→        {/* Custom Vehicle Labels */}
+   633→        <div className="card bg-base-200">
+   634→          <div className="card-body">
+   635→            <h2 className="card-title">Custom Vehicle Labels</h2>
+   636→            <p className="text-sm text-base-content/60">Create labels to tag vehicle cards (e.g. "MOT Expired", "High Priority", "Manager Special")</p>
+   637→
+   638→            <div className="space-y-2 mt-4">
+   639→              {labels.length === 0 ? (
+   640→                <p className="text-sm text-base-content/50 text-center py-4">No labels created yet</p>
+   641→              ) : (
+   642→                labels.map((label) => (
+   643→                  <div key={label.id} className="flex items-center gap-2 p-2 bg-base-100 rounded group">
+   644→                    <div className="w-4 h-4 rounded" style={{ backgroundColor: label.colour }}></div>
+   645→                    <span className="flex-1">{label.name}</span>
+   646→                    <button
+   647→                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+   648→                      onClick={() => deleteLabel(label.id)}
+   649→                    >
+   650→                      ✕
+   651→                    </button>
+   652→                  </div>
+   653→                ))
+   654→              )}
+   655→            </div>
+   656→
+   657→            <form onSubmit={addLabel} className="flex gap-2 mt-4">
+   658→              <input type="text" className="input input-bordered input-sm flex-1" placeholder="Label name"
+   659→                value={newLabel.name} onChange={(e) => setNewLabel({ ...newLabel, name: e.target.value })} />
+   660→              <input type="color" className="w-10 h-10 rounded cursor-pointer"
+   661→                value={newLabel.colour} onChange={(e) => setNewLabel({ ...newLabel, colour: e.target.value })} />
+   662→              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+   663→            </form>
+   664→          </div>
+   665→        </div>
+   666→
+   667→        {/* Calendar Categories */}
+   668→        <div className="card bg-base-200">
+   669→          <div className="card-body">
+   670→            <h2 className="card-title">Calendar Categories</h2>
+   671→            <p className="text-sm text-base-content/60">Event types for calendar (e.g. "Handover", "Test Drive")</p>
+   672→            
+   673→            <div className="space-y-2 mt-4">
+   674→              {Array.isArray(categories) && categories.length > 0 ? (
+   675→                categories.map((cat) => (
+   676→                  <div key={cat.id} className="flex items-center gap-2 p-2 bg-base-100 rounded">
+   677→                    <div className="w-4 h-4 rounded" style={{ backgroundColor: cat.colour }}></div>
+   678→                    <span className="flex-1">{cat.name}</span>
+   679→                  </div>
+   680→                ))
+   681→              ) : (
+   682→                <p className="text-sm text-base-content/50 italic">No categories yet</p>
+   683→              )}
+   684→            </div>
+   685→
+   686→            <form onSubmit={addCategory} className="flex gap-2 mt-4">
+   687→              <input type="text" className="input input-bordered input-sm flex-1" placeholder="Category name"
+   688→                value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} />
+   689→              <input type="color" className="w-10 h-10 rounded cursor-pointer"
+   690→                value={newCategory.colour} onChange={(e) => setNewCategory({ ...newCategory, colour: e.target.value })} />
+   691→              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+   692→            </form>
+   693→          </div>
+   694→        </div>
+   695→
+   696→        {/* Integrations */}
+   697→        <div className="card bg-base-200">
+   698→          <div className="card-body">
+   699→            <h2 className="card-title">Integrations</h2>
+   700→            <p className="text-sm text-base-content/60">Configure external services</p>
+   701→            
+   702→            <div className="space-y-4 mt-4">
+   703→              <div className="p-3 bg-base-100 rounded-lg">
+   704→                <div className="flex items-center justify-between">
+   705→                  <div>
+   706→                    <p className="font-semibold">DVLA API</p>
+   707→                    <p className="text-xs text-base-content/60">Vehicle lookup service</p>
+   708→                  </div>
+   709→                  <span className="badge badge-warning">Not configured</span>
+   710→                </div>
+   711→              </div>
+   712→              
+   713→              <div className="p-3 bg-base-100 rounded-lg">
+   714→                <div className="flex items-center justify-between">
+   715→                  <div>
+   716→                    <p className="font-semibold">AI Hints (OpenAI/Claude)</p>
+   717→                    <p className="text-xs text-base-content/60">Vehicle condition suggestions</p>
+   718→                  </div>
+   719→                  <span className="badge badge-warning">Not configured</span>
+   720→                </div>
+   721→              </div>
+   722→              
+   723→              <div className="p-3 bg-base-100 rounded-lg">
+   724→                <div className="flex items-center justify-between">
+   725→                  <div>
+   726→                    <p className="font-semibold">Email (SendGrid/Resend)</p>
+   727→                    <p className="text-xs text-base-content/60">Review requests & notifications</p>
+   728→                  </div>
+   729→                  <span className="badge badge-warning">Not configured</span>
+   730→                </div>
+   731→              </div>
+   732→              
+   733→              <div className="p-3 bg-base-100 rounded-lg">
+   734→                <div className="flex items-center justify-between">
+   735→                  <div>
+   736→                    <p className="font-semibold">SMS (Twilio)</p>
+   737→                    <p className="text-xs text-base-content/60">Review requests via SMS</p>
+   738→                  </div>
+   739→                  <span className="badge badge-warning">Not configured</span>
+   740→                </div>
+   741→              </div>
+   742→            </div>
+   743→          </div>
+   744→        </div>
+   745→
+   746→        {/* Offsite Locations */}
+   747→        <div className="card bg-base-200">
+   748→          <div className="card-body">
+   749→            <h2 className="card-title">Offsite Locations</h2>
+   750→            <p className="text-sm text-base-content/60">Manage offsite location names (e.g., "MOT Centre", "Paint Shop")</p>
+   751→
+   752→            <div className="space-y-2 mt-4">
+   753→              {locations.length === 0 ? (
+   754→                <p className="text-sm text-base-content/50 text-center py-4">No locations added yet</p>
+   755→              ) : (
+   756→                locations.map((location) => (
+   757→                  <div key={location.id} className="flex items-center justify-between p-2 bg-base-100 rounded">
+   758→                    <span>{location.name}</span>
+   759→                    <button
+   760→                      className="btn btn-xs btn-error btn-ghost"
+   761→                      onClick={() => deleteLocation(location.id)}
+   762→                    >
+   763→                      Delete
+   764→                    </button>
+   765→                  </div>
+   766→                ))
+   767→              )}
+   768→            </div>
+   769→
+   770→            <form onSubmit={addLocation} className="flex gap-2 mt-4">
+   771→              <input
+   772→                type="text"
+   773→                className="input input-bordered input-sm flex-1"
+   774→                placeholder="Location name (e.g., A1 MOT Centre)"
+   775→                value={newLocation}
+   776→                onChange={(e) => setNewLocation(e.target.value)}
+   777→              />
+   778→              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+   779→            </form>
+   780→          </div>
+   781→        </div>
+   782→
+   783→        {/* Prep Checklist Template */}
+   784→        <div className="card bg-base-200">
+   785→          <div className="card-body">
+   786→            <div className="flex items-center justify-between">
+   787→              <div>
+   788→                <h2 className="card-title">Prep Checklist Template</h2>
+   789→                <p className="text-sm text-base-content/60">Default tasks auto-created for new vehicles</p>
+   790→              </div>
+   791→              <button
+   792→                className="btn btn-ghost btn-xs"
+   793→                onClick={resetPrepTasksToDefaults}
+   794→              >
+   795→                Reset to Defaults
+   796→              </button>
+   797→            </div>
+   798→
+   799→            <div className="space-y-2 mt-4">
+   800→              {prepTasks.length === 0 ? (
+   801→                <p className="text-sm text-base-content/50 text-center py-4">Loading tasks...</p>
+   802→              ) : (
+   803→                prepTasks.map((task, idx) => (
+   804→                  <div key={task.id} className="flex items-center gap-2 p-2 bg-base-100 rounded group">
+   805→                    <div className="flex flex-col gap-0.5">
+   806→                      <button
+   807→                        className="btn btn-xs btn-ghost h-4 min-h-0 px-1 text-base-content/40 hover:text-base-content"
+   808→                        onClick={() => reorderPrepTask(task.id, "up")}
+   809→                        disabled={idx === 0}
+   810→                      >
+   811→                        ▲
+   812→                      </button>
+   813→                      <button
+   814→                        className="btn btn-xs btn-ghost h-4 min-h-0 px-1 text-base-content/40 hover:text-base-content"
+   815→                        onClick={() => reorderPrepTask(task.id, "down")}
+   816→                        disabled={idx === prepTasks.length - 1}
+   817→                      >
+   818→                        ▼
+   819→                      </button>
+   820→                    </div>
+   821→                    <span className="badge badge-ghost badge-sm">{idx + 1}</span>
+   822→                    <span className="flex-1 font-medium">{task.name}</span>
+   823→                    <button
+   824→                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+   825→                      onClick={() => deletePrepTask(task.id)}
+   826→                    >
+   827→                      ✕
+   828→                    </button>
+   829→                  </div>
+   830→                ))
+   831→              )}
+   832→            </div>
+   833→
+   834→            <form onSubmit={addPrepTask} className="flex gap-2 mt-4">
+   835→              <input
+   836→                type="text"
+   837→                className="input input-bordered input-sm flex-1"
+   838→                placeholder="Add new task (e.g., Oil Service)"
+   839→                value={newPrepTask}
+   840→                onChange={(e) => setNewPrepTask(e.target.value)}
+   841→              />
+   842→              <button type="submit" className="btn btn-primary btn-sm">Add</button>
+   843→            </form>
+   844→          </div>
+   845→        </div>
+   846→
+   847→        {/* Data Management */}
+   848→        <div className="card bg-base-200 lg:col-span-2">
+   849→          <div className="card-body">
+   850→            <h2 className="card-title text-error">Danger Zone</h2>
+   851→            <p className="text-sm text-base-content/60">Data management actions</p>
+   852→            
+   853→            <div className="flex gap-4 mt-4">
+   854→              <button className="btn btn-outline btn-error" onClick={() => showDummyNotification("Data export")}>
+   855→                Export All Data
+   856→              </button>
+   857→              <button className="btn btn-outline btn-error" onClick={() => {
+   858→                if (confirm("This would delete all data. Are you sure?")) {
+   859→                  showDummyNotification("Data deletion");
+   860→                }
+   861→              }}>
+   862→                Delete All Data
+   863→              </button>
+   864→            </div>
+   865→          </div>
+   866→        </div>
+   867→      </div>
+   868→    </DashboardLayout>
+   869→  );
+   870→}
+   871→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

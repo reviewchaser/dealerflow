@@ -1,0 +1,236 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Deal from "@/models/Deal";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import Contact from "@/models/Contact";
+     5→import Dealer from "@/models/Dealer";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→/**
+     9→ * Deals API
+    10→ * GET /api/deals - List deals with filtering
+    11→ * POST /api/deals - Create new deal
+    12→ *
+    13→ * Query params:
+    14→ * - status: Filter by status (or comma-separated list)
+    15→ * - vehicleId: Filter by vehicle
+    16→ * - customerId: Filter by customer (soldToContactId)
+    17→ * - salesPersonId: Filter by salesperson
+    18→ * - buyerType: CONSUMER|BUSINESS
+    19→ * - saleType: RETAIL|TRADE
+    20→ * - vatScheme: MARGIN|VAT_QUALIFYING|NO_VAT
+    21→ */
+    22→async function handler(req, res, ctx) {
+    23→  await connectMongo();
+    24→  const { dealerId, userId } = ctx;
+    25→
+    26→  if (req.method === "GET") {
+    27→    const {
+    28→      status,
+    29→      vehicleId,
+    30→      customerId,
+    31→      salesPersonId,
+    32→      buyerType,
+    33→      saleType,
+    34→      vatScheme,
+    35→    } = req.query;
+    36→
+    37→    let query = { dealerId };
+    38→
+    39→    // Filter by status (supports comma-separated list)
+    40→    if (status && status !== "all") {
+    41→      const statuses = status.split(",");
+    42→      if (statuses.length === 1) {
+    43→        query.status = status;
+    44→      } else {
+    45→        query.status = { $in: statuses };
+    46→      }
+    47→    }
+    48→
+    49→    if (vehicleId) query.vehicleId = vehicleId;
+    50→    if (customerId) query.soldToContactId = customerId;
+    51→    if (salesPersonId) query.salesPersonId = salesPersonId;
+    52→    if (buyerType) query.buyerType = buyerType;
+    53→    if (saleType) query.saleType = saleType;
+    54→    if (vatScheme) query.vatScheme = vatScheme;
+    55→
+    56→    const deals = await Deal.find(query)
+    57→      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus")
+    58→      .populate("soldToContactId", "displayName email phone companyName")
+    59→      .populate("invoiceToContactId", "displayName companyName")
+    60→      .populate("salesPersonId", "name email")
+    61→      .populate("partExchangeId")
+    62→      .sort({ createdAt: -1 })
+    63→      .lean();
+    64→
+    65→    // Transform and add computed fields
+    66→    const transformed = deals.map(d => ({
+    67→      ...d,
+    68→      id: d._id.toString(),
+    69→      vehicle: d.vehicleId ? {
+    70→        id: d.vehicleId._id?.toString(),
+    71→        regCurrent: d.vehicleId.regCurrent,
+    72→        make: d.vehicleId.make,
+    73→        model: d.vehicleId.model,
+    74→        year: d.vehicleId.year,
+    75→        primaryImageUrl: d.vehicleId.primaryImageUrl,
+    76→        status: d.vehicleId.status,
+    77→        salesStatus: d.vehicleId.salesStatus,
+    78→      } : null,
+    79→      customer: d.soldToContactId ? {
+    80→        id: d.soldToContactId._id?.toString(),
+    81→        displayName: d.soldToContactId.displayName,
+    82→        email: d.soldToContactId.email,
+    83→        phone: d.soldToContactId.phone,
+    84→        companyName: d.soldToContactId.companyName,
+    85→      } : null,
+    86→      invoiceTo: d.invoiceToContactId ? {
+    87→        id: d.invoiceToContactId._id?.toString(),
+    88→        displayName: d.invoiceToContactId.displayName,
+    89→        companyName: d.invoiceToContactId.companyName,
+    90→      } : null,
+    91→      salesPerson: d.salesPersonId ? {
+    92→        id: d.salesPersonId._id?.toString(),
+    93→        name: d.salesPersonId.name,
+    94→        email: d.salesPersonId.email,
+    95→      } : null,
+    96→      partExchange: d.partExchangeId || null,
+    97→      // Clean up populated refs
+    98→      vehicleId: d.vehicleId?._id?.toString(),
+    99→      soldToContactId: d.soldToContactId?._id?.toString(),
+   100→      invoiceToContactId: d.invoiceToContactId?._id?.toString(),
+   101→      salesPersonId: d.salesPersonId?._id?.toString(),
+   102→      partExchangeId: d.partExchangeId?._id?.toString(),
+   103→      _id: undefined,
+   104→      __v: undefined,
+   105→    }));
+   106→
+   107→    return res.status(200).json(transformed);
+   108→  }
+   109→
+   110→  if (req.method === "POST") {
+   111→    const {
+   112→      vehicleId,
+   113→      soldToContactId,
+   114→      invoiceToContactId,
+   115→      buyerType,
+   116→      saleChannel,
+   117→      saleType,
+   118→      vatScheme,
+   119→      vehiclePriceNet,
+   120→      vehicleVatAmount,
+   121→      vehiclePriceGross,
+   122→      notes,
+   123→      internalNotes,
+   124→      warrantyMonths,
+   125→      deliveryAddress,
+   126→    } = req.body;
+   127→
+   128→    // Validate required fields
+   129→    if (!vehicleId) {
+   130→      return res.status(400).json({ error: "Vehicle is required" });
+   131→    }
+   132→
+   133→    // Verify vehicle exists and belongs to dealer
+   134→    const vehicle = await Vehicle.findOne({ _id: vehicleId, dealerId });
+   135→    if (!vehicle) {
+   136→      return res.status(404).json({ error: "Vehicle not found" });
+   137→    }
+   138→
+   139→    // Check vehicle isn't already in a deal
+   140→    if (vehicle.salesStatus === "IN_DEAL" || vehicle.salesStatus === "SOLD_IN_PROGRESS") {
+   141→      const existingDeal = await Deal.findOne({
+   142→        vehicleId,
+   143→        dealerId,
+   144→        status: { $nin: ["COMPLETED", "CANCELLED"] },
+   145→      });
+   146→      if (existingDeal) {
+   147→        return res.status(400).json({
+   148→          error: "Vehicle is already in an active deal",
+   149→          existingDealId: existingDeal._id.toString(),
+   150→        });
+   151→      }
+   152→    }
+   153→
+   154→    // Get next deal number atomically
+   155→    const dealer = await Dealer.findByIdAndUpdate(
+   156→      dealerId,
+   157→      { $inc: { "salesSettings.nextDealNumber": 1 } },
+   158→      { new: false }
+   159→    );
+   160→
+   161→    const prefix = dealer?.salesSettings?.dealNumberPrefix || "D";
+   162→    const dealNumber = dealer?.salesSettings?.nextDealNumber || 1;
+   163→
+   164→    // Determine VAT scheme (use vehicle's if not specified)
+   165→    const scheme = vatScheme || vehicle.vatScheme || "MARGIN";
+   166→
+   167→    // Calculate pricing if not fully provided
+   168→    let priceNet = vehiclePriceNet;
+   169→    let priceVat = vehicleVatAmount;
+   170→    let priceGross = vehiclePriceGross;
+   171→
+   172→    if (scheme === "VAT_QUALIFYING" && priceGross && !priceNet) {
+   173→      // Calculate net from gross
+   174→      const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+   175→      priceNet = priceGross / (1 + vatRate);
+   176→      priceVat = priceGross - priceNet;
+   177→    } else if (scheme === "VAT_QUALIFYING" && priceNet && !priceGross) {
+   178→      // Calculate gross from net
+   179→      const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+   180→      priceVat = priceNet * vatRate;
+   181→      priceGross = priceNet + priceVat;
+   182→    }
+   183→
+   184→    // Create the deal
+   185→    const deal = await Deal.create({
+   186→      dealerId,
+   187→      vehicleId,
+   188→      dealNumber,
+   189→      status: "DRAFT",
+   190→      soldToContactId,
+   191→      invoiceToContactId,
+   192→      buyerType: buyerType || "CONSUMER",
+   193→      saleChannel: saleChannel || "IN_PERSON",
+   194→      saleType: saleType || "RETAIL",
+   195→      vatScheme: scheme,
+   196→      vatRate: dealer?.salesSettings?.vatRate || 0.2,
+   197→      vehiclePriceNet: priceNet,
+   198→      vehicleVatAmount: priceVat,
+   199→      vehiclePriceGross: priceGross,
+   200→      notes,
+   201→      internalNotes,
+   202→      warrantyMonths: warrantyMonths ?? dealer?.salesSettings?.defaultWarrantyMonths ?? 3,
+   203→      deliveryAddress,
+   204→      salesPersonId: userId,
+   205→      createdByUserId: userId,
+   206→    });
+   207→
+   208→    // Update vehicle status
+   209→    await Vehicle.findByIdAndUpdate(vehicleId, {
+   210→      salesStatus: "IN_DEAL",
+   211→    });
+   212→
+   213→    // Re-fetch with populated fields
+   214→    const populatedDeal = await Deal.findById(deal._id)
+   215→      .populate("vehicleId", "regCurrent make model year primaryImageUrl")
+   216→      .populate("soldToContactId", "displayName email phone")
+   217→      .lean();
+   218→
+   219→    return res.status(201).json({
+   220→      ...populatedDeal,
+   221→      id: populatedDeal._id.toString(),
+   222→      dealRef: `${prefix}${String(dealNumber).padStart(5, "0")}`,
+   223→      _id: undefined,
+   224→      __v: undefined,
+   225→    });
+   226→  }
+   227→
+   228→  return res.status(405).json({ error: "Method not allowed" });
+   229→}
+   230→
+   231→export default withDealerContext(handler);
+   232→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

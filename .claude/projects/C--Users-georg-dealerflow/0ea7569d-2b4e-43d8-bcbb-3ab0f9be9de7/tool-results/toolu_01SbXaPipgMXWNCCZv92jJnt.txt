@@ -1,0 +1,32 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   154→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+   155→  </svg>
+   156→);
+   157→
+   158→// Navigation structure:
+   159→// - Main (0-3): Dashboard, Stock & Prep, Sales, Aftersales
+   160→// - Management (4-9): Appraisals, Contacts, Submissions, Reviews, Calendar
+   161→// - HR (10-11): Holidays, Overtime
+   162→// - System (12): Settings
+   163→const navigation = [
+   164→  // Main
+   165→  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
+   166→  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
+   167→  { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon },
+   168→  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
+   169→  // Management
+   170→  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
+   171→  { name: "Contacts", href: "/contacts", Icon: UsersIcon },
+   172→  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+   173→  { name: "Reviews", href: "/reviews", Icon: StarIcon },
+   174→  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+   175→  // HR
+   176→  { name: "Holidays", href: "/holidays", Icon: SunIcon },
+   177→  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
+   178→  // System
+   179→  { name: "Settings", href: "/settings", Icon: CogIcon },
+   180→];
+   181→
+   182→// Cache key for logo URL in localStorage
+   183→const LOGO_CACHE_KEY = "dealerflow_logo_url";
+   184→const DEALER_NAME_CACHE_KEY = "dealerflow_dealer_name";

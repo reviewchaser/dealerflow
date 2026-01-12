@@ -1,0 +1,76 @@
+The file C:\Users\georg\dealerflow\components\VehicleImageGallery.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useState, useCallback } from "react";
+     2→import Image from "next/image";
+     3→import { toast } from "react-hot-toast";
+     4→
+     5→/**
+     6→ * VehicleImageGallery Component
+     7→ *
+     8→ * Displays vehicle images in a gallery format with:
+     9→ * - Thumbnail grid view
+    10→ * - Lightbox for larger preview
+    11→ * - Delete functionality
+    12→ * - Set as primary functionality
+    13→ * - Automatic signed URL fallback for private buckets
+    14→ *
+    15→ * Props:
+    16→ * - vehicleId: The vehicle ID
+    17→ * - images: Array of { url, key, uploadedAt }
+    18→ * - primaryImageUrl: The current primary image URL
+    19→ * - onUpdate: Callback when images are modified (receives updated vehicle)
+    20→ * - editable: Whether to show edit controls (default true)
+    21→ */
+    22→export default function VehicleImageGallery({
+    23→  vehicleId,
+    24→  images = [],
+    25→  primaryImageUrl,
+    26→  onUpdate,
+    27→  editable = true,
+    28→}) {
+    29→  const [lightboxImage, setLightboxImage] = useState(null);
+    30→  const [isDeleting, setIsDeleting] = useState(null);
+    31→  const [isSettingPrimary, setIsSettingPrimary] = useState(null);
+    32→  // Map of image keys to signed URLs (for private bucket fallback)
+    33→  const [signedUrls, setSignedUrls] = useState({});
+    34→  const [loadErrors, setLoadErrors] = useState({});
+    35→
+    36→  // Fetch signed URL when public URL fails
+    37→  const fetchSignedUrl = useCallback(async (imageKey) => {
+    38→    // Don't refetch if we already have it or already tried
+    39→    if (signedUrls[imageKey] || loadErrors[imageKey] === "signed-failed") return null;
+    40→
+    41→    try {
+    42→      const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(imageKey)}`);
+    43→      if (!res.ok) {
+    44→        console.error("[Gallery] Failed to get signed URL:", await res.text());
+    45→        setLoadErrors((prev) => ({ ...prev, [imageKey]: "signed-failed" }));
+    46→        return null;
+    47→      }
+    48→      const { signedUrl } = await res.json();
+    49→      setSignedUrls((prev) => ({ ...prev, [imageKey]: signedUrl }));
+    50→      return signedUrl;
+    51→    } catch (err) {
+    52→      console.error("[Gallery] Error fetching signed URL:", err);
+    53→      setLoadErrors((prev) => ({ ...prev, [imageKey]: "signed-failed" }));
+    54→      return null;
+    55→    }
+    56→  }, [signedUrls, loadErrors]);
+    57→
+    58→  // Handle image load error - try signed URL fallback
+    59→  const handleImageError = useCallback((imageKey) => {
+    60→    // Mark as errored and try to fetch signed URL
+    61→    setLoadErrors((prev) => {
+    62→      if (prev[imageKey]) return prev; // Already tried
+    63→      return { ...prev, [imageKey]: "public-failed" };
+    64→    });
+    65→    fetchSignedUrl(imageKey);
+    66→  }, [fetchSignedUrl]);
+    67→
+    68→  // Get the best URL for an image (signed if available, otherwise public)
+    69→  const getImageUrl = useCallback((image) => {
+    70→    return signedUrls[image.key] || image.url;
+    71→  }, [signedUrls]);
+    72→
+    73→  const handleDelete = async (image) => {
+    74→    if (!confirm("Are you sure you want to delete this image?")) return;
+    75→

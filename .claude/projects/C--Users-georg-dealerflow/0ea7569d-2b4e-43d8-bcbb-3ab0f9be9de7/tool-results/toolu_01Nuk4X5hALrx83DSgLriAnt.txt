@@ -1,0 +1,55 @@
+2585-                                {label.name}
+2586-                              </span>
+2587-                            ))}
+2588:                            {/* Missing SIV Badge - only for stock vehicles without purchase price */}
+2589:                            {vehicle.type === "STOCK" && !vehicle.purchase?.purchasePriceNet && (
+2590-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+2591-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+2592-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+2593-                                </svg>
+2594:                                No SIV
+2595-                              </span>
+2596-                            )}
+2597-                          </div>
+--
+2879-                                {label.name}
+2880-                              </span>
+2881-                            ))}
+2882:                            {/* Missing SIV Badge - only for stock vehicles without purchase price */}
+2883:                            {vehicle.type === "STOCK" && !vehicle.purchase?.purchasePriceNet && (
+2884-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+2885-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+2886-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+2887-                                </svg>
+2888:                                No SIV
+2889-                              </span>
+2890-                            )}
+2891-                          </div>
+--
+3552-                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
+3553-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+3554-                      <div className="flex items-center justify-between mb-4">
+3555:                        <h3 className="text-sm font-semibold text-slate-900">Purchase Info (SIV)</h3>
+3556:                        {!selectedVehicle.purchase?.purchasePriceNet && (
+3557-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+3558-                            Missing
+3559-                          </span>
+--
+3562-                      <div className="space-y-3">
+3563-                        <div className="grid grid-cols-2 gap-3">
+3564-                          <div className="form-control">
+3565:                            <label className="label label-text text-xs">Purchase Price (SIV)</label>
+3566-                            <div className="relative">
+3567-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+3568-                              <input
+--
+3570-                                step="0.01"
+3571-                                className="input input-sm input-bordered w-full pl-7"
+3572-                                placeholder="0.00"
+3573:                                value={selectedVehicle.purchase?.purchasePriceNet || ""}
+3574-                                onChange={(e) => setSelectedVehicle({
+3575-                                  ...selectedVehicle,
+3576:                                  purchase: { ...selectedVehicle.purchase, purchasePriceNet: e.target.value ? parseFloat(e.target.value) : null }
+3577-                                })}
+3578-                                onBlur={async () => {
+3579-                                  await fetch(`/api/vehicles/${selectedVehicle.id}`, {

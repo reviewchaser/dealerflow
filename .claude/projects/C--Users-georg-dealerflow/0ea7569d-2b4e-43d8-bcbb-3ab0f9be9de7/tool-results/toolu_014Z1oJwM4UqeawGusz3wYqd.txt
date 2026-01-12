@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   226→
+   227→    return sorted.slice(0, 10);
+   228→  }, [vrmSearch, vehicles]);
+   229→
+   230→  // Reset selection when dropdown opens
+   231→  useEffect(() => {
+   232→    if (showVrmDropdown) {
+   233→      setVrmSelectedIndex(-1);
+   234→    }
+   235→  }, [showVrmDropdown]);
+   236→
+   237→  // Close dropdown when clicking outside
+   238→  useEffect(() => {
+   239→    const handleClickOutside = (e) => {

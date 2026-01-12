@@ -1,0 +1,208 @@
+     1→/**
+     2→ * DVLA Vehicle Enquiry Service API Integration
+     3→ *
+     4→ * Uses the official DVLA VES API to lookup vehicle details by registration number.
+     5→ * API Documentation: https://developer-portal.driver-vehicle-licensing.api.gov.uk/
+     6→ *
+     7→ * Returns normalized vehicle data using shared normalizer.
+     8→ */
+     9→
+    10→import { normalizeVrm, normalizeDvlaResponse } from "@/libs/vehicle/normalizeVrmLookup";
+    11→
+    12→export default async function handler(req, res) {
+    13→  if (req.method !== "POST") {
+    14→    return res.status(405).json({ error: "Method not allowed" });
+    15→  }
+    16→
+    17→  const { vehicleReg } = req.body;
+    18→  if (!vehicleReg) {
+    19→    return res.status(400).json({ error: "Vehicle registration required" });
+    20→  }
+    21→
+    22→  // Normalize VRM: trim, uppercase, remove all spaces
+    23→  const cleanReg = vehicleReg.trim().toUpperCase().replace(/\s+/g, "");
+    24→
+    25→  // Basic format validation
+    26→  if (cleanReg.length < 2 || cleanReg.length > 8) {
+    27→    return res.status(400).json({
+    28→      error: "Invalid registration format",
+    29→      errorCode: "INVALID_FORMAT",
+    30→      message: "Registration number must be between 2 and 8 characters",
+    31→    });
+    32→  }
+    33→
+    34→  const apiKey = process.env.DVLA_API_KEY;
+    35→
+    36→  // If no API key, return dummy data for development
+    37→  if (!apiKey) {
+    38→    if (process.env.NODE_ENV === "development") {
+    39→      console.warn("[DVLA] API key not configured - returning dummy data");
+    40→      return res.status(200).json(generateDummyData(cleanReg));
+    41→    }
+    42→    // In production, return proper error
+    43→    return res.status(503).json({
+    44→      error: "DVLA integration not configured",
+    45→      errorCode: "NOT_CONFIGURED",
+    46→      message: "DVLA lookup is not available. Please contact support.",
+    47→    });
+    48→  }
+    49→
+    50→  try {
+    51→    const response = await fetch(
+    52→      "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles",
+    53→      {
+    54→        method: "POST",
+    55→        headers: {
+    56→          "Content-Type": "application/json",
+    57→          "x-api-key": apiKey,
+    58→        },
+    59→        body: JSON.stringify({
+    60→          registrationNumber: cleanReg,
+    61→        }),
+    62→      }
+    63→    );
+    64→
+    65→    if (!response.ok) {
+    66→      const errorText = await response.text();
+    67→      if (process.env.NODE_ENV === "development") {
+    68→        console.log(`[DVLA] Response status: ${response.status}`);
+    69→      }
+    70→      console.error("[DVLA] API error:", response.status, errorText);
+    71→
+    72→      // Handle specific error codes
+    73→      if (response.status === 404) {
+    74→        return res.status(404).json({
+    75→          error: "VRM not found",
+    76→          errorCode: "NOT_FOUND",
+    77→          message: "No vehicle found with this registration number. Please check the VRM and try again.",
+    78→        });
+    79→      }
+    80→
+    81→      if (response.status === 400) {
+    82→        return res.status(400).json({
+    83→          error: "Invalid registration",
+    84→          errorCode: "INVALID_FORMAT",
+    85→          message: "The registration number format is invalid.",
+    86→        });
+    87→      }
+    88→
+    89→      if (response.status === 401) {
+    90→        return res.status(503).json({
+    91→          error: "DVLA integration not configured",
+    92→          errorCode: "AUTH_FAILED",
+    93→          message: "DVLA API authentication failed. Please contact support.",
+    94→        });
+    95→      }
+    96→
+    97→      if (response.status === 403) {
+    98→        return res.status(503).json({
+    99→          error: "DVLA integration not configured",
+   100→          errorCode: "ACCESS_DENIED",
+   101→          message: "DVLA API access denied. Please contact support.",
+   102→        });
+   103→      }
+   104→
+   105→      return res.status(503).json({
+   106→        error: "DVLA service unavailable",
+   107→        errorCode: "SERVICE_ERROR",
+   108→        message: "Unable to retrieve vehicle details. Please try again later.",
+   109→      });
+   110→    }
+   111→
+   112→    if (process.env.NODE_ENV === "development") {
+   113→      console.log(`[DVLA] Response status: ${response.status} - Success`);
+   114→    }
+   115→
+   116→    const data = await response.json();
+   117→
+   118→    // Use shared normalizer for consistent response shape
+   119→    const normalizedData = normalizeDvlaResponse(data);
+   120→
+   121→    // Also include legacy field names for backwards compatibility
+   122→    const vehicleData = {
+   123→      ...normalizedData,
+   124→      // Legacy field mappings
+   125→      isDummy: false,
+   126→      registrationNumber: normalizedData.vrm,
+   127→      yearOfManufacture: normalizedData.year,
+   128→      // Flag if model is missing (needs manual entry)
+   129→      modelMissing: !normalizedData.model || normalizedData.model.trim() === "",
+   130→    };
+   131→
+   132→    return res.status(200).json(vehicleData);
+   133→  } catch (error) {
+   134→    console.error("[DVLA] Network error:", error.message);
+   135→
+   136→    // In development, fall back to dummy data
+   137→    if (process.env.NODE_ENV === "development") {
+   138→      console.warn("[DVLA] Falling back to dummy data due to connection error");
+   139→      return res.status(200).json(generateDummyData(cleanReg));
+   140→    }
+   141→
+   142→    // In production, return service unavailable
+   143→    return res.status(503).json({
+   144→      error: "DVLA service unavailable",
+   145→      errorCode: "NETWORK_ERROR",
+   146→      message: "Unable to connect to DVLA service. Please try again later.",
+   147→    });
+   148→  }
+   149→}
+   150→
+   151→/**
+   152→ * Generate dummy data for development when API key is not configured
+   153→ */
+   154→function generateDummyData(vehicleReg) {
+   155→  // Generate varied MOT dates for testing
+   156→  const rand = Math.random();
+   157→  let daysOffset;
+   158→  let motStatus;
+   159→
+   160→  if (rand < 0.3) {
+   161→    daysOffset = -Math.floor(Math.random() * 90);
+   162→    motStatus = "Not valid";
+   163→  } else if (rand < 0.5) {
+   164→    daysOffset = Math.floor(Math.random() * 30);
+   165→    motStatus = "Valid";
+   166→  } else {
+   167→    daysOffset = Math.floor(Math.random() * 365) + 30;
+   168→    motStatus = "Valid";
+   169→  }
+   170→
+   171→  const motExpiryDate = new Date();
+   172→  motExpiryDate.setDate(motExpiryDate.getDate() + daysOffset);
+   173→  const motExpiryStr = motExpiryDate.toISOString().split("T")[0];
+   174→
+   175→  // Create raw DVLA-like data
+   176→  const rawData = {
+   177→    registrationNumber: vehicleReg,
+   178→    make: "FORD",
+   179→    model: "FOCUS",
+   180→    colour: "BLUE",
+   181→    yearOfManufacture: 2019,
+   182→    engineCapacity: 1500,
+   183→    fuelType: "PETROL",
+   184→    transmission: "MANUAL",
+   185→    taxStatus: "Taxed",
+   186→    taxDueDate: "2025-03-01",
+   187→    motStatus: motStatus,
+   188→    motExpiryDate: motExpiryStr,
+   189→  };
+   190→
+   191→  // Normalize using shared normalizer
+   192→  const normalizedData = normalizeDvlaResponse(rawData);
+   193→
+   194→  return {
+   195→    ...normalizedData,
+   196→    isDummy: true,
+   197→    message: "DVLA API not configured - showing demo data",
+   198→    // Legacy field mappings
+   199→    registrationNumber: normalizedData.vrm,
+   200→    yearOfManufacture: normalizedData.year,
+   201→    modelMissing: false,
+   202→  };
+   203→}
+   204→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

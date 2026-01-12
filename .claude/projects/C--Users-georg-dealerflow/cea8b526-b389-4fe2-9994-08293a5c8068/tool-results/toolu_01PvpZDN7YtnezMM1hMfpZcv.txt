@@ -1,0 +1,14 @@
+     1→import { useEffect, useState, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import VehicleDrawer from "@/components/VehicleDrawer";
+     6→import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+     7→import { toast } from "react-hot-toast";
+     8→
+     9→// Column config matching Sales & Prep style
+    10→// NOTE: Internal keys are legacy names - keep stable for database compatibility
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

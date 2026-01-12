@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\forms.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   787→      {/* Compact Sticky Header */}
+   788→      <div className="sticky top-0 z-30 bg-white border-b border-slate-200 -mx-4 md:-mx-6 lg:-mx-8">
+   789→        {/* Row 1: Title + Actions */}
+   790→        <div className="flex items-center justify-between h-12 px-4">
+   791→          <div className="flex items-center gap-2">
+   792→            <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
+   793→            <PageHint id="submissions">View all completed forms. Use Share Forms to send customers a link to fill out forms.</PageHint>
+   794→          </div>
+   795→
+   796→          {/* Right: Add Button + Share + Overflow Menu */}
+   797→          <div className="flex items-center gap-2">
+   798→            {/* Share Forms Dropdown */}
+   799→            <div className="dropdown dropdown-end">
+   800→              <label tabIndex={0} className="h-9 w-9 md:w-auto md:px-3 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors">

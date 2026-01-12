@@ -1,0 +1,48 @@
+The file C:\Users\georg\dealerflow\pages\api\holiday-requests\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    96→      if (start < oneYearAgo) {
+    97→        return res.status(400).json({ error: "Start date cannot be more than 1 year in the past" });
+    98→      }
+    99→
+   100→      // Prevent dates too far in the future (max 2 years ahead)
+   101→      const twoYearsFromNow = new Date();
+   102→      twoYearsFromNow.setFullYear(twoYearsFromNow.getFullYear() + 2);
+   103→      if (end > twoYearsFromNow) {
+   104→        return res.status(400).json({ error: "End date cannot be more than 2 years in the future" });
+   105→      }
+   106→
+   107→      // Determine target user ID for duplicate check
+   108→      const checkUserId = (requestForUserId && (role === "OWNER" || role === "ADMIN"))
+   109→        ? requestForUserId
+   110→        : userId;
+   111→
+   112→      // Check for overlapping existing requests (PENDING or APPROVED)
+   113→      // Two date ranges overlap if: start1 <= end2 AND end1 >= start2
+   114→      const overlappingRequests = await HolidayRequest.find({
+   115→        dealerId,
+   116→        userId: checkUserId,
+   117→        status: { $in: ["PENDING", "APPROVED"] },
+   118→        $and: [
+   119→          { startDate: { $lte: end } },
+   120→          { endDate: { $gte: start } }
+   121→        ]
+   122→      }).lean();
+   123→
+   124→      if (overlappingRequests.length > 0) {
+   125→        const existingDates = overlappingRequests.map(r => {
+   126→          const s = new Date(r.startDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+   127→          const e = new Date(r.endDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+   128→          return s === e ? s : `${s} - ${e}`;
+   129→        }).join(", ");
+   130→
+   131→        return res.status(409).json({
+   132→          error: `You already have a ${overlappingRequests[0].status.toLowerCase()} request that overlaps with these dates (${existingDates})`,
+   133→          existingRequestId: overlappingRequests[0]._id.toString(),
+   134→          existingDates
+   135→        });
+   136→      }
+   137→
+   138→      // Determine which user the request is for
+   139→      let targetUserId = userId;
+   140→      let targetUserName = ctx.user.name || ctx.user.email;
+   141→      let targetUserEmail = ctx.user.email;
+   142→

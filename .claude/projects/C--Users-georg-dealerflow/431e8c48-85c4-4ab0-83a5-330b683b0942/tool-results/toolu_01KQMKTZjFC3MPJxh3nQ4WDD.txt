@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\api\admin\dealers.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    18→
+    19→      // Enrich with counts and owner info
+    20→      const enrichedDealers = await Promise.all(
+    21→        dealers.map(async (dealer) => {
+    22→          const [usersCount, vehiclesCount, ownerMembership] = await Promise.all([
+    23→            DealerMembership.countDocuments({ dealerId: dealer._id, removedAt: null }),
+    24→            Vehicle.countDocuments({ dealerId: dealer._id }),
+    25→            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", removedAt: null })
+    26→              .populate("userId", "email fullName name")
+    27→              .lean(),
+    28→          ]);
+    29→

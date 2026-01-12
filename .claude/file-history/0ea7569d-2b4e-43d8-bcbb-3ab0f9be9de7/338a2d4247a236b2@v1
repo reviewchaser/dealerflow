@@ -1,0 +1,17 @@
+/**
+ * Tenant-aware VAT Report Route
+ * /app/[dealerSlug]/reports/vat
+ *
+ * Wraps the existing VAT report page with tenant context.
+ */
+
+import TenantPage from "@/components/TenantPage";
+import VATReportPage from "@/pages/reports/vat";
+
+export default function TenantVATReport() {
+  return (
+    <TenantPage>
+      <VATReportPage />
+    </TenantPage>
+  );
+}

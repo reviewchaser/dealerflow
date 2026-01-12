@@ -1,0 +1,154 @@
+  5140→              photos: [],
+  5141→            });
+  5142→            toast.success("Issue added");
+  5143→          }}
+  5144→        />
+  5145→      )}
+  5146→    </div>
+  5147→  );
+  5148→}
+  5149→
+  5150→function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
+  5151→  const [isLoading, setIsLoading] = useState(false);
+  5152→  const [photoFiles, setPhotoFiles] = useState([]);
+  5153→  const [photoPreviews, setPhotoPreviews] = useState([]);
+  5154→  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  5155→
+  5156→  const handlePhotoChange = (e) => {
+  5157→    const files = Array.from(e.target.files);
+  5158→    setPhotoFiles(prev => [...prev, ...files]);
+  5159→
+  5160→    // Create previews
+  5161→    files.forEach(file => {
+  5162→      const reader = new FileReader();
+  5163→      reader.onloadend = () => {
+  5164→        setPhotoPreviews(prev => [...prev, reader.result]);
+  5165→      };
+  5166→      reader.readAsDataURL(file);
+  5167→    });
+  5168→  };
+  5169→
+  5170→  const removePhoto = (index) => {
+  5171→    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+  5172→    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+  5173→  };
+  5174→
+  5175→  const uploadPhotos = async () => {
+  5176→    const uploadedUrls = [];
+  5177→    for (const file of photoFiles) {
+  5178→      const formData = new FormData();
+  5179→      formData.append("file", file);
+  5180→      const res = await fetch("/api/vehicles/upload", {
+  5181→        method: "POST",
+  5182→        body: formData,
+  5183→      });
+  5184→      if (res.ok) {
+  5185→        const data = await res.json();
+  5186→        // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+  5187→        uploadedUrls.push(data.key || data.url);
+  5188→      }
+  5189→    }
+  5190→    return uploadedUrls;
+  5191→  };
+  5192→
+  5193→  const handleSubmit = async (e) => {
+  5194→    e.preventDefault();
+  5195→    setIsLoading(true);
+  5196→    try {
+  5197→      // Upload photos first if any
+  5198→      let photoUrls = [];
+  5199→      if (photoFiles.length > 0) {
+  5200→        setIsUploadingPhotos(true);
+  5201→        photoUrls = await uploadPhotos();
+  5202→        setIsUploadingPhotos(false);
+  5203→      }
+  5204→      // Pass photo URLs/keys to onSubmit
+  5205→      await onSubmit(photoUrls);
+  5206→    } finally {
+  5207→      setIsLoading(false);
+  5208→    }
+  5209→  };
+  5210→
+  5211→  return (
+  5212→    <div className="modal modal-open">
+  5213→      <div className="modal-box max-w-2xl bg-white">
+  5214→        <div className="flex items-center justify-between mb-6">
+  5215→          <h3 className="text-xl font-bold text-slate-900">{isEditing ? "Edit Issue" : "Add Issue"}</h3>
+  5216→          <button
+  5217→            type="button"
+  5218→            onClick={onClose}
+  5219→            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
+  5220→          >
+  5221→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  5222→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  5223→            </svg>
+  5224→          </button>
+  5225→        </div>
+  5226→        <form onSubmit={handleSubmit}>
+  5227→          <div className="grid grid-cols-2 gap-4">
+  5228→            <div className="form-control">
+  5229→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category *</label>
+  5230→              <select
+  5231→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+  5232→                value={issueForm.category}
+  5233→                onChange={(e) => {
+  5234→                  setIssueForm({ ...issueForm, category: e.target.value, subcategory: "" });
+  5235→                }}
+  5236→                required
+  5237→              >
+  5238→                <option value="">Select category...</option>
+  5239→                <option value="mechanical">Mechanical</option>
+  5240→                <option value="electrical">Electrical</option>
+  5241→                <option value="bodywork">Bodywork</option>
+  5242→                <option value="interior">Interior</option>
+  5243→                <option value="tyres">Tyres</option>
+  5244→                <option value="mot">MOT</option>
+  5245→                <option value="service">Service</option>
+  5246→                <option value="fault_codes">Fault Codes</option>
+  5247→                <option value="other">Other</option>
+  5248→              </select>
+  5249→            </div>
+  5250→
+  5251→            {issueForm.category && (
+  5252→              <div className="form-control">
+  5253→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Subcategory</label>
+  5254→                <select
+  5255→                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
+  5256→                  value={issueForm.subcategory}
+  5257→                  onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
+  5258→                >
+  5259→                  <option value="">Select subcategory...</option>
+  5260→                  {ISSUE_SUBCATEGORIES[issueForm.category]?.map((sub) => (
+  5261→                    <option key={sub} value={sub}>{sub}</option>
+  5262→                  ))}
+  5263→                </select>
+  5264→              </div>
+  5265→            )}
+  5266→
+  5267→            {/* Fault Codes field - only show for fault_codes category */}
+  5268→            {issueForm.category === "fault_codes" && (
+  5269→              <div className="form-control col-span-2">
+  5270→                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
+  5271→                <input
+  5272→                  type="text"
+  5273→                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 font-mono placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
+  5274→                  value={issueForm.faultCodes || ""}
+  5275→                  onChange={(e) => setIssueForm({ ...issueForm, faultCodes: e.target.value })}
+  5276→                  placeholder="e.g. P0301, P0420, C1234"
+  5277→                />
+  5278→                <p className="text-xs text-slate-400 mt-1.5">Enter codes separated by commas</p>
+  5279→              </div>
+  5280→            )}
+  5281→
+  5282→            <div className="form-control col-span-2">
+  5283→              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description *</label>
+  5284→              <textarea
+  5285→                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
+  5286→                value={issueForm.description}
+  5287→                onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
+  5288→                placeholder={issueForm.category === "fault_codes" ? "Describe what the fault codes indicate..." : "Describe the issue..."}
+  5289→                required
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,8 @@
+1377:    let statusVehicles = vehicles.filter(v => v.status === status);
+2432:              const columnVehicles = getVehiclesByStatus(col.key);
+2461:                  {columnVehicles.map((vehicle) => {
+2624:                  {columnVehicles.length === 0 && (
+2647:              const columnVehicles = getVehiclesByStatus(col.key);
+2663:                      {columnVehicles.length}
+2707:                  {columnVehicles.map((vehicle) => {
+2911:                  {columnVehicles.length === 0 && (

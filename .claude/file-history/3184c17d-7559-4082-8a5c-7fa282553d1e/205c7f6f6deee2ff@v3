@@ -1,0 +1,748 @@
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import Link from "next/link";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+
+// Categories must match AppraisalIssue model schema (lowercase)
+const ISSUE_CATEGORIES = ["mechanical", "electrical", "bodywork", "interior", "tyres", "mot", "service", "fault_codes", "other"];
+const ISSUE_SUBCATEGORIES = {
+  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+  other: ["General", "Misc"],
+};
+const CATEGORY_LABELS = {
+  mechanical: "Mechanical",
+  electrical: "Electrical",
+  bodywork: "Bodywork",
+  interior: "Interior",
+  tyres: "Tyres",
+  mot: "MOT",
+  service: "Service",
+  fault_codes: "Fault Codes",
+  other: "Other",
+};
+
+export default function AppraisalDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+  const [appraisal, setAppraisal] = useState(null);
+  const [issues, setIssues] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConverting, setIsConverting] = useState(false);
+
+  // Issue modal state
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [issueForm, setIssueForm] = useState({
+    category: "mechanical",
+    subcategory: "Engine",
+    description: "",
+    actionNeeded: "",
+    estimatedCost: "",
+    notes: "",
+  });
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [isAddingIssue, setIsAddingIssue] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchAppraisal();
+      fetchIssues();
+    }
+  }, [id]);
+
+  const fetchAppraisal = async () => {
+    try {
+      const res = await fetch(`/api/appraisals/${id}`);
+      const data = await res.json();
+      setAppraisal(data);
+    } catch (error) {
+      toast.error("Failed to load");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchIssues = async () => {
+    try {
+      const res = await fetch(`/api/appraisals/issues?appraisalId=${id}`);
+      const data = await res.json();
+      setIssues(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load issues:", error);
+      setIssues([]);
+    }
+  };
+
+  const handleDecision = async (decision) => {
+    try {
+      await fetch(`/api/appraisals/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision }),
+      });
+      toast.success(`Marked as ${decision}`);
+      fetchAppraisal();
+    } catch (error) {
+      toast.error("Failed to update");
+    }
+  };
+
+  const handleConvert = async () => {
+    setIsConverting(true);
+    try {
+      const res = await fetch(`/api/appraisals/${id}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initialStatus: "in_stock" }),
+      });
+      if (!res.ok) throw new Error("Failed to convert");
+      toast.success("Vehicle created!");
+      router.push("/sales-prep");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handlePhotoChange = (e) => {
+    const files = Array.from(e.target.files);
+    setPhotoFiles(prev => [...prev, ...files]);
+
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreviews(prev => [...prev, reader.result]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index) => {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadPhotos = async () => {
+    const uploadedUrls = [];
+    for (const file of photoFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("/api/vehicles/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          uploadedUrls.push(data.url);
+        }
+      } catch (error) {
+        console.error("Photo upload failed:", error);
+      }
+    }
+    return uploadedUrls;
+  };
+
+  const handleAddIssue = async () => {
+    if (!issueForm.description.trim()) {
+      toast.error("Description is required");
+      return;
+    }
+
+    setIsAddingIssue(true);
+
+    try {
+      let photoUrls = [];
+      if (photoFiles.length > 0) {
+        setIsUploadingPhotos(true);
+        photoUrls = await uploadPhotos();
+        setIsUploadingPhotos(false);
+      }
+
+      const res = await fetch("/api/appraisals/issues", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appraisalId: id,
+          ...issueForm,
+          estimatedCost: issueForm.estimatedCost ? parseFloat(issueForm.estimatedCost) : undefined,
+          photos: photoUrls,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add issue");
+
+      toast.success("Issue added");
+      setShowIssueModal(false);
+      setIssueForm({
+        category: "mechanical",
+        subcategory: "Engine",
+        description: "",
+        actionNeeded: "",
+        estimatedCost: "",
+        notes: "",
+      });
+      setPhotoFiles([]);
+      setPhotoPreviews([]);
+      fetchIssues();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsAddingIssue(false);
+    }
+  };
+
+  const handleDeleteIssue = async (issueId) => {
+    if (!confirm("Delete this issue?")) return;
+
+    try {
+      await fetch(`/api/appraisals/issues/${issueId}`, { method: "DELETE" });
+      toast.success("Issue deleted");
+      fetchIssues();
+    } catch (error) {
+      toast.error("Failed to delete");
+    }
+  };
+
+  const getCategoryColor = (category) => {
+    switch (category) {
+      case "mechanical": return "badge-error";
+      case "electrical": return "badge-warning";
+      case "bodywork": return "badge-info";
+      case "interior": return "badge-info";
+      case "tyres": return "badge-warning";
+      case "mot": return "badge-secondary";
+      case "service": return "badge-accent";
+      case "fault_codes": return "badge-error";
+      default: return "badge-ghost";
+    }
+  };
+
+  const totalEstimatedCost = issues.reduce((sum, issue) => sum + (issue.estimatedCost || 0), 0);
+
+  const handlePrint = () => {
+    const printContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Appraisal - ${appraisal.vehicleReg}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+    .reg { font-size: 24px; font-family: monospace; color: #1e293b; font-weight: bold; }
+    .subtitle { font-size: 16px; color: #64748b; margin-top: 8px; }
+    .section { margin-bottom: 30px; }
+    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .field { margin-bottom: 12px; }
+    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+    .field-value { font-size: 14px; color: #1e293b; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .badge-warning { background: #fef3c7; color: #92400e; }
+    .badge-success { background: #dcfce7; color: #166534; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+    .notes { background: #f8fafc; padding: 16px; border-radius: 8px; white-space: pre-wrap; font-size: 14px; }
+    .issue { background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #6366f1; }
+    .issue-header { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+    .issue-badge { background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .issue-desc { font-size: 14px; margin-bottom: 4px; }
+    .issue-cost { color: #dc2626; font-weight: 600; font-size: 13px; }
+    .total-cost { font-size: 18px; color: #dc2626; font-weight: bold; margin-top: 16px; padding: 12px; background: #fef2f2; border-radius: 8px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <p class="reg">${appraisal.vehicleReg}</p>
+    <p class="subtitle">${appraisal.vehicleMake || ""} ${appraisal.vehicleModel || ""} ${appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}</p>
+    <span class="badge ${appraisal.decision === "converted" ? "badge-success" : appraisal.decision === "declined" ? "badge-error" : "badge-warning"}" style="margin-top: 12px;">
+      ${appraisal.decision === "pending" ? "New" : appraisal.decision === "reviewed" ? "Reviewed" : appraisal.decision === "converted" ? "Converted" : appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+    </span>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">Vehicle Details</h2>
+    <div class="grid">
+      <div class="field"><div class="field-label">Make</div><div class="field-value">${appraisal.vehicleMake || "—"}</div></div>
+      <div class="field"><div class="field-label">Model</div><div class="field-value">${appraisal.vehicleModel || "—"}</div></div>
+      <div class="field"><div class="field-label">Year</div><div class="field-value">${appraisal.vehicleYear || "—"}</div></div>
+      <div class="field"><div class="field-label">Mileage</div><div class="field-value">${appraisal.mileage ? appraisal.mileage.toLocaleString() : "—"}</div></div>
+      <div class="field"><div class="field-label">Colour</div><div class="field-value">${appraisal.colour || "—"}</div></div>
+      <div class="field"><div class="field-label">Fuel Type</div><div class="field-value">${appraisal.fuelType || "—"}</div></div>
+      <div class="field"><div class="field-label">Proposed Price</div><div class="field-value" style="font-weight: bold; font-size: 18px;">${appraisal.proposedPurchasePrice ? "£" + appraisal.proposedPurchasePrice.toLocaleString() : "—"}</div></div>
+    </div>
+  </div>
+
+  ${appraisal.conditionNotes ? `
+  <div class="section">
+    <h2 class="section-title">Condition Notes</h2>
+    <div class="notes">${appraisal.conditionNotes}</div>
+  </div>
+  ` : ""}
+
+  ${issues.length > 0 ? `
+  <div class="section">
+    <h2 class="section-title">Issues & Damage (${issues.length})</h2>
+    ${issues.map(issue => `
+      <div class="issue">
+        <div class="issue-header">
+          <span class="issue-badge">${CATEGORY_LABELS[issue.category] || issue.category}</span>
+          <strong>${issue.subcategory}</strong>
+        </div>
+        <p class="issue-desc">${issue.description}</p>
+        ${issue.actionNeeded ? `<p style="font-size: 12px; color: #64748b;">Action: ${issue.actionNeeded}</p>` : ""}
+        ${issue.estimatedCost ? `<p class="issue-cost">Est. cost: £${issue.estimatedCost.toLocaleString()}</p>` : ""}
+      </div>
+    `).join("")}
+    ${totalEstimatedCost > 0 ? `<div class="total-cost">Total Estimated Repairs: £${totalEstimatedCost.toLocaleString()}</div>` : ""}
+  </div>
+  ` : ""}
+
+  ${appraisal.contactId ? `
+  <div class="section">
+    <h2 class="section-title">Seller Information</h2>
+    <div class="grid">
+      <div class="field"><div class="field-label">Name</div><div class="field-value">${appraisal.contactId.name || "—"}</div></div>
+      <div class="field"><div class="field-label">Phone</div><div class="field-value">${appraisal.contactId.phone || "—"}</div></div>
+      <div class="field"><div class="field-label">Email</div><div class="field-value">${appraisal.contactId.email || "—"}</div></div>
+    </div>
+  </div>
+  ` : ""}
+
+  <div class="footer">
+    <p>Appraisal created: ${new Date(appraisal.createdAt).toLocaleDateString()} ${new Date(appraisal.createdAt).toLocaleTimeString()}</p>
+    <p style="margin-top: 4px;">Printed from DealerFlow</p>
+  </div>
+</body>
+</html>`;
+
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.onload = function () {
+      printWindow.print();
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!appraisal) {
+    return (
+      <DashboardLayout>
+        <div className="alert alert-error">Appraisal not found</div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <Head><title>Appraisal {appraisal.vehicleReg} | DealerFlow</title></Head>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Link href="/appraisals" className="btn btn-ghost btn-sm">← Back</Link>
+          <button className="btn btn-ghost btn-sm" onClick={handlePrint}>
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            Print
+          </button>
+        </div>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold font-mono">{appraisal.vehicleReg}</h1>
+            <p className="text-base-content/60 mt-2">
+              {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
+            </p>
+          </div>
+          <div className={`badge badge-lg ${
+            appraisal.decision === "converted" ? "badge-success" :
+            appraisal.decision === "declined" ? "badge-error" :
+            appraisal.decision === "reviewed" ? "badge-info" : "badge-warning"
+          }`}>
+            {appraisal.decision === "pending" ? "New" :
+             appraisal.decision === "reviewed" ? "Reviewed" :
+             appraisal.decision === "converted" ? "Converted" :
+             appraisal.decision === "declined" ? "Declined" : appraisal.decision}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Vehicle Details */}
+          <div className="card bg-base-200">
+            <div className="card-body">
+              <h2 className="card-title">Vehicle Details</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div><p className="text-sm text-base-content/60">Make</p><p className="font-semibold">{appraisal.vehicleMake || "—"}</p></div>
+                <div><p className="text-sm text-base-content/60">Model</p><p className="font-semibold">{appraisal.vehicleModel || "—"}</p></div>
+                <div><p className="text-sm text-base-content/60">Year</p><p className="font-semibold">{appraisal.vehicleYear || "—"}</p></div>
+                <div><p className="text-sm text-base-content/60">Mileage</p><p className="font-semibold">{appraisal.mileage?.toLocaleString() || "—"}</p></div>
+                <div><p className="text-sm text-base-content/60">Proposed Price</p>
+                  <p className="font-semibold text-lg">{appraisal.proposedPurchasePrice ? `£${appraisal.proposedPurchasePrice.toLocaleString()}` : "—"}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Condition Notes */}
+          <div className="card bg-base-200">
+            <div className="card-body">
+              <h2 className="card-title">Condition Notes</h2>
+              <p className="whitespace-pre-wrap">{appraisal.conditionNotes || "No notes recorded"}</p>
+            </div>
+          </div>
+
+          {/* Issues Section */}
+          <div className="card bg-base-200">
+            <div className="card-body">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="card-title">Issues & Damage</h2>
+                  {totalEstimatedCost > 0 && (
+                    <p className="text-sm text-base-content/60">
+                      Total estimated repair cost: <span className="font-semibold text-error">£{totalEstimatedCost.toLocaleString()}</span>
+                    </p>
+                  )}
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowIssueModal(true)}>
+                  + Add Issue
+                </button>
+              </div>
+
+              {issues.length === 0 ? (
+                <div className="text-center py-8 text-base-content/60">
+                  <p>No issues recorded</p>
+                  <p className="text-sm mt-1">Click "Add Issue" to log damage, faults, or condition notes</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {issues.map((issue) => (
+                    <div key={issue.id} className="bg-base-100 rounded-lg p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`badge ${getCategoryColor(issue.category)} badge-sm`}>{CATEGORY_LABELS[issue.category] || issue.category}</span>
+                          <span className="font-semibold">{issue.subcategory}</span>
+                        </div>
+                        <button
+                          className="btn btn-ghost btn-xs text-error"
+                          onClick={() => handleDeleteIssue(issue.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <p className="text-sm mb-2">{issue.description}</p>
+                      {issue.actionNeeded && (
+                        <p className="text-xs text-base-content/60 mb-1">
+                          <span className="font-medium">Action needed:</span> {issue.actionNeeded}
+                        </p>
+                      )}
+                      {issue.estimatedCost > 0 && (
+                        <p className="text-sm text-error font-medium">
+                          Est. cost: £{issue.estimatedCost.toLocaleString()}
+                        </p>
+                      )}
+                      {issue.photos && issue.photos.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {issue.photos.map((photo, idx) => (
+                            <a key={idx} href={photo} target="_blank" rel="noopener noreferrer">
+                              <img
+                                src={photo}
+                                alt={`Issue photo ${idx + 1}`}
+                                className="w-20 h-20 object-cover rounded-lg hover:opacity-80 transition-opacity border border-base-300"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Legacy Damage Photos - show if existing */}
+          {appraisal.damagePhotos && appraisal.damagePhotos.length > 0 && (
+            <div className="card bg-base-200">
+              <div className="card-body">
+                <h2 className="card-title">Legacy Damage Photos</h2>
+                <p className="text-xs text-base-content/60 mb-3">These photos were uploaded before the issues system. Consider creating issues for them.</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {appraisal.damagePhotos.map((photo, idx) => (
+                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="block">
+                      <img src={photo} alt={`Damage ${idx + 1}`} className="w-full h-32 object-cover rounded-lg hover:opacity-80 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Fault Code Photos - show if existing */}
+          {appraisal.faultCodePhotos && appraisal.faultCodePhotos.length > 0 && (
+            <div className="card bg-base-200">
+              <div className="card-body">
+                <h2 className="card-title">Fault Code Photos</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {appraisal.faultCodePhotos.map((photo, idx) => (
+                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="block">
+                      <img src={photo} alt={`Fault Code ${idx + 1}`} className="w-full h-32 object-cover rounded-lg hover:opacity-80 transition-opacity" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* AI Hints */}
+          {appraisal.aiHintText && (
+            <div className="card bg-info/10 border border-info/30">
+              <div className="card-body">
+                <h2 className="card-title">AI Suggestions</h2>
+                <p className="whitespace-pre-wrap text-sm">{appraisal.aiHintText}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Seller Info */}
+          {appraisal.contactId && (
+            <div className="card bg-base-200">
+              <div className="card-body">
+                <h2 className="card-title">Seller Information</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><p className="text-sm text-base-content/60">Name</p><p className="font-semibold">{appraisal.contactId?.name || "—"}</p></div>
+                  <div><p className="text-sm text-base-content/60">Phone</p><p className="font-semibold">{appraisal.contactId?.phone || "—"}</p></div>
+                  <div><p className="text-sm text-base-content/60">Email</p><p className="font-semibold">{appraisal.contactId?.email || "—"}</p></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="card bg-base-200 sticky top-20">
+            <div className="card-body">
+              <h3 className="card-title">Actions</h3>
+
+              {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
+                <div className="space-y-3">
+                  <button className="btn btn-success w-full" onClick={handleConvert} disabled={isConverting}>
+                    {isConverting ? <span className="loading loading-spinner"></span> : "Convert to Stock"}
+                  </button>
+                  <button className="btn btn-ghost w-full" onClick={() => handleDecision("reviewed")}>
+                    Mark as Reviewed
+                  </button>
+                  <button className="btn btn-error btn-outline w-full" onClick={() => handleDecision("declined")}>
+                    Decline
+                  </button>
+                  <p className="text-xs text-base-content/60">Converting will create a vehicle and default prep tasks.</p>
+                </div>
+              )}
+
+              {appraisal.decision === "converted" || appraisal.vehicleId ? (
+                <div className="space-y-3">
+                  <div className="alert alert-success text-sm">Vehicle added to stock</div>
+                  <Link href="/sales-prep" className="btn btn-primary w-full">View in Sales & Prep</Link>
+                </div>
+              ) : null}
+
+              {appraisal.decision === "declined" && (
+                <div className="space-y-3">
+                  <div className="alert text-sm">This appraisal was declined</div>
+                  <button className="btn btn-ghost btn-sm w-full" onClick={() => handleDecision("pending")}>
+                    Re-open
+                  </button>
+                </div>
+              )}
+
+              {/* Issues Summary */}
+              {issues.length > 0 && (
+                <>
+                  <div className="divider"></div>
+                  <div className="text-sm">
+                    <p className="font-semibold mb-2">Issues Summary</p>
+                    <p>{issues.length} issue{issues.length !== 1 ? "s" : ""} logged</p>
+                    {totalEstimatedCost > 0 && (
+                      <p className="text-error font-medium">£{totalEstimatedCost.toLocaleString()} est. repairs</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              <div className="divider"></div>
+
+              <button className="btn btn-ghost btn-sm text-error w-full"
+                onClick={async () => {
+                  if (confirm("Delete this appraisal?")) {
+                    await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+                    router.push("/appraisals");
+                  }
+                }}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Issue Modal */}
+      {showIssueModal && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-lg">
+            <h3 className="font-bold text-lg mb-4">Add Issue</h3>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label"><span className="label-text">Category</span></label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={issueForm.category}
+                    onChange={(e) => {
+                      const newCat = e.target.value;
+                      setIssueForm({
+                        ...issueForm,
+                        category: newCat,
+                        subcategory: ISSUE_SUBCATEGORIES[newCat][0],
+                      });
+                    }}
+                  >
+                    {ISSUE_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-control">
+                  <label className="label"><span className="label-text">Subcategory</span></label>
+                  <select
+                    className="select select-bordered w-full"
+                    value={issueForm.subcategory}
+                    onChange={(e) => setIssueForm({ ...issueForm, subcategory: e.target.value })}
+                  >
+                    {ISSUE_SUBCATEGORIES[issueForm.category].map((sub) => (
+                      <option key={sub} value={sub}>{sub}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Description *</span></label>
+                <textarea
+                  className="textarea textarea-bordered"
+                  rows={3}
+                  placeholder="Describe the issue..."
+                  value={issueForm.description}
+                  onChange={(e) => setIssueForm({ ...issueForm, description: e.target.value })}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Action Needed</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  placeholder="e.g., Replace bumper, repaint"
+                  value={issueForm.actionNeeded}
+                  onChange={(e) => setIssueForm({ ...issueForm, actionNeeded: e.target.value })}
+                />
+              </div>
+
+              <div className="form-control">
+                <label className="label"><span className="label-text">Estimated Repair Cost (£)</span></label>
+                <input
+                  type="number"
+                  className="input input-bordered"
+                  placeholder="0"
+                  value={issueForm.estimatedCost}
+                  onChange={(e) => setIssueForm({ ...issueForm, estimatedCost: e.target.value })}
+                />
+              </div>
+
+              {/* Photo Upload */}
+              <div className="form-control">
+                <label className="label"><span className="label-text">Photos</span></label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="file-input file-input-bordered w-full"
+                  onChange={handlePhotoChange}
+                />
+                {photoPreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {photoPreviews.map((preview, idx) => (
+                      <div key={idx} className="relative">
+                        <img src={preview} alt={`Preview ${idx + 1}`} className="w-16 h-16 object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          className="absolute -top-1 -right-1 btn btn-circle btn-xs btn-error"
+                          onClick={() => removePhoto(idx)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-action">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowIssueModal(false);
+                  setPhotoFiles([]);
+                  setPhotoPreviews([]);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddIssue}
+                disabled={isAddingIssue}
+              >
+                {isAddingIssue ? (
+                  <>
+                    <span className="loading loading-spinner loading-sm"></span>
+                    {isUploadingPhotos ? "Uploading..." : "Saving..."}
+                  </>
+                ) : (
+                  "Add Issue"
+                )}
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+        </div>
+      )}
+    </DashboardLayout>
+  );
+}

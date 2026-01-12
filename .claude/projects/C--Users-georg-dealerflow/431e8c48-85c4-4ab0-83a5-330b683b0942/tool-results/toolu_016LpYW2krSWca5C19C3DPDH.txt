@@ -1,0 +1,112 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import { withSuperAdmin } from "@/libs/authContext";
+     3→import Dealer, { DEALER_STATUS } from "@/models/Dealer";
+     4→import DealerMembership from "@/models/DealerMembership";
+     5→import Vehicle from "@/models/Vehicle";
+     6→import User from "@/models/User";
+     7→import PlatformActivity, { ACTIVITY_TYPES } from "@/models/PlatformActivity";
+     8→
+     9→async function handler(req, res, ctx) {
+    10→  await connectMongo();
+    11→
+    12→  // GET - List all dealers with stats
+    13→  if (req.method === "GET") {
+    14→    try {
+    15→      const dealers = await Dealer.find()
+    16→        .sort({ createdAt: -1 })
+    17→        .lean();
+    18→
+    19→      // Enrich with counts and owner info
+    20→      const enrichedDealers = await Promise.all(
+    21→        dealers.map(async (dealer) => {
+    22→          const [usersCount, vehiclesCount, ownerMembership] = await Promise.all([
+    23→            DealerMembership.countDocuments({ dealerId: dealer._id, status: "ACTIVE" }),
+    24→            Vehicle.countDocuments({ dealerId: dealer._id }),
+    25→            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", status: "ACTIVE" })
+    26→              .populate("userId", "email fullName name")
+    27→              .lean(),
+    28→          ]);
+    29→
+    30→          // Get last activity for this dealer
+    31→          const lastActivity = await DealerMembership.findOne({ dealerId: dealer._id })
+    32→            .sort({ lastActiveAt: -1 })
+    33→            .select("lastActiveAt")
+    34→            .lean();
+    35→
+    36→          return {
+    37→            id: dealer._id.toString(),
+    38→            name: dealer.name,
+    39→            status: dealer.status || DEALER_STATUS.ACTIVE,
+    40→            createdAt: dealer.createdAt,
+    41→            completedOnboarding: dealer.completedOnboarding || false,
+    42→            enabledModules: dealer.onboarding?.enabledModules || {},
+    43→            usersCount,
+    44→            vehiclesCount,
+    45→            ownerEmail: ownerMembership?.userId?.email || "—",
+    46→            ownerName: ownerMembership?.userId?.fullName || ownerMembership?.userId?.name || "—",
+    47→            lastActivityAt: lastActivity?.lastActiveAt || null,
+    48→          };
+    49→        })
+    50→      );
+    51→
+    52→      return res.status(200).json(enrichedDealers);
+    53→    } catch (error) {
+    54→      console.error("[Admin Dealers GET]", error);
+    55→      return res.status(500).json({ error: "Failed to fetch dealers" });
+    56→    }
+    57→  }
+    58→
+    59→  // PATCH - Update dealer status (disable/enable)
+    60→  if (req.method === "PATCH") {
+    61→    try {
+    62→      const { dealerId, status } = req.body;
+    63→
+    64→      if (!dealerId) {
+    65→        return res.status(400).json({ error: "dealerId is required" });
+    66→      }
+    67→
+    68→      if (!Object.values(DEALER_STATUS).includes(status)) {
+    69→        return res.status(400).json({ error: "Invalid status value" });
+    70→      }
+    71→
+    72→      const dealer = await Dealer.findByIdAndUpdate(
+    73→        dealerId,
+    74→        { status },
+    75→        { new: true }
+    76→      ).lean();
+    77→
+    78→      if (!dealer) {
+    79→        return res.status(404).json({ error: "Dealer not found" });
+    80→      }
+    81→
+    82→      // Log the activity
+    83→      const activityType = status === DEALER_STATUS.DISABLED
+    84→        ? ACTIVITY_TYPES.DEALER_DISABLED
+    85→        : ACTIVITY_TYPES.DEALER_ENABLED;
+    86→
+    87→      await PlatformActivity.log(activityType, {
+    88→        actorUserId: ctx.userId,
+    89→        dealerId: dealer._id,
+    90→        metadata: { dealerName: dealer.name },
+    91→      });
+    92→
+    93→      return res.status(200).json({
+    94→        id: dealer._id.toString(),
+    95→        name: dealer.name,
+    96→        status: dealer.status,
+    97→      });
+    98→    } catch (error) {
+    99→      console.error("[Admin Dealers PATCH]", error);
+   100→      return res.status(500).json({ error: "Failed to update dealer" });
+   101→    }
+   102→  }
+   103→
+   104→  return res.status(405).json({ error: "Method not allowed" });
+   105→}
+   106→
+   107→export default withSuperAdmin(handler);
+   108→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

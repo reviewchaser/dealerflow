@@ -1,0 +1,124 @@
+  1245→  // VRM Search functions - client-side filtering with unique-by-VRM handling
+  1246→  // If vehicles are already loaded, filter client-side for instant results
+  1247→  const searchVehiclesClientSide = (query) => {
+  1248→    if (query.length < 2 || !vehicles.length) {
+  1249→      return [];
+  1250→    }
+  1251→
+  1252→    const normalizedQuery = query.toUpperCase().replace(/\s/g, "");
+  1253→
+  1254→    // Filter vehicles matching the query (VRM, make, or model)
+  1255→    const matches = vehicles.filter((v) => {
+  1256→      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+  1257→      const make = (v.make || "").toUpperCase();
+  1258→      const model = (v.model || "").toUpperCase();
+  1259→      return vrm.includes(normalizedQuery) || make.includes(normalizedQuery) || model.includes(normalizedQuery);
+  1260→    });
+  1261→
+  1262→    // Sort by updatedAt (most recent first)
+  1263→    matches.sort((a, b) => {
+  1264→      const aDate = new Date(a.updatedAt || a.createdAt || 0);
+  1265→      const bDate = new Date(b.updatedAt || b.createdAt || 0);
+  1266→      return bDate - aDate;
+  1267→    });
+  1268→
+  1269→    // Group by VRM and keep only the most recent for each VRM
+  1270→    const vrmMap = new Map();
+  1271→    for (const v of matches) {
+  1272→      const vrm = (v.regCurrent || "").toUpperCase();
+  1273→      if (!vrmMap.has(vrm)) {
+  1274→        vrmMap.set(vrm, v);
+  1275→      }
+  1276→    }
+  1277→
+  1278→    // Return unique vehicles (one per VRM, most recent)
+  1279→    return Array.from(vrmMap.values()).slice(0, 10);
+  1280→  };
+  1281→
+  1282→  // Fallback API search for when client-side data isn't loaded
+  1283→  const searchVehiclesApi = async (query) => {
+  1284→    if (query.length < 2) {
+  1285→      setVrmSearchResults([]);
+  1286→      return;
+  1287→    }
+  1288→
+  1289→    setVrmSearchLoading(true);
+  1290→    try {
+  1291→      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=20`);
+  1292→      if (res.ok) {
+  1293→        const results = await res.json();
+  1294→        // Sort by updatedAt (most recent activity first)
+  1295→        results.sort((a, b) => {
+  1296→          const aDate = new Date(a.updatedAt || a.createdAt || 0);
+  1297→          const bDate = new Date(b.updatedAt || b.createdAt || 0);
+  1298→          return bDate - aDate;
+  1299→        });
+  1300→
+  1301→        // Group by VRM and keep only the most recent for each VRM (for duplicate handling)
+  1302→        const vrmMap = new Map();
+  1303→        for (const v of results) {
+  1304→          const vrm = (v.regCurrent || "").toUpperCase();
+  1305→          if (!vrmMap.has(vrm)) {
+  1306→            vrmMap.set(vrm, v);
+  1307→          }
+  1308→        }
+  1309→
+  1310→        setVrmSearchResults(Array.from(vrmMap.values()).slice(0, 10));
+  1311→      }
+  1312→    } catch (err) {
+  1313→      console.error("VRM search error:", err);
+  1314→    } finally {
+  1315→      setVrmSearchLoading(false);
+  1316→    }
+  1317→  };
+  1318→
+  1319→  const handleVrmSearchChange = (value) => {
+  1320→    const normalized = value.toUpperCase();
+  1321→    setVrmSearch(normalized);
+  1322→
+  1323→    // Clear previous timeout
+  1324→    if (vrmSearchTimeout.current) {
+  1325→      clearTimeout(vrmSearchTimeout.current);
+  1326→    }
+  1327→
+  1328→    if (normalized.length >= 2) {
+  1329→      setShowVrmDropdown(true);
+  1330→
+  1331→      // First, try client-side filtering for instant results (if vehicles are loaded)
+  1332→      if (vehicles.length > 0) {
+  1333→        const clientResults = searchVehiclesClientSide(normalized);
+  1334→        setVrmSearchResults(clientResults);
+  1335→        setVrmSearchLoading(false);
+  1336→      } else {
+  1337→        // If no client-side data, debounce API call by 200ms
+  1338→        setVrmSearchLoading(true);
+  1339→        vrmSearchTimeout.current = setTimeout(() => {
+  1340→          searchVehiclesApi(normalized);
+  1341→        }, 200);
+  1342→      }
+  1343→    } else {
+  1344→      setVrmSearchResults([]);
+  1345→      setShowVrmDropdown(false);
+  1346→    }
+  1347→  };
+  1348→
+  1349→  // Cleanup timeout on unmount
+  1350→  useEffect(() => {
+  1351→    return () => {
+  1352→      if (vrmSearchTimeout.current) {
+  1353→        clearTimeout(vrmSearchTimeout.current);
+  1354→      }
+  1355→    };
+  1356→  }, []);
+  1357→
+  1358→  const handleVrmSelect = (vehicle) => {
+  1359→    // Close dropdown and clear search
+  1360→    setVrmSearch("");
+  1361→    setShowVrmDropdown(false);
+  1362→    setVrmSearchResults([]);
+  1363→
+  1364→    // Find which column this vehicle is in and scroll to it
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

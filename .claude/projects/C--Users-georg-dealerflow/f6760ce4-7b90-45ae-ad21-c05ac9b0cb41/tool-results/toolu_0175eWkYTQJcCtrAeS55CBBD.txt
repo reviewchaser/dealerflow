@@ -1,0 +1,84 @@
+  1240→  };
+  1241→
+  1242→  // VRM Search functions
+  1243→  const getVrmSearchResults = () => {
+  1244→    if (vrmSearch.length < 2) return [];
+  1245→    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+  1246→    return vehicles.filter(v => {
+  1247→      const reg = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+  1248→      return reg.includes(searchTerm);
+  1249→    }).slice(0, 8); // Limit to 8 results
+  1250→  };
+  1251→
+  1252→  const handleVrmSelect = (vehicle) => {
+  1253→    // Close dropdown and clear search
+  1254→    setVrmSearch("");
+  1255→    setShowVrmDropdown(false);
+  1256→
+  1257→    // Find which column this vehicle is in and scroll to it
+  1258→    const columnIndex = COLUMNS.findIndex(col => col.key === vehicle.status);
+  1259→    if (columnIndex >= 0) {
+  1260→      // Scroll the column into view
+  1261→      const columnElements = document.querySelectorAll('[data-column-key]');
+  1262→      if (columnElements[columnIndex]) {
+  1263→        columnElements[columnIndex].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  1264→      }
+  1265→    }
+  1266→
+  1267→    // Open the vehicle drawer with full details
+  1268→    openVehicleDrawer(vehicle);
+  1269→  };
+  1270→
+  1271→  const getStatusLabel = (statusKey) => {
+  1272→    const col = COLUMNS.find(c => c.key === statusKey);
+  1273→    return col ? col.label : statusKey;
+  1274→  };
+  1275→
+  1276→  const handlePrintVehicle = () => {
+  1277→    if (!selectedVehicle) return;
+  1278→
+  1279→    const vehicle = selectedVehicle;
+  1280→    const tasks = vehicle.tasks || [];
+  1281→    const issues = vehicle.issues || [];
+  1282→    const documents = vehicle.documents || [];
+  1283→    const completedTasks = tasks.filter(t => t.status === "done").length;
+  1284→    const daysInStock = vehicle.createdAt
+  1285→      ? Math.floor((new Date() - new Date(vehicle.createdAt)) / (1000 * 60 * 60 * 24))
+  1286→      : 0;
+  1287→
+  1288→    // Get status label from COLUMNS
+  1289→    const statusColumn = COLUMNS.find(col => col.key === vehicle.status);
+  1290→    const statusLabel = statusColumn ? statusColumn.label : vehicle.status;
+  1291→
+  1292→    // Generate HTML for print
+  1293→    const printContent = `
+  1294→<!DOCTYPE html>
+  1295→<html>
+  1296→<head>
+  1297→  <title>${vehicle.year || ""} ${vehicle.make} ${vehicle.model} - ${vehicle.regCurrent}</title>
+  1298→  <style>
+  1299→    * { margin: 0; padding: 0; box-sizing: border-box; }
+  1300→    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1e293b; }
+  1301→    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+  1302→    .title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+  1303→    .reg { font-size: 18px; font-family: monospace; color: #64748b; }
+  1304→    .section { margin-bottom: 30px; }
+  1305→    .section-title { font-size: 16px; font-weight: 600; color: #475569; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
+  1306→    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  1307→    .field { margin-bottom: 12px; }
+  1308→    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+  1309→    .field-value { font-size: 14px; color: #1e293b; }
+  1310→    .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  1311→    .badge-status { background: #e0e7ff; color: #4338ca; }
+  1312→    .badge-days { background: ${daysInStock > 30 ? '#fef2f2' : '#f1f5f9'}; color: ${daysInStock > 30 ? '#dc2626' : '#475569'}; }
+  1313→    .task-list { list-style: none; }
+  1314→    .task-item { padding: 8px 0; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; }
+  1315→    .task-status { width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  1316→    .task-done { background: #dcfce7; color: #16a34a; }
+  1317→    .task-pending { background: #fef3c7; color: #d97706; }
+  1318→    .task-progress { background: #dbeafe; color: #2563eb; }
+  1319→    .issue-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

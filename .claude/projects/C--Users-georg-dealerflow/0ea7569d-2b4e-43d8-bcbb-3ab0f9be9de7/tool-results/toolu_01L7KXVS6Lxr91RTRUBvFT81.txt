@@ -1,0 +1,110 @@
+     1→/** @type {import('tailwindcss').Config} */
+     2→module.exports = {
+     3→  content: [
+     4→    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+     5→    './components/**/*.{js,ts,jsx,tsx,mdx}',
+     6→  ],
+     7→  darkMode: ['class', '[data-theme="dark"]'],
+     8→  theme: {
+     9→    extend: {
+    10→      colors: {
+    11→        // Brand colors using CSS variables
+    12→        brand: {
+    13→          DEFAULT: 'hsl(var(--brand))',
+    14→          light: 'hsl(var(--brand-light))',
+    15→          dark: 'hsl(var(--brand-dark))',
+    16→          50: 'hsl(var(--brand-50))',
+    17→          100: 'hsl(var(--brand-100))',
+    18→          500: 'hsl(var(--brand-500))',
+    19→          600: 'hsl(var(--brand-600))',
+    20→          700: 'hsl(var(--brand-700))',
+    21→        },
+    22→        accent: {
+    23→          DEFAULT: 'hsl(var(--accent))',
+    24→          light: 'hsl(var(--accent-light))',
+    25→          50: 'hsl(var(--accent-50))',
+    26→        },
+    27→        // Semantic colors
+    28→        success: {
+    29→          DEFAULT: 'hsl(var(--success))',
+    30→          light: 'hsl(var(--success-light))',
+    31→        },
+    32→        warning: {
+    33→          DEFAULT: 'hsl(var(--warning))',
+    34→          light: 'hsl(var(--warning-light))',
+    35→        },
+    36→        danger: {
+    37→          DEFAULT: 'hsl(var(--danger))',
+    38→          light: 'hsl(var(--danger-light))',
+    39→        },
+    40→        info: {
+    41→          DEFAULT: 'hsl(var(--info))',
+    42→          light: 'hsl(var(--info-light))',
+    43→        },
+    44→        // Surface colors
+    45→        surface: {
+    46→          DEFAULT: 'hsl(var(--surface))',
+    47→          2: 'hsl(var(--surface-2))',
+    48→          hover: 'hsl(var(--surface-hover))',
+    49→        },
+    50→        'page-bg': 'hsl(var(--bg))',
+    51→        // Text colors
+    52→        'text-primary': 'hsl(var(--text))',
+    53→        'text-secondary': 'hsl(var(--text-secondary))',
+    54→        'text-muted': 'hsl(var(--text-muted))',
+    55→      },
+    56→      borderColor: {
+    57→        DEFAULT: 'hsl(var(--border))',
+    58→        light: 'hsl(var(--border-light))',
+    59→        focus: 'hsl(var(--border-focus))',
+    60→      },
+    61→      boxShadow: {
+    62→        'brand': 'var(--shadow-brand)',
+    63→        'card': 'var(--shadow-md)',
+    64→        'card-hover': 'var(--shadow-lg)',
+    65→      },
+    66→      borderRadius: {
+    67→        'card': 'var(--radius-xl)',
+    68→        '2xl': 'var(--radius-2xl)',
+    69→      },
+    70→      backgroundImage: {
+    71→        'gradient-brand': 'var(--gradient-brand)',
+    72→        'gradient-hero': 'var(--gradient-hero)',
+    73→        'gradient-card': 'var(--gradient-card)',
+    74→      },
+    75→    },
+    76→  },
+    77→  plugins: [require("daisyui")],
+    78→  daisyui: {
+    79→    themes: [
+    80→      {
+    81→        dealerflow: {
+    82→          "primary": "#0066CC",
+    83→          "primary-content": "#ffffff",
+    84→          "secondary": "#14B8A6",
+    85→          "secondary-content": "#ffffff",
+    86→          "accent": "#0EA5E9",
+    87→          "accent-content": "#ffffff",
+    88→          "neutral": "#1e293b",
+    89→          "neutral-content": "#ffffff",
+    90→          "base-100": "#ffffff",
+    91→          "base-200": "#f8fafc",
+    92→          "base-300": "#f1f5f9",
+    93→          "base-content": "#0f172a",
+    94→          "info": "#0EA5E9",
+    95→          "success": "#059669",
+    96→          "warning": "#F59E0B",
+    97→          "error": "#DC2626",
+    98→        },
+    99→      },
+   100→      "light",
+   101→      "dark",
+   102→    ],
+   103→    defaultTheme: "dealerflow",
+   104→  },
+   105→}
+   106→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

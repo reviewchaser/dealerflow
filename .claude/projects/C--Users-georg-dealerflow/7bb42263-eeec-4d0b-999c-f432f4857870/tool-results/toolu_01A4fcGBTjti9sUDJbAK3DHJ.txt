@@ -1,0 +1,32 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    79→      setIsLoading(false);
+    80→    }
+    81→  };
+    82→
+    83→  if (!isOpen) return null;
+    84→
+    85→  return (
+    86→    <div
+    87→      className={`fixed inset-0 flex justify-end ${isStacked ? "z-[60]" : "z-50"} overflow-hidden`}
+    88→      style={{ touchAction: "none" }}
+    89→    >
+    90→      {/* Backdrop */}
+    91→      <div
+    92→        className={`absolute inset-0 ${isStacked ? "bg-black/30" : "bg-black/50"}`}
+    93→        onClick={onClose}
+    94→      />
+    95→
+    96→      {/* Drawer - Fixed overlay that cannot slide horizontally */}
+    97→      <div
+    98→        className={`relative bg-white h-full flex flex-col ${
+    99→          isStacked ? "w-full max-w-2xl shadow-2xl" : "w-full max-w-3xl"
+   100→        } min-w-0 translate-x-0 overscroll-contain`}
+   101→        style={{
+   102→          touchAction: "pan-y",
+   103→          WebkitOverflowScrolling: "touch",
+   104→        }}
+   105→      >
+   106→        {isLoading ? (
+   107→          <div className="flex items-center justify-center h-full">
+   108→            <span className="loading loading-spinner loading-lg"></span>
+   109→          </div>

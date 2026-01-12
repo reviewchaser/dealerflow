@@ -1,0 +1,3 @@
+75:    console.log("[DealDrawer] Props:", { dealId, isOpen });
+80:    console.log("[DealDrawer] MOUNTED");
+81:    return () => console.log("[DealDrawer] UNMOUNTED");

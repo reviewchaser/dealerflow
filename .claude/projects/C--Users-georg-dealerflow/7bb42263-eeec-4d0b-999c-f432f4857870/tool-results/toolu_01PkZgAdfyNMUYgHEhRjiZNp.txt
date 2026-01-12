@@ -1,0 +1,504 @@
+     1→import { useEffect, useState, useRef, useCallback } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import DashboardLayout from "@/components/DashboardLayout";
+     5→import { toast } from "react-hot-toast";
+     6→import { showDummyNotification } from "@/utils/notifications";
+     7→import { BottomSheet } from "@/components/ui/BottomSheet";
+     8→import { Portal } from "@/components/ui/Portal";
+     9→import { MobileStageSelector } from "@/components/ui/PageShell";
+    10→
+    11→const COLUMNS = [
+    12→  { key: "in_stock", label: "In Stock", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    13→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    14→  { key: "live", label: "Sold In Progress", gradient: "from-purple-100/60", accent: "border-l-purple-400", accentBg: "bg-purple-400" },
+    15→  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+    16→  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+    17→];
+    18→
+    19→const ISSUE_SUBCATEGORIES = {
+    20→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    21→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    22→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    23→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    24→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    25→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    26→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    27→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    28→  other: ["General", "Misc"],
+    29→};
+    30→
+    31→// Sold statuses - these show "Sold X days" instead of "In stock X days"
+    32→const SOLD_STATUSES = ["live", "reserved", "delivered"];
+    33→
+    34→// Helper to compute duration label based on status
+    35→const getVehicleDuration = (vehicle) => {
+    36→  const isSold = SOLD_STATUSES.includes(vehicle.status);
+    37→
+    38→  if (isSold) {
+    39→    if (vehicle.soldAt) {
+    40→      const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
+    41→      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+    42→    }
+    43→    // Legacy sold vehicle without soldAt - just show "Sold"
+    44→    return { days: 0, label: "Sold", isSold: true };
+    45→  }
+    46→
+    47→  const daysInStock = vehicle.createdAt
+    48→    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    49→    : 0;
+    50→  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+    51→};
+    52→
+    53→export default function SalesPrep() {
+    54→  const [vehicles, setVehicles] = useState([]);
+    55→  const [isLoading, setIsLoading] = useState(true);
+    56→  const [selectedVehicle, setSelectedVehicle] = useState(null);
+    57→  const [showAddModal, setShowAddModal] = useState(false);
+    58→  const [draggedCard, setDraggedCard] = useState(null);
+    59→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+    60→  const [newTaskName, setNewTaskName] = useState("");
+    61→  const [activeTab, setActiveTab] = useState("overview");
+    62→  const [editingTaskId, setEditingTaskId] = useState(null);
+    63→  const [editingTaskName, setEditingTaskName] = useState("");
+    64→
+    65→  // Parts ordering state
+    66→  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+    67→  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+    68→  const [partsOrderForm, setPartsOrderForm] = useState({
+    69→    supplierType: "EURO_CAR_PARTS",
+    70→    supplierName: "",
+    71→    orderRef: "",
+    72→    expectedAt: "",
+    73→    notes: "",
+    74→  });
+    75→  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+    76→
+    77→  // Column sorting state
+    78→  const [columnSortOptions, setColumnSortOptions] = useState({});
+    79→
+    80→  // Job sheet share state
+    81→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+    82→  const [jobSheetLink, setJobSheetLink] = useState(null);
+    83→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+    84→
+    85→  // Prep summary share state
+    86→  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+    87→  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+    88→  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+    89→
+    90→  // Manual share fallback modal
+    91→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+    92→  const [manualShareUrl, setManualShareUrl] = useState("");
+    93→
+    94→  // Issues state
+    95→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+    96→  const [issueForm, setIssueForm] = useState({
+    97→    category: "",
+    98→    subcategory: "",
+    99→    description: "",
+   100→    actionNeeded: "",
+   101→    status: "outstanding",
+   102→    notes: "",
+   103→    photos: [],
+   104→  });
+   105→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   106→  const [expandedIssues, setExpandedIssues] = useState({});
+   107→
+   108→  // Filters state - with localStorage persistence
+   109→  const [activeFilters, setActiveFilters] = useState([]);
+   110→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   111→  const filterButtonRef = useRef(null);
+   112→  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+   113→
+   114→  // Calculate popover position when opening
+   115→  const openFiltersDropdown = useCallback(() => {
+   116→    if (filterButtonRef.current) {
+   117→      const rect = filterButtonRef.current.getBoundingClientRect();
+   118→      const viewportHeight = window.innerHeight;
+   119→      const viewportWidth = window.innerWidth;
+   120→
+   121→      // Position below the button, aligned to right edge
+   122→      let top = rect.bottom + 8;
+   123→      let right = viewportWidth - rect.right;
+   124→
+   125→      // Ensure popover doesn't go below viewport (max 70vh height + 16px padding)
+   126→      const popoverHeight = Math.min(viewportHeight * 0.7, 600);
+   127→      if (top + popoverHeight > viewportHeight - 16) {
+   128→        top = Math.max(16, viewportHeight - popoverHeight - 16);
+   129→      }
+   130→
+   131→      // Ensure popover doesn't go off right edge
+   132→      right = Math.max(16, right);
+   133→
+   134→      setFilterPopoverPos({ top, right });
+   135→    }
+   136→    setShowFiltersDropdown(true);
+   137→  }, []);
+   138→
+   139→  // Load filters from localStorage on mount
+   140→  useEffect(() => {
+   141→    try {
+   142→      const savedFilters = localStorage.getItem("salesPrepFilters");
+   143→      if (savedFilters) {
+   144→        setActiveFilters(JSON.parse(savedFilters));
+   145→      }
+   146→    } catch (e) {
+   147→      console.warn("Failed to load saved filters:", e);
+   148→    }
+   149→  }, []);
+   150→
+   151→  // Save filters to localStorage when they change
+   152→  useEffect(() => {
+   153→    try {
+   154→      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+   155→    } catch (e) {
+   156→      console.warn("Failed to save filters:", e);
+   157→    }
+   158→  }, [activeFilters]);
+   159→
+   160→  // Documents state
+   161→  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+   162→  const [documentForm, setDocumentForm] = useState({
+   163→    name: "",
+   164→    type: "other",
+   165→    file: null,
+   166→  });
+   167→
+   168→  // Location state
+   169→  const [locations, setLocations] = useState([]);
+   170→  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+   171→
+   172→  // Vehicle Labels state
+   173→  const [availableLabels, setAvailableLabels] = useState([]);
+   174→  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+   175→  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+   176→  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+   177→
+   178→  // Activity log state
+   179→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   180→  const [activityLoading, setActivityLoading] = useState(false);
+   181→
+   182→  // VRM Search state
+   183→  const [vrmSearch, setVrmSearch] = useState("");
+   184→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   185→
+   186→  // Mobile state
+   187→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   188→
+   189→  useEffect(() => {
+   190→    fetchVehicles();
+   191→    fetchLocations();
+   192→    fetchLabels();
+   193→  }, []);
+   194→
+   195→  const fetchVehicles = async () => {
+   196→    try {
+   197→      const res = await fetch("/api/vehicles");
+   198→      if (!res.ok) {
+   199→        throw new Error(`API error: ${res.status}`);
+   200→      }
+   201→      const data = await res.json();
+   202→      setVehicles(Array.isArray(data) ? data : []);
+   203→    } catch (error) {
+   204→      console.error("Failed to load vehicles:", error);
+   205→      toast.error("Failed to load vehicles");
+   206→      setVehicles([]);
+   207→    } finally {
+   208→      setIsLoading(false);
+   209→    }
+   210→  };
+   211→
+   212→  const fetchLocations = async () => {
+   213→    try {
+   214→      const res = await fetch("/api/locations");
+   215→      const data = await res.json();
+   216→      setLocations(data);
+   217→    } catch (error) {
+   218→      console.error("Failed to load locations:", error);
+   219→    }
+   220→  };
+   221→
+   222→  const fetchLabels = async () => {
+   223→    try {
+   224→      const res = await fetch("/api/labels");
+   225→      const data = await res.json();
+   226→      setAvailableLabels(Array.isArray(data) ? data : []);
+   227→    } catch (error) {
+   228→      console.error("Failed to load labels:", error);
+   229→    }
+   230→  };
+   231→
+   232→  // Fetch vehicle activity log
+   233→  const fetchActivity = async (vehicleId, loadMore = false) => {
+   234→    if (!vehicleId) return;
+   235→    setActivityLoading(true);
+   236→    try {
+   237→      const offset = loadMore ? activityData.activities.length : 0;
+   238→      const res = await fetch(`/api/vehicles/${vehicleId}/activity?limit=25&offset=${offset}`);
+   239→      const data = await res.json();
+   240→      if (loadMore) {
+   241→        setActivityData(prev => ({
+   242→          activities: [...prev.activities, ...data.activities],
+   243→          total: data.total,
+   244→          hasMore: data.hasMore,
+   245→        }));
+   246→      } else {
+   247→        setActivityData(data);
+   248→      }
+   249→    } catch (error) {
+   250→      console.error("Failed to load activity:", error);
+   251→    } finally {
+   252→      setActivityLoading(false);
+   253→    }
+   254→  };
+   255→
+   256→  // Format relative time for activity log
+   257→  const formatRelativeTime = (dateStr) => {
+   258→    const date = new Date(dateStr);
+   259→    const now = new Date();
+   260→    const diffMs = now - date;
+   261→    const diffMins = Math.floor(diffMs / 60000);
+   262→    const diffHours = Math.floor(diffMs / 3600000);
+   263→    const diffDays = Math.floor(diffMs / 86400000);
+   264→
+   265→    if (diffMins < 1) return "just now";
+   266→    if (diffMins < 60) return `${diffMins}m ago`;
+   267→    if (diffHours < 24) return `${diffHours}h ago`;
+   268→    if (diffDays < 7) return `${diffDays}d ago`;
+   269→    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+   270→  };
+   271→
+   272→  // Toggle a label on/off for a vehicle
+   273→  const toggleVehicleLabel = async (vehicleId, labelId) => {
+   274→    try {
+   275→      const res = await fetch(`/api/vehicles/${vehicleId}/labels/${labelId}`, {
+   276→        method: "POST",
+   277→      });
+   278→      if (res.ok) {
+   279→        const updatedData = await res.json();
+   280→        // Update selected vehicle if it's the same one
+   281→        if (selectedVehicle?.id === vehicleId) {
+   282→          setSelectedVehicle(prev => ({
+   283→            ...prev,
+   284→            labels: updatedData.labels || [],
+   285→          }));
+   286→        }
+   287→        fetchVehicles();
+   288→      }
+   289→    } catch (error) {
+   290→      toast.error("Failed to update label");
+   291→    }
+   292→  };
+   293→
+   294→  // Create a new label
+   295→  const createLabel = async () => {
+   296→    if (!newLabelForm.name.trim()) {
+   297→      toast.error("Label name is required");
+   298→      return;
+   299→    }
+   300→    try {
+   301→      const res = await fetch("/api/labels", {
+   302→        method: "POST",
+   303→        headers: { "Content-Type": "application/json" },
+   304→        body: JSON.stringify(newLabelForm),
+   305→      });
+   306→      if (res.ok) {
+   307→        const newLabel = await res.json();
+   308→        setAvailableLabels(prev => [...prev, newLabel]);
+   309→        setNewLabelForm({ name: "", colour: "#6366f1" });
+   310→        setShowAddLabelModal(false);
+   311→        toast.success("Label created");
+   312→      }
+   313→    } catch (error) {
+   314→      toast.error("Failed to create label");
+   315→    }
+   316→  };
+   317→
+   318→  // Open vehicle drawer - vehicle from grid already has tasks, issues, documents
+   319→  const openVehicleDrawer = (vehicle) => {
+   320→    setSelectedVehicle({ ...vehicle, id: vehicle.id || vehicle._id });
+   321→    setActiveTab("overview");
+   322→    setShowLabelsDropdown(false); // Close labels dropdown when opening new vehicle
+   323→    setActivityData({ activities: [], total: 0, hasMore: false }); // Reset activity when opening new vehicle
+   324→  };
+   325→
+   326→  const updateVehicleStatus = async (vehicleId, newStatus) => {
+   327→    try {
+   328→      await fetch(`/api/vehicles/${vehicleId}`, {
+   329→        method: "PUT",
+   330→        headers: { "Content-Type": "application/json" },
+   331→        body: JSON.stringify({ status: newStatus }),
+   332→      });
+   333→      fetchVehicles();
+   334→      toast.success(`Moved to ${newStatus.replace("_", " ")}`);
+   335→    } catch (error) {
+   336→      toast.error("Failed to update");
+   337→    }
+   338→  };
+   339→
+   340→  const updateTaskStatus = async (taskId, newStatus) => {
+   341→    try {
+   342→      const payload = { status: newStatus };
+   343→      if (newStatus === "done") {
+   344→        payload.completedAt = new Date().toISOString();
+   345→      }
+   346→      // Clear progress when changing status (optional: keep if staying in_progress)
+   347→      if (newStatus !== "in_progress") {
+   348→        payload.progress = "NONE";
+   349→        payload.progressNote = "";
+   350→      }
+   351→      await fetch(`/api/tasks/${taskId}`, {
+   352→        method: "PUT",
+   353→        headers: { "Content-Type": "application/json" },
+   354→        body: JSON.stringify(payload),
+   355→      });
+   356→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   357→      const data = await res.json();
+   358→      setSelectedVehicle(data);
+   359→      fetchVehicles();
+   360→    } catch (error) {
+   361→      toast.error("Failed to update task");
+   362→    }
+   363→  };
+   364→
+   365→  // Update task progress sub-status (for parts ordering, booking, etc.)
+   366→  const updateTaskProgress = async (taskId, progress, progressNote = null) => {
+   367→    try {
+   368→      const payload = { progress };
+   369→      if (progressNote !== null) {
+   370→        payload.progressNote = progressNote;
+   371→      }
+   372→      await fetch(`/api/tasks/${taskId}`, {
+   373→        method: "PUT",
+   374→        headers: { "Content-Type": "application/json" },
+   375→        body: JSON.stringify(payload),
+   376→      });
+   377→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   378→      const data = await res.json();
+   379→      setSelectedVehicle(data);
+   380→      fetchVehicles();
+   381→    } catch (error) {
+   382→      toast.error("Failed to update task progress");
+   383→    }
+   384→  };
+   385→
+   386→  // Parts order management functions
+   387→  const openPartsOrderModal = (taskId, existingOrder = null) => {
+   388→    setPartsOrderTaskId(taskId);
+   389→    if (existingOrder) {
+   390→      setEditingPartsOrderId(existingOrder._id || existingOrder.id);
+   391→      setPartsOrderForm({
+   392→        supplierType: existingOrder.supplierType || "EURO_CAR_PARTS",
+   393→        supplierName: existingOrder.supplierName || "",
+   394→        orderRef: existingOrder.orderRef || "",
+   395→        expectedAt: existingOrder.expectedAt ? existingOrder.expectedAt.split("T")[0] : "",
+   396→        notes: existingOrder.notes || "",
+   397→      });
+   398→    } else {
+   399→      setEditingPartsOrderId(null);
+   400→      setPartsOrderForm({
+   401→        supplierType: "EURO_CAR_PARTS",
+   402→        supplierName: "",
+   403→        orderRef: "",
+   404→        expectedAt: "",
+   405→        notes: "",
+   406→      });
+   407→    }
+   408→    setShowPartsOrderModal(true);
+   409→  };
+   410→
+   411→  const closePartsOrderModal = () => {
+   412→    setShowPartsOrderModal(false);
+   413→    setPartsOrderTaskId(null);
+   414→    setEditingPartsOrderId(null);
+   415→    setPartsOrderForm({
+   416→      supplierType: "EURO_CAR_PARTS",
+   417→      supplierName: "",
+   418→      orderRef: "",
+   419→      expectedAt: "",
+   420→      notes: "",
+   421→    });
+   422→  };
+   423→
+   424→  const addPartsOrder = async () => {
+   425→    if (!partsOrderTaskId) return;
+   426→    try {
+   427→      const orderData = {
+   428→        supplierType: partsOrderForm.supplierType,
+   429→        ...(partsOrderForm.supplierType === "OTHER" && partsOrderForm.supplierName && { supplierName: partsOrderForm.supplierName }),
+   430→        ...(partsOrderForm.orderRef && { orderRef: partsOrderForm.orderRef }),
+   431→        ...(partsOrderForm.expectedAt && { expectedAt: partsOrderForm.expectedAt }),
+   432→        ...(partsOrderForm.notes && { notes: partsOrderForm.notes }),
+   433→      };
+   434→
+   435→      await fetch(`/api/tasks/${partsOrderTaskId}`, {
+   436→        method: "PUT",
+   437→        headers: { "Content-Type": "application/json" },
+   438→        body: JSON.stringify({ addPartsOrder: orderData }),
+   439→      });
+   440→
+   441→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   442→      const data = await res.json();
+   443→      setSelectedVehicle(data);
+   444→      fetchVehicles();
+   445→      closePartsOrderModal();
+   446→      toast.success("Parts order added");
+   447→    } catch (error) {
+   448→      toast.error("Failed to add parts order");
+   449→    }
+   450→  };
+   451→
+   452→  const updatePartsOrder = async () => {
+   453→    if (!partsOrderTaskId || !editingPartsOrderId) return;
+   454→    try {
+   455→      const orderData = {
+   456→        orderId: editingPartsOrderId,
+   457→        supplierType: partsOrderForm.supplierType,
+   458→        supplierName: partsOrderForm.supplierType === "OTHER" ? partsOrderForm.supplierName : null,
+   459→        orderRef: partsOrderForm.orderRef || null,
+   460→        expectedAt: partsOrderForm.expectedAt || null,
+   461→        notes: partsOrderForm.notes || null,
+   462→      };
+   463→
+   464→      await fetch(`/api/tasks/${partsOrderTaskId}`, {
+   465→        method: "PUT",
+   466→        headers: { "Content-Type": "application/json" },
+   467→        body: JSON.stringify({ updatePartsOrder: orderData }),
+   468→      });
+   469→
+   470→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   471→      const data = await res.json();
+   472→      setSelectedVehicle(data);
+   473→      fetchVehicles();
+   474→      closePartsOrderModal();
+   475→      toast.success("Parts order updated");
+   476→    } catch (error) {
+   477→      toast.error("Failed to update parts order");
+   478→    }
+   479→  };
+   480→
+   481→  const removePartsOrder = async (taskId, orderId) => {
+   482→    if (!confirm("Remove this parts order?")) return;
+   483→    try {
+   484→      await fetch(`/api/tasks/${taskId}`, {
+   485→        method: "PUT",
+   486→        headers: { "Content-Type": "application/json" },
+   487→        body: JSON.stringify({ removePartsOrderId: orderId }),
+   488→      });
+   489→
+   490→      const res = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+   491→      const data = await res.json();
+   492→      setSelectedVehicle(data);
+   493→      fetchVehicles();
+   494→      toast.success("Parts order removed");
+   495→    } catch (error) {
+   496→      toast.error("Failed to remove parts order");
+   497→    }
+   498→  };
+   499→
+   500→  const markPartsReceived = async (taskId, orderId) => {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

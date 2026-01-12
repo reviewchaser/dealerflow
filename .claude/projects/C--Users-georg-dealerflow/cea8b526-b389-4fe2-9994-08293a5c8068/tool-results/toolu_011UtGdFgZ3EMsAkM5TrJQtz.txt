@@ -1,0 +1,114 @@
+   730→              </svg>
+   731→            </button>
+   732→          )}
+   733→        </div>
+   734→
+   735→        {/* Filter Dropdown - matching stock board style */}
+   736→        <div className="relative">
+   737→          <button
+   738→            className={`btn btn-sm gap-2 ${hasActiveFilters() ? "btn-primary" : "btn-outline"}`}
+   739→            onClick={() => setShowFiltersDropdown(!showFiltersDropdown)}
+   740→          >
+   741→            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   742→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+   743→            </svg>
+   744→            Filters
+   745→            {hasActiveFilters() && (
+   746→              <span className="badge badge-sm badge-secondary">
+   747→                {Object.values(filters).filter(v => v !== "all").length}
+   748→              </span>
+   749→            )}
+   750→          </button>
+   751→
+   752→          {showFiltersDropdown && (
+   753→            <div className="absolute z-30 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-4">
+   754→              <div className="flex justify-between items-center mb-3">
+   755→                <h4 className="font-semibold text-sm">Filters</h4>
+   756→                {hasActiveFilters() && (
+   757→                  <button className="btn btn-ghost btn-xs" onClick={clearFilters}>
+   758→                    Clear all
+   759→                  </button>
+   760→                )}
+   761→              </div>
+   762→
+   763→              <div className="space-y-3">
+   764→                {/* Location Filter */}
+   765→                <div className="form-control">
+   766→                  <label className="label label-text text-xs py-0">Location</label>
+   767→                  <select
+   768→                    className="select select-bordered select-sm w-full"
+   769→                    value={filters.location}
+   770→                    onChange={(e) => setFilters({ ...filters, location: e.target.value })}
+   771→                  >
+   772→                    <option value="all">All</option>
+   773→                    <option value="WITH_CUSTOMER">With customer</option>
+   774→                    <option value="ON_SITE">On-site</option>
+   775→                    <option value="THIRD_PARTY">Third-party</option>
+   776→                  </select>
+   777→                </div>
+   778→
+   779→                {/* Booked Filter */}
+   780→                <div className="form-control">
+   781→                  <label className="label label-text text-xs py-0">Booked Status</label>
+   782→                  <select
+   783→                    className="select select-bordered select-sm w-full"
+   784→                    value={filters.booked}
+   785→                    onChange={(e) => setFilters({ ...filters, booked: e.target.value })}
+   786→                  >
+   787→                    <option value="all">All</option>
+   788→                    <option value="booked">Booked</option>
+   789→                    <option value="not_booked">Not Booked</option>
+   790→                  </select>
+   791→                </div>
+   792→
+   793→                {/* Parts Required Filter */}
+   794→                <div className="form-control">
+   795→                  <label className="label label-text text-xs py-0">Parts Required</label>
+   796→                  <select
+   797→                    className="select select-bordered select-sm w-full"
+   798→                    value={filters.partsRequired}
+   799→                    onChange={(e) => setFilters({ ...filters, partsRequired: e.target.value })}
+   800→                  >
+   801→                    <option value="all">All</option>
+   802→                    <option value="yes">Yes</option>
+   803→                    <option value="no">No</option>
+   804→                  </select>
+   805→                </div>
+   806→
+   807→                {/* Priority Filter */}
+   808→                <div className="form-control">
+   809→                  <label className="label label-text text-xs py-0">Priority</label>
+   810→                  <select
+   811→                    className="select select-bordered select-sm w-full"
+   812→                    value={filters.priority}
+   813→                    onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+   814→                  >
+   815→                    <option value="all">All</option>
+   816→                    <option value="low">Low</option>
+   817→                    <option value="normal">Normal</option>
+   818→                    <option value="high">High</option>
+   819→                    <option value="critical">Critical</option>
+   820→                  </select>
+   821→                </div>
+   822→              </div>
+   823→
+   824→              <button
+   825→                className="btn btn-sm btn-block mt-4"
+   826→                onClick={() => setShowFiltersDropdown(false)}
+   827→              >
+   828→                Apply
+   829→              </button>
+   830→            </div>
+   831→          )}
+   832→        </div>
+   833→      </div>
+   834→
+   835→      {/* Active filters / result count summary */}
+   836→      {(searchQuery || hasActiveFilters()) && (
+   837→        <div className="mb-4">
+   838→          <p className="text-sm text-slate-500">
+   839→            Showing {getFilteredCases().length} of {cases.length} cases
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

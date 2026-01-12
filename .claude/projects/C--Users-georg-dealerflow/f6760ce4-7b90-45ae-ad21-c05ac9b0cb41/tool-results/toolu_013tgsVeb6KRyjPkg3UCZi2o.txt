@@ -1,0 +1,12 @@
+198:  const [vrmSearch, setVrmSearch] = useState("");
+1243:  const getVrmSearchResults = () => {
+1244:    if (vrmSearch.length < 2) return [];
+1245:    const searchTerm = vrmSearch.toUpperCase().replace(/\s/g, "");
+1254:    setVrmSearch("");
+1644:                  value={vrmSearch}
+1646:                    setVrmSearch(e.target.value.toUpperCase());
+1649:                  onFocus={() => vrmSearch.length >= 2 && setShowVrmDropdown(true)}
+1657:                {vrmSearch && (
+1661:                      setVrmSearch("");
+1677:                    {getVrmSearchResults().length > 0 ? (
+1679:                        {getVrmSearchResults().map((vehicle) => (

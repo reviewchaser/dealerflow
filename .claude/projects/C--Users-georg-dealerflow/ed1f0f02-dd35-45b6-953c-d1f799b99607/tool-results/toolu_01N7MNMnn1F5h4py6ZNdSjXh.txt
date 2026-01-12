@@ -1,0 +1,278 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import CourtesyAllocation from "@/models/CourtesyAllocation";
+     4→import AftercareCase from "@/models/AftercareCase";
+     5→import User from "@/models/User";
+     6→import { withDealerContext } from "@/libs/authContext";
+     7→
+     8→async function handler(req, res, ctx) {
+     9→  await connectMongo();
+    10→  const { dealerId, userId } = ctx;
+    11→
+    12→  // GET - available courtesy vehicles (not currently OUT on any allocation)
+    13→  if (req.method === "GET") {
+    14→    try {
+    15→      // Get all courtesy vehicles for this dealer
+    16→      const courtesyVehicles = await Vehicle.find({
+    17→        dealerId,
+    18→        type: "COURTESY"
+    19→      }).lean();
+    20→
+    21→      // Get all allocations that are currently OUT with populated case details
+    22→      const outAllocations = await CourtesyAllocation.find({
+    23→        dealerId,
+    24→        status: "OUT"
+    25→      }).lean();
+    26→
+    27→      // Build a map of vehicleId -> allocation details for out vehicles
+    28→      const outVehicleMap = {};
+    29→      for (const allocation of outAllocations) {
+    30→        const vehicleId = allocation.courtesyVehicleId?.toString();
+    31→        if (vehicleId) {
+    32→          // Get case details for this allocation
+    33→          let customerVrm = allocation.customerVehicleRegNormalized || null;
+    34→          let dateOut = allocation.dateOut;
+    35→          let dateDueBack = allocation.dateDueBack;
+    36→
+    37→          if (allocation.aftercareCaseId) {
+    38→            const caseDetails = await AftercareCase.findById(allocation.aftercareCaseId)
+    39→              .populate("contactId", "name")
+    40→              .lean();
+    41→            if (caseDetails) {
+    42→              customerVrm = caseDetails.currentReg || caseDetails.regAtPurchase || customerVrm;
+    43→            }
+    44→          }
+    45→
+    46→          outVehicleMap[vehicleId] = {
+    47→            allocationId: allocation._id,
+    48→            customerVrm,
+    49→            dateOut,
+    50→            dateDueBack
+    51→          };
+    52→        }
+    53→      }
+    54→
+    55→      const outVehicleIds = Object.keys(outVehicleMap);
+    56→
+    57→      // Filter to only available vehicles (not currently OUT)
+    58→      const availableVehicles = courtesyVehicles.filter(v =>
+    59→        !outVehicleIds.includes(v._id.toString())
+    60→      );
+    61→
+    62→      // Add allocation info to all vehicles
+    63→      const allWithStatus = courtesyVehicles.map(v => ({
+    64→        ...v,
+    65→        isOut: outVehicleIds.includes(v._id.toString()),
+    66→        allocation: outVehicleMap[v._id.toString()] || null
+    67→      }));
+    68→
+    69→      return res.status(200).json({
+    70→        available: availableVehicles,
+    71→        all: allWithStatus,
+    72→        outCount: outAllocations.length
+    73→      });
+    74→    } catch (error) {
+    75→      console.error("Error fetching courtesy vehicles:", error);
+    76→      return res.status(500).json({ error: "Failed to fetch courtesy vehicles" });
+    77→    }
+    78→  }
+    79→
+    80→  // POST - allocate courtesy vehicle to a case
+    81→  if (req.method === "POST") {
+    82→    try {
+    83→      const { caseId, courtesyVehicleId, dateDueBack, notes } = req.body;
+    84→
+    85→      if (!caseId || !courtesyVehicleId) {
+    86→        return res.status(400).json({ error: "caseId and courtesyVehicleId required" });
+    87→      }
+    88→
+    89→      // Verify case belongs to dealer
+    90→      const aftercareCase = await AftercareCase.findOne({ _id: caseId, dealerId }).lean();
+    91→      if (!aftercareCase) {
+    92→        return res.status(404).json({ error: "Case not found" });
+    93→      }
+    94→
+    95→      // Verify courtesy vehicle belongs to dealer and is type COURTESY
+    96→      const vehicle = await Vehicle.findOne({
+    97→        _id: courtesyVehicleId,
+    98→        dealerId,
+    99→        type: "COURTESY"
+   100→      }).lean();
+   101→      if (!vehicle) {
+   102→        return res.status(404).json({ error: "Courtesy vehicle not found" });
+   103→      }
+   104→
+   105→      // Check vehicle is not already OUT
+   106→      const existingOut = await CourtesyAllocation.findOne({
+   107→        dealerId,
+   108→        courtesyVehicleId,
+   109→        status: "OUT"
+   110→      });
+   111→      if (existingOut) {
+   112→        return res.status(400).json({ error: "Courtesy vehicle is already allocated" });
+   113→      }
+   114→
+   115→      // Get user name for event tracking
+   116→      let userName = null;
+   117→      if (userId) {
+   118→        const user = await User.findById(userId).lean();
+   119→        userName = user?.name || null;
+   120→      }
+   121→
+   122→      // Create allocation
+   123→      const allocation = await CourtesyAllocation.create({
+   124→        dealerId,
+   125→        courtesyVehicleId,
+   126→        aftercareCaseId: caseId,
+   127→        customerVehicleRegNormalized: aftercareCase.regAtPurchase || aftercareCase.currentReg || null,
+   128→        dateOut: new Date(),
+   129→        dateDueBack: dateDueBack ? new Date(dateDueBack) : null,
+   130→        notes,
+   131→        createdByUserId: userId,
+   132→        source: "MANUAL",
+   133→        status: "OUT"
+   134→      });
+   135→
+   136→      // Update the case
+   137→      await AftercareCase.updateOne(
+   138→        { _id: caseId, dealerId },
+   139→        {
+   140→          $set: {
+   141→            courtesyRequired: true,
+   142→            courtesyAllocationId: allocation._id
+   143→          },
+   144→          $push: {
+   145→            events: {
+   146→              type: "COURTESY_ALLOCATED",
+   147→              createdAt: new Date(),
+   148→              createdByUserId: userId,
+   149→              createdByName: userName,
+   150→              summary: `Courtesy vehicle ${vehicle.regCurrent} allocated`,
+   151→              metadata: {
+   152→                courtesyVrm: vehicle.regCurrent,
+   153→                allocationId: allocation._id,
+   154→                dueBack: allocation.dateDueBack
+   155→              }
+   156→            }
+   157→          }
+   158→        }
+   159→      );
+   160→
+   161→      // Fetch updated case
+   162→      const updatedCase = await AftercareCase.findOne({ _id: caseId, dealerId })
+   163→        .populate("contactId")
+   164→        .populate("vehicleId")
+   165→        .populate("courtesyAllocationId")
+   166→        .lean();
+   167→
+   168→      // Populate courtesy vehicle on allocation
+   169→      if (updatedCase.courtesyAllocationId) {
+   170→        updatedCase.courtesyAllocationId.courtesyVehicle = vehicle;
+   171→      }
+   172→
+   173→      return res.status(201).json({
+   174→        ok: true,
+   175→        allocation,
+   176→        case: updatedCase
+   177→      });
+   178→    } catch (error) {
+   179→      console.error("Error allocating courtesy vehicle:", error);
+   180→      return res.status(500).json({ error: "Failed to allocate courtesy vehicle" });
+   181→    }
+   182→  }
+   183→
+   184→  // PATCH - return courtesy vehicle
+   185→  if (req.method === "PATCH") {
+   186→    try {
+   187→      const { allocationId, mileageIn, fuelLevelIn, notes } = req.body;
+   188→
+   189→      if (!allocationId) {
+   190→        return res.status(400).json({ error: "allocationId required" });
+   191→      }
+   192→
+   193→      // Verify allocation belongs to dealer
+   194→      const allocation = await CourtesyAllocation.findOne({ _id: allocationId, dealerId });
+   195→      if (!allocation) {
+   196→        return res.status(404).json({ error: "Allocation not found" });
+   197→      }
+   198→
+   199→      if (allocation.status === "RETURNED") {
+   200→        return res.status(400).json({ error: "Courtesy vehicle already returned" });
+   201→      }
+   202→
+   203→      // Get user name for event tracking
+   204→      let userName = null;
+   205→      if (userId) {
+   206→        const user = await User.findById(userId).lean();
+   207→        userName = user?.name || null;
+   208→      }
+   209→
+   210→      // Get vehicle reg for event summary
+   211→      const vehicle = await Vehicle.findById(allocation.courtesyVehicleId).lean();
+   212→
+   213→      // Update allocation
+   214→      await CourtesyAllocation.updateOne(
+   215→        { _id: allocationId, dealerId },
+   216→        {
+   217→          $set: {
+   218→            dateReturned: new Date(),
+   219→            mileageIn: mileageIn || null,
+   220→            fuelLevelIn: fuelLevelIn || null,
+   221→            notes: notes ? (allocation.notes ? `${allocation.notes}\n${notes}` : notes) : allocation.notes,
+   222→            status: "RETURNED"
+   223→          }
+   224→        }
+   225→      );
+   226→
+   227→      // If linked to a case, add timeline event
+   228→      if (allocation.aftercareCaseId) {
+   229→        await AftercareCase.updateOne(
+   230→          { _id: allocation.aftercareCaseId, dealerId },
+   231→          {
+   232→            $push: {
+   233→              events: {
+   234→                type: "COURTESY_RETURNED",
+   235→                createdAt: new Date(),
+   236→                createdByUserId: userId,
+   237→                createdByName: userName,
+   238→                summary: `Courtesy vehicle ${vehicle?.regCurrent || "unknown"} returned`,
+   239→                metadata: {
+   240→                  courtesyVrm: vehicle?.regCurrent,
+   241→                  allocationId,
+   242→                  mileageIn,
+   243→                  fuelLevelIn
+   244→                }
+   245→              }
+   246→            }
+   247→          }
+   248→        );
+   249→
+   250→        // Fetch updated case
+   251→        const updatedCase = await AftercareCase.findOne({ _id: allocation.aftercareCaseId, dealerId })
+   252→          .populate("contactId")
+   253→          .populate("vehicleId")
+   254→          .populate("courtesyAllocationId")
+   255→          .lean();
+   256→
+   257→        return res.status(200).json({
+   258→          ok: true,
+   259→          case: updatedCase
+   260→        });
+   261→      }
+   262→
+   263→      return res.status(200).json({ ok: true });
+   264→    } catch (error) {
+   265→      console.error("Error returning courtesy vehicle:", error);
+   266→      return res.status(500).json({ error: "Failed to return courtesy vehicle" });
+   267→    }
+   268→  }
+   269→
+   270→  return res.status(405).json({ error: "Method not allowed" });
+   271→}
+   272→
+   273→export default withDealerContext(handler);
+   274→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

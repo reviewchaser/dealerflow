@@ -1,0 +1,22 @@
+343:  const updateVehicleStatus = async (vehicleId, newStatus) => {
+344-    try {
+345-      await fetch(`/api/vehicles/${vehicleId}`, {
+346-        method: "PUT",
+347-        headers: { "Content-Type": "application/json" },
+348-        body: JSON.stringify({ status: newStatus }),
+--
+877:  const handleDragEnd = () => {
+878-    setDraggedCard(null);
+879-  };
+880-
+881-  const handleDrop = async (e, newStatus) => {
+882-    e.preventDefault();
+--
+888:    await updateVehicleStatus(vehicleId, newStatus);
+889-    setDraggedCard(null);
+890-  };
+891-
+892-  const uploadV5 = async (file) => {
+893-    if (!file) return;
+
+[Showing results with pagination = limit: 20, offset: 0]

@@ -1,0 +1,16 @@
+# DealerFlow Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
+
+# MongoDB Database
+MONGODB_URI=mongodb+srv://accounts_db_user:NeSyY6B079@cluster0.lqoi4pv.mongodb.net/dealerflow?retryWrites=true&w=majority&appName=Cluster0
+
+# Google OAuth (optional)
+GOOGLE_ID=
+GOOGLE_CLIENT_SECRET=
+
+# DVLA Vehicle Enquiry Service API
+DVLA_API_KEY=7oxStNA4I25EqgiZt1WxF2IXNSVixYds9l8XmnzJ
+
+# Anthropic Claude API (for AI features)
+ANTHROPIC_API_KEY=

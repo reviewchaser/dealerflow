@@ -1,0 +1,23 @@
+The file C:\Users\georg\dealerflow\components\ui\MobileModal.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    94→    }
+    95→    return true;
+    96→  });
+    97→
+    98→  return (
+    99→    <Portal>
+   100→      <div
+   101→        className="fixed inset-0 z-[9999]"
+   102→        style={{ touchAction: "none", overscrollBehavior: "contain" }}
+   103→      >
+   104→        {/* Backdrop - prevent touch events from reaching background */}
+   105→        <div
+   106→          className="fixed inset-0 bg-black/50"
+   107→          onClick={onClose}
+   108→          onTouchMove={(e) => e.preventDefault()}
+   109→          aria-hidden="true"
+   110→          style={{ touchAction: "none" }}
+   111→        />
+   112→
+   113→        {/* Modal Container - Centered on desktop, full screen on mobile */}
+   114→        <div className="fixed inset-0 flex items-start md:items-center justify-center p-0 md:p-4">
+   115→          {/* Modal */}

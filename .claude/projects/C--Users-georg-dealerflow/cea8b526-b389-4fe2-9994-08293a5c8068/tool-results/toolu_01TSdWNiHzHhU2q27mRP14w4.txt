@@ -1,0 +1,16 @@
+C:\Users\georg\dealerflow\pages\404.js
+C:\Users\georg\dealerflow\pages\500.js
+C:\Users\georg\dealerflow\pages\admin-setup.js
+C:\Users\georg\dealerflow\pages\_app.js
+C:\Users\georg\dealerflow\pages\_document.js
+C:\Users\georg\dealerflow\pages\privacy-policy.js
+C:\Users\georg\dealerflow\pages\reviews.js
+C:\Users\georg\dealerflow\pages\tos.js
+C:\Users\georg\dealerflow\pages\forms.js
+C:\Users\georg\dealerflow\pages\index.js
+C:\Users\georg\dealerflow\pages\calendar.js
+C:\Users\georg\dealerflow\pages\onboarding.js
+C:\Users\georg\dealerflow\pages\warranty.js
+C:\Users\georg\dealerflow\pages\dashboard.js
+C:\Users\georg\dealerflow\pages\settings.js
+C:\Users\georg\dealerflow\pages\sales-prep.js

@@ -1,0 +1,50 @@
+328-      { label: "Consent", fieldName: "_section_consent", type: "SECTION_HEADER", order: 30 },
+329-      { label: "Do you consent for the delivery photo to be used on our website/social media?", fieldName: "photo_consent", type: "RADIO", required: true, order: 31, options: { choices: ["Yes", "No"] } },
+330-
+331-      { label: "Sign-off", fieldName: "_section_signoff", type: "SECTION_HEADER", order: 40 },
+332-      { label: "Customer Signature", fieldName: "customer_signature", type: "SIGNATURE", required: true, order: 41 },
+333-      { label: "Staff Member Name", fieldName: "staff_name", type: "TEXT", required: true, order: 42 },
+334-    ],
+335-  },
+336-
+337-  // ═══════════════════════════════════════════════════════════════════════════════
+338:  // Service Receipt - Simplified layout matching PDF
+339-  // ═══════════════════════════════════════════════════════════════════════════════
+340-  {
+341:    name: "Service Receipt",
+342:    type: "SERVICE_RECEIPT",
+343-    visibility: "INTERNAL", // Staff only - requires login
+344-    isPublic: false, // Deprecated - kept for backward compat
+345:    publicSlug: "service-receipt",
+346-    introText: null, // No intro text - clean header with dealer info
+347-    showDealerHeader: true, // Show dealer logo + address/phone in header
+348-    vrmLookup: { enabled: true, statuses: ["IN_PREP", "ADVERTISED", "SOLD", "DELIVERED"] },
+349-    fields: [
+350-      \ Row 1: Registration and Mileage side by side
+351-      { label: "REGISTRATION", fieldName: "vrm", type: "TEXT", required: true, order: 1, vrmLookup: true, gridGroup: "row1", uppercase: true },
+352-      { label: "MILEAGE", fieldName: "mileage", type: "NUMBER", required: true, order: 2, gridGroup: "row1", uppercase: true },
+353-
+354-      \ Row 2: Make and Model side by side (auto-fill from VRM lookup)
+355-      { label: "MAKE", fieldName: "make", type: "TEXT", required: false, order: 3, gridGroup: "row2", uppercase: true },
+--
+444-      { label: "What could we improve?", fieldName: "improvement_feedback", type: "TEXTAREA", required: false, order: 5 },
+445-      { label: "Would you recommend us to friends and family?", fieldName: "would_recommend", type: "RADIO", required: true, order: 6, options: { choices: ["Definitely", "Probably", "Not Sure", "Probably Not", "Definitely Not"] } },
+446-    ],
+447-  },
+448-];
+449-
+450-// List of form types that have been deprecated and should be removed
+451-export const DEPRECATED_FORM_TYPES = ["CAR_PREP", "BUYING_APPRAISAL", "CUSTOMER_PX_APPRAISAL"];
+452-
+453-// Valid form types (for model enum)
+454:export const VALID_FORM_TYPES = ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTESY_OUT", "COURTESY_IN", "DELIVERY", "SERVICE_RECEIPT", "REVIEW_FEEDBACK", "OTHER"];
+455-
+456-// Default intro/terms text that can be customized per dealer
+457-export const DEFAULT_FORM_TEXT = {
+458-  WARRANTY_CLAIM: {
+459-    introText: `Please fill out the form below in as much detail as possible. We will only accept one claim per submission, submitting more than once may delay your claim being processed.
+460-
+461-Please allow up to 48 hours for a response.`,
+462-  },
+463-  TEST_DRIVE: {
+464-    termsText: `By signing this form, I confirm that:

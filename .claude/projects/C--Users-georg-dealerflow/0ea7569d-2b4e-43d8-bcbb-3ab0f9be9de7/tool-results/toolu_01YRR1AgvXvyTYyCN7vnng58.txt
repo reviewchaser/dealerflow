@@ -1,0 +1,58 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3547→                        </div>
+  3548→                      </div>
+  3549→                    </div>
+  3550→
+  3551→                  {/* Stock Number Section - Only for Stock vehicles */}
+  3552→                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
+  3553→                    <div className="bg-white border border-slate-200 rounded-lg p-4">
+  3554→                      <div className="flex items-center justify-between">
+  3555→                        <div className="flex items-center gap-2">
+  3556→                          <h3 className="text-sm font-semibold text-slate-900">Stock Number</h3>
+  3557→                          {selectedVehicle.stockNumber ? (
+  3558→                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+  3559→                              {selectedVehicle.stockNumber}
+  3560→                            </span>
+  3561→                          ) : (
+  3562→                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">
+  3563→                              Not assigned
+  3564→                            </span>
+  3565→                          )}
+  3566→                        </div>
+  3567→                        {!selectedVehicle.stockNumber && (
+  3568→                          <button
+  3569→                            className="btn btn-xs bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+  3570→                            onClick={async () => {
+  3571→                              try {
+  3572→                                const res = await fetch(`/api/vehicles/${selectedVehicle.id}/assign-stock-number`, {
+  3573→                                  method: "POST",
+  3574→                                });
+  3575→                                if (!res.ok) {
+  3576→                                  const err = await res.json();
+  3577→                                  throw new Error(err.error || "Failed to assign stock number");
+  3578→                                }
+  3579→                                const data = await res.json();
+  3580→                                setSelectedVehicle({ ...selectedVehicle, stockNumber: data.stockNumber });
+  3581→                                toast.success(`Stock number assigned: ${data.stockNumber}`);
+  3582→                                fetchVehicles();
+  3583→                              } catch (error) {
+  3584→                                toast.error(error.message);
+  3585→                              }
+  3586→                            }}
+  3587→                          >
+  3588→                            Assign Stock #
+  3589→                          </button>
+  3590→                        )}
+  3591→                      </div>
+  3592→                    </div>
+  3593→                  )}
+  3594→
+  3595→                  {/* Purchase Section - Only for Stock vehicles */}
+  3596→                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
+  3597→                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+  3598→                      <div className="flex items-center justify-between mb-4">
+  3599→                        <h3 className="text-sm font-semibold text-slate-900">Purchase Info (SIV)</h3>
+  3600→                        {!selectedVehicle.purchase?.purchasePriceNet && (
+  3601→                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+  3602→                            Missing
+  3603→                          </span>

@@ -1,0 +1,119 @@
+import connectMongo from "@/libs/mongoose";
+import mongoose from "mongoose";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
+import FormSubmissionFile from "@/models/FormSubmissionFile";
+import Dealer from "@/models/Dealer";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  if (req.method === "GET") {
+    try {
+      let { dealerId, formId, formType, search, startDate, endDate } = req.query;
+
+      // If no valid dealerId provided, get the first dealer
+      if (!dealerId || dealerId === "000000000000000000000000") {
+        const firstDealer = await Dealer.findOne().lean();
+        if (firstDealer) {
+          dealerId = firstDealer._id;
+        } else {
+          return res.status(400).json({ error: "No dealer found" });
+        }
+      } else {
+        dealerId = new mongoose.Types.ObjectId(dealerId);
+      }
+
+      let query = { dealerId };
+
+      // Filter by form
+      if (formId) {
+        query.formId = formId;
+      }
+
+      // Filter by form type
+      if (formType) {
+        const forms = await Form.find({ dealerId, type: formType });
+        const formIds = forms.map((f) => f._id);
+        query.formId = { $in: formIds };
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.submittedAt = {};
+        if (startDate) query.submittedAt.$gte = new Date(startDate);
+        if (endDate) query.submittedAt.$lte = new Date(endDate);
+      }
+
+      // Search filter (search in rawAnswers)
+      if (search) {
+        query.$or = [
+          { "rawAnswers.name": { $regex: search, $options: "i" } },
+          { "rawAnswers.email": { $regex: search, $options: "i" } },
+          { "rawAnswers.phone": { $regex: search, $options: "i" } },
+          { "rawAnswers.reg": { $regex: search, $options: "i" } },
+          { "rawAnswers.vrm": { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const submissions = await FormSubmission.find(query)
+        .populate("formId")
+        .populate("submittedByContactId")
+        .populate("linkedVehicleId")
+        .populate("linkedAftercareCaseId")
+        .sort({ submittedAt: -1 });
+
+      return res.status(200).json(submissions);
+    } catch (error) {
+      console.error("Error fetching submissions:", error);
+      return res.status(500).json({ error: "Failed to fetch submissions" });
+    }
+  }
+
+  if (req.method === "POST") {
+    try {
+      // Public submission endpoint - no auth required
+      const { formId, rawAnswers, submittedByContactId, files } = req.body;
+
+      if (!formId || !rawAnswers) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const form = await Form.findById(formId);
+      if (!form) {
+        return res.status(404).json({ error: "Form not found" });
+      }
+
+      const submission = await FormSubmission.create({
+        formId,
+        dealerId: form.dealerId,
+        rawAnswers,
+        submittedByContactId,
+        submittedAt: new Date(),
+      });
+
+      // Handle file uploads if provided
+      if (files && Array.isArray(files)) {
+        const filePromises = files.map((file) =>
+          FormSubmissionFile.create({
+            formSubmissionId: submission._id,
+            ...file,
+          })
+        );
+        await Promise.all(filePromises);
+      }
+
+      // Note: Appraisal forms are handled separately in the Appraisals section
+      // They have their own dedicated pages and API endpoints
+
+      return res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating submission:", error);
+      return res.status(500).json({ error: "Failed to create submission" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

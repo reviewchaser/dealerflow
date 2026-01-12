@@ -1,0 +1,48 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   142→    });
+   143→    setShowModal(true);
+   144→  };
+   145→
+   146→  // Save contact
+   147→  const handleSaveContact = async (e) => {
+   148→    e.preventDefault();
+   149→    setIsSaving(true);
+   150→
+   151→    try {
+   152→      // Compute displayName from firstName/lastName or companyName
+   153→      let displayName;
+   154→      if (formData.contactType === "company") {
+   155→        displayName = formData.companyName?.trim();
+   156→      } else {
+   157→        displayName = `${formData.firstName || ""} ${formData.lastName || ""}`.trim();
+   158→      }
+   159→
+   160→      if (!displayName) {
+   161→        toast.error("Name is required");
+   162→        setIsSaving(false);
+   163→        return;
+   164→      }
+   165→
+   166→      // Convert typeTags to uppercase for API
+   167→      const normalizedTypeTags = formData.typeTags.map(tag => tag.toUpperCase());
+   168→
+   169→      const payload = {
+   170→        displayName,
+   171→        companyName: formData.companyName,
+   172→        email: formData.email,
+   173→        phone: formData.phone,
+   174→        address: {
+   175→          line1: formData.addressLine1,
+   176→          line2: formData.addressLine2,
+   177→          town: formData.town,
+   178→          postcode: formData.postcode,
+   179→          country: formData.country,
+   180→        },
+   181→        vatNumber: formData.vatNumber,
+   182→        notes: formData.notes,
+   183→        typeTags: normalizedTypeTags,
+   184→      };
+   185→
+   186→      const url = editingContact
+   187→        ? `/api/contacts/${editingContact.id}`
+   188→        : "/api/contacts";

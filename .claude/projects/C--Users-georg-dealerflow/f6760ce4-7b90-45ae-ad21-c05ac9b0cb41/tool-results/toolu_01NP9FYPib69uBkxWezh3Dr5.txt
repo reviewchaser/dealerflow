@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\components\ui\BottomSheet.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   123→              </svg>
+   124→            </button>
+   125→          </div>
+   126→
+   127→          {/* Content - Scrollable vertically only */}
+   128→          <div
+   129→            className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 min-h-0"
+   130→            style={{ touchAction: "pan-y", WebkitOverflowScrolling: "touch" }}
+   131→          >
+   132→            {children}
+   133→          </div>
+   134→
+   135→          {/* Footer - Sticky at bottom */}
+   136→          {footer && (
+   137→            <div

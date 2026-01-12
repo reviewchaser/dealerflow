@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   193→  // Activity log state
+   194→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   195→  const [activityLoading, setActivityLoading] = useState(false);
+   196→
+   197→  // VRM Search state
+   198→  const [vrmSearch, setVrmSearch] = useState("");
+   199→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   200→  const [vrmSearchResults, setVrmSearchResults] = useState([]);
+   201→  const [vrmSearchLoading, setVrmSearchLoading] = useState(false);
+   202→  const vrmSearchTimeout = useRef(null);
+   203→
+   204→  // Mobile state
+   205→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   206→

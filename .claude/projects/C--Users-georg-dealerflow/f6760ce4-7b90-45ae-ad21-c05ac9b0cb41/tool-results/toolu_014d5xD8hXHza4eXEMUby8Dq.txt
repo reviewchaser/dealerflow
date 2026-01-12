@@ -1,0 +1,8 @@
+C:\Users\georg\dealerflow\pages\api\appraisals\issues\[id].js
+C:\Users\georg\dealerflow\pages\api\appraisals\issues\index.js
+C:\Users\georg\dealerflow\pages\api\customer-px\issues\[id].js
+C:\Users\georg\dealerflow\pages\api\issues\[issueId].js
+C:\Users\georg\dealerflow\pages\api\customer-px\issues\index.js
+C:\Users\georg\dealerflow\.next\server\pages\api\appraisals\issues\[id].js
+C:\Users\georg\dealerflow\.next\server\pages\api\customer-px\issues\[id].js
+C:\Users\georg\dealerflow\.next\server\pages\api\issues\[issueId].js

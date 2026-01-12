@@ -1,0 +1,6 @@
+C:\Users\georg\dealerflow\pages\settings.js:54:      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+C:\Users\georg\dealerflow\pages\settings.js:57:      root.setAttribute("data-theme", selectedTheme);
+C:\Users\georg\dealerflow\pages\_document.js:6:    <Html lang="en" data-theme={config.colors.theme}>
+C:\Users\georg\dealerflow\pages\_app.js:14:      root.setAttribute("data-theme", prefersDark ? "dark" : "light");
+C:\Users\georg\dealerflow\pages\_app.js:17:      root.setAttribute("data-theme", savedTheme);
+C:\Users\georg\dealerflow\pages\_app.js:25:        root.setAttribute("data-theme", e.matches ? "dark" : "light");

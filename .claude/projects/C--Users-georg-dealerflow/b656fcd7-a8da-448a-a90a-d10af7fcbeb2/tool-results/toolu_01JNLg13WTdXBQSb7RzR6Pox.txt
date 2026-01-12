@@ -1,0 +1,90 @@
+     1→/**
+     2→ * Legacy Route Redirect Helper
+     3→ *
+     4→ * Redirects old routes (/dashboard, /sales-prep, etc.) to tenant-aware routes
+     5→ * (/app/[dealerSlug]/dashboard, /app/[dealerSlug]/stock, etc.)
+     6→ */
+     7→
+     8→import { getServerSession } from "next-auth";
+     9→import { authOptions } from "@/libs/authOptions";
+    10→import DealerMembership from "@/models/DealerMembership";
+    11→import User from "@/models/User";
+    12→import Dealer from "@/models/Dealer";
+    13→import connectMongo from "@/libs/mongoose";
+    14→
+    15→/**
+    16→ * Get the user's default dealer slug for redirect
+    17→ */
+    18→export async function getDefaultDealerSlug(req, res) {
+    19→  await connectMongo();
+    20→
+    21→  const session = await getServerSession(req, res, authOptions);
+    22→  if (!session?.user?.id) {
+    23→    return null;
+    24→  }
+    25→
+    26→  const userId = session.user.id;
+    27→  const user = await User.findById(userId).lean();
+    28→
+    29→  // Try preferred dealer first
+    30→  if (user?.defaultDealerId) {
+    31→    const dealer = await Dealer.findById(user.defaultDealerId).lean();
+    32→    if (dealer?.slug) return dealer.slug;
+    33→  }
+    34→
+    35→  // Fall back to most recently active membership
+    36→  const membership = await DealerMembership.findOneActive({ userId })
+    37→    .sort({ lastActiveAt: -1 })
+    38→    .populate("dealerId", "slug")
+    39→    .lean();
+    40→
+    41→  return membership?.dealerId?.slug || null;
+    42→}
+    43→
+    44→/**
+    45→ * Create getServerSideProps for legacy route redirect
+    46→ *
+    47→ * @param {string} targetPath - The path to redirect to (e.g., "dashboard", "stock")
+    48→ */
+    49→export function createLegacyRedirect(targetPath) {
+    50→  return async function getServerSideProps(context) {
+    51→    const { req, res } = context;
+    52→
+    53→    try {
+    54→      const dealerSlug = await getDefaultDealerSlug(req, res);
+    55→
+    56→      if (!dealerSlug) {
+    57→        // Not authenticated or no dealer - redirect to sign in
+    58→        return {
+    59→          redirect: {
+    60→            destination: `/auth/signin?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
+    61→            permanent: false,
+    62→          },
+    63→        };
+    64→      }
+    65→
+    66→      // Redirect to tenant-aware route
+    67→      return {
+    68→        redirect: {
+    69→          destination: `/app/${dealerSlug}/${targetPath}`,
+    70→          permanent: false,
+    71→        },
+    72→      };
+    73→    } catch (error) {
+    74→      console.error("[legacyRedirect] Error:", error.message);
+    75→      return {
+    76→        redirect: {
+    77→          destination: `/auth/signin?callbackUrl=${encodeURIComponent(context.resolvedUrl)}`,
+    78→          permanent: false,
+    79→        },
+    80→      };
+    81→    }
+    82→  };
+    83→}
+    84→
+    85→export default { getDefaultDealerSlug, createLegacyRedirect };
+    86→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

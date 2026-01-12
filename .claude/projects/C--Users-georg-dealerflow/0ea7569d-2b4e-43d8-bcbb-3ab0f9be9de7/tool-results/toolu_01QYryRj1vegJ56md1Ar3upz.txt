@@ -1,0 +1,84 @@
+     1→import { useEffect, useState } from "react";
+     2→import { useSession } from "next-auth/react";
+     3→import { useRouter } from "next/router";
+     4→import Head from "next/head";
+     5→import Link from "next/link";
+     6→import DashboardLayout from "@/components/DashboardLayout";
+     7→import { toast } from "react-hot-toast";
+     8→import useDealerRedirect from "@/hooks/useDealerRedirect";
+     9→
+    10→export default function HolidaySettings() {
+    11→  const router = useRouter();
+    12→  const { data: session } = useSession();
+    13→  const { isRedirecting } = useDealerRedirect();
+    14→  const [requests, setRequests] = useState([]);
+    15→  const [loading, setLoading] = useState(true);
+    16→  const [filter, setFilter] = useState("all"); // all, pending, approved, rejected
+    17→  const [searchQuery, setSearchQuery] = useState(""); // Employee name search
+    18→  const [userRole, setUserRole] = useState(null);
+    19→
+    20→  // Read filter from URL on load
+    21→  useEffect(() => {
+    22→    if (router.query.filter) {
+    23→      setFilter(router.query.filter);
+    24→    }
+    25→  }, [router.query.filter]);
+    26→  const [showCreateModal, setShowCreateModal] = useState(false);
+    27→  const [teamMembers, setTeamMembers] = useState([]);
+    28→  const [newRequest, setNewRequest] = useState({
+    29→    startDate: "",
+    30→    endDate: "",
+    31→    startSession: "AM",
+    32→    endSession: "PM",
+    33→    type: "Holiday",
+    34→    notes: "",
+    35→    requestForUserId: "",
+    36→  });
+    37→  const [adminNote, setAdminNote] = useState("");
+    38→  const [actionModal, setActionModal] = useState({ open: false, request: null, action: null });
+    39→  const [isProcessing, setIsProcessing] = useState(false);
+    40→
+    41→  const isAdmin = userRole === "OWNER" || userRole === "ADMIN";
+    42→
+    43→  // Fetch user's role from dealer context
+    44→  useEffect(() => {
+    45→    const fetchRole = async () => {
+    46→      try {
+    47→        const res = await fetch("/api/dealer");
+    48→        if (res.ok) {
+    49→          const data = await res.json();
+    50→          setUserRole(data.currentUserRole);
+    51→          console.log("Holiday page - fetched role:", data.currentUserRole);
+    52→        }
+    53→      } catch (error) {
+    54→        console.error("Failed to fetch user role:", error);
+    55→      }
+    56→    };
+    57→    fetchRole();
+    58→  }, []);
+    59→
+    60→  useEffect(() => {
+    61→    fetchRequests();
+    62→    if (isAdmin) {
+    63→      fetchTeamMembers();
+    64→    }
+    65→  }, [isAdmin]);
+    66→
+    67→  const fetchRequests = async () => {
+    68→    try {
+    69→      const res = await fetch("/api/holiday-requests");
+    70→      if (!res.ok) throw new Error("Failed to fetch");
+    71→      const data = await res.json();
+    72→      setRequests(data);
+    73→    } catch (error) {
+    74→      toast.error("Failed to load holiday requests");
+    75→    } finally {
+    76→      setLoading(false);
+    77→    }
+    78→  };
+    79→
+    80→  const fetchTeamMembers = async () => {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

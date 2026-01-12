@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\api\aftercare\[id].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import connectMongo from "@/libs/mongoose";
+     2→import AftercareCase from "@/models/AftercareCase";
+     3→import AftercareCaseComment from "@/models/AftercareCaseComment";
+     4→import FormSubmission from "@/models/FormSubmission";
+     5→import FormSubmissionFile from "@/models/FormSubmissionFile";
+     6→import CourtesyAllocation from "@/models/CourtesyAllocation";
+     7→import Vehicle from "@/models/Vehicle";
+     8→import Contact from "@/models/Contact"; // Required for populate
+     9→import User from "@/models/User";
+    10→import CalendarEvent from "@/models/CalendarEvent";
+    11→import CalendarCategory from "@/models/CalendarCategory";
+    12→import { withDealerContext } from "@/libs/authContext";
+    13→

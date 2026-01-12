@@ -1,0 +1,28 @@
+The file C:\Users\georg\dealerflow\pages\contacts.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   417→                          <div className="flex items-center gap-2 flex-wrap">
+   418→                            <p className="font-semibold text-slate-900 truncate">
+   419→                              {contact.displayName}
+   420→                            </p>
+   421→                            {contact.typeTags?.map(tag => {
+   422→                              const tagUpper = tag.toUpperCase();
+   423→                              return (
+   424→                                <span
+   425→                                  key={tag}
+   426→                                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+   427→                                    tagUpper === "CUSTOMER" ? "bg-emerald-100 text-emerald-700" :
+   428→                                    tagUpper === "SUPPLIER" ? "bg-blue-100 text-blue-700" :
+   429→                                    tagUpper === "FINANCE" ? "bg-purple-100 text-purple-700" :
+   430→                                    "bg-slate-100 text-slate-600"
+   431→                                  }`}
+   432→                                >
+   433→                                  {tagUpper === "CUSTOMER" ? "Customer" :
+   434→                                   tagUpper === "SUPPLIER" ? "Supplier" :
+   435→                                   tagUpper === "FINANCE" ? "Finance" :
+   436→                                   tag}
+   437→                                </span>
+   438→                              );
+   439→                            })}
+   440→                          </div>
+   441→                          {contact.companyName && (
+   442→                            <p className="text-sm text-slate-500 truncate mt-0.5">
+   443→                              {contact.companyName}

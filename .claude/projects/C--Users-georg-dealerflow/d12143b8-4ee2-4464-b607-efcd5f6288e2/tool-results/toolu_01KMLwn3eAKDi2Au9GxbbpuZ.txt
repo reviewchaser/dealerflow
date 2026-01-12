@@ -1,0 +1,69 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1241→    }));
+  1242→    return allFiltered.length;
+  1243→  };
+  1244→
+  1245→  // VRM Search functions - client-side filtering
+  1246→  // Shows ALL matching vehicles sorted by date (most recent first) with date to differentiate duplicates
+  1247→  const searchVehiclesClientSide = (query) => {
+  1248→    if (query.length < 2 || !vehicles.length) {
+  1249→      return [];
+  1250→    }
+  1251→
+  1252→    const normalizedQuery = query.toUpperCase().replace(/\s/g, "");
+  1253→
+  1254→    // Filter vehicles matching the query (VRM only for precision)
+  1255→    const matches = vehicles.filter((v) => {
+  1256→      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+  1257→      return vrm.includes(normalizedQuery);
+  1258→    });
+  1259→
+  1260→    // Sort by createdAt (most recently added to stock first)
+  1261→    matches.sort((a, b) => {
+  1262→      const aDate = new Date(a.createdAt || 0);
+  1263→      const bDate = new Date(b.createdAt || 0);
+  1264→      return bDate - aDate;
+  1265→    });
+  1266→
+  1267→    // Return all matches (including duplicates) limited to 10
+  1268→    return matches.slice(0, 10);
+  1269→  };
+  1270→
+  1271→  // Fallback API search for when client-side data isn't loaded
+  1272→  const searchVehiclesApi = async (query) => {
+  1273→    if (query.length < 2) {
+  1274→      setVrmSearchResults([]);
+  1275→      return;
+  1276→    }
+  1277→
+  1278→    setVrmSearchLoading(true);
+  1279→    try {
+  1280→      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=20`);
+  1281→      if (res.ok) {
+  1282→        const results = await res.json();
+  1283→        // Sort by createdAt (most recently added to stock first)
+  1284→        results.sort((a, b) => {
+  1285→          const aDate = new Date(a.createdAt || 0);
+  1286→          const bDate = new Date(b.createdAt || 0);
+  1287→          return bDate - aDate;
+  1288→        });
+  1289→
+  1290→        setVrmSearchResults(results.slice(0, 10));
+  1291→      }
+  1292→    } catch (err) {
+  1293→      console.error("VRM search error:", err);
+  1294→    } finally {
+  1295→      setVrmSearchLoading(false);
+  1296→    }
+  1297→  };
+  1298→
+  1299→  // Format date for VRM search results
+  1300→  const formatStockDate = (dateStr) => {
+  1301→    if (!dateStr) return "";
+  1302→    const date = new Date(dateStr);
+  1303→    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+  1304→  };
+  1305→
+  1306→  const handleVrmSearchChange = (value) => {
+  1307→    const normalized = value.toUpperCase();
+  1308→    setVrmSearch(normalized);

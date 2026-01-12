@@ -1,0 +1,5 @@
+C:\Users\georg\dealerflow\pages\api\public\invoice\[token].js
+C:\Users\georg\dealerflow\pages\public\invoice\[token].js
+C:\Users\georg\dealerflow\.next\static\chunks\pages\public\invoice\[token].js
+C:\Users\georg\dealerflow\.next\server\pages\public\invoice\[token].js
+C:\Users\georg\dealerflow\.next\server\pages\api\public\invoice\[token].js

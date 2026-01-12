@@ -1,0 +1,59 @@
+/**
+ * Get User's Dealership Memberships
+ *
+ * GET /api/dealers/memberships
+ *
+ * Returns all dealerships the current user has access to.
+ */
+
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/libs/authOptions";
+import connectMongo from "@/libs/mongoose";
+import DealerMembership from "@/models/DealerMembership";
+import Dealer from "@/models/Dealer";
+
+export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  const session = await getServerSession(req, res, authOptions);
+  if (!session?.user?.id) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  try {
+    await connectMongo();
+
+    // Find all active memberships for this user
+    const memberships = await DealerMembership.find({
+      userId: session.user.id,
+      status: "ACTIVE",
+    })
+      .populate({
+        path: "dealerId",
+        select: "name slug logoUrl status",
+      })
+      .lean();
+
+    // Filter out memberships where dealer is disabled or doesn't exist
+    const activeMembers = memberships.filter(
+      (m) => m.dealerId && m.dealerId.status !== "DISABLED"
+    );
+
+    // Format response
+    const dealers = activeMembers.map((m) => ({
+      id: m.dealerId._id.toString(),
+      name: m.dealerId.name,
+      slug: m.dealerId.slug,
+      logoUrl: m.dealerId.logoUrl || null,
+      role: m.role,
+      membershipId: m._id.toString(),
+    }));
+
+    return res.status(200).json(dealers);
+  } catch (error) {
+    console.error("[Memberships] Error:", error);
+    return res.status(500).json({ error: "Failed to load dealerships" });
+  }
+}

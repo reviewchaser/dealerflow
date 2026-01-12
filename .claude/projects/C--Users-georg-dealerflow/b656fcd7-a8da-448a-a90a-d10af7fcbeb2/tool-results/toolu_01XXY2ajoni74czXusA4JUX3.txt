@@ -1,0 +1,16 @@
+The file C:\Users\georg\dealerflow\pages\settings.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→/**
+     2→ * Legacy Settings Route - redirects to /app/[dealerSlug]/settings
+     3→ */
+     4→import { createLegacyRedirect } from "@/libs/legacyRedirect";
+     5→
+     6→export const getServerSideProps = createLegacyRedirect("settings");
+     7→
+     8→export default function LegacySettings() {
+     9→  return (
+    10→    <div className="min-h-screen flex items-center justify-center">
+    11→      <div className="w-8 h-8 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+    12→    </div>
+    13→  );
+    14→}
+    15→

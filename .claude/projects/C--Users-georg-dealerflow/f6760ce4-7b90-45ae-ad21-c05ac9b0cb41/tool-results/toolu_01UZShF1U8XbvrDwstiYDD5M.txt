@@ -1,0 +1,6 @@
+Found 5 files
+pages\sales-prep.js
+pages\warranty.js
+components\VehicleDrawer.js
+.claude\settings.local.json
+libs\vehicle\normalizeVrmLookup.js

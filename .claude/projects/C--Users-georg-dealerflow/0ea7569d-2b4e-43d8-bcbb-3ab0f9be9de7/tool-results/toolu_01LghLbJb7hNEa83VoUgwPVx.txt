@@ -1,0 +1,304 @@
+  1700→                      )}
+  1701→                      {deal.cancelledAt && (
+  1702→                        <div className="flex justify-between text-red-600">
+  1703→                          <span>Cancelled</span>
+  1704→                          <span>{formatDateTime(deal.cancelledAt)}</span>
+  1705→                        </div>
+  1706→                      )}
+  1707→                    </div>
+  1708→                  </div>
+  1709→
+  1710→                  {/* Notes */}
+  1711→                  {(deal.notes || deal.internalNotes) && (
+  1712→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1713→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1714→                        <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+  1715→                      </div>
+  1716→                      <div className="p-4 space-y-3">
+  1717→                        {deal.notes && (
+  1718→                          <div>
+  1719→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Customer Notes</span>
+  1720→                            <p className="text-sm text-slate-700 mt-1">{deal.notes}</p>
+  1721→                          </div>
+  1722→                        )}
+  1723→                        {deal.internalNotes && (
+  1724→                          <div>
+  1725→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Internal Notes</span>
+  1726→                            <p className="text-sm text-slate-700 mt-1">{deal.internalNotes}</p>
+  1727→                          </div>
+  1728→                        )}
+  1729→                      </div>
+  1730→                    </div>
+  1731→                  )}
+  1732→                </div>
+  1733→              )}
+  1734→
+  1735→              {/* Customer Tab */}
+  1736→              {activeTab === "customer" && (
+  1737→                <div className="space-y-4">
+  1738→                  {/* Sold To Section */}
+  1739→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1740→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1741→                      <div className="flex items-center justify-between">
+  1742→                        <div className="flex items-center gap-2">
+  1743→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1744→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1745→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  1746→                            </svg>
+  1747→                          </div>
+  1748→                          <h3 className="text-sm font-bold text-slate-800">Sold To</h3>
+  1749→                        </div>
+  1750→                        {deal.customer && deal.status === "DRAFT" && !isEditingCustomer && (
+  1751→                          <button
+  1752→                            onClick={() => setIsEditingCustomer(true)}
+  1753→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1754→                          >
+  1755→                            Change
+  1756→                          </button>
+  1757→                        )}
+  1758→                      </div>
+  1759→                    </div>
+  1760→                    <div className="p-4">
+  1761→                      {isEditingCustomer || !deal.customer ? (
+  1762→                        <div className="space-y-3">
+  1763→                          <ContactPicker
+  1764→                            value={deal.soldToContactId}
+  1765→                            onChange={(contactId) => handleUpdateCustomer(contactId)}
+  1766→                            filterTypeTags={["customer"]}
+  1767→                            placeholder="Search or create a customer..."
+  1768→                          />
+  1769→                          {isEditingCustomer && (
+  1770→                            <button
+  1771→                              onClick={() => setIsEditingCustomer(false)}
+  1772→                              className="btn btn-ghost btn-sm w-full"
+  1773→                            >
+  1774→                              Cancel
+  1775→                            </button>
+  1776→                          )}
+  1777→                        </div>
+  1778→                      ) : (
+  1779→                        <div className="space-y-3">
+  1780→                          <div>
+  1781→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1782→                            <p className="font-semibold text-slate-900 mt-0.5">{deal.customer.displayName}</p>
+  1783→                          </div>
+  1784→                          {deal.customer.companyName && (
+  1785→                            <div>
+  1786→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Company</span>
+  1787→                              <p className="text-slate-700 mt-0.5">{deal.customer.companyName}</p>
+  1788→                            </div>
+  1789→                          )}
+  1790→                          {deal.customer.email && (
+  1791→                            <div>
+  1792→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Email</span>
+  1793→                              <p className="text-slate-700 mt-0.5">{deal.customer.email}</p>
+  1794→                            </div>
+  1795→                          )}
+  1796→                          {deal.customer.phone && (
+  1797→                            <div>
+  1798→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Phone</span>
+  1799→                              <p className="text-slate-700 mt-0.5">{deal.customer.phone}</p>
+  1800→                            </div>
+  1801→                          )}
+  1802→                        </div>
+  1803→                      )}
+  1804→                    </div>
+  1805→                  </div>
+  1806→
+  1807→                  {/* Invoice To Section */}
+  1808→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1809→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1810→                      <div className="flex items-center justify-between">
+  1811→                        <div className="flex items-center gap-2">
+  1812→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+  1813→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1814→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  1815→                            </svg>
+  1816→                          </div>
+  1817→                          <h3 className="text-sm font-bold text-slate-800">Invoice To</h3>
+  1818→                        </div>
+  1819→                        <span className="text-xs text-slate-400">Who receives the invoice?</span>
+  1820→                      </div>
+  1821→                    </div>
+  1822→                    <div className="p-4 space-y-4">
+  1823→                      {/* Invoice recipient toggle */}
+  1824→                      {deal.status === "DRAFT" && (
+  1825→                        <div className="flex flex-wrap gap-2">
+  1826→                          <button
+  1827→                            onClick={() => {
+  1828→                              setInvoiceToOption("CUSTOMER");
+  1829→                              if (deal.invoiceToContactId) {
+  1830→                                handleUpdateInvoiceTo(null);
+  1831→                              }
+  1832→                            }}
+  1833→                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1834→                              invoiceToOption === "CUSTOMER"
+  1835→                                ? "bg-[#0066CC] text-white"
+  1836→                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1837→                            }`}
+  1838→                          >
+  1839→                            Customer
+  1840→                          </button>
+  1841→                          <button
+  1842→                            onClick={() => {
+  1843→                              setInvoiceToOption("OTHER");
+  1844→                              setIsEditingInvoiceTo(true);
+  1845→                            }}
+  1846→                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1847→                              invoiceToOption === "OTHER"
+  1848→                                ? "bg-[#0066CC] text-white"
+  1849→                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1850→                            }`}
+  1851→                          >
+  1852→                            Finance / Broker
+  1853→                          </button>
+  1854→                        </div>
+  1855→                      )}
+  1856→
+  1857→                      {/* Show current invoice recipient */}
+  1858→                      {invoiceToOption === "CUSTOMER" ? (
+  1859→                        <div className="bg-slate-50 rounded-xl p-3">
+  1860→                          <p className="text-sm text-slate-600">
+  1861→                            Invoice will be addressed to: <span className="font-medium text-slate-900">{deal.customer?.displayName || "Customer"}</span>
+  1862→                          </p>
+  1863→                        </div>
+  1864→                      ) : deal.invoiceTo && !isEditingInvoiceTo ? (
+  1865→                        <div className="space-y-3">
+  1866→                          <div>
+  1867→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1868→                            <p className="font-semibold text-slate-900 mt-0.5">{deal.invoiceTo.displayName}</p>
+  1869→                          </div>
+  1870→                          {deal.invoiceTo.companyName && (
+  1871→                            <div>
+  1872→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Company</span>
+  1873→                              <p className="text-slate-700 mt-0.5">{deal.invoiceTo.companyName}</p>
+  1874→                            </div>
+  1875→                          )}
+  1876→                          {deal.status === "DRAFT" && (
+  1877→                            <button
+  1878→                              onClick={() => setIsEditingInvoiceTo(true)}
+  1879→                              className="btn btn-ghost btn-sm text-[#0066CC]"
+  1880→                            >
+  1881→                              Change
+  1882→                            </button>
+  1883→                          )}
+  1884→                        </div>
+  1885→                      ) : invoiceToOption === "OTHER" && (isEditingInvoiceTo || !deal.invoiceTo) ? (
+  1886→                        <div className="space-y-3">
+  1887→                          <ContactPicker
+  1888→                            value={deal.invoiceToContactId}
+  1889→                            onChange={(contactId) => handleUpdateInvoiceTo(contactId)}
+  1890→                            filterTypeTags={["finance_company", "supplier"]}
+  1891→                            placeholder="Search finance company or broker..."
+  1892→                            allowCreate={true}
+  1893→                          />
+  1894→                          {isEditingInvoiceTo && (
+  1895→                            <button
+  1896→                              onClick={() => setIsEditingInvoiceTo(false)}
+  1897→                              className="btn btn-ghost btn-sm w-full"
+  1898→                            >
+  1899→                              Cancel
+  1900→                            </button>
+  1901→                          )}
+  1902→                        </div>
+  1903→                      ) : null}
+  1904→                    </div>
+  1905→                  </div>
+  1906→
+  1907→                  {/* Part Exchange */}
+  1908→                  {deal.partExchange && (
+  1909→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1910→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1911→                        <div className="flex items-center gap-2">
+  1912→                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1913→                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1914→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  1915→                            </svg>
+  1916→                          </div>
+  1917→                          <h3 className="text-sm font-bold text-slate-800">Part Exchange</h3>
+  1918→                        </div>
+  1919→                      </div>
+  1920→                      <div className="p-4 space-y-3">
+  1921→                        <div>
+  1922→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Vehicle</span>
+  1923→                          <p className="font-semibold text-slate-900 mt-0.5">
+  1924→                            {deal.partExchange.vrm} - {deal.partExchange.make} {deal.partExchange.model}
+  1925→                          </p>
+  1926→                        </div>
+  1927→                        <div className="grid grid-cols-2 gap-4">
+  1928→                          <div>
+  1929→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Allowance</span>
+  1930→                            <p className="font-semibold text-slate-900 mt-0.5">
+  1931→                              {formatCurrency(deal.partExchange.allowance)}
+  1932→                            </p>
+  1933→                          </div>
+  1934→                          {deal.partExchange.settlement > 0 && (
+  1935→                            <div>
+  1936→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Settlement</span>
+  1937→                              <p className="font-semibold text-red-600 mt-0.5">
+  1938→                                -{formatCurrency(deal.partExchange.settlement)}
+  1939→                              </p>
+  1940→                            </div>
+  1941→                          )}
+  1942→                        </div>
+  1943→                        <div className="pt-2 border-t border-slate-100">
+  1944→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Net Value</span>
+  1945→                          <p className="font-bold text-emerald-600 mt-0.5">
+  1946→                            {formatCurrency(totals.pxNetValue)}
+  1947→                          </p>
+  1948→                        </div>
+  1949→                      </div>
+  1950→                    </div>
+  1951→                  )}
+  1952→                </div>
+  1953→              )}
+  1954→
+  1955→              {/* Add-ons Tab */}
+  1956→              {activeTab === "addons" && (
+  1957→                <div className="space-y-4">
+  1958→                  {deal.addOns?.length > 0 ? (
+  1959→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1960→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex items-center justify-between">
+  1961→                        <h3 className="text-sm font-bold text-slate-800">Add-ons</h3>
+  1962→                        {deal.status === "DRAFT" && (
+  1963→                          <button
+  1964→                            onClick={() => {
+  1965→                              setShowAddOnPicker(true);
+  1966→                              fetchAddOnProducts();
+  1967→                            }}
+  1968→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1969→                          >
+  1970→                            + Add
+  1971→                          </button>
+  1972→                        )}
+  1973→                      </div>
+  1974→                      <div className="divide-y divide-slate-100">
+  1975→                        {deal.addOns.map((addon, idx) => (
+  1976→                          <div key={idx} className="p-4 flex items-center justify-between gap-3">
+  1977→                            <div className="flex-1 min-w-0">
+  1978→                              <p className="font-medium text-slate-900">{addon.name}</p>
+  1979→                              <p className="text-sm text-slate-500">
+  1980→                                {addon.qty > 1 && `${addon.qty} x `}
+  1981→                                {formatCurrency(addon.unitPriceNet)}
+  1982→                                {addon.vatTreatment === "STANDARD" && " + VAT"}
+  1983→                              </p>
+  1984→                            </div>
+  1985→                            <span className="font-semibold text-slate-900">
+  1986→                              {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+  1987→                            </span>
+  1988→                            {deal.status === "DRAFT" && (
+  1989→                              <button
+  1990→                                onClick={() => handleRemoveAddOn(idx)}
+  1991→                                disabled={actionLoading === "addon"}
+  1992→                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+  1993→                              >
+  1994→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1995→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  1996→                                </svg>
+  1997→                              </button>
+  1998→                            )}
+  1999→                          </div>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

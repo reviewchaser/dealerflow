@@ -1,0 +1,139 @@
+     1→/**
+     2→ * TenantPage - Wrapper for tenant-aware pages
+     3→ *
+     4→ * Provides:
+     5→ * - DealerContext with dealer data
+     6→ * - Server-side tenant validation via getServerSideProps helper
+     7→ * - Error handling for access denied
+     8→ */
+     9→
+    10→import { useRouter } from 'next/router';
+    11→import { DealerProvider } from '@/contexts/DealerContext';
+    12→import DashboardLayout from '@/components/DashboardLayout';
+    13→import { getTenantFromSlug } from '@/libs/tenant';
+    14→import connectMongo from '@/libs/mongoose';
+    15→
+    16→/**
+    17→ * TenantPage wrapper component
+    18→ */
+    19→export function TenantPage({ children, dealer, dealerSlug, error }) {
+    20→  const router = useRouter();
+    21→
+    22→  if (error) {
+    23→    return (
+    24→      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    25→        <div className="text-center max-w-md px-6">
+    26→          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+    27→            <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    28→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    29→            </svg>
+    30→          </div>
+    31→          <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
+    32→          <p className="text-slate-600 mb-6">{error}</p>
+    33→          <button
+    34→            onClick={() => router.push('/dashboard')}
+    35→            className="px-6 py-3 bg-[#0066CC] text-white rounded-xl hover:bg-[#0055BB] transition-colors font-semibold"
+    36→          >
+    37→            Go to Dashboard
+    38→          </button>
+    39→        </div>
+    40→      </div>
+    41→    );
+    42→  }
+    43→
+    44→  return (
+    45→    <DealerProvider initialDealer={dealer} initialSlug={dealerSlug}>
+    46→      <DashboardLayout dealerSlug={dealerSlug} dealer={dealer}>
+    47→        {children}
+    48→      </DashboardLayout>
+    49→    </DealerProvider>
+    50→  );
+    51→}
+    52→
+    53→/**
+    54→ * Helper for getServerSideProps in tenant pages
+    55→ *
+    56→ * Usage:
+    57→ * export const getServerSideProps = withTenantProps(async (context, tenant) => {
+    58→ *   // tenant contains { dealer, dealerId, dealerSlug, userId, role }
+    59→ *   return { props: { customData: 'value' } };
+    60→ * });
+    61→ */
+    62→export function withTenantProps(handler) {
+    63→  return async (context) => {
+    64→    const { dealerSlug } = context.params || {};
+    65→    const { req, res } = context;
+    66→
+    67→    if (!dealerSlug) {
+    68→      return {
+    69→        redirect: {
+    70→          destination: '/dashboard',
+    71→          permanent: false,
+    72→        },
+    73→      };
+    74→    }
+    75→
+    76→    try {
+    77→      await connectMongo();
+    78→      const tenantCtx = await getTenantFromSlug(req, res, dealerSlug);
+    79→
+    80→      // Serialize dealer data
+    81→      const dealer = {
+    82→        id: tenantCtx.dealer._id.toString(),
+    83→        name: tenantCtx.dealer.name,
+    84→        slug: tenantCtx.dealer.slug,
+    85→        logoUrl: tenantCtx.dealer.logoUrl || null,
+    86→      };
+    87→
+    88→      // Call the handler with tenant context
+    89→      let additionalProps = {};
+    90→      if (handler) {
+    91→        const result = await handler(context, {
+    92→          ...tenantCtx,
+    93→          dealer,
+    94→          dealerSlug,
+    95→        });
+    96→        if (result?.redirect) return result;
+    97→        if (result?.notFound) return result;
+    98→        additionalProps = result?.props || {};
+    99→      }
+   100→
+   101→      return {
+   102→        props: {
+   103→          dealerSlug,
+   104→          dealer,
+   105→          error: null,
+   106→          ...additionalProps,
+   107→        },
+   108→      };
+   109→    } catch (error) {
+   110→      console.error('[withTenantProps] Error:', error.message);
+   111→
+   112→      // Redirect to login if unauthorized
+   113→      if (error.code === 'UNAUTHORIZED') {
+   114→        return {
+   115→          redirect: {
+   116→            destination: `/auth/signin?callbackUrl=/app/${dealerSlug}`,
+   117→            permanent: false,
+   118→          },
+   119→        };
+   120→      }
+   121→
+   122→      // Show error page for other errors
+   123→      return {
+   124→        props: {
+   125→          dealerSlug,
+   126→          dealer: null,
+   127→          error: error.message || 'Access denied',
+   128→        },
+   129→      };
+   130→    }
+   131→  };
+   132→}
+   133→
+   134→export default TenantPage;
+   135→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

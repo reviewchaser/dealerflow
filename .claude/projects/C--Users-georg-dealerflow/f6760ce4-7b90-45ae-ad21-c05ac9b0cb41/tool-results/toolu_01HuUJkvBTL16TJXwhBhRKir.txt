@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\models\HolidayRequest.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    45→  },
+    46→  { timestamps: true }
+    47→);
+    48→
+    49→// Index for efficient queries
+    50→holidayRequestSchema.index({ dealerId: 1, status: 1 });
+    51→holidayRequestSchema.index({ dealerId: 1, userId: 1 });
+    52→// Index for efficient overlap detection queries
+    53→holidayRequestSchema.index({ dealerId: 1, userId: 1, status: 1, startDate: 1, endDate: 1 });
+    54→
+    55→/**
+    56→ * Compute total days based on start/end dates and AM/PM sessions
+    57→ * Rules:

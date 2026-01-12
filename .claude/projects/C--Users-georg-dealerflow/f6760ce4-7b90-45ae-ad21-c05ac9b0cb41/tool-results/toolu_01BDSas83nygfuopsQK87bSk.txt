@@ -1,0 +1,270 @@
+96-
+97-  // Issues state
+98:  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+99-  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
+100-  const [issueForm, setIssueForm] = useState({
+101-    category: "",
+102-    subcategory: "",
+103-    description: "",
+104-    actionNeeded: "",
+105-    priority: "medium",
+106-    location: "",
+107-    status: "outstanding",
+108-    notes: "",
+109-    photos: [],
+110-    partsRequired: false,
+111-    partsDetails: "",
+112-  });
+113-  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+--
+666-
+667-  // Issue functions
+668:  const addIssue = async (photoUrls = []) => {
+669-    if (!issueForm.category || !issueForm.subcategory || !issueForm.description) {
+670-      return toast.error("Category, subcategory, and description are required");
+671-    }
+672-    try {
+673-      const issueData = {
+674-        ...issueForm,
+675-        photos: [...(issueForm.photos || []), ...photoUrls],
+676-      };
+677-      const res = await fetch(`/api/vehicles/${selectedVehicle.id}/issues`, {
+678-        method: "POST",
+679-        headers: { "Content-Type": "application/json" },
+680-        body: JSON.stringify(issueData),
+681-      });
+682-      if (!res.ok) {
+683-        const errorData = await res.json();
+--
+687-      setSelectedVehicle(updatedVehicle);
+688-      fetchVehicles();
+689:      setShowAddIssueModal(false);
+690-      setIssueForm({
+691-        category: "",
+692-        subcategory: "",
+693-        description: "",
+694-        actionNeeded: "",
+695-        status: "outstanding",
+696-        notes: "",
+697-        photos: [],
+698-      });
+699-      toast.success("Issue added");
+700-    } catch (error) {
+701-      console.error("Add issue error:", error);
+702-      toast.error(error.message || "Failed to add issue");
+703-    }
+704-  };
+--
+737-      partsDetails: issue.partsDetails || "",
+738-    });
+739:    setShowAddIssueModal(true);
+740-  };
+741-
+742-  // Save edited issue
+743-  const saveEditedIssue = async (photoUrls = []) => {
+744-    if (!editingIssue) return;
+745-    try {
+746-      const updates = {
+747-        ...issueForm,
+748-        photos: [...(issueForm.photos || []), ...photoUrls],
+749-      };
+750-      await updateIssue(editingIssue.id, updates);
+751:      setShowAddIssueModal(false);
+752-      setEditingIssue(null);
+753-      setIssueForm({
+754-        category: "",
+755-        subcategory: "",
+756-        description: "",
+757-        actionNeeded: "",
+758-        priority: "medium",
+759-        location: "",
+760-        status: "outstanding",
+761-        notes: "",
+762-        photos: [],
+763-        partsRequired: false,
+764-        partsDetails: "",
+765-      });
+766-    } catch (error) {
+--
+781-  };
+782-
+783:  const addIssueUpdate = async (issueId, content) => {
+784-    if (!content?.trim()) {
+785-      return toast.error("Update content cannot be empty");
+786-    }
+787-
+788-    try {
+789-      await fetch(`/api/issues/${issueId}`, {
+790-        method: "POST",
+791-        headers: { "Content-Type": "application/json" },
+792-        body: JSON.stringify({
+793-          content: content.trim(),
+794-          userName: "Current User" // TODO: Replace with actual user name from auth
+795-        }),
+796-      });
+797-
+798-      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
+--
+3286-                  <button
+3287-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white text-sm font-medium rounded-xl shadow-sm shadow-[#0066CC]/25 hover:shadow-md transition-all"
+3288:                    onClick={() => setShowAddIssueModal(true)}
+3289-                  >
+3290-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+3291-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+3292-                    </svg>
+3293-                    Add Issue
+3294-                  </button>
+3295-
+3296-                  {selectedVehicle.issues && selectedVehicle.issues.length > 0 ? (
+3297-                    <div className="space-y-3">
+3298-                      {selectedVehicle.issues.map((issue) => (
+3299-                        <div key={issue.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+3300-                          {/* Issue Header with Status Bar */}
+3301-                          <div className={`px-4 py-3 border-b border-slate-100 ${
+3302-                            issue.status === "Complete" ? "bg-emerald-50\50" :
+3303-                            issue.status === "In Progress" ? "bg-amber-50\50" :
+--
+3461-                                    onKeyPress={(e) => {
+3462-                                      if (e.key === "Enter") {
+3463:                                        addIssueUpdate(issue.id, issueUpdateContent[issue.id]);
+3464-                                      }
+3465-                                    }}
+3466-                                  />
+3467-                                  <button
+3468-                                    className="px-4 py-2 bg-[#0066CC] hover:bg-[#0055AA] text-white text-sm font-medium rounded-xl transition-colors"
+3469:                                    onClick={() => addIssueUpdate(issue.id, issueUpdateContent[issue.id])}
+3470-                                  >
+3471-                                    Add
+3472-                                  </button>
+3473-                                </div>
+3474-                              </div>
+3475-                            )}
+3476-                          </div>
+3477-
+3478-                          {/* Actions Footer */}
+3479-                          <div className="flex items-center justify-end gap-2 px-4 py-3 bg-slate-50/50 border-t border-slate-100">
+3480-                            <button
+3481-                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-[#0066CC] hover:bg-[#0066CC]/5 rounded-lg transition-colors"
+3482-                              onClick={() => openEditIssue(issue)}
+3483-                            >
+3484-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+--
+3778-      )}
+3779-
+3780:      {showAddIssueModal && (
+3781:        <AddIssueModal
+3782-          issueForm={issueForm}
+3783-          setIssueForm={setIssueForm}
+3784-          isEditing={!!editingIssue}
+3785-          onClose={() => {
+3786:            setShowAddIssueModal(false);
+3787-            setEditingIssue(null);
+3788-            setIssueForm({
+3789-              category: "",
+3790-              subcategory: "",
+3791-              description: "",
+3792-              actionNeeded: "",
+3793-              priority: "medium",
+3794-              location: "",
+3795-              status: "outstanding",
+3796-              notes: "",
+3797-              photos: [],
+3798-              partsRequired: false,
+3799-              partsDetails: "",
+3800-            });
+3801-          }}
+3802:          onSubmit={editingIssue ? saveEditedIssue : addIssue}
+3803-        />
+3804-      )}
+3805-
+3806-      {showAddDocumentModal && (
+3807-        <AddDocumentModal
+3808-          documentForm={documentForm}
+3809-          setDocumentForm={setDocumentForm}
+3810-          onClose={() => {
+3811-            setShowAddDocumentModal(false);
+3812-            setDocumentForm({ name: "", type: "other", file: null });
+3813-          }}
+3814-          onSubmit={() => {
+3815-            if (!documentForm.file) {
+3816-              return toast.error("File is required");
+3817-            }
+--
+4335-  const [initialIssues, setInitialIssues] = useState([]);
+4336-  const [showAddIssueInVehicleModal, setShowAddIssueInVehicleModal] = useState(false);
+4337:  const [newIssueForm, setNewIssueForm] = useState({
+4338-    category: "",
+4339-    subcategory: "",
+4340-    description: "",
+4341-    actionNeeded: "",
+4342-    status: "Outstanding",
+4343-    notes: "",
+4344-    photos: [],
+4345-  });
+4346-
+4347-  // Prep checklist template
+4348-  const [selectedTemplate, setSelectedTemplate] = useState("default");
+4349-
+4350-  useEffect(() => {
+4351-    fetchLocations();
+4352-    fetchPrepTemplates();
+--
+5092-      {/* Nested Add Issue Modal */}
+5093-      {showAddIssueInVehicleModal && (
+5094:        <AddIssueModal
+5095:          issueForm={newIssueForm}
+5096-          setIssueForm={setNewIssueForm}
+5097-          onClose={() => {
+5098-            setShowAddIssueInVehicleModal(false);
+5099-            setNewIssueForm({
+5100-              category: "",
+5101-              subcategory: "",
+5102-              description: "",
+5103-              actionNeeded: "",
+5104-              status: "Outstanding",
+5105-              notes: "",
+5106-              photos: [],
+5107-            });
+5108-          }}
+5109-          onSubmit={() => {
+5110-            // Validate required fields
+5111:            if (!newIssueForm.category || !newIssueForm.subcategory || !newIssueForm.description) {
+5112-              return toast.error("Category, subcategory, and description are required");
+5113-            }
+5114-
+5115-            // Add issue to the array
+5116:            setInitialIssues([...initialIssues, { ...newIssueForm }]);
+5117-
+5118-            // Close modal and reset form
+5119-            setShowAddIssueInVehicleModal(false);
+5120-            setNewIssueForm({
+5121-              category: "",
+5122-              subcategory: "",
+5123-              description: "",
+5124-              actionNeeded: "",
+5125-              status: "Outstanding",
+5126-              notes: "",
+5127-              photos: [],
+5128-            });
+5129-            toast.success("Issue added");
+5130-          }}
+5131-        />
+--
+5135-}
+5136-
+5137:function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
+5138-  const [isLoading, setIsLoading] = useState(false);
+5139-  const [photoFiles, setPhotoFiles] = useState([]);
+5140-  const [photoPreviews, setPhotoPreviews] = useState([]);
+5141-  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+5142-
+5143-  const handlePhotoChange = (e) => {
+5144-    const files = Array.from(e.target.files);
+5145-    setPhotoFiles(prev => [...prev, ...files]);
+5146-
+5147-    // Create previews
+5148-    files.forEach(file => {
+5149-      const reader = new FileReader();
+5150-      reader.onloadend = () => {
+5151-        setPhotoPreviews(prev => [...prev, reader.result]);
+5152-      };

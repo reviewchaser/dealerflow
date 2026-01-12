@@ -1,0 +1,47 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   928→    </section>
+   929→  );
+   930→}
+   931→
+   932→// ============================================================================
+   933→// FINAL CTA SECTION
+   934→// ============================================================================
+   935→function FinalCTASection() {
+   936→  return (
+   937→    <section className="py-16 md:py-24 bg-slate-900 text-white">
+   938→      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+   939→        <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+   940→          Ready to get organised?
+   941→        </h2>
+   942→        <p className="text-lg text-slate-400 max-w-xl mx-auto mb-8">
+   943→          Stop running your dealership from WhatsApp and spreadsheets.
+   944→          Get started free today — no card required.
+   945→        </p>
+   946→        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+   947→          <Link
+   948→            href="/auth/signup?plan=free"
+   949→            className="w-full sm:w-auto px-8 py-3.5 text-base font-medium bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center justify-center gap-2"
+   950→          >
+   951→            Get started free
+   952→            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   953→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+   954→            </svg>
+   955→          </Link>
+   956→          <a
+   957→            href="mailto:hello@dealerflow.co.uk"
+   958→            className="w-full sm:w-auto px-8 py-3.5 text-base font-medium text-slate-300 hover:text-white transition-colors"
+   959→          >
+   960→            Questions? Get in touch
+   961→          </a>
+   962→        </div>
+   963→        <p className="text-sm text-slate-500 mt-6">
+   964→          Free forever for small teams. Upgrade to Pro for £49/month.
+   965→        </p>
+   966→      </div>
+   967→    </section>
+   968→  );
+   969→}
+   970→
+   971→// ============================================================================
+   972→// FOOTER
+   973→// ============================================================================

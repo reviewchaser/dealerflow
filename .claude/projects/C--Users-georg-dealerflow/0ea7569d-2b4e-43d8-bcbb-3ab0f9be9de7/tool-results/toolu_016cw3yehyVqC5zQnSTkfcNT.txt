@@ -1,0 +1,44 @@
+  1120→        <div className="relative px-6 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+  1121→          <div>
+  1122→            <div className="flex items-center gap-3 mb-2">
+  1123→              <div className="w-10 h-10 rounded-xl bg-[#0066CC] flex items-center justify-center shadow-md shadow-[#0066CC]/25">
+  1124→                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1125→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+  1126→                </svg>
+  1127→              </div>
+  1128→              <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Aftersales / Warranty</h1>
+  1129→            </div>
+  1130→            <p className="text-slate-500 text-sm md:text-base">Manage warranty cases and aftercare</p>
+  1131→          </div>
+  1132→          <button
+  1133→            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white font-medium rounded-xl shadow-md shadow-[#0066CC]/25 hover:shadow-lg transition-all"
+  1134→            onClick={() => setShowAddModal(true)}
+  1135→          >
+  1136→            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1137→              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  1138→            </svg>
+  1139→            New Case
+  1140→          </button>
+  1141→        </div>
+  1142→      </div>
+  1143→
+  1144→      {/* Search & Filters Bar */}
+  1145→      <div className="mb-6 flex flex-col sm:flex-row gap-3">
+  1146→        <div className="relative flex-1 max-w-md">
+  1147→          <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1148→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1149→          </svg>
+  1150→          <input
+  1151→            type="text"
+  1152→            placeholder="Search by VRM or customer name..."
+  1153→            className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:border-[#0066CC] focus:ring-2 focus:ring-[#0066CC]/20 outline-none transition-all"
+  1154→            value={searchQuery}
+  1155→            onChange={(e) => setSearchQuery(e.target.value)}
+  1156→          />
+  1157→          {searchQuery && (
+  1158→            <button
+  1159→              className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

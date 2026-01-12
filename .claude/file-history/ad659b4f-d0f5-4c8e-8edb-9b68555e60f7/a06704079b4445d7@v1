@@ -1,0 +1,44 @@
+# =============================================================================
+# REQUIRED - Database
+# =============================================================================
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/dealerflow?retryWrites=true&w=majority
+
+# =============================================================================
+# REQUIRED - Authentication (NextAuth.js)
+# =============================================================================
+NEXTAUTH_URL=https://your-domain.com
+NEXTAUTH_SECRET=generate-a-random-32-char-secret-here
+
+# OAuth Provider - Google
+GOOGLE_ID=your-google-client-id
+GOOGLE_SECRET=your-google-client-secret
+
+# =============================================================================
+# OPTIONAL - Email Provider (choose one)
+# =============================================================================
+# Option 1: Mailgun (recommended for production)
+# MAILGUN_API_KEY=your-mailgun-api-key
+# MAILGUN_DOMAIN=mg.yourdomain.com
+# EMAIL_FROM=noreply@yourdomain.com
+
+# Option 2: SMTP (e.g., Gmail, SendGrid SMTP)
+# SMTP_HOST=smtp.gmail.com
+# SMTP_PORT=587
+# SMTP_USER=your-email@gmail.com
+# SMTP_PASS=your-app-password
+# EMAIL_FROM=your-email@gmail.com
+
+# =============================================================================
+# OPTIONAL - External APIs
+# =============================================================================
+# DVLA vehicle lookup
+# DVLA_API_KEY=your-dvla-api-key
+
+# AI-powered features (Claude)
+# ANTHROPIC_API_KEY=your-anthropic-api-key
+
+# File uploads (AWS S3)
+# S3_ACCESS_KEY=your-s3-access-key
+# S3_SECRET_KEY=your-s3-secret-key
+# S3_BUCKET=your-bucket-name
+# S3_REGION=eu-west-2

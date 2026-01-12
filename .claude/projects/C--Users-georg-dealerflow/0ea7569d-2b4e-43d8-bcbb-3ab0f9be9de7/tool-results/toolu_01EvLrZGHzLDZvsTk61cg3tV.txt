@@ -1,0 +1,61 @@
+328-                        description: issue.description,
+329-                        actionNeeded: issue.actionNeeded || null,
+330-                        photos: issue.photos || [],
+331-                        status: mappedStatus,
+332-                        notes: issue.notes || "Added from PDI Issues Found section",
+333-                        sourceSubmissionId: submission._id,
+334-                        sourceFieldKey,
+335-                      });
+336-                      createdIssueIds.push(newIssue._id);
+337-                    }
+338-                  }
+339-                }
+340-
+341-                // Update submission with created issue IDs
+342-                if (createdIssueIds.length > 0) {
+343-                  await FormSubmission.findByIdAndUpdate(submission._id, {
+344-                    $addToSet: { createdIssueIds: { $each: createdIssueIds } },
+345-                    pdiIssues: pdiIssues || [],
+346-                  });
+347-                }
+348-              } catch (issueError) {
+349-                console.error("Error creating PDI issues:", issueError);
+350-                // Don't fail the submission if issue creation fails
+351-              }
+352-              break;
+353-
+354-            case "TEST_DRIVE":
+355-              updates.testDriveCount = (vehicle.testDriveCount || 0) + 1;
+356-              break;
+357-
+358:            case "DELIVERY":
+359-              updates.deliverySubmissionId = submission._id;
+360-              updates.status = "delivered";
+361-              // Auto-complete Delivery task on this vehicle (idempotent)
+362-              try {
+363-                const deliveryTask = await VehicleTask.findOne({
+364-                  vehicleId: vehicle._id,
+365-                  name: { $regex: /^(Delivery|Vehicle Delivery|Handover)$/i }
+366-                });
+367-                if (deliveryTask && deliveryTask.status !== "done" && deliveryTask.status !== "DONE") {
+368-                  await VehicleTask.findByIdAndUpdate(deliveryTask._id, {
+369-                    status: "done",
+370-                    completedAt: new Date(),
+371-                    notes: deliveryTask.notes ? `${deliveryTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+372-                  });
+373-                }
+374-              } catch (taskError) {
+375-                console.error("Error completing Delivery task:", taskError);
+376-              }
+377-              break;
+378-          }
+379-
+380-          if (Object.keys(updates).length > 0) {
+381-            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+382-          }
+383-        }
+384-      }
+385-
+386-      // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
+387-      if (form.type === "WARRANTY_CLAIM") {
+388-        try {

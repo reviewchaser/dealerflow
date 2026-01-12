@@ -1,0 +1,62 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import FormSubmission from "@/models/FormSubmission";
+import { withDealerContext } from "@/libs/authContext";
+
+/**
+ * Vehicle Submissions API
+ * GET /api/vehicles/[id]/submissions
+ *
+ * Returns all form submissions linked to a vehicle.
+ */
+async function handler(req, res, ctx) {
+  await connectMongo();
+  const { dealerId } = ctx;
+  const { id } = req.query;
+
+  if (req.method !== "GET") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Validate ID format
+  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    return res.status(400).json({ error: "Invalid vehicle ID" });
+  }
+
+  // Verify vehicle belongs to dealer
+  const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+  if (!vehicle) {
+    return res.status(404).json({ error: "Vehicle not found" });
+  }
+
+  // Fetch submissions that are linked to this vehicle
+  // They could be linked via vehicleId field or via data.vrm matching
+  const submissions = await FormSubmission.find({
+    dealerId,
+    $or: [
+      { vehicleId: id },
+      { "data.vrm": vehicle.regCurrent },
+      { "data.vehicleReg": vehicle.regCurrent },
+    ],
+    status: { $ne: "DELETED" },
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Format response
+  const formattedSubmissions = submissions.map((sub) => ({
+    id: sub._id.toString(),
+    formType: sub.formType,
+    formName: sub.formName,
+    status: sub.status,
+    token: sub.token,
+    createdAt: sub.createdAt,
+    publicUrl: `/public/forms/${sub.token}`,
+  }));
+
+  return res.status(200).json({
+    submissions: formattedSubmissions,
+  });
+}
+
+export default withDealerContext(handler);

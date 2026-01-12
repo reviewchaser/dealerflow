@@ -1,0 +1,39 @@
+The file C:\Users\georg\dealerflow\components\VehicleDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    86→  const [isLoading, setIsLoading] = useState(false);
+    87→  const [activeTab, setActiveTab] = useState("overview");
+    88→  const [expandedIssues, setExpandedIssues] = useState({});
+    89→
+    90→  // Lock body scroll when drawer is open
+    91→  useEffect(() => {
+    92→    if (isOpen) {
+    93→      const scrollY = window.scrollY;
+    94→      document.body.style.position = "fixed";
+    95→      document.body.style.top = `-${scrollY}px`;
+    96→      document.body.style.left = "0";
+    97→      document.body.style.right = "0";
+    98→      document.body.style.overflow = "hidden";
+    99→      document.body.style.width = "100%";
+   100→
+   101→      return () => {
+   102→        document.body.style.position = "";
+   103→        document.body.style.top = "";
+   104→        document.body.style.left = "";
+   105→        document.body.style.right = "";
+   106→        document.body.style.overflow = "";
+   107→        document.body.style.width = "";
+   108→        window.scrollTo(0, scrollY);
+   109→      };
+   110→    }
+   111→  }, [isOpen]);
+   112→
+   113→  useEffect(() => {
+   114→    if (isOpen && vehicleId) {
+   115→      fetchVehicle();
+   116→    }
+   117→  }, [isOpen, vehicleId]);
+   118→
+   119→  const fetchVehicle = async () => {
+   120→    setIsLoading(true);
+   121→    try {
+   122→      const res = await fetch(`/api/vehicles/${vehicleId}`);
+   123→      if (!res.ok) throw new Error("Failed to load vehicle");

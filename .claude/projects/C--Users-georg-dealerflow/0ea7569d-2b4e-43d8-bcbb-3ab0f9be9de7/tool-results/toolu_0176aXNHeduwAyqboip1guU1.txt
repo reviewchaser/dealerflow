@@ -1,0 +1,204 @@
+  3450→                            <input
+  3451→                              type="number"
+  3452→                              className="input input-sm input-bordered"
+  3453→                              value={selectedVehicle.mileageCurrent || ""}
+  3454→                              onChange={(e) => setSelectedVehicle({ ...selectedVehicle, mileageCurrent: e.target.value })}
+  3455→                              onBlur={async () => {
+  3456→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3457→                                  method: "PUT",
+  3458→                                  headers: { "Content-Type": "application/json" },
+  3459→                                  body: JSON.stringify({ mileageCurrent: selectedVehicle.mileageCurrent }),
+  3460→                                });
+  3461→                                fetchVehicles();
+  3462→                              }}
+  3463→                            />
+  3464→                          </div>
+  3465→                        </div>
+  3466→
+  3467→                        <div className="grid grid-cols-2 gap-3">
+  3468→                          <div className="form-control">
+  3469→                            <label className="label label-text text-xs">Colour</label>
+  3470→                            <input
+  3471→                              type="text"
+  3472→                              className="input input-sm input-bordered"
+  3473→                              value={selectedVehicle.colour || ""}
+  3474→                              onChange={(e) => setSelectedVehicle({ ...selectedVehicle, colour: e.target.value })}
+  3475→                              onBlur={async () => {
+  3476→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3477→                                  method: "PUT",
+  3478→                                  headers: { "Content-Type": "application/json" },
+  3479→                                  body: JSON.stringify({ colour: selectedVehicle.colour }),
+  3480→                                });
+  3481→                                fetchVehicles();
+  3482→                              }}
+  3483→                            />
+  3484→                          </div>
+  3485→
+  3486→                          <div className="form-control">
+  3487→                            <label className="label label-text text-xs">Fuel Type</label>
+  3488→                            <select
+  3489→                              className="select select-sm select-bordered"
+  3490→                              value={selectedVehicle.fuelType || ""}
+  3491→                              onChange={async (e) => {
+  3492→                                const newValue = e.target.value;
+  3493→                                setSelectedVehicle({ ...selectedVehicle, fuelType: newValue });
+  3494→                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3495→                                  method: "PUT",
+  3496→                                  headers: { "Content-Type": "application/json" },
+  3497→                                  body: JSON.stringify({ fuelType: newValue }),
+  3498→                                });
+  3499→                                fetchVehicles();
+  3500→                              }}
+  3501→                            >
+  3502→                              <option value="">Select...</option>
+  3503→                              <option value="Petrol">Petrol</option>
+  3504→                              <option value="Diesel">Diesel</option>
+  3505→                              <option value="Hybrid">Hybrid</option>
+  3506→                              <option value="Electric">Electric</option>
+  3507→                            </select>
+  3508→                          </div>
+  3509→                        </div>
+  3510→
+  3511→                        <div className="form-control">
+  3512→                          <label className="label label-text text-xs">MOT Expiry Date</label>
+  3513→                          <input
+  3514→                            type="date"
+  3515→                            className="input input-sm input-bordered"
+  3516→                            value={selectedVehicle.motExpiryDate ? new Date(selectedVehicle.motExpiryDate).toISOString().split('T')[0] : ""}
+  3517→                            onChange={async (e) => {
+  3518→                              const newValue = e.target.value;
+  3519→                              setSelectedVehicle({ ...selectedVehicle, motExpiryDate: newValue });
+  3520→                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+  3521→                                method: "PUT",
+  3522→                                headers: { "Content-Type": "application/json" },
+  3523→                                body: JSON.stringify({ motExpiryDate: newValue }),
+  3524→                              });
+  3525→                              fetchVehicles();
+  3526→                            }}
+  3527→                          />
+  3528→                        </div>
+  3529→                      </div>
+  3530→                    </div>
+  3531→
+  3532→                  <div className="card bg-base-200">
+  3533→                    <div className="card-body p-4">
+  3534→                      <h3 className="font-semibold mb-2">V5 Document</h3>
+  3535→                      {selectedVehicle.v5Url ? (
+  3536→                        <div>
+  3537→                          <a href={selectedVehicle.v5Url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline w-full mb-2">
+  3538→                            View V5 Document
+  3539→                          </a>
+  3540→                          <label className="btn btn-sm btn-ghost w-full">
+  3541→                            Replace V5
+  3542→                            <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadV5(e.target.files[0])} />
+  3543→                          </label>
+  3544→                        </div>
+  3545→                      ) : (
+  3546→                        <label className="btn btn-primary btn-sm w-full">
+  3547→                          Upload V5
+  3548→                          <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadV5(e.target.files[0])} />
+  3549→                        </label>
+  3550→                      )}
+  3551→                    </div>
+  3552→                  </div>
+  3553→
+  3554→                  {selectedVehicle.notes && (
+  3555→                    <div className="card bg-base-200">
+  3556→                      <div className="card-body p-4">
+  3557→                        <h3 className="font-semibold mb-2">Notes</h3>
+  3558→                        <p className="text-sm whitespace-pre-wrap">{selectedVehicle.notes}</p>
+  3559→                      </div>
+  3560→                    </div>
+  3561→                  )}
+  3562→                </div>
+  3563→              )}
+  3564→
+  3565→
+  3566→              {/* Prep Checklist Tab */}
+  3567→              {activeTab === "checklist" && (
+  3568→                <div className="card bg-base-200">
+  3569→                  <div className="card-body p-4">
+  3570→                    <h3 className="font-semibold mb-3">Prep Checklist</h3>
+  3571→                    <div className="space-y-2">
+  3572→                      {selectedVehicle.tasks?.map((task) => (
+  3573→                        <div key={task.id} className="p-2 rounded hover:bg-base-300 group">
+  3574→                          <div className="flex items-center gap-2">
+  3575→                            <select
+  3576→                              className="select select-bordered select-xs"
+  3577→                              value={task.status || "pending"}
+  3578→                              onChange={(e) => updateTaskStatus(task.id, e.target.value)}
+  3579→                              onClick={(e) => e.stopPropagation()}
+  3580→                            >
+  3581→                              <option value="pending">Pending</option>
+  3582→                              <option value="in_progress">In Progress</option>
+  3583→                              <option value="done">Done</option>
+  3584→                              <option value="not_required">Not Required</option>
+  3585→                            </select>
+  3586→                            {editingTaskId === task.id ? (
+  3587→                              <input
+  3588→                                type="text"
+  3589→                                className="input input-bordered input-xs flex-1"
+  3590→                                value={editingTaskName}
+  3591→                                onChange={(e) => setEditingTaskName(e.target.value)}
+  3592→                                onBlur={() => {
+  3593→                                  if (editingTaskName.trim() && editingTaskName !== task.name) {
+  3594→                                    updateTaskName(task.id, editingTaskName);
+  3595→                                  } else {
+  3596→                                    setEditingTaskId(null);
+  3597→                                    setEditingTaskName("");
+  3598→                                  }
+  3599→                                }}
+  3600→                                onKeyPress={(e) => {
+  3601→                                  if (e.key === "Enter") {
+  3602→                                    if (editingTaskName.trim() && editingTaskName !== task.name) {
+  3603→                                      updateTaskName(task.id, editingTaskName);
+  3604→                                    } else {
+  3605→                                      setEditingTaskId(null);
+  3606→                                      setEditingTaskName("");
+  3607→                                    }
+  3608→                                  }
+  3609→                                }}
+  3610→                                onKeyDown={(e) => {
+  3611→                                  if (e.key === "Escape") {
+  3612→                                    setEditingTaskId(null);
+  3613→                                    setEditingTaskName("");
+  3614→                                  }
+  3615→                                }}
+  3616→                                autoFocus
+  3617→                              />
+  3618→                            ) : (
+  3619→                              <span
+  3620→                                className={`flex-1 text-sm cursor-pointer ${task.status === "done" ? "line-through text-base-content/50" : ""}`}
+  3621→                                onClick={() => {
+  3622→                                  setEditingTaskId(task.id);
+  3623→                                  setEditingTaskName(task.name);
+  3624→                                }}
+  3625→                                title="Click to edit"
+  3626→                              >
+  3627→                                {task.name}
+  3628→                                {/* Show parts status chip next to task name */}
+  3629→                                {task.partsOrders?.length > 0 && (
+  3630→                                  <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+  3631→                                    task.partsOrders.every(o => o.status === "RECEIVED")
+  3632→                                      ? "bg-green-100 text-green-800 border border-green-200"
+  3633→                                      : task.partsOrders.some(o => o.status === "RECEIVED")
+  3634→                                        ? "bg-blue-100 text-blue-800 border border-blue-200"
+  3635→                                        : "bg-amber-100 text-amber-800 border border-amber-200"
+  3636→                                  }`}>
+  3637→                                    {task.partsOrders.every(o => o.status === "RECEIVED")
+  3638→                                      ? `✓ Parts Received (${task.partsOrders.length})`
+  3639→                                      : task.partsOrders.some(o => o.status === "RECEIVED")
+  3640→                                        ? `Parts: ${task.partsOrders.filter(o => o.status === "RECEIVED").length}/${task.partsOrders.length} Received`
+  3641→                                        : `Parts Ordered (${task.partsOrders.length})`
+  3642→                                    }
+  3643→                                  </span>
+  3644→                                )}
+  3645→                              </span>
+  3646→                            )}
+  3647→                            {task.completedAt && !editingTaskId && (
+  3648→                              <span className="text-xs text-base-content/50">
+  3649→                                {formatDate(task.completedAt)}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

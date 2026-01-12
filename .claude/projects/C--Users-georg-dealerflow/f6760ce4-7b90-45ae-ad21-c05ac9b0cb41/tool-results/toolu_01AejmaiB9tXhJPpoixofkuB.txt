@@ -1,0 +1,3 @@
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-summary.js
+C:\Users\georg\dealerflow\pages\app\[dealerSlug]\appraisals.js
+C:\Users\georg\dealerflow\pages\api\ai\appraisal-issue-suggestions.js

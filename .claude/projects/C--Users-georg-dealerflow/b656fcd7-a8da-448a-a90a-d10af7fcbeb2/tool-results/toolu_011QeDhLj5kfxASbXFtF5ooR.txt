@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\api\dvla\vehicle-enquiry.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   158→        message: "DVLA service unavailable",
+   159→      });
+   160→    }
+   161→
+   162→    const rawData = await response.json();
+   163→
+   164→    // Log raw DVLA response for debugging fuel/model mapping
+   165→    console.log("DVLA_RAW", JSON.stringify(rawData, null, 2));
+   166→
+   167→    const formattedData = formatDvlaResponse(rawData);
+   168→
+   169→    return res.status(200).json({
+   170→      ok: true,
+   171→      isDummy: false,

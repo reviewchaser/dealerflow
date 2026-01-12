@@ -1,0 +1,23 @@
+     1→/**
+     2→ * Tenant-aware Dashboard Route
+     3→ * /app/[dealerSlug]/dashboard
+     4→ *
+     5→ * Wraps the existing dashboard page with tenant context.
+     6→ * The underlying page remains unchanged.
+     7→ */
+     8→
+     9→import TenantPage from "@/components/TenantPage";
+    10→import DashboardPage from "@/pages/dashboard";
+    11→
+    12→export default function TenantDashboard() {
+    13→  return (
+    14→    <TenantPage>
+    15→      <DashboardPage />
+    16→    </TenantPage>
+    17→  );
+    18→}
+    19→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

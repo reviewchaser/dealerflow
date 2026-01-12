@@ -1,0 +1,24 @@
+     1→import { toast } from "react-hot-toast";
+     2→
+     3→export const showDummyNotification = (feature) => {
+     4→  toast((t) => (
+     5→    <div className="flex items-center gap-3">
+     6→      <span className="text-2xl">⚠️</span>
+     7→      <div>
+     8→        <p className="font-semibold">Demo Mode</p>
+     9→        <p className="text-sm text-gray-500">{feature} is not configured yet</p>
+    10→      </div>
+    11→    </div>
+    12→  ), {
+    13→    duration: 4000,
+    14→    style: { background: '#fef3c7', color: '#92400e' },
+    15→  });
+    16→};
+    17→
+    18→export const showSuccess = (message) => toast.success(message);
+    19→export const showError = (message) => toast.error(message);
+    20→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

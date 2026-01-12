@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1762→      <Head><title>Stock & Prep | DealerFlow</title></Head>
+  1763→
+  1764→      <div className="flex justify-between items-center mb-6">
+  1765→        <div>
+  1766→          <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
+  1767→          <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; Drag cards to move between stages</p>
+  1768→          <div className="mt-2"><PageHint id="sales-prep">Drag vehicles between columns to track their progress. Click a card to view details and manage tasks.</PageHint></div>
+  1769→        </div>
+  1770→        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+  1771→          + Add Vehicle
+  1772→        </button>
+  1773→      </div>

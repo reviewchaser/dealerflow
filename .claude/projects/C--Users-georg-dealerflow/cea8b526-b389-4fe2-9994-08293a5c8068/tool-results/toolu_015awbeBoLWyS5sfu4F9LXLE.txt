@@ -1,0 +1,249 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import mongoose from "mongoose";
+     3→import Appraisal from "@/models/Appraisal";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import AftercareCase from "@/models/AftercareCase";
+     6→import ReviewResponse from "@/models/ReviewResponse";
+     7→import Form from "@/models/Form";
+     8→import FormSubmission from "@/models/FormSubmission";
+     9→import CalendarEvent from "@/models/CalendarEvent";
+    10→import CourtesyAllocation from "@/models/CourtesyAllocation";
+    11→import Contact from "@/models/Contact"; // Required for populate
+    12→import { requireDealerContext } from "@/libs/authContext";
+    13→
+    14→// Default empty stats object for safe responses
+    15→const DEFAULT_STATS = {
+    16→  appraisals: { total: 0, pending: 0 },
+    17→  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+    18→  aftercare: { total: 0, open: 0 },
+    19→  reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+    20→  forms: { total: 0, submissions: 0 },
+    21→  recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+    22→  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+    23→  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+    24→  topForms: [],
+    25→  oldestAppraisalDays: null,
+    26→};
+    27→
+    28→export default async function handler(req, res) {
+    29→  await connectMongo();
+    30→
+    31→  // Try to get dealer context - if it fails, return safe defaults
+    32→  let ctx;
+    33→  try {
+    34→    ctx = await requireDealerContext(req, res);
+    35→  } catch (error) {
+    36→    // No dealer context - return safe defaults instead of 403
+    37→    console.log("[Dashboard Stats] No dealer context, returning defaults");
+    38→    return res.status(200).json(DEFAULT_STATS);
+    39→  }
+    40→
+    41→  return handleStats(req, res, ctx);
+    42→}
+    43→
+    44→async function handleStats(req, res, ctx) {
+    45→  await connectMongo();
+    46→  const { dealerId } = ctx;
+    47→
+    48→  // Date helpers for today queries
+    49→  const startOfToday = new Date();
+    50→  startOfToday.setHours(0, 0, 0, 0);
+    51→  const endOfToday = new Date();
+    52→  endOfToday.setHours(23, 59, 59, 999);
+    53→
+    54→  // MOT due within 14 days
+    55→  const motDueSoon = new Date();
+    56→  motDueSoon.setDate(motDueSoon.getDate() + 14);
+    57→
+    58→  const [
+    59→    totalAppraisals, pendingAppraisals,
+    60→    totalVehicles, inStockVehicles, inPrepVehicles, liveVehicles, deliveredVehicles,
+    61→    totalCases, openCases,
+    62→    reviews,
+    63→    totalForms, totalSubmissions,
+    64→    // Needs Attention counts
+    65→    soldInProgress,
+    66→    warrantyNotBookedIn,
+    67→    eventsToday,
+    68→    courtesyDueBack,
+    69→    motExpiringSoon,
+    70→    // Additional data
+    71→    oldestPendingAppraisal,
+    72→    lastReview
+    73→  ] = await Promise.all([
+    74→    Appraisal.countDocuments({ dealerId }),
+    75→    Appraisal.countDocuments({ dealerId, decision: "pending" }),
+    76→    Vehicle.countDocuments({ dealerId }),
+    77→    Vehicle.countDocuments({ dealerId, status: "in_stock" }),
+    78→    Vehicle.countDocuments({ dealerId, status: "in_prep" }),
+    79→    Vehicle.countDocuments({ dealerId, status: "live" }),
+    80→    Vehicle.countDocuments({ dealerId, status: "delivered" }),
+    81→    AftercareCase.countDocuments({ dealerId }),
+    82→    AftercareCase.countDocuments({ dealerId, status: { $in: ["new", "in_progress"] } }),
+    83→    ReviewResponse.find({ dealerId }).lean(),
+    84→    Form.countDocuments({ dealerId }),
+    85→    FormSubmission.countDocuments({ dealerId }),
+    86→    // Needs Attention: Sold in progress (status="live" maps to "Sold In Progress" column)
+    87→    Vehicle.countDocuments({ dealerId, status: "live" }),
+    88→    // Needs Attention: Warranty not booked in
+    89→    AftercareCase.countDocuments({ dealerId, boardStatus: "not_booked_in" }),
+    90→    // Needs Attention: Events today
+    91→    CalendarEvent.countDocuments({
+    92→      dealerId,
+    93→      startDatetime: { $gte: startOfToday, $lt: endOfToday }
+    94→    }),
+    95→    // Needs Attention: Courtesy due back today or overdue
+    96→    CourtesyAllocation.countDocuments({
+    97→      dealerId,
+    98→      dateDueBack: { $lte: endOfToday },
+    99→      dateReturned: null
+   100→    }),
+   101→    // Needs Attention: MOT expiring soon (only if motExpiryDate exists)
+   102→    Vehicle.countDocuments({
+   103→      dealerId,
+   104→      motExpiryDate: { $exists: true, $ne: null, $lte: motDueSoon },
+   105→      status: { $nin: ["delivered", "archived"] }
+   106→    }),
+   107→    // Oldest pending appraisal (sort ascending to get oldest)
+   108→    Appraisal.findOne({ dealerId, decision: "pending" })
+   109→      .sort({ createdAt: 1 })
+   110→      .select("createdAt")
+   111→      .lean(),
+   112→    // Most recent review
+   113→    ReviewResponse.findOne({ dealerId })
+   114→      .sort({ createdAt: -1 })
+   115→      .select("createdAt")
+   116→      .lean()
+   117→  ]);
+   118→
+   119→  // Helper to transform _id to id for lean() results
+   120→  const transformDoc = (doc) => {
+   121→    if (!doc) return null;
+   122→    const { _id, __v, ...rest } = doc;
+   123→    return { id: _id?.toString(), ...rest };
+   124→  };
+   125→
+   126→  // Second batch of parallel queries - aggregations and recent items
+   127→  const dealerObjectId = new mongoose.Types.ObjectId(dealerId);
+   128→  const [
+   129→    topFormsAgg,
+   130→    todayCategoryCounts,
+   131→    recentAppraisalsRaw,
+   132→    recentVehiclesRaw,
+   133→    recentSubmissionsRaw,
+   134→    allForms
+   135→  ] = await Promise.all([
+   136→    // Top 3 forms by submission count
+   137→    FormSubmission.aggregate([
+   138→      { $match: { dealerId: dealerObjectId } },
+   139→      { $group: { _id: "$formId", count: { $sum: 1 } } },
+   140→      { $sort: { count: -1 } },
+   141→      { $limit: 3 },
+   142→      { $lookup: { from: "forms", localField: "_id", foreignField: "_id", as: "form" } },
+   143→      { $unwind: { path: "$form", preserveNullAndEmptyArrays: false } },
+   144→      { $project: { formId: "$_id", count: 1, name: "$form.name", type: "$form.type" } }
+   145→    ]),
+   146→    // Today counts by calendar category
+   147→    CalendarEvent.aggregate([
+   148→      { $match: {
+   149→        dealerId: dealerObjectId,
+   150→        startDatetime: { $gte: startOfToday, $lt: endOfToday }
+   151→      }},
+   152→      { $lookup: { from: "calendarcategories", localField: "categoryId", foreignField: "_id", as: "category" }},
+   153→      { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
+   154→      { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
+   155→    ]),
+   156→    // Recent appraisals
+   157→    Appraisal.find({ dealerId })
+   158→      .populate("contactId")
+   159→      .sort({ createdAt: -1 })
+   160→      .limit(5)
+   161→      .lean(),
+   162→    // Recent vehicles
+   163→    Vehicle.find({ dealerId })
+   164→      .sort({ createdAt: -1 })
+   165→      .limit(5)
+   166→      .lean(),
+   167→    // Recent submissions
+   168→    FormSubmission.find({ dealerId })
+   169→      .populate("formId")
+   170→      .sort({ submittedAt: -1 })
+   171→      .limit(5)
+   172→      .lean(),
+   173→    // All forms for quick forms section (eliminates separate /api/forms call)
+   174→    Form.find({ dealerId })
+   175→      .sort({ type: 1, createdAt: -1 })
+   176→      .lean()
+   177→  ]);
+   178→
+   179→  // Extract category counts
+   180→  const deliveriesToday = todayCategoryCounts.find(c =>
+   181→    c._id?.includes("handover") || c._id?.includes("delivery")
+   182→  )?.count || 0;
+   183→  const testDrivesToday = todayCategoryCounts.find(c =>
+   184→    c._id?.includes("test drive") || c._id?.includes("testdrive")
+   185→  )?.count || 0;
+   186→
+   187→  // Calculate average rating
+   188→  const avgRating = reviews.length > 0
+   189→    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+   190→    : "N/A";
+   191→
+   192→  // Transform all recent items
+   193→  const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
+   194→  const recentVehicles = recentVehiclesRaw.map(transformDoc);
+   195→  const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
+   196→  const formsList = allForms.map(transformDoc);
+   197→
+   198→  // Calculate days since oldest pending appraisal
+   199→  const oldestAppraisalDays = oldestPendingAppraisal
+   200→    ? Math.floor((Date.now() - new Date(oldestPendingAppraisal.createdAt)) / (1000 * 60 * 60 * 24))
+   201→    : null;
+   202→
+   203→  // Calculate days since last review
+   204→  const lastReviewDays = lastReview
+   205→    ? Math.floor((Date.now() - new Date(lastReview.createdAt)) / (1000 * 60 * 60 * 24))
+   206→    : null;
+   207→
+   208→  return res.status(200).json({
+   209→    appraisals: { total: totalAppraisals, pending: pendingAppraisals },
+   210→    vehicles: {
+   211→      total: totalVehicles,
+   212→      inStock: inStockVehicles,
+   213→      inPrep: inPrepVehicles,
+   214→      live: liveVehicles,
+   215→      delivered: deliveredVehicles
+   216→    },
+   217→    aftercare: { total: totalCases, open: openCases },
+   218→    reviews: { count: reviews.length, avgRating, lastReviewDays },
+   219→    forms: { total: totalForms, submissions: totalSubmissions },
+   220→    recent: { appraisals: recentAppraisals, vehicles: recentVehicles, formSubmissions: recentSubmissions },
+   221→    // Needs Attention counts
+   222→    needsAttention: {
+   223→      soldInProgress,
+   224→      warrantyNotBookedIn,
+   225→      eventsToday,
+   226→      courtesyDueBack,
+   227→      motExpiringSoon
+   228→    },
+   229→    // Today strip
+   230→    today: {
+   231→      events: eventsToday,
+   232→      deliveries: deliveriesToday,
+   233→      testDrives: testDrivesToday,
+   234→      courtesyDueBack
+   235→    },
+   236→    // Top forms by usage
+   237→    topForms: topFormsAgg,
+   238→    // All forms for quick forms section (eliminates separate /api/forms call)
+   239→    formsList,
+   240→    // KPI micro-context
+   241→    oldestAppraisalDays,
+   242→  });
+   243→}
+   244→
+   245→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

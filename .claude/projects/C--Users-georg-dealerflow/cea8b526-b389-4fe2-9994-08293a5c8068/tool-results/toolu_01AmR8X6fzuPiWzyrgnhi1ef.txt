@@ -1,0 +1,34 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import mongoose from "mongoose";
+     3→import Appraisal from "@/models/Appraisal";
+     4→import Vehicle from "@/models/Vehicle";
+     5→import AftercareCase from "@/models/AftercareCase";
+     6→import ReviewResponse from "@/models/ReviewResponse";
+     7→import Form from "@/models/Form";
+     8→import FormSubmission from "@/models/FormSubmission";
+     9→import CalendarEvent from "@/models/CalendarEvent";
+    10→import CourtesyAllocation from "@/models/CourtesyAllocation";
+    11→import Contact from "@/models/Contact"; // Required for populate
+    12→import { requireDealerContext } from "@/libs/authContext";
+    13→
+    14→// Default empty stats object for safe responses
+    15→const DEFAULT_STATS = {
+    16→  appraisals: { total: 0, pending: 0 },
+    17→  vehicles: { total: 0, inStock: 0, inPrep: 0, live: 0, delivered: 0 },
+    18→  aftercare: { total: 0, open: 0 },
+    19→  reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
+    20→  forms: { total: 0, submissions: 0 },
+    21→  recent: { appraisals: [], vehicles: [], formSubmissions: [] },
+    22→  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0 },
+    23→  today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
+    24→  topForms: [],
+    25→  oldestAppraisalDays: null,
+    26→};
+    27→
+    28→export default async function handler(req, res) {
+    29→  await connectMongo();
+    30→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

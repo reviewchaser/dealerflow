@@ -1,0 +1,8 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     1→import { useState, useEffect, useCallback } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import ContactPicker from "@/components/ContactPicker";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";

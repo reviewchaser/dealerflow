@@ -1,0 +1,231 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Vehicle from "@/models/Vehicle";
+     3→import VehicleTask from "@/models/VehicleTask";
+     4→import VehicleLabel from "@/models/VehicleLabel";
+     5→import VehicleIssue from "@/models/VehicleIssue";
+     6→import VehicleLocation from "@/models/VehicleLocation";
+     7→import VehicleDocument from "@/models/VehicleDocument";
+     8→import VehicleActivity from "@/models/VehicleActivity";
+     9→import User from "@/models/User";
+    10→import { withDealerContext } from "@/libs/authContext";
+    11→
+    12→const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+    13→
+    14→// Helper to safely transform MongoDB _id to id
+    15→const transformId = (obj) => {
+    16→  if (!obj) return null;
+    17→  const result = { ...obj };
+    18→  if (result._id) {
+    19→    result.id = result._id.toString();
+    20→    delete result._id;
+    21→  }
+    22→  delete result.__v;
+    23→  return result;
+    24→};
+    25→
+    26→async function handler(req, res, ctx) {
+    27→  await connectMongo();
+    28→  const { dealerId } = ctx;
+    29→
+    30→  if (req.method === "GET") {
+    31→    const { status } = req.query;
+    32→    let query = { dealerId };
+    33→    if (status && status !== "all") query.status = status;
+    34→
+    35→    const vehicles = await Vehicle.find(query)
+    36→      .sort({ createdAt: -1 })
+    37→      .lean();
+    38→
+    39→    if (!vehicles || vehicles.length === 0) {
+    40→      return res.status(200).json([]);
+    41→    }
+    42→
+    43→    // Get all vehicle IDs
+    44→    const vehicleIds = vehicles.map(v => v._id);
+    45→
+    46→    // Fetch all related data in parallel - scoped by dealerId
+    47→    const [allTasks, allIssues, allDocuments, allLocations, allLabels] = await Promise.all([
+    48→      VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    49→      VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    50→      VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
+    51→      VehicleLocation.find({ dealerId }).lean(),
+    52→      VehicleLabel.find({ dealerId }).lean(),
+    53→    ]);
+    54→
+    55→    // Create lookup maps
+    56→    const tasksByVehicle = {};
+    57→    const issuesByVehicle = {};
+    58→    const documentsByVehicle = {};
+    59→    const locationsById = {};
+    60→    const labelsById = {};
+    61→
+    62→    // Build location lookup
+    63→    for (const loc of allLocations) {
+    64→      locationsById[loc._id.toString()] = {
+    65→        id: loc._id.toString(),
+    66→        name: loc.name,
+    67→      };
+    68→    }
+    69→
+    70→    // Build labels lookup
+    71→    for (const label of allLabels) {
+    72→      labelsById[label._id.toString()] = {
+    73→        id: label._id.toString(),
+    74→        name: label.name,
+    75→        colour: label.colour,
+    76→      };
+    77→    }
+    78→
+    79→    // Build tasks lookup
+    80→    for (const task of allTasks) {
+    81→      const vid = task.vehicleId.toString();
+    82→      if (!tasksByVehicle[vid]) tasksByVehicle[vid] = [];
+    83→      tasksByVehicle[vid].push(transformId(task));
+    84→    }
+    85→
+    86→    // Build issues lookup
+    87→    for (const issue of allIssues) {
+    88→      const vid = issue.vehicleId.toString();
+    89→      if (!issuesByVehicle[vid]) issuesByVehicle[vid] = [];
+    90→      issuesByVehicle[vid].push(transformId(issue));
+    91→    }
+    92→
+    93→    // Build documents lookup
+    94→    for (const doc of allDocuments) {
+    95→      const vid = doc.vehicleId.toString();
+    96→      if (!documentsByVehicle[vid]) documentsByVehicle[vid] = [];
+    97→      documentsByVehicle[vid].push(transformId(doc));
+    98→    }
+    99→
+   100→    // Transform vehicles
+   101→    const result = vehicles.map(vehicle => {
+   102→      const vid = vehicle._id.toString();
+   103→
+   104→      // Get location data
+   105→      let locationData = null;
+   106→      if (vehicle.locationId) {
+   107→        const locId = vehicle.locationId.toString();
+   108→        locationData = locationsById[locId] || null;
+   109→      }
+   110→
+   111→      return {
+   112→        id: vid,
+   113→        dealerId: vehicle.dealerId,
+   114→        type: vehicle.type,
+   115→        saleType: vehicle.saleType,
+   116→        regCurrent: vehicle.regCurrent,
+   117→        vin: vehicle.vin,
+   118→        make: vehicle.make,
+   119→        model: vehicle.model,
+   120→        derivative: vehicle.derivative,
+   121→        year: vehicle.year,
+   122→        mileageCurrent: vehicle.mileageCurrent,
+   123→        bodyType: vehicle.bodyType,
+   124→        fuelType: vehicle.fuelType,
+   125→        transmission: vehicle.transmission,
+   126→        colour: vehicle.colour,
+   127→        status: vehicle.status,
+   128→        soldAt: vehicle.soldAt, // For "Sold X days" display
+   129→        locationId: locationData,
+   130→        motExpiryDate: vehicle.motExpiryDate,
+   131→        motStatus: vehicle.motStatus,
+   132→        taxExpiryDate: vehicle.taxExpiryDate,
+   133→        serviceDueDate: vehicle.serviceDueDate,
+   134→        v5Url: vehicle.v5Url,
+   135→        serviceHistoryUrl: vehicle.serviceHistoryUrl,
+   136→        faultCodesUrl: vehicle.faultCodesUrl,
+   137→        websiteUrl: vehicle.websiteUrl,
+   138→        notes: vehicle.notes,
+   139→        createdAt: vehicle.createdAt,
+   140→        updatedAt: vehicle.updatedAt,
+   141→        tasks: tasksByVehicle[vid] || [],
+   142→        issues: issuesByVehicle[vid] || [],
+   143→        documents: documentsByVehicle[vid] || [],
+   144→        labels: (vehicle.labels || []).map(labelId => labelsById[labelId.toString()]).filter(Boolean),
+   145→      };
+   146→    });
+   147→
+   148→    return res.status(200).json(result);
+   149→  }
+   150→
+   151→  if (req.method === "POST") {
+   152→    const { userId, user } = ctx;
+   153→    const {
+   154→      regCurrent, vin, make, model, derivative, year,
+   155→      mileageCurrent, bodyType, fuelType, transmission, colour,
+   156→      status = "in_stock", notes, locationId, skipDefaultTasks,
+   157→      type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
+   158→      saleType = "RETAIL", // RETAIL, TRADE - only for STOCK vehicles
+   159→      motExpiryDate,
+   160→      dvlaDetails, // DVLA VES data
+   161→      lastDvlaFetchAt,
+   162→    } = req.body;
+   163→
+   164→    if (!regCurrent || !make || !model) {
+   165→      return res.status(400).json({ error: "Reg, make and model required" });
+   166→    }
+   167→
+   168→    const vehicleData = {
+   169→      dealerId, // Add dealer context
+   170→      regCurrent: regCurrent.toUpperCase().replace(/\s/g, ""),
+   171→      vin, make, model, derivative, year,
+   172→      mileageCurrent, bodyType, fuelType, transmission, colour,
+   173→      status, notes, type,
+   174→      createdByUserId: userId,
+   175→      // Only set saleType for STOCK vehicles
+   176→      ...(type === "STOCK" && { saleType }),
+   177→      // MOT expiry from DVSA lookup
+   178→      ...(motExpiryDate && { motExpiryDate: new Date(motExpiryDate) }),
+   179→      // DVLA VES details
+   180→      ...(dvlaDetails && { dvlaDetails }),
+   181→      ...(lastDvlaFetchAt && { lastDvlaFetchAt: new Date(lastDvlaFetchAt) }),
+   182→    };
+   183→
+   184→    // Only add locationId if it's not empty
+   185→    if (locationId) {
+   186→      vehicleData.locationId = locationId;
+   187→    }
+   188→
+   189→    const vehicle = await Vehicle.create(vehicleData);
+   190→
+   191→    // Create default tasks only if not skipped (for backwards compatibility)
+   192→    if (!skipDefaultTasks) {
+   193→      for (const taskName of DEFAULT_TASKS) {
+   194→        await VehicleTask.create({
+   195→          vehicleId: vehicle._id,
+   196→          name: taskName,
+   197→          status: "pending",
+   198→          source: "system_default",
+   199→        });
+   200→      }
+   201→    }
+   202→
+   203→    // Log VEHICLE_CREATED activity
+   204→    const actor = await User.findById(userId).lean();
+   205→    const actorName = actor?.name || user?.name || user?.email || "System";
+   206→    const typeLabel = { STOCK: "Stock", COURTESY: "Courtesy", FLEET_OTHER: "Fleet" }[type] || type;
+   207→
+   208→    await VehicleActivity.log({
+   209→      dealerId,
+   210→      vehicleId: vehicle._id,
+   211→      actorId: userId,
+   212→      actorName,
+   213→      type: "VEHICLE_CREATED",
+   214→      message: `Added ${typeLabel} vehicle: ${make} ${model} (${regCurrent.toUpperCase()})`,
+   215→      meta: { type, make, model, regCurrent: regCurrent.toUpperCase() },
+   216→    });
+   217→
+   218→    // Transform to include id field
+   219→    const vehicleJson = vehicle.toJSON();
+   220→    return res.status(201).json(vehicleJson);
+   221→  }
+   222→
+   223→  return res.status(405).json({ error: "Method not allowed" });
+   224→}
+   225→
+   226→export default withDealerContext(handler);
+   227→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,201 @@
+import connectMongo from "@/libs/mongoose";
+import Vehicle from "@/models/Vehicle";
+import Appraisal from "@/models/Appraisal";
+import AppraisalIssue from "@/models/AppraisalIssue";
+import { withDealerContext } from "@/libs/authContext";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+async function handler(req, res, ctx) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+
+  const { vehicleId, appraisalId, regenerate } = req.body;
+
+  if (!vehicleId && !appraisalId) {
+    return res.status(400).json({ error: "vehicleId or appraisalId is required" });
+  }
+
+  try {
+    let vehicle, appraisal;
+
+    if (appraisalId) {
+      appraisal = await Appraisal.findOne({ _id: appraisalId, dealerId }).lean();
+      if (appraisal?.vehicleId) {
+        vehicle = await Vehicle.findOne({ _id: appraisal.vehicleId, dealerId }).lean();
+      }
+    } else if (vehicleId) {
+      vehicle = await Vehicle.findOne({ _id: vehicleId, dealerId }).lean();
+      appraisal = await Appraisal.findOne({ vehicleId, dealerId }).sort({ createdAt: -1 }).lean();
+    }
+
+    if (!vehicle && !appraisal) {
+      return res.status(404).json({ error: "Vehicle or appraisal not found" });
+    }
+
+    // Check if we already have a summary and don't need to regenerate
+    const existingSummary = appraisal?.aiSummary || vehicle?.aiAppraisalSummary;
+    if (existingSummary && !regenerate) {
+      return res.status(200).json({
+        ok: true,
+        summary: existingSummary.payload,
+        cached: true,
+        generatedAt: existingSummary.generatedAt,
+      });
+    }
+
+    // Get appraisal issues
+    const issues = await AppraisalIssue.find({
+      appraisalId: appraisal?._id,
+    }).lean();
+
+    // Build context for AI
+    const vehicleContext = {
+      make: vehicle?.make || appraisal?.vehicleMake || "Unknown",
+      model: vehicle?.model || appraisal?.vehicleModel || "",
+      year: vehicle?.year || appraisal?.vehicleYear || null,
+      reg: vehicle?.regCurrent || appraisal?.vehicleReg || "Unknown",
+      mileage: vehicle?.mileage || appraisal?.mileage || null,
+      colour: vehicle?.colour || null,
+      fuelType: vehicle?.fuelType || null,
+      transmission: vehicle?.transmission || null,
+      engineSize: vehicle?.engineSize || null,
+      previousOwners: vehicle?.previousOwners || null,
+      serviceHistory: vehicle?.serviceHistory || null,
+      motExpiry: vehicle?.motExpiry || null,
+      taxExpiry: vehicle?.taxExpiry || null,
+    };
+
+    const appraisalContext = {
+      overallCondition: appraisal?.overallCondition || null,
+      exteriorCondition: appraisal?.exteriorCondition || null,
+      interiorCondition: appraisal?.interiorCondition || null,
+      mechanicalCondition: appraisal?.mechanicalCondition || null,
+      estimatedValue: appraisal?.estimatedValue || null,
+      askingPrice: appraisal?.askingPrice || null,
+      notes: appraisal?.notes || null,
+      issues: issues.map(i => ({
+        category: i.category,
+        description: i.description,
+        severity: i.severity,
+        estimatedCost: i.estimatedCost,
+      })),
+    };
+
+    // Generate AI summary
+    const prompt = `You are an expert automotive appraiser for a car dealership. Analyze this vehicle appraisal and provide a comprehensive summary.
+
+VEHICLE DETAILS:
+- Make: ${vehicleContext.make}
+- Model: ${vehicleContext.model}
+- Year: ${vehicleContext.year || "Unknown"}
+- Registration: ${vehicleContext.reg}
+- Mileage: ${vehicleContext.mileage ? vehicleContext.mileage.toLocaleString() + " miles" : "Unknown"}
+- Colour: ${vehicleContext.colour || "Unknown"}
+- Fuel Type: ${vehicleContext.fuelType || "Unknown"}
+- Transmission: ${vehicleContext.transmission || "Unknown"}
+- Engine Size: ${vehicleContext.engineSize || "Unknown"}
+- Previous Owners: ${vehicleContext.previousOwners || "Unknown"}
+- Service History: ${vehicleContext.serviceHistory || "Unknown"}
+- MOT Expiry: ${vehicleContext.motExpiry ? new Date(vehicleContext.motExpiry).toLocaleDateString() : "Unknown"}
+
+APPRAISAL DETAILS:
+- Overall Condition: ${appraisalContext.overallCondition || "Not assessed"}
+- Exterior: ${appraisalContext.exteriorCondition || "Not assessed"}
+- Interior: ${appraisalContext.interiorCondition || "Not assessed"}
+- Mechanical: ${appraisalContext.mechanicalCondition || "Not assessed"}
+- Estimated Value: ${appraisalContext.estimatedValue ? "£" + appraisalContext.estimatedValue.toLocaleString() : "Not set"}
+- Asking Price: ${appraisalContext.askingPrice ? "£" + appraisalContext.askingPrice.toLocaleString() : "Not set"}
+${appraisalContext.notes ? `- Notes: ${appraisalContext.notes}` : ""}
+
+${appraisalContext.issues.length > 0 ? `IDENTIFIED ISSUES:
+${appraisalContext.issues.map(i => `- [${i.severity}] ${i.category}: ${i.description}${i.estimatedCost ? ` (Est. £${i.estimatedCost})` : ""}`).join("\n")}` : "No issues identified."}
+
+Provide a JSON response with the following structure:
+{
+  "summary": "A brief 2-3 sentence summary of the vehicle and its condition",
+  "strengths": ["List of 2-4 positive aspects of this vehicle"],
+  "concerns": ["List of any concerns or issues to address"],
+  "recommendedPrep": ["List of 2-4 recommended prep work before sale"],
+  "estimatedPrepCost": "Estimated total prep cost in GBP (number only)",
+  "marketPosition": "BELOW_MARKET | MARKET_RATE | ABOVE_MARKET - based on condition and asking price",
+  "saleReadiness": "READY | NEEDS_WORK | MAJOR_WORK - how ready is this vehicle for retail sale",
+  "buyerAppeal": "A sentence describing who the ideal buyer for this vehicle would be",
+  "draftDescription": "A 3-4 sentence retail listing description highlighting key features"
+}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful automotive appraiser. Always respond with valid JSON only, no markdown or explanations."
+        },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    let aiResponse;
+    try {
+      const responseText = completion.choices[0].message.content;
+      const cleanedText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+      aiResponse = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", completion.choices[0].message.content);
+      return res.status(500).json({ error: "Failed to parse AI response" });
+    }
+
+    // Store the result
+    if (appraisal) {
+      await Appraisal.updateOne(
+        { _id: appraisal._id, dealerId },
+        {
+          $set: {
+            aiSummary: {
+              payload: aiResponse,
+              generatedAt: new Date(),
+              generatedByUserId: userId,
+            }
+          }
+        }
+      );
+    }
+
+    if (vehicle) {
+      await Vehicle.updateOne(
+        { _id: vehicle._id, dealerId },
+        {
+          $set: {
+            aiAppraisalSummary: {
+              payload: aiResponse,
+              generatedAt: new Date(),
+              generatedByUserId: userId,
+            }
+          }
+        }
+      );
+    }
+
+    return res.status(200).json({
+      ok: true,
+      summary: aiResponse,
+      cached: false,
+      generatedAt: new Date().toISOString(),
+    });
+
+  } catch (error) {
+    console.error("Error generating appraisal summary:", error);
+    return res.status(500).json({ error: "Failed to generate summary" });
+  }
+}
+
+export default withDealerContext(handler);

@@ -1,0 +1,34 @@
+   448→  const handleDrop = async (e, newStatus) => {
+   449→    e.preventDefault();
+   450→    if (!draggedCard || draggedCard.boardStatus === newStatus) {
+   451→      setDraggedCard(null);
+   452→      return;
+   453→    }
+   454→    const caseId = draggedCard.id || draggedCard._id;
+   455→
+   456→    // Optimistic update
+   457→    setCases(prev => prev.map(c =>
+   458→      (c.id || c._id) === caseId ? { ...c, boardStatus: newStatus } : c
+   459→    ));
+   460→
+   461→    try {
+   462→      const res = await fetch(`/api/aftercare/${caseId}`, {
+   463→        method: "PUT",
+   464→        headers: { "Content-Type": "application/json" },
+   465→        body: JSON.stringify({ boardStatus: newStatus }),
+   466→      });
+   467→      const data = await res.json();
+   468→      if (!res.ok || !data.ok) {
+   469→        throw new Error(data.error || "Failed to update status");
+   470→      }
+   471→      toast.success(`Moved to ${COLUMNS.find(c => c.key === newStatus)?.label || newStatus}`);
+   472→      // Update local state from response
+   473→      if (data.case) {
+   474→        setCases(prev => prev.map(c =>
+   475→          (c.id || c._id) === caseId ? { ...data.case, id: data.case._id || data.case.id } : c
+   476→        ));
+   477→      } else {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

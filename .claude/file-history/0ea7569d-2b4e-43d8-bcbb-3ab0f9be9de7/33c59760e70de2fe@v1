@@ -1,0 +1,441 @@
+import { useEffect, useState, useCallback } from "react";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import DashboardLayout from "@/components/DashboardLayout";
+import { toast } from "react-hot-toast";
+import useDealerRedirect from "@/hooks/useDealerRedirect";
+
+// Format currency
+const formatCurrency = (amount) => {
+  if (amount === null || amount === undefined) return "—";
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(amount);
+};
+
+// Format date
+const formatDate = (date) => {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
+
+export default function VATReport() {
+  const router = useRouter();
+  const { isRedirecting } = useDealerRedirect();
+  const [deals, setDeals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Date range state
+  const [periodType, setPeriodType] = useState("quarter");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+
+  // Calculate period dates
+  const getPeriodDates = useCallback(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (periodType) {
+      case "this_month":
+        return {
+          from: new Date(now.getFullYear(), now.getMonth(), 1),
+          to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59),
+        };
+      case "last_month":
+        return {
+          from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+          to: new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59),
+        };
+      case "quarter":
+        const quarterStart = Math.floor(now.getMonth() / 3) * 3;
+        return {
+          from: new Date(now.getFullYear(), quarterStart, 1),
+          to: new Date(now.getFullYear(), quarterStart + 3, 0, 23, 59, 59),
+        };
+      case "last_quarter":
+        const lastQuarterStart = Math.floor(now.getMonth() / 3) * 3 - 3;
+        return {
+          from: new Date(now.getFullYear(), lastQuarterStart, 1),
+          to: new Date(now.getFullYear(), lastQuarterStart + 3, 0, 23, 59, 59),
+        };
+      case "ytd":
+        return {
+          from: new Date(now.getFullYear(), 0, 1),
+          to: today,
+        };
+      case "custom":
+        return {
+          from: customFrom ? new Date(customFrom) : null,
+          to: customTo ? new Date(customTo + "T23:59:59") : null,
+        };
+      default:
+        return { from: null, to: null };
+    }
+  }, [periodType, customFrom, customTo]);
+
+  // Fetch deals
+  const fetchDeals = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/deals");
+      if (!res.ok) throw new Error("Failed to fetch deals");
+      const data = await res.json();
+      setDeals(data);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load deals");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isRedirecting) {
+      fetchDeals();
+    }
+  }, [isRedirecting, fetchDeals]);
+
+  // Calculate VAT figures
+  const calculateVAT = useCallback(() => {
+    const { from, to } = getPeriodDates();
+    if (!from || !to) {
+      return {
+        vatQualifyingDeals: [],
+        marginDeals: [],
+        totalOutputVAT: 0,
+        totalSalesGross: 0,
+        totalSalesNet: 0,
+      };
+    }
+
+    // Filter deals by invoiced date
+    const invoicedDeals = deals.filter((deal) => {
+      if (!["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) return false;
+      if (!deal.invoicedAt) return false;
+      const invoiceDate = new Date(deal.invoicedAt);
+      return invoiceDate >= from && invoiceDate <= to;
+    });
+
+    // Separate by VAT scheme
+    const vatQualifyingDeals = invoicedDeals.filter(d => d.vatScheme === "VAT_QUALIFYING");
+    const marginDeals = invoicedDeals.filter(d => d.vatScheme === "MARGIN");
+
+    // Calculate totals
+    let totalOutputVAT = 0;
+    let totalSalesGross = 0;
+    let totalSalesNet = 0;
+
+    vatQualifyingDeals.forEach((deal) => {
+      totalOutputVAT += deal.vehicleVatAmount || 0;
+      totalSalesGross += deal.vehiclePriceGross || 0;
+      totalSalesNet += deal.vehiclePriceNet || 0;
+    });
+
+    marginDeals.forEach((deal) => {
+      totalSalesGross += deal.vehiclePriceGross || 0;
+    });
+
+    return {
+      vatQualifyingDeals,
+      marginDeals,
+      totalOutputVAT,
+      totalSalesGross,
+      totalSalesNet,
+      totalMarginGross: marginDeals.reduce((sum, d) => sum + (d.vehiclePriceGross || 0), 0),
+    };
+  }, [deals, getPeriodDates]);
+
+  const vatData = calculateVAT();
+  const { from, to } = getPeriodDates();
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    const headers = [
+      "Invoice Date",
+      "Deal #",
+      "VRM",
+      "Make",
+      "Model",
+      "Customer",
+      "VAT Scheme",
+      "Net",
+      "VAT",
+      "Gross",
+    ];
+
+    const allDeals = [...vatData.vatQualifyingDeals, ...vatData.marginDeals];
+    const rows = allDeals.map((d) => [
+      formatDate(d.invoicedAt),
+      d.dealNumber || "",
+      d.vehicle?.regCurrent || "",
+      d.vehicle?.make || "",
+      d.vehicle?.model || "",
+      d.customer?.displayName || "",
+      d.vatScheme || "",
+      (d.vehiclePriceNet || 0).toFixed(2),
+      (d.vehicleVatAmount || 0).toFixed(2),
+      (d.vehiclePriceGross || 0).toFixed(2),
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vat-report-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Report downloaded");
+  };
+
+  if (isRedirecting) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <Head>
+        <title>VAT Report | DealerHQ</title>
+      </Head>
+
+      <div className="min-h-screen bg-slate-50 pb-20">
+        {/* Header */}
+        <div className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+          <div className="px-4 py-4 md:px-6 md:py-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div>
+                  <h1 className="text-xl md:text-2xl font-bold text-slate-900">VAT Report</h1>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    Output VAT summary for {from && to ? `${formatDate(from)} - ${formatDate(to)}` : "selected period"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleExportCSV}
+                className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+              >
+                <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Period Selector */}
+        <div className="px-4 md:px-6 py-4 bg-white border-b border-slate-200">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="text-sm text-slate-500">Period:</span>
+            <select
+              value={periodType}
+              onChange={(e) => setPeriodType(e.target.value)}
+              className="select select-sm select-bordered bg-white"
+            >
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="quarter">This Quarter</option>
+              <option value="last_quarter">Last Quarter</option>
+              <option value="ytd">Year to Date</option>
+              <option value="custom">Custom Range</option>
+            </select>
+
+            {periodType === "custom" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customFrom}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="input input-sm input-bordered bg-white w-36"
+                />
+                <span className="text-slate-400">to</span>
+                <input
+                  type="date"
+                  value={customTo}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="input input-sm input-bordered bg-white w-36"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 md:p-6 space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+            </div>
+          ) : (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border border-blue-200 p-5">
+                  <p className="text-sm text-blue-600 font-medium">Output VAT Due</p>
+                  <p className="text-2xl font-bold text-blue-600 mt-1">
+                    {formatCurrency(vatData.totalOutputVAT)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">from VAT qualifying sales</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <p className="text-sm text-slate-500 font-medium">Total Sales (Gross)</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">
+                    {formatCurrency(vatData.totalSalesGross)}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">all invoiced sales</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <p className="text-sm text-slate-500 font-medium">VAT Qualifying</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">
+                    {vatData.vatQualifyingDeals.length}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">{formatCurrency(vatData.totalSalesNet)} net</p>
+                </div>
+                <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                  <p className="text-sm text-slate-500 font-medium">Margin Scheme</p>
+                  <p className="text-2xl font-bold text-slate-900 mt-1">
+                    {vatData.marginDeals.length}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">{formatCurrency(vatData.totalMarginGross)} gross</p>
+                </div>
+              </div>
+
+              {/* VAT Qualifying Sales Table */}
+              {vatData.vatQualifyingDeals.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">VAT Qualifying Sales</h2>
+                    <span className="text-sm text-blue-600 font-medium">
+                      VAT: {formatCurrency(vatData.totalOutputVAT)}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Invoice Date</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Deal #</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Vehicle</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Customer</th>
+                          <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Net</th>
+                          <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">VAT</th>
+                          <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Gross</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {vatData.vatQualifyingDeals.map((deal) => (
+                          <tr key={deal.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 text-sm text-slate-600">{formatDate(deal.invoicedAt)}</td>
+                            <td className="px-5 py-3 text-sm font-medium text-slate-900">#{deal.dealNumber}</td>
+                            <td className="px-5 py-3 text-sm text-slate-600">
+                              {deal.vehicle?.regCurrent} - {deal.vehicle?.make} {deal.vehicle?.model}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-slate-600">{deal.customer?.displayName || "—"}</td>
+                            <td className="px-5 py-3 text-sm text-right text-slate-600">{formatCurrency(deal.vehiclePriceNet)}</td>
+                            <td className="px-5 py-3 text-sm text-right font-medium text-blue-600">{formatCurrency(deal.vehicleVatAmount)}</td>
+                            <td className="px-5 py-3 text-sm text-right font-medium text-slate-900">{formatCurrency(deal.vehiclePriceGross)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-blue-50">
+                        <tr>
+                          <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-slate-700">Total</td>
+                          <td className="px-5 py-3 text-sm text-right font-semibold text-slate-700">{formatCurrency(vatData.totalSalesNet)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-bold text-blue-600">{formatCurrency(vatData.totalOutputVAT)}</td>
+                          <td className="px-5 py-3 text-sm text-right font-semibold text-slate-700">
+                            {formatCurrency(vatData.vatQualifyingDeals.reduce((sum, d) => sum + (d.vehiclePriceGross || 0), 0))}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Margin Scheme Sales Table */}
+              {vatData.marginDeals.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-slate-900">Margin Scheme Sales</h2>
+                    <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">No VAT breakdown</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Invoice Date</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Deal #</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Vehicle</th>
+                          <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Customer</th>
+                          <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-5 py-3">Gross Sale</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {vatData.marginDeals.map((deal) => (
+                          <tr key={deal.id} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 text-sm text-slate-600">{formatDate(deal.invoicedAt)}</td>
+                            <td className="px-5 py-3 text-sm font-medium text-slate-900">#{deal.dealNumber}</td>
+                            <td className="px-5 py-3 text-sm text-slate-600">
+                              {deal.vehicle?.regCurrent} - {deal.vehicle?.make} {deal.vehicle?.model}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-slate-600">{deal.customer?.displayName || "—"}</td>
+                            <td className="px-5 py-3 text-sm text-right font-medium text-slate-900">{formatCurrency(deal.vehiclePriceGross)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-slate-50">
+                        <tr>
+                          <td colSpan={4} className="px-5 py-3 text-sm font-semibold text-slate-700">Total</td>
+                          <td className="px-5 py-3 text-sm text-right font-semibold text-slate-700">{formatCurrency(vatData.totalMarginGross)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {vatData.vatQualifyingDeals.length === 0 && vatData.marginDeals.length === 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
+                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-1">No invoiced sales</h3>
+                  <p className="text-slate-500">
+                    No invoiced deals found for the selected period
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

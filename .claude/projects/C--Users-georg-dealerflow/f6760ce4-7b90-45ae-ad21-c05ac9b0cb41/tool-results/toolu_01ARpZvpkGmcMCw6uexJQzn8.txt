@@ -1,0 +1,14 @@
+The file C:\Users\georg\dealerflow\pages\api\admin\overtime\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+     6→ * Admin Overtime API
+     7→ * GET - List all overtime submissions for the dealership
+     8→ * Only OWNER and ADMIN roles can access
+     9→ */
+    10→async function handler(req, res, ctx) {
+    11→  // Require admin or owner role
+    12→  requireRole(ctx.membership, ["OWNER", "ADMIN"]);
+    13→
+    14→  if (req.method !== "GET") {
+    15→    res.setHeader("Allow", ["GET"]);
+    16→    return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    17→  }
+    18→

@@ -1,0 +1,1835 @@
+     1→import { useState, useEffect, useCallback } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import ContactPicker from "@/components/ContactPicker";
+     4→
+     5→// Format currency
+     6→const formatCurrency = (amount) => {
+     7→  if (amount === null || amount === undefined) return "—";
+     8→  return new Intl.NumberFormat("en-GB", {
+     9→    style: "currency",
+    10→    currency: "GBP",
+    11→  }).format(amount);
+    12→};
+    13→
+    14→// Format date helper
+    15→const formatDate = (date) => {
+    16→  if (!date) return "";
+    17→  return new Date(date).toLocaleDateString("en-GB", {
+    18→    day: "numeric",
+    19→    month: "short",
+    20→    year: "numeric",
+    21→  });
+    22→};
+    23→
+    24→// Format datetime helper
+    25→const formatDateTime = (date) => {
+    26→  if (!date) return "";
+    27→  return new Date(date).toLocaleString("en-GB", {
+    28→    day: "numeric",
+    29→    month: "short",
+    30→    year: "numeric",
+    31→    hour: "2-digit",
+    32→    minute: "2-digit",
+    33→  });
+    34→};
+    35→
+    36→// Status labels and colors
+    37→const STATUS_CONFIG = {
+    38→  DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
+    39→  DEPOSIT_TAKEN: { label: "Deposit Taken", color: "bg-amber-100 text-amber-700" },
+    40→  INVOICED: { label: "Invoiced", color: "bg-blue-100 text-blue-700" },
+    41→  DELIVERED: { label: "Delivered", color: "bg-purple-100 text-purple-700" },
+    42→  COMPLETED: { label: "Completed", color: "bg-emerald-100 text-emerald-700" },
+    43→  CANCELLED: { label: "Cancelled", color: "bg-red-100 text-red-700" },
+    44→};
+    45→
+    46→const VAT_SCHEME_LABELS = {
+    47→  MARGIN: "Margin Scheme",
+    48→  VAT_QUALIFYING: "VAT Qualifying",
+    49→  NO_VAT: "No VAT",
+    50→  ZERO: "Zero-rated",
+    51→  EXEMPT: "VAT Exempt",
+    52→};
+    53→
+    54→const SALE_TYPE_OPTIONS = [
+    55→  { value: "RETAIL", label: "Retail (B2C)", description: "Consumer sale with full rights" },
+    56→  { value: "TRADE", label: "Trade (B2B)", description: "Business buyer, trade terms" },
+    57→  { value: "EXPORT", label: "Export", description: "Export sale, special VAT rules" },
+    58→];
+    59→
+    60→const PAYMENT_TYPE_OPTIONS = [
+    61→  { value: "CASH", label: "Cash" },
+    62→  { value: "CARD", label: "Card" },
+    63→  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+    64→  { value: "FINANCE", label: "Finance" },
+    65→  { value: "MIXED", label: "Mixed" },
+    66→];
+    67→
+    68→const FINANCE_TYPE_OPTIONS = [
+    69→  { value: "HP", label: "Hire Purchase (HP)" },
+    70→  { value: "PCP", label: "Personal Contract Purchase (PCP)" },
+    71→  { value: "LEASE", label: "Lease" },
+    72→  { value: "PERSONAL_LOAN", label: "Personal Loan" },
+    73→  { value: "OTHER", label: "Other" },
+    74→];
+    75→
+    76→const FINANCE_STATUS_OPTIONS = [
+    77→  { value: "QUOTED", label: "Quoted" },
+    78→  { value: "SUBMITTED", label: "Submitted" },
+    79→  { value: "APPROVED", label: "Approved" },
+    80→  { value: "DECLINED", label: "Declined" },
+    81→  { value: "PAID_OUT", label: "Paid Out" },
+    82→];
+    83→
+    84→/**
+    85→ * DealDrawer - Display and manage deal details
+    86→ *
+    87→ * Props:
+    88→ * - dealId: The ID of the deal to display
+    89→ * - isOpen: Whether the drawer is open
+    90→ * - onClose: Function to call when closing the drawer
+    91→ * - onUpdate: Function to call when deal is updated
+    92→ */
+    93→export default function DealDrawer({
+    94→  dealId,
+    95→  isOpen,
+    96→  onClose,
+    97→  onUpdate,
+    98→}) {
+    99→  const [deal, setDeal] = useState(null);
+   100→  const [isLoading, setIsLoading] = useState(false);
+   101→  const [fetchError, setFetchError] = useState(null);
+   102→  const [activeTab, setActiveTab] = useState("overview");
+   103→  const [actionLoading, setActionLoading] = useState(null);
+   104→
+   105→  // Deposit modal state
+   106→  const [showDepositModal, setShowDepositModal] = useState(false);
+   107→  const [depositAmount, setDepositAmount] = useState("");
+   108→  const [depositMethod, setDepositMethod] = useState("CARD");
+   109→  const [depositReference, setDepositReference] = useState("");
+   110→
+   111→  // Customer editing state
+   112→  const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+   113→
+   114→  // Deal details editing state
+   115→  const [isEditingPrice, setIsEditingPrice] = useState(false);
+   116→  const [priceInput, setPriceInput] = useState("");
+   117→  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+   118→
+   119→  // Add-on state
+   120→  const [showAddOnPicker, setShowAddOnPicker] = useState(false);
+   121→  const [availableAddOns, setAvailableAddOns] = useState([]);
+   122→  const [addOnsLoading, setAddOnsLoading] = useState(false);
+   123→  const [addOnQty, setAddOnQty] = useState(1);
+   124→  const [addOnPrice, setAddOnPrice] = useState("");
+   125→
+   126→  // Fetch available add-on products
+   127→  const fetchAddOnProducts = async () => {
+   128→    setAddOnsLoading(true);
+   129→    try {
+   130→      const res = await fetch("/api/addons");
+   131→      if (res.ok) {
+   132→        const data = await res.json();
+   133→        setAvailableAddOns(data);
+   134→      }
+   135→    } catch (error) {
+   136→      console.error("Failed to fetch add-ons:", error);
+   137→    } finally {
+   138→      setAddOnsLoading(false);
+   139→    }
+   140→  };
+   141→
+   142→  // Add an add-on to the deal
+   143→  const handleAddAddOn = async (addOnProduct) => {
+   144→    if (!deal) return;
+   145→
+   146→    const price = addOnPrice ? parseFloat(addOnPrice) : addOnProduct.defaultPriceNet;
+   147→
+   148→    const newAddOn = {
+   149→      addOnProductId: addOnProduct.id,
+   150→      name: addOnProduct.name,
+   151→      category: addOnProduct.category,
+   152→      qty: addOnQty,
+   153→      unitPriceNet: price,
+   154→      vatTreatment: addOnProduct.vatTreatment || "STANDARD",
+   155→      vatRate: addOnProduct.vatRate || 0.2,
+   156→    };
+   157→
+   158→    setActionLoading("addon");
+   159→    try {
+   160→      const updatedAddOns = [...(deal.addOns || []), newAddOn];
+   161→      const res = await fetch(`/api/deals/${dealId}`, {
+   162→        method: "PUT",
+   163→        headers: { "Content-Type": "application/json" },
+   164→        body: JSON.stringify({ addOns: updatedAddOns }),
+   165→      });
+   166→
+   167→      if (!res.ok) {
+   168→        const err = await res.json();
+   169→        throw new Error(err.error || "Failed to add add-on");
+   170→      }
+   171→
+   172→      toast.success("Add-on added");
+   173→      setShowAddOnPicker(false);
+   174→      setAddOnQty(1);
+   175→      setAddOnPrice("");
+   176→      fetchDeal();
+   177→      onUpdate?.();
+   178→    } catch (error) {
+   179→      toast.error(error.message);
+   180→    } finally {
+   181→      setActionLoading(null);
+   182→    }
+   183→  };
+   184→
+   185→  // Remove an add-on from the deal
+   186→  const handleRemoveAddOn = async (index) => {
+   187→    if (!deal) return;
+   188→
+   189→    setActionLoading("addon");
+   190→    try {
+   191→      const updatedAddOns = deal.addOns.filter((_, i) => i !== index);
+   192→      const res = await fetch(`/api/deals/${dealId}`, {
+   193→        method: "PUT",
+   194→        headers: { "Content-Type": "application/json" },
+   195→        body: JSON.stringify({ addOns: updatedAddOns }),
+   196→      });
+   197→
+   198→      if (!res.ok) {
+   199→        const err = await res.json();
+   200→        throw new Error(err.error || "Failed to remove add-on");
+   201→      }
+   202→
+   203→      toast.success("Add-on removed");
+   204→      fetchDeal();
+   205→      onUpdate?.();
+   206→    } catch (error) {
+   207→      toast.error(error.message);
+   208→    } finally {
+   209→      setActionLoading(null);
+   210→    }
+   211→  };
+   212→
+   213→  // Lock body scroll when drawer is open
+   214→  useEffect(() => {
+   215→    if (isOpen) {
+   216→      const scrollY = window.scrollY;
+   217→      const html = document.documentElement;
+   218→
+   219→      document.body.style.position = "fixed";
+   220→      document.body.style.top = `-${scrollY}px`;
+   221→      document.body.style.left = "0";
+   222→      document.body.style.right = "0";
+   223→      document.body.style.width = "100%";
+   224→      document.body.style.overflow = "hidden";
+   225→      document.body.style.touchAction = "none";
+   226→
+   227→      html.style.overflow = "hidden";
+   228→
+   229→      return () => {
+   230→        document.body.style.position = "";
+   231→        document.body.style.top = "";
+   232→        document.body.style.left = "";
+   233→        document.body.style.right = "";
+   234→        document.body.style.width = "";
+   235→        document.body.style.overflow = "";
+   236→        document.body.style.touchAction = "";
+   237→
+   238→        html.style.overflow = "";
+   239→
+   240→        window.scrollTo(0, scrollY);
+   241→      };
+   242→    }
+   243→  }, [isOpen]);
+   244→
+   245→  useEffect(() => {
+   246→    if (isOpen && dealId) {
+   247→      fetchDeal();
+   248→    } else if (!dealId) {
+   249→      // Reset state when dealId is cleared
+   250→      setDeal(null);
+   251→      setFetchError(null);
+   252→    }
+   253→  }, [isOpen, dealId]);
+   254→
+   255→  const fetchDeal = async () => {
+   256→    setIsLoading(true);
+   257→    setFetchError(null);
+   258→    try {
+   259→      const res = await fetch(`/api/deals/${dealId}`);
+   260→      if (!res.ok) {
+   261→        const errData = await res.json().catch(() => ({}));
+   262→        throw new Error(errData.error || `Failed to load deal (${res.status})`);
+   263→      }
+   264→      const data = await res.json();
+   265→      setDeal(data);
+   266→    } catch (error) {
+   267→      console.error("[DealDrawer] Fetch error:", error);
+   268→      setFetchError(error.message || "Failed to load deal details");
+   269→      // Don't show toast here - we'll show error in UI instead
+   270→    } finally {
+   271→      setIsLoading(false);
+   272→    }
+   273→  };
+   274→
+   275→  // Calculate totals
+   276→  const calculateTotals = () => {
+   277→    if (!deal) return {};
+   278→
+   279→    const addOnsNetTotal = (deal.addOns || []).reduce(
+   280→      (sum, a) => sum + (a.unitPriceNet * (a.qty || 1)),
+   281→      0
+   282→    );
+   283→    const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+   284→      if (a.vatTreatment === "STANDARD") {
+   285→        return sum + a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2);
+   286→      }
+   287→      return sum;
+   288→    }, 0);
+   289→
+   290→    let subtotal, totalVat, grandTotal;
+   291→
+   292→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   293→      subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
+   294→      totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
+   295→      grandTotal = subtotal + totalVat;
+   296→    } else {
+   297→      subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
+   298→      totalVat = 0;
+   299→      grandTotal = subtotal;
+   300→    }
+   301→
+   302→    const totalPaid = (deal.payments || [])
+   303→      .filter((p) => !p.isRefunded)
+   304→      .reduce((sum, p) => sum + p.amount, 0);
+   305→
+   306→    const pxNetValue = deal.partExchange
+   307→      ? (deal.partExchange.allowance || 0) - (deal.partExchange.settlement || 0)
+   308→      : 0;
+   309→
+   310→    const balanceDue = grandTotal - totalPaid - pxNetValue;
+   311→
+   312→    return {
+   313→      addOnsNetTotal,
+   314→      addOnsVatTotal,
+   315→      subtotal,
+   316→      totalVat,
+   317→      grandTotal,
+   318→      totalPaid,
+   319→      pxNetValue,
+   320→      balanceDue,
+   321→    };
+   322→  };
+   323→
+   324→  // Deal actions
+   325→  const handleTakeDeposit = async () => {
+   326→    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+   327→      toast.error("Please enter a valid deposit amount");
+   328→      return;
+   329→    }
+   330→
+   331→    setActionLoading("deposit");
+   332→    try {
+   333→      const res = await fetch(`/api/deals/${dealId}/take-deposit`, {
+   334→        method: "POST",
+   335→        headers: { "Content-Type": "application/json" },
+   336→        body: JSON.stringify({
+   337→          amount: parseFloat(depositAmount),
+   338→          method: depositMethod,
+   339→          reference: depositReference,
+   340→        }),
+   341→      });
+   342→
+   343→      if (!res.ok) {
+   344→        const err = await res.json();
+   345→        throw new Error(err.error || "Failed to record deposit");
+   346→      }
+   347→
+   348→      const result = await res.json();
+   349→      toast.success(`Deposit recorded: ${result.documentNumber}`);
+   350→      setShowDepositModal(false);
+   351→      setDepositAmount("");
+   352→      setDepositReference("");
+   353→      fetchDeal();
+   354→      onUpdate?.();
+   355→    } catch (error) {
+   356→      toast.error(error.message);
+   357→    } finally {
+   358→      setActionLoading(null);
+   359→    }
+   360→  };
+   361→
+   362→  const handleGenerateInvoice = async () => {
+   363→    setActionLoading("invoice");
+   364→    try {
+   365→      const res = await fetch(`/api/deals/${dealId}/generate-invoice`, {
+   366→        method: "POST",
+   367→        headers: { "Content-Type": "application/json" },
+   368→      });
+   369→
+   370→      if (!res.ok) {
+   371→        const err = await res.json();
+   372→        throw new Error(err.error || "Failed to generate invoice");
+   373→      }
+   374→
+   375→      const result = await res.json();
+   376→      toast.success(`Invoice generated: ${result.documentNumber}`);
+   377→      fetchDeal();
+   378→      onUpdate?.();
+   379→    } catch (error) {
+   380→      toast.error(error.message);
+   381→    } finally {
+   382→      setActionLoading(null);
+   383→    }
+   384→  };
+   385→
+   386→  const handleMarkDelivered = async () => {
+   387→    setActionLoading("delivered");
+   388→    try {
+   389→      const res = await fetch(`/api/deals/${dealId}/mark-delivered`, {
+   390→        method: "POST",
+   391→        headers: { "Content-Type": "application/json" },
+   392→      });
+   393→
+   394→      if (!res.ok) {
+   395→        const err = await res.json();
+   396→        throw new Error(err.error || "Failed to mark as delivered");
+   397→      }
+   398→
+   399→      toast.success("Deal marked as delivered");
+   400→      fetchDeal();
+   401→      onUpdate?.();
+   402→    } catch (error) {
+   403→      toast.error(error.message);
+   404→    } finally {
+   405→      setActionLoading(null);
+   406→    }
+   407→  };
+   408→
+   409→  const handleMarkCompleted = async () => {
+   410→    setActionLoading("completed");
+   411→    try {
+   412→      const res = await fetch(`/api/deals/${dealId}/mark-completed`, {
+   413→        method: "POST",
+   414→        headers: { "Content-Type": "application/json" },
+   415→      });
+   416→
+   417→      if (!res.ok) {
+   418→        const err = await res.json();
+   419→        throw new Error(err.error || "Failed to complete deal");
+   420→      }
+   421→
+   422→      toast.success("Deal completed");
+   423→      fetchDeal();
+   424→      onUpdate?.();
+   425→    } catch (error) {
+   426→      toast.error(error.message);
+   427→    } finally {
+   428→      setActionLoading(null);
+   429→    }
+   430→  };
+   431→
+   432→  const handleCancelDeal = async () => {
+   433→    if (!confirm("Are you sure you want to cancel this deal?")) return;
+   434→
+   435→    setActionLoading("cancel");
+   436→    try {
+   437→      const res = await fetch(`/api/deals/${dealId}`, {
+   438→        method: "DELETE",
+   439→        headers: { "Content-Type": "application/json" },
+   440→        body: JSON.stringify({ cancelReason: "Cancelled by user" }),
+   441→      });
+   442→
+   443→      if (!res.ok) {
+   444→        const err = await res.json();
+   445→        throw new Error(err.error || "Failed to cancel deal");
+   446→      }
+   447→
+   448→      toast.success("Deal cancelled");
+   449→      fetchDeal();
+   450→      onUpdate?.();
+   451→    } catch (error) {
+   452→      toast.error(error.message);
+   453→    } finally {
+   454→      setActionLoading(null);
+   455→    }
+   456→  };
+   457→
+   458→  const handleUpdateCustomer = async (contactId) => {
+   459→    if (!contactId) return;
+   460→
+   461→    setActionLoading("customer");
+   462→    try {
+   463→      const res = await fetch(`/api/deals/${dealId}`, {
+   464→        method: "PUT",
+   465→        headers: { "Content-Type": "application/json" },
+   466→        body: JSON.stringify({ soldToContactId: contactId }),
+   467→      });
+   468→
+   469→      if (!res.ok) {
+   470→        const err = await res.json();
+   471→        throw new Error(err.error || "Failed to update customer");
+   472→      }
+   473→
+   474→      toast.success("Customer updated");
+   475→      setIsEditingCustomer(false);
+   476→      fetchDeal();
+   477→      onUpdate?.();
+   478→    } catch (error) {
+   479→      toast.error(error.message);
+   480→    } finally {
+   481→      setActionLoading(null);
+   482→    }
+   483→  };
+   484→
+   485→  // Generic field update handler
+   486→  const handleUpdateField = async (updates, successMessage) => {
+   487→    setActionLoading("field");
+   488→    try {
+   489→      const res = await fetch(`/api/deals/${dealId}`, {
+   490→        method: "PUT",
+   491→        headers: { "Content-Type": "application/json" },
+   492→        body: JSON.stringify(updates),
+   493→      });
+   494→
+   495→      if (!res.ok) {
+   496→        const err = await res.json();
+   497→        throw new Error(err.error || "Failed to update");
+   498→      }
+   499→
+   500→      if (successMessage) toast.success(successMessage);
+   501→      fetchDeal();
+   502→      onUpdate?.();
+   503→    } catch (error) {
+   504→      toast.error(error.message);
+   505→    } finally {
+   506→      setActionLoading(null);
+   507→    }
+   508→  };
+   509→
+   510→  // Update vehicle price
+   511→  const handleUpdatePrice = async () => {
+   512→    const price = parseFloat(priceInput);
+   513→    if (isNaN(price) || price <= 0) {
+   514→      toast.error("Please enter a valid price");
+   515→      return;
+   516→    }
+   517→
+   518→    const updates = { vehiclePriceGross: price };
+   519→
+   520→    // For VAT qualifying, calculate net and VAT
+   521→    if (deal.vatScheme === "VAT_QUALIFYING") {
+   522→      const vatRate = deal.vatRate || 0.2;
+   523→      const net = price / (1 + vatRate);
+   524→      updates.vehiclePriceNet = Math.round(net * 100) / 100;
+   525→      updates.vehicleVatAmount = Math.round((price - net) * 100) / 100;
+   526→    }
+   527→
+   528→    await handleUpdateField(updates, "Price updated");
+   529→    setIsEditingPrice(false);
+   530→  };
+   531→
+   532→  // Delete draft deal
+   533→  const handleDeleteDraft = async () => {
+   534→    if (deal.status !== "DRAFT") {
+   535→      toast.error("Only draft deals can be deleted");
+   536→      return;
+   537→    }
+   538→
+   539→    setActionLoading("delete");
+   540→    try {
+   541→      const res = await fetch(`/api/deals/${dealId}`, {
+   542→        method: "DELETE",
+   543→        headers: { "Content-Type": "application/json" },
+   544→        body: JSON.stringify({ hardDelete: true }),
+   545→      });
+   546→
+   547→      if (!res.ok) {
+   548→        const err = await res.json();
+   549→        throw new Error(err.error || "Failed to delete deal");
+   550→      }
+   551→
+   552→      toast.success("Draft deleted");
+   553→      setShowDeleteConfirm(false);
+   554→      onClose?.();
+   555→      onUpdate?.();
+   556→    } catch (error) {
+   557→      toast.error(error.message);
+   558→    } finally {
+   559→      setActionLoading(null);
+   560→    }
+   561→  };
+   562→
+   563→  // Check deal readiness
+   564→  const getReadinessChecks = () => {
+   565→    if (!deal) return [];
+   566→
+   567→    const checks = [
+   568→      {
+   569→        id: "vehicle",
+   570→        label: "Vehicle selected",
+   571→        passed: !!deal.vehicleId || !!deal.vehicle,
+   572→        tab: null, // Vehicle is auto-selected on deal creation
+   573→      },
+   574→      {
+   575→        id: "customer",
+   576→        label: "Customer selected",
+   577→        passed: !!deal.soldToContactId || !!deal.customer,
+   578→        tab: "customer",
+   579→      },
+   580→      {
+   581→        id: "saleType",
+   582→        label: "Sale type set",
+   583→        passed: !!deal.saleType,
+   584→        tab: "overview",
+   585→      },
+   586→      {
+   587→        id: "paymentType",
+   588→        label: "Payment type set",
+   589→        passed: !!deal.paymentType,
+   590→        tab: "overview",
+   591→      },
+   592→      {
+   593→        id: "price",
+   594→        label: "Vehicle price set",
+   595→        passed: deal.vehiclePriceGross > 0,
+   596→        tab: "overview",
+   597→      },
+   598→      {
+   599→        id: "vatScheme",
+   600→        label: "VAT treatment set",
+   601→        passed: !!deal.vatScheme,
+   602→        tab: "overview",
+   603→      },
+   604→    ];
+   605→
+   606→    return checks;
+   607→  };
+   608→
+   609→  // Check if deposit can be taken
+   610→  const canTakeDeposit = () => {
+   611→    if (!deal) return { allowed: false, reasons: [] };
+   612→
+   613→    const reasons = [];
+   614→    if (!deal.soldToContactId && !deal.customer) reasons.push("Customer not selected");
+   615→    if (!deal.vehiclePriceGross || deal.vehiclePriceGross <= 0) reasons.push("Vehicle price not set");
+   616→
+   617→    return { allowed: reasons.length === 0, reasons };
+   618→  };
+   619→
+   620→  if (!isOpen) return null;
+   621→
+   622→  const totals = calculateTotals();
+   623→  const statusConfig = STATUS_CONFIG[deal?.status] || STATUS_CONFIG.DRAFT;
+   624→
+   625→  return (
+   626→    <div
+   627→      className="fixed inset-0 flex justify-end z-50 drawer-locked"
+   628→      style={{ touchAction: "none", overscrollBehavior: "none" }}
+   629→    >
+   630→      {/* Backdrop */}
+   631→      <div
+   632→        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+   633→        onClick={onClose}
+   634→      />
+   635→
+   636→      {/* Drawer */}
+   637→      <div
+   638→        className="relative bg-[#f8fafc] flex flex-col w-full max-w-3xl min-w-0 translate-x-0 overflow-x-hidden shadow-2xl"
+   639→        style={{
+   640→          height: "100dvh",
+   641→          maxHeight: "100dvh",
+   642→          touchAction: "pan-y",
+   643→        }}
+   644→      >
+   645→        {isLoading ? (
+   646→          <div className="flex items-center justify-center h-full">
+   647→            <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
+   648→          </div>
+   649→        ) : fetchError ? (
+   650→          <div className="flex flex-col items-center justify-center h-full p-6">
+   651→            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+   652→              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   653→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+   654→              </svg>
+   655→            </div>
+   656→            <p className="text-lg font-semibold text-slate-900 mb-1">Failed to load deal</p>
+   657→            <p className="text-sm text-slate-500 text-center mb-4">{fetchError}</p>
+   658→            <div className="flex gap-2">
+   659→              <button className="btn btn-ghost" onClick={onClose}>
+   660→                Close
+   661→              </button>
+   662→              <button className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none" onClick={fetchDeal}>
+   663→                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   664→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+   665→                </svg>
+   666→                Retry
+   667→              </button>
+   668→            </div>
+   669→          </div>
+   670→        ) : !deal ? (
+   671→          <div className="flex flex-col items-center justify-center h-full p-6">
+   672→            <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+   673→              <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   674→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+   675→              </svg>
+   676→            </div>
+   677→            <p className="text-lg font-semibold text-slate-900 mb-1">Deal not found</p>
+   678→            <p className="text-sm text-slate-500 text-center mb-4">This deal may have been deleted or you may not have access</p>
+   679→            <button className="btn btn-ghost" onClick={onClose}>
+   680→              Close
+   681→            </button>
+   682→          </div>
+   683→        ) : (
+   684→          <>
+   685→            {/* Header */}
+   686→            <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+   687→              <div className="flex items-center justify-between">
+   688→                <div className="flex items-center gap-3">
+   689→                  <button
+   690→                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+   691→                    onClick={onClose}
+   692→                  >
+   693→                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   694→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   695→                    </svg>
+   696→                  </button>
+   697→                  <div>
+   698→                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+   699→                      Deal #{deal.dealNumber || "—"}
+   700→                    </h2>
+   701→                    <div className="flex items-center gap-2 mt-1">
+   702→                      <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${statusConfig.color}`}>
+   703→                        {statusConfig.label}
+   704→                      </span>
+   705→                      {deal.vehicle && (
+   706→                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+   707→                          {deal.vehicle.regCurrent}
+   708→                        </span>
+   709→                      )}
+   710→                    </div>
+   711→                  </div>
+   712→                </div>
+   713→                <button
+   714→                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+   715→                  onClick={onClose}
+   716→                >
+   717→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   718→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   719→                  </svg>
+   720→                </button>
+   721→              </div>
+   722→            </div>
+   723→
+   724→            {/* Tabs */}
+   725→            <div className="sticky top-[73px] md:top-[89px] bg-white border-b border-slate-100 px-4 py-3 z-10 shrink-0">
+   726→              {/* Mobile: Dropdown selector */}
+   727→              <div className="md:hidden">
+   728→                <select
+   729→                  value={activeTab}
+   730→                  onChange={(e) => setActiveTab(e.target.value)}
+   731→                  className="select select-bordered w-full font-medium"
+   732→                >
+   733→                  <option value="overview">Summary</option>
+   734→                  <option value="customer">Customer</option>
+   735→                  <option value="addons">Add-ons ({deal.addOns?.length || 0})</option>
+   736→                  <option value="payments">Payments ({deal.payments?.length || 0})</option>
+   737→                </select>
+   738→              </div>
+   739→
+   740→              {/* Desktop: Pill tabs */}
+   741→              <div className="hidden md:flex items-center gap-2 overflow-x-auto pb-1 -mb-1">
+   742→                {[
+   743→                  { id: "overview", label: "Summary" },
+   744→                  { id: "customer", label: "Customer" },
+   745→                  { id: "addons", label: "Add-ons", count: deal.addOns?.length },
+   746→                  { id: "payments", label: "Payments", count: deal.payments?.length },
+   747→                ].map((tab) => (
+   748→                  <button
+   749→                    key={tab.id}
+   750→                    onClick={() => setActiveTab(tab.id)}
+   751→                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+   752→                      activeTab === tab.id
+   753→                        ? "bg-[#0066CC] text-white shadow-md shadow-[#0066CC]/25"
+   754→                        : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+   755→                    }`}
+   756→                  >
+   757→                    <span>{tab.label}</span>
+   758→                    {tab.count > 0 && (
+   759→                      <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-bold ${
+   760→                        activeTab === tab.id
+   761→                          ? "bg-white/20 text-white"
+   762→                          : "bg-slate-200 text-slate-600"
+   763→                      }`}>
+   764→                        {tab.count}
+   765→                      </span>
+   766→                    )}
+   767→                  </button>
+   768→                ))}
+   769→              </div>
+   770→            </div>
+   771→
+   772→            {/* Content */}
+   773→            <div
+   774→              className="p-4 md:p-6 space-y-4 md:space-y-6 flex-1 overflow-y-auto overflow-x-hidden min-w-0 overscroll-contain"
+   775→              style={{ paddingBottom: "calc(96px + env(safe-area-inset-bottom, 0px))" }}
+   776→            >
+   777→              {/* Overview Tab */}
+   778→              {activeTab === "overview" && (
+   779→                <div className="space-y-4">
+   780→                  {/* Deal Readiness - Show for Draft deals */}
+   781→                  {deal.status === "DRAFT" && (() => {
+   782→                    const checks = getReadinessChecks();
+   783→                    const passedCount = checks.filter(c => c.passed).length;
+   784→                    const allPassed = passedCount === checks.length;
+   785→                    return (
+   786→                      <div className={`rounded-2xl border shadow-sm overflow-hidden ${
+   787→                        allPassed ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"
+   788→                      }`}>
+   789→                        <div className="px-4 py-3 border-b border-inherit">
+   790→                          <div className="flex items-center justify-between">
+   791→                            <h3 className="text-sm font-bold text-slate-800">Deal Readiness</h3>
+   792→                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+   793→                              allPassed ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+   794→                            }`}>
+   795→                              {passedCount}/{checks.length} complete
+   796→                            </span>
+   797→                          </div>
+   798→                        </div>
+   799→                        <div className="p-4 grid grid-cols-2 gap-2">
+   800→                          {checks.map((check) => (
+   801→                            <div
+   802→                              key={check.id}
+   803→                              className={`flex items-center gap-2 text-sm ${
+   804→                                check.passed ? "text-emerald-700" : "text-amber-700"
+   805→                              }`}
+   806→                            >
+   807→                              {check.passed ? (
+   808→                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   809→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+   810→                                </svg>
+   811→                              ) : (
+   812→                                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   813→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+   814→                                </svg>
+   815→                              )}
+   816→                              <span className={check.passed ? "" : "font-medium"}>
+   817→                                {check.tab && !check.passed ? (
+   818→                                  <button
+   819→                                    onClick={() => setActiveTab(check.tab)}
+   820→                                    className="underline hover:no-underline"
+   821→                                  >
+   822→                                    {check.label}
+   823→                                  </button>
+   824→                                ) : (
+   825→                                  check.label
+   826→                                )}
+   827→                              </span>
+   828→                            </div>
+   829→                          ))}
+   830→                        </div>
+   831→                      </div>
+   832→                    );
+   833→                  })()}
+   834→
+   835→                  {/* Action Buttons */}
+   836→                  {deal.status !== "COMPLETED" && deal.status !== "CANCELLED" && (
+   837→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   838→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   839→                        <h3 className="text-sm font-bold text-slate-800">Actions</h3>
+   840→                      </div>
+   841→                      <div className="p-4 flex flex-wrap gap-2">
+   842→                        {deal.status === "DRAFT" && (() => {
+   843→                          const { allowed, reasons } = canTakeDeposit();
+   844→                          return (
+   845→                            <div className="relative group">
+   846→                              <button
+   847→                                onClick={() => allowed && setShowDepositModal(true)}
+   848→                                disabled={actionLoading || !allowed}
+   849→                                className={`btn btn-sm border-none ${
+   850→                                  allowed
+   851→                                    ? "bg-amber-500 hover:bg-amber-600 text-white"
+   852→                                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+   853→                                }`}
+   854→                              >
+   855→                                {actionLoading === "deposit" ? (
+   856→                                  <span className="loading loading-spinner loading-xs"></span>
+   857→                                ) : (
+   858→                                  "Take Deposit"
+   859→                                )}
+   860→                              </button>
+   861→                              {!allowed && reasons.length > 0 && (
+   862→                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-20">
+   863→                                  <div className="bg-slate-900 text-white text-xs rounded-lg py-2 px-3 whitespace-nowrap">
+   864→                                    {reasons.map((r, i) => (
+   865→                                      <div key={i}>• {r}</div>
+   866→                                    ))}
+   867→                                  </div>
+   868→                                </div>
+   869→                              )}
+   870→                            </div>
+   871→                          );
+   872→                        })()}
+   873→                        {(deal.status === "DEPOSIT_TAKEN" || deal.status === "DRAFT") && deal.soldToContactId && deal.vehiclePriceGross > 0 && (
+   874→                          <button
+   875→                            onClick={handleGenerateInvoice}
+   876→                            disabled={actionLoading}
+   877→                            className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white border-none"
+   878→                          >
+   879→                            {actionLoading === "invoice" ? (
+   880→                              <span className="loading loading-spinner loading-xs"></span>
+   881→                            ) : (
+   882→                              "Generate Invoice"
+   883→                            )}
+   884→                          </button>
+   885→                        )}
+   886→                        {deal.status === "INVOICED" && (
+   887→                          <button
+   888→                            onClick={handleMarkDelivered}
+   889→                            disabled={actionLoading}
+   890→                            className="btn btn-sm bg-purple-500 hover:bg-purple-600 text-white border-none"
+   891→                          >
+   892→                            {actionLoading === "delivered" ? (
+   893→                              <span className="loading loading-spinner loading-xs"></span>
+   894→                            ) : (
+   895→                              "Mark Delivered"
+   896→                            )}
+   897→                          </button>
+   898→                        )}
+   899→                        {deal.status === "DELIVERED" && (
+   900→                          <button
+   901→                            onClick={handleMarkCompleted}
+   902→                            disabled={actionLoading}
+   903→                            className="btn btn-sm bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+   904→                          >
+   905→                            {actionLoading === "completed" ? (
+   906→                              <span className="loading loading-spinner loading-xs"></span>
+   907→                            ) : (
+   908→                              "Complete Deal"
+   909→                            )}
+   910→                          </button>
+   911→                        )}
+   912→                        <div className="flex-1" />
+   913→                        {deal.status === "DRAFT" && (
+   914→                          <button
+   915→                            onClick={() => setShowDeleteConfirm(true)}
+   916→                            disabled={actionLoading}
+   917→                            className="btn btn-sm btn-ghost text-red-500 hover:bg-red-50"
+   918→                          >
+   919→                            Delete Draft
+   920→                          </button>
+   921→                        )}
+   922→                        {deal.status !== "DRAFT" && (
+   923→                          <button
+   924→                            onClick={handleCancelDeal}
+   925→                            disabled={actionLoading}
+   926→                            className="btn btn-sm btn-ghost text-red-500 hover:bg-red-50"
+   927→                          >
+   928→                            Cancel Deal
+   929→                          </button>
+   930→                        )}
+   931→                      </div>
+   932→                    </div>
+   933→                  )}
+   934→
+   935→                  {/* Deal Details Section */}
+   936→                  {deal.status === "DRAFT" && (
+   937→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+   938→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+   939→                        <h3 className="text-sm font-bold text-slate-800">Deal Details</h3>
+   940→                      </div>
+   941→                      <div className="p-4 space-y-4">
+   942→                        {/* Sale Type */}
+   943→                        <div>
+   944→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Sale Type</label>
+   945→                          <div className="flex flex-wrap gap-2">
+   946→                            {SALE_TYPE_OPTIONS.map((opt) => (
+   947→                              <button
+   948→                                key={opt.value}
+   949→                                onClick={() => handleUpdateField({ saleType: opt.value })}
+   950→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   951→                                  deal.saleType === opt.value
+   952→                                    ? "bg-[#0066CC] text-white"
+   953→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   954→                                }`}
+   955→                              >
+   956→                                {opt.label}
+   957→                              </button>
+   958→                            ))}
+   959→                          </div>
+   960→                        </div>
+   961→
+   962→                        {/* Payment Type */}
+   963→                        <div>
+   964→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Payment Type</label>
+   965→                          <div className="flex flex-wrap gap-2">
+   966→                            {PAYMENT_TYPE_OPTIONS.map((opt) => (
+   967→                              <button
+   968→                                key={opt.value}
+   969→                                onClick={() => handleUpdateField({ paymentType: opt.value })}
+   970→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+   971→                                  deal.paymentType === opt.value
+   972→                                    ? "bg-[#0066CC] text-white"
+   973→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+   974→                                }`}
+   975→                              >
+   976→                                {opt.label}
+   977→                              </button>
+   978→                            ))}
+   979→                          </div>
+   980→                        </div>
+   981→
+   982→                        {/* Finance Details - shown when paymentType is FINANCE or MIXED */}
+   983→                        {(deal.paymentType === "FINANCE" || deal.paymentType === "MIXED") && (
+   984→                          <div className="border-t border-slate-100 pt-4 space-y-3">
+   985→                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Finance Details</h4>
+   986→                            <div className="grid grid-cols-2 gap-3">
+   987→                              <div>
+   988→                                <label className="block text-xs text-slate-500 mb-1">Provider</label>
+   989→                                <input
+   990→                                  type="text"
+   991→                                  className="input input-sm input-bordered w-full"
+   992→                                  placeholder="Finance company"
+   993→                                  value={deal.finance?.provider || ""}
+   994→                                  onChange={(e) => handleUpdateField({
+   995→                                    finance: { ...deal.finance, provider: e.target.value }
+   996→                                  })}
+   997→                                />
+   998→                              </div>
+   999→                              <div>
+  1000→                                <label className="block text-xs text-slate-500 mb-1">Finance Type</label>
+  1001→                                <select
+  1002→                                  className="select select-sm select-bordered w-full"
+  1003→                                  value={deal.finance?.financeType || ""}
+  1004→                                  onChange={(e) => handleUpdateField({
+  1005→                                    finance: { ...deal.finance, financeType: e.target.value }
+  1006→                                  })}
+  1007→                                >
+  1008→                                  <option value="">Select...</option>
+  1009→                                  {FINANCE_TYPE_OPTIONS.map((opt) => (
+  1010→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1011→                                  ))}
+  1012→                                </select>
+  1013→                              </div>
+  1014→                              <div>
+  1015→                                <label className="block text-xs text-slate-500 mb-1">Amount Financed</label>
+  1016→                                <div className="relative">
+  1017→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1018→                                  <input
+  1019→                                    type="number"
+  1020→                                    className="input input-sm input-bordered w-full pl-7"
+  1021→                                    placeholder="0.00"
+  1022→                                    value={deal.finance?.amountFinanced || ""}
+  1023→                                    onChange={(e) => handleUpdateField({
+  1024→                                      finance: { ...deal.finance, amountFinanced: parseFloat(e.target.value) || null }
+  1025→                                    })}
+  1026→                                  />
+  1027→                                </div>
+  1028→                              </div>
+  1029→                              <div>
+  1030→                                <label className="block text-xs text-slate-500 mb-1">Customer Deposit</label>
+  1031→                                <div className="relative">
+  1032→                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1033→                                  <input
+  1034→                                    type="number"
+  1035→                                    className="input input-sm input-bordered w-full pl-7"
+  1036→                                    placeholder="0.00"
+  1037→                                    value={deal.finance?.customerDeposit || ""}
+  1038→                                    onChange={(e) => handleUpdateField({
+  1039→                                      finance: { ...deal.finance, customerDeposit: parseFloat(e.target.value) || null }
+  1040→                                    })}
+  1041→                                  />
+  1042→                                </div>
+  1043→                              </div>
+  1044→                              <div>
+  1045→                                <label className="block text-xs text-slate-500 mb-1">Status</label>
+  1046→                                <select
+  1047→                                  className="select select-sm select-bordered w-full"
+  1048→                                  value={deal.finance?.status || "QUOTED"}
+  1049→                                  onChange={(e) => handleUpdateField({
+  1050→                                    finance: { ...deal.finance, status: e.target.value }
+  1051→                                  })}
+  1052→                                >
+  1053→                                  {FINANCE_STATUS_OPTIONS.map((opt) => (
+  1054→                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+  1055→                                  ))}
+  1056→                                </select>
+  1057→                              </div>
+  1058→                              <div>
+  1059→                                <label className="block text-xs text-slate-500 mb-1">Reference</label>
+  1060→                                <input
+  1061→                                  type="text"
+  1062→                                  className="input input-sm input-bordered w-full"
+  1063→                                  placeholder="Agreement ref"
+  1064→                                  value={deal.finance?.reference || ""}
+  1065→                                  onChange={(e) => handleUpdateField({
+  1066→                                    finance: { ...deal.finance, reference: e.target.value }
+  1067→                                  })}
+  1068→                                />
+  1069→                              </div>
+  1070→                            </div>
+  1071→                          </div>
+  1072→                        )}
+  1073→
+  1074→                        {/* VAT Treatment */}
+  1075→                        <div>
+  1076→                          <label className="block text-xs font-medium text-slate-500 mb-1.5">VAT Treatment</label>
+  1077→                          <div className="flex flex-wrap gap-2">
+  1078→                            {[
+  1079→                              { value: "MARGIN", label: "Margin Scheme" },
+  1080→                              { value: "VAT_QUALIFYING", label: "Standard VAT" },
+  1081→                              { value: "NO_VAT", label: "Zero-rated / No VAT" },
+  1082→                            ].map((opt) => (
+  1083→                              <button
+  1084→                                key={opt.value}
+  1085→                                onClick={() => handleUpdateField({ vatScheme: opt.value })}
+  1086→                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+  1087→                                  deal.vatScheme === opt.value
+  1088→                                    ? "bg-[#0066CC] text-white"
+  1089→                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+  1090→                                }`}
+  1091→                              >
+  1092→                                {opt.label}
+  1093→                              </button>
+  1094→                            ))}
+  1095→                          </div>
+  1096→                        </div>
+  1097→                      </div>
+  1098→                    </div>
+  1099→                  )}
+  1100→
+  1101→                  {/* Vehicle Section */}
+  1102→                  {deal.vehicle && (
+  1103→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1104→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1105→                        <div className="flex items-center gap-2">
+  1106→                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
+  1107→                            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1108→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8m-8 5h8m-4-9a9 9 0 110 18 9 9 0 010-18z" />
+  1109→                            </svg>
+  1110→                          </div>
+  1111→                          <h3 className="text-sm font-bold text-slate-800">Vehicle</h3>
+  1112→                        </div>
+  1113→                      </div>
+  1114→                      <div className="p-4">
+  1115→                        <div className="flex items-start gap-4">
+  1116→                          {deal.vehicle.primaryImageUrl && (
+  1117→                            <img
+  1118→                              src={deal.vehicle.primaryImageUrl}
+  1119→                              alt={`${deal.vehicle.make} ${deal.vehicle.model}`}
+  1120→                              className="w-20 h-20 object-cover rounded-xl"
+  1121→                            />
+  1122→                          )}
+  1123→                          <div className="flex-1">
+  1124→                            <p className="font-semibold text-slate-900">
+  1125→                              {deal.vehicle.year} {deal.vehicle.make} {deal.vehicle.model}
+  1126→                            </p>
+  1127→                            <p className="text-sm text-slate-500 mt-1">
+  1128→                              {deal.vehicle.regCurrent}
+  1129→                            </p>
+  1130→                          </div>
+  1131→                        </div>
+  1132→                      </div>
+  1133→                    </div>
+  1134→                  )}
+  1135→
+  1136→                  {/* Pricing Summary */}
+  1137→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1138→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1139→                      <div className="flex items-center justify-between">
+  1140→                        <div className="flex items-center gap-2">
+  1141→                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1142→                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1143→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1144→                            </svg>
+  1145→                          </div>
+  1146→                          <h3 className="text-sm font-bold text-slate-800">Pricing</h3>
+  1147→                        </div>
+  1148→                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+  1149→                          deal.vatScheme === "VAT_QUALIFYING"
+  1150→                            ? "bg-blue-100 text-blue-700"
+  1151→                            : "bg-slate-100 text-slate-600"
+  1152→                        }`}>
+  1153→                          {VAT_SCHEME_LABELS[deal.vatScheme] || deal.vatScheme}
+  1154→                        </span>
+  1155→                      </div>
+  1156→                    </div>
+  1157→                    <div className="p-4 space-y-3">
+  1158→                      {/* Vehicle Price - Editable for Draft */}
+  1159→                      <div className="flex justify-between items-center">
+  1160→                        <span className="text-sm text-slate-600">Vehicle</span>
+  1161→                        {deal.status === "DRAFT" && isEditingPrice ? (
+  1162→                          <div className="flex items-center gap-2">
+  1163→                            <div className="relative w-28">
+  1164→                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1165→                              <input
+  1166→                                type="number"
+  1167→                                step="0.01"
+  1168→                                className="input input-sm input-bordered w-full pl-6 pr-2 text-right"
+  1169→                                value={priceInput}
+  1170→                                onChange={(e) => setPriceInput(e.target.value)}
+  1171→                                onKeyDown={(e) => {
+  1172→                                  if (e.key === "Enter") handleUpdatePrice();
+  1173→                                  if (e.key === "Escape") setIsEditingPrice(false);
+  1174→                                }}
+  1175→                                autoFocus
+  1176→                              />
+  1177→                            </div>
+  1178→                            <button
+  1179→                              onClick={handleUpdatePrice}
+  1180→                              disabled={actionLoading === "field"}
+  1181→                              className="btn btn-xs btn-ghost text-emerald-600"
+  1182→                            >
+  1183→                              ✓
+  1184→                            </button>
+  1185→                            <button
+  1186→                              onClick={() => setIsEditingPrice(false)}
+  1187→                              className="btn btn-xs btn-ghost text-slate-400"
+  1188→                            >
+  1189→                              ✕
+  1190→                            </button>
+  1191→                          </div>
+  1192→                        ) : (
+  1193→                          <div className="flex items-center gap-2">
+  1194→                            <span className="font-semibold text-slate-900">
+  1195→                              {deal.vehiclePriceGross > 0
+  1196→                                ? formatCurrency(deal.vehiclePriceGross)
+  1197→                                : "—"}
+  1198→                            </span>
+  1199→                            {deal.status === "DRAFT" && (
+  1200→                              <button
+  1201→                                onClick={() => {
+  1202→                                  setPriceInput(deal.vehiclePriceGross?.toString() || "");
+  1203→                                  setIsEditingPrice(true);
+  1204→                                }}
+  1205→                                className="btn btn-xs btn-ghost text-[#0066CC]"
+  1206→                              >
+  1207→                                Edit
+  1208→                              </button>
+  1209→                            )}
+  1210→                          </div>
+  1211→                        )}
+  1212→                      </div>
+  1213→
+  1214→                      {/* Show net + VAT breakdown for VAT Qualifying */}
+  1215→                      {deal.vatScheme === "VAT_QUALIFYING" && deal.vehiclePriceGross > 0 && (
+  1216→                        <div className="text-xs text-slate-500 text-right">
+  1217→                          Net: {formatCurrency(deal.vehiclePriceNet)} + VAT: {formatCurrency(deal.vehicleVatAmount)}
+  1218→                        </div>
+  1219→                      )}
+  1220→
+  1221→                      {/* Add-ons */}
+  1222→                      {totals.addOnsNetTotal > 0 && (
+  1223→                        <div className="flex justify-between items-center">
+  1224→                          <span className="text-sm text-slate-600">Add-ons</span>
+  1225→                          <span className="font-semibold text-slate-900">
+  1226→                            {formatCurrency(totals.addOnsNetTotal)}
+  1227→                          </span>
+  1228→                        </div>
+  1229→                      )}
+  1230→
+  1231→                      {/* VAT (only for VAT Qualifying) */}
+  1232→                      {deal.vatScheme === "VAT_QUALIFYING" && totals.totalVat > 0 && (
+  1233→                        <div className="flex justify-between items-center">
+  1234→                          <span className="text-sm text-slate-600">VAT @ 20%</span>
+  1235→                          <span className="font-semibold text-slate-900">
+  1236→                            {formatCurrency(totals.totalVat)}
+  1237→                          </span>
+  1238→                        </div>
+  1239→                      )}
+  1240→
+  1241→                      <div className="border-t border-slate-100 pt-3">
+  1242→                        <div className="flex justify-between items-center">
+  1243→                          <span className="text-sm font-semibold text-slate-700">Total</span>
+  1244→                          <span className="text-lg font-bold text-slate-900">
+  1245→                            {formatCurrency(totals.grandTotal)}
+  1246→                          </span>
+  1247→                        </div>
+  1248→                      </div>
+  1249→
+  1250→                      {/* Part Exchange */}
+  1251→                      {totals.pxNetValue > 0 && (
+  1252→                        <div className="flex justify-between items-center text-emerald-600">
+  1253→                          <span className="text-sm">Part Exchange</span>
+  1254→                          <span className="font-semibold">-{formatCurrency(totals.pxNetValue)}</span>
+  1255→                        </div>
+  1256→                      )}
+  1257→
+  1258→                      {/* Payments */}
+  1259→                      {totals.totalPaid > 0 && (
+  1260→                        <div className="flex justify-between items-center text-emerald-600">
+  1261→                          <span className="text-sm">Paid</span>
+  1262→                          <span className="font-semibold">-{formatCurrency(totals.totalPaid)}</span>
+  1263→                        </div>
+  1264→                      )}
+  1265→
+  1266→                      {/* Balance Due */}
+  1267→                      <div className="border-t border-slate-100 pt-3">
+  1268→                        <div className="flex justify-between items-center">
+  1269→                          <span className="text-sm font-semibold text-slate-700">Balance Due</span>
+  1270→                          <span className={`text-lg font-bold ${
+  1271→                            totals.balanceDue <= 0 ? "text-emerald-600" : "text-slate-900"
+  1272→                          }`}>
+  1273→                            {formatCurrency(Math.max(0, totals.balanceDue))}
+  1274→                          </span>
+  1275→                        </div>
+  1276→                      </div>
+  1277→                    </div>
+  1278→                  </div>
+  1279→
+  1280→                  {/* Timeline */}
+  1281→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1282→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1283→                      <div className="flex items-center gap-2">
+  1284→                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+  1285→                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1286→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1287→                          </svg>
+  1288→                        </div>
+  1289→                        <h3 className="text-sm font-bold text-slate-800">Timeline</h3>
+  1290→                      </div>
+  1291→                    </div>
+  1292→                    <div className="p-4 space-y-3 text-sm">
+  1293→                      <div className="flex justify-between">
+  1294→                        <span className="text-slate-500">Created</span>
+  1295→                        <span className="text-slate-900">{formatDateTime(deal.createdAt)}</span>
+  1296→                      </div>
+  1297→                      {deal.depositTakenAt && (
+  1298→                        <div className="flex justify-between">
+  1299→                          <span className="text-slate-500">Deposit Taken</span>
+  1300→                          <span className="text-slate-900">{formatDateTime(deal.depositTakenAt)}</span>
+  1301→                        </div>
+  1302→                      )}
+  1303→                      {deal.invoicedAt && (
+  1304→                        <div className="flex justify-between">
+  1305→                          <span className="text-slate-500">Invoiced</span>
+  1306→                          <span className="text-slate-900">{formatDateTime(deal.invoicedAt)}</span>
+  1307→                        </div>
+  1308→                      )}
+  1309→                      {deal.deliveredAt && (
+  1310→                        <div className="flex justify-between">
+  1311→                          <span className="text-slate-500">Delivered</span>
+  1312→                          <span className="text-slate-900">{formatDateTime(deal.deliveredAt)}</span>
+  1313→                        </div>
+  1314→                      )}
+  1315→                      {deal.completedAt && (
+  1316→                        <div className="flex justify-between">
+  1317→                          <span className="text-slate-500">Completed</span>
+  1318→                          <span className="text-slate-900">{formatDateTime(deal.completedAt)}</span>
+  1319→                        </div>
+  1320→                      )}
+  1321→                      {deal.cancelledAt && (
+  1322→                        <div className="flex justify-between text-red-600">
+  1323→                          <span>Cancelled</span>
+  1324→                          <span>{formatDateTime(deal.cancelledAt)}</span>
+  1325→                        </div>
+  1326→                      )}
+  1327→                    </div>
+  1328→                  </div>
+  1329→
+  1330→                  {/* Notes */}
+  1331→                  {(deal.notes || deal.internalNotes) && (
+  1332→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1333→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1334→                        <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+  1335→                      </div>
+  1336→                      <div className="p-4 space-y-3">
+  1337→                        {deal.notes && (
+  1338→                          <div>
+  1339→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Customer Notes</span>
+  1340→                            <p className="text-sm text-slate-700 mt-1">{deal.notes}</p>
+  1341→                          </div>
+  1342→                        )}
+  1343→                        {deal.internalNotes && (
+  1344→                          <div>
+  1345→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Internal Notes</span>
+  1346→                            <p className="text-sm text-slate-700 mt-1">{deal.internalNotes}</p>
+  1347→                          </div>
+  1348→                        )}
+  1349→                      </div>
+  1350→                    </div>
+  1351→                  )}
+  1352→                </div>
+  1353→              )}
+  1354→
+  1355→              {/* Customer Tab */}
+  1356→              {activeTab === "customer" && (
+  1357→                <div className="space-y-4">
+  1358→                  {/* Sold To Section */}
+  1359→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1360→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1361→                      <div className="flex items-center justify-between">
+  1362→                        <div className="flex items-center gap-2">
+  1363→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1364→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1365→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  1366→                            </svg>
+  1367→                          </div>
+  1368→                          <h3 className="text-sm font-bold text-slate-800">Sold To</h3>
+  1369→                        </div>
+  1370→                        {deal.customer && deal.status === "DRAFT" && !isEditingCustomer && (
+  1371→                          <button
+  1372→                            onClick={() => setIsEditingCustomer(true)}
+  1373→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1374→                          >
+  1375→                            Change
+  1376→                          </button>
+  1377→                        )}
+  1378→                      </div>
+  1379→                    </div>
+  1380→                    <div className="p-4">
+  1381→                      {isEditingCustomer || !deal.customer ? (
+  1382→                        <div className="space-y-3">
+  1383→                          <ContactPicker
+  1384→                            value={deal.soldToContactId}
+  1385→                            onChange={(contactId) => handleUpdateCustomer(contactId)}
+  1386→                            filterTypeTags={["customer"]}
+  1387→                            placeholder="Search or create a customer..."
+  1388→                          />
+  1389→                          {isEditingCustomer && (
+  1390→                            <button
+  1391→                              onClick={() => setIsEditingCustomer(false)}
+  1392→                              className="btn btn-ghost btn-sm w-full"
+  1393→                            >
+  1394→                              Cancel
+  1395→                            </button>
+  1396→                          )}
+  1397→                        </div>
+  1398→                      ) : (
+  1399→                        <div className="space-y-3">
+  1400→                          <div>
+  1401→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1402→                            <p className="font-semibold text-slate-900 mt-0.5">{deal.customer.displayName}</p>
+  1403→                          </div>
+  1404→                          {deal.customer.companyName && (
+  1405→                            <div>
+  1406→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Company</span>
+  1407→                              <p className="text-slate-700 mt-0.5">{deal.customer.companyName}</p>
+  1408→                            </div>
+  1409→                          )}
+  1410→                          {deal.customer.email && (
+  1411→                            <div>
+  1412→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Email</span>
+  1413→                              <p className="text-slate-700 mt-0.5">{deal.customer.email}</p>
+  1414→                            </div>
+  1415→                          )}
+  1416→                          {deal.customer.phone && (
+  1417→                            <div>
+  1418→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Phone</span>
+  1419→                              <p className="text-slate-700 mt-0.5">{deal.customer.phone}</p>
+  1420→                            </div>
+  1421→                          )}
+  1422→                        </div>
+  1423→                      )}
+  1424→                    </div>
+  1425→                  </div>
+  1426→
+  1427→                  {/* Invoice To (if different) */}
+  1428→                  {deal.invoiceTo && deal.invoiceTo.id !== deal.customer?.id && (
+  1429→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1430→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1431→                        <div className="flex items-center gap-2">
+  1432→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+  1433→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1434→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  1435→                            </svg>
+  1436→                          </div>
+  1437→                          <h3 className="text-sm font-bold text-slate-800">Invoice To</h3>
+  1438→                        </div>
+  1439→                      </div>
+  1440→                      <div className="p-4 space-y-3">
+  1441→                        <div>
+  1442→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1443→                          <p className="font-semibold text-slate-900 mt-0.5">{deal.invoiceTo.displayName}</p>
+  1444→                        </div>
+  1445→                        {deal.invoiceTo.companyName && (
+  1446→                          <div>
+  1447→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Company</span>
+  1448→                            <p className="text-slate-700 mt-0.5">{deal.invoiceTo.companyName}</p>
+  1449→                          </div>
+  1450→                        )}
+  1451→                      </div>
+  1452→                    </div>
+  1453→                  )}
+  1454→
+  1455→                  {/* Part Exchange */}
+  1456→                  {deal.partExchange && (
+  1457→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1458→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1459→                        <div className="flex items-center gap-2">
+  1460→                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1461→                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1462→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+  1463→                            </svg>
+  1464→                          </div>
+  1465→                          <h3 className="text-sm font-bold text-slate-800">Part Exchange</h3>
+  1466→                        </div>
+  1467→                      </div>
+  1468→                      <div className="p-4 space-y-3">
+  1469→                        <div>
+  1470→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Vehicle</span>
+  1471→                          <p className="font-semibold text-slate-900 mt-0.5">
+  1472→                            {deal.partExchange.vrm} - {deal.partExchange.make} {deal.partExchange.model}
+  1473→                          </p>
+  1474→                        </div>
+  1475→                        <div className="grid grid-cols-2 gap-4">
+  1476→                          <div>
+  1477→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Allowance</span>
+  1478→                            <p className="font-semibold text-slate-900 mt-0.5">
+  1479→                              {formatCurrency(deal.partExchange.allowance)}
+  1480→                            </p>
+  1481→                          </div>
+  1482→                          {deal.partExchange.settlement > 0 && (
+  1483→                            <div>
+  1484→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Settlement</span>
+  1485→                              <p className="font-semibold text-red-600 mt-0.5">
+  1486→                                -{formatCurrency(deal.partExchange.settlement)}
+  1487→                              </p>
+  1488→                            </div>
+  1489→                          )}
+  1490→                        </div>
+  1491→                        <div className="pt-2 border-t border-slate-100">
+  1492→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Net Value</span>
+  1493→                          <p className="font-bold text-emerald-600 mt-0.5">
+  1494→                            {formatCurrency(totals.pxNetValue)}
+  1495→                          </p>
+  1496→                        </div>
+  1497→                      </div>
+  1498→                    </div>
+  1499→                  )}
+  1500→                </div>
+  1501→              )}
+  1502→
+  1503→              {/* Add-ons Tab */}
+  1504→              {activeTab === "addons" && (
+  1505→                <div className="space-y-4">
+  1506→                  {deal.addOns?.length > 0 ? (
+  1507→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1508→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex items-center justify-between">
+  1509→                        <h3 className="text-sm font-bold text-slate-800">Add-ons</h3>
+  1510→                        {deal.status === "DRAFT" && (
+  1511→                          <button
+  1512→                            onClick={() => {
+  1513→                              setShowAddOnPicker(true);
+  1514→                              fetchAddOnProducts();
+  1515→                            }}
+  1516→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1517→                          >
+  1518→                            + Add
+  1519→                          </button>
+  1520→                        )}
+  1521→                      </div>
+  1522→                      <div className="divide-y divide-slate-100">
+  1523→                        {deal.addOns.map((addon, idx) => (
+  1524→                          <div key={idx} className="p-4 flex items-center justify-between gap-3">
+  1525→                            <div className="flex-1 min-w-0">
+  1526→                              <p className="font-medium text-slate-900">{addon.name}</p>
+  1527→                              <p className="text-sm text-slate-500">
+  1528→                                {addon.qty > 1 && `${addon.qty} x `}
+  1529→                                {formatCurrency(addon.unitPriceNet)}
+  1530→                                {addon.vatTreatment === "STANDARD" && " + VAT"}
+  1531→                              </p>
+  1532→                            </div>
+  1533→                            <span className="font-semibold text-slate-900">
+  1534→                              {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+  1535→                            </span>
+  1536→                            {deal.status === "DRAFT" && (
+  1537→                              <button
+  1538→                                onClick={() => handleRemoveAddOn(idx)}
+  1539→                                disabled={actionLoading === "addon"}
+  1540→                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+  1541→                              >
+  1542→                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1543→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  1544→                                </svg>
+  1545→                              </button>
+  1546→                            )}
+  1547→                          </div>
+  1548→                        ))}
+  1549→                      </div>
+  1550→                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-between">
+  1551→                        <span className="font-medium text-slate-700">Total</span>
+  1552→                        <span className="font-bold text-slate-900">
+  1553→                          {formatCurrency(totals.addOnsNetTotal + totals.addOnsVatTotal)}
+  1554→                        </span>
+  1555→                      </div>
+  1556→                    </div>
+  1557→                  ) : (
+  1558→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
+  1559→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1560→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1561→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+  1562→                        </svg>
+  1563→                      </div>
+  1564→                      <p className="text-sm font-medium text-slate-600">No add-ons</p>
+  1565→                      <p className="text-xs text-slate-400 mt-1">Add products like warranties or accessories</p>
+  1566→                      {deal.status === "DRAFT" && (
+  1567→                        <button
+  1568→                          onClick={() => {
+  1569→                            setShowAddOnPicker(true);
+  1570→                            fetchAddOnProducts();
+  1571→                          }}
+  1572→                          className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none mt-4"
+  1573→                        >
+  1574→                          Add Add-on
+  1575→                        </button>
+  1576→                      )}
+  1577→                    </div>
+  1578→                  )}
+  1579→                </div>
+  1580→              )}
+  1581→
+  1582→              {/* Payments Tab */}
+  1583→              {activeTab === "payments" && (
+  1584→                <div className="space-y-4">
+  1585→                  {deal.payments?.length > 0 ? (
+  1586→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1587→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1588→                        <h3 className="text-sm font-bold text-slate-800">Payments</h3>
+  1589→                      </div>
+  1590→                      <div className="divide-y divide-slate-100">
+  1591→                        {deal.payments.map((payment, idx) => (
+  1592→                          <div key={idx} className="p-4">
+  1593→                            <div className="flex items-center justify-between">
+  1594→                              <div>
+  1595→                                <div className="flex items-center gap-2">
+  1596→                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
+  1597→                                    payment.type === "DEPOSIT"
+  1598→                                      ? "bg-amber-100 text-amber-700"
+  1599→                                      : payment.type === "BALANCE"
+  1600→                                      ? "bg-emerald-100 text-emerald-700"
+  1601→                                      : "bg-slate-100 text-slate-600"
+  1602→                                  }`}>
+  1603→                                    {payment.type}
+  1604→                                  </span>
+  1605→                                  <span className="text-sm text-slate-500">{payment.method}</span>
+  1606→                                </div>
+  1607→                                <p className="text-xs text-slate-400 mt-1">
+  1608→                                  {formatDateTime(payment.paidAt)}
+  1609→                                  {payment.reference && ` • ${payment.reference}`}
+  1610→                                </p>
+  1611→                              </div>
+  1612→                              <span className={`font-semibold ${
+  1613→                                payment.isRefunded ? "text-red-500 line-through" : "text-emerald-600"
+  1614→                              }`}>
+  1615→                                {formatCurrency(payment.amount)}
+  1616→                              </span>
+  1617→                            </div>
+  1618→                          </div>
+  1619→                        ))}
+  1620→                      </div>
+  1621→                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex justify-between">
+  1622→                        <span className="font-medium text-slate-700">Total Paid</span>
+  1623→                        <span className="font-bold text-emerald-600">
+  1624→                          {formatCurrency(totals.totalPaid)}
+  1625→                        </span>
+  1626→                      </div>
+  1627→                    </div>
+  1628→                  ) : (
+  1629→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 text-center">
+  1630→                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1631→                        <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1632→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+  1633→                        </svg>
+  1634→                      </div>
+  1635→                      <p className="text-sm font-medium text-slate-600">No payments recorded</p>
+  1636→                      <p className="text-xs text-slate-400 mt-1">Take a deposit to get started</p>
+  1637→                    </div>
+  1638→                  )}
+  1639→                </div>
+  1640→              )}
+  1641→            </div>
+  1642→          </>
+  1643→        )}
+  1644→      </div>
+  1645→
+  1646→      {/* Deposit Modal */}
+  1647→      {showDepositModal && (
+  1648→        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  1649→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDepositModal(false)} />
+  1650→          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+  1651→            <h3 className="text-lg font-bold text-slate-900 mb-4">Take Deposit</h3>
+  1652→
+  1653→            <div className="space-y-4">
+  1654→              <div>
+  1655→                <label className="block text-sm font-medium text-slate-700 mb-1">
+  1656→                  Amount
+  1657→                </label>
+  1658→                <div className="relative">
+  1659→                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">£</span>
+  1660→                  <input
+  1661→                    type="number"
+  1662→                    value={depositAmount}
+  1663→                    onChange={(e) => setDepositAmount(e.target.value)}
+  1664→                    className="input input-bordered w-full pl-7"
+  1665→                    placeholder="0.00"
+  1666→                    step="0.01"
+  1667→                    min="0"
+  1668→                  />
+  1669→                </div>
+  1670→              </div>
+  1671→
+  1672→              <div>
+  1673→                <label className="block text-sm font-medium text-slate-700 mb-1">
+  1674→                  Payment Method
+  1675→                </label>
+  1676→                <select
+  1677→                  value={depositMethod}
+  1678→                  onChange={(e) => setDepositMethod(e.target.value)}
+  1679→                  className="select select-bordered w-full"
+  1680→                >
+  1681→                  <option value="CARD">Card</option>
+  1682→                  <option value="CASH">Cash</option>
+  1683→                  <option value="BANK_TRANSFER">Bank Transfer</option>
+  1684→                  <option value="FINANCE">Finance</option>
+  1685→                </select>
+  1686→              </div>
+  1687→
+  1688→              <div>
+  1689→                <label className="block text-sm font-medium text-slate-700 mb-1">
+  1690→                  Reference (optional)
+  1691→                </label>
+  1692→                <input
+  1693→                  type="text"
+  1694→                  value={depositReference}
+  1695→                  onChange={(e) => setDepositReference(e.target.value)}
+  1696→                  className="input input-bordered w-full"
+  1697→                  placeholder="e.g., Transaction ID"
+  1698→                />
+  1699→              </div>
+  1700→            </div>
+  1701→
+  1702→            <div className="flex gap-3 mt-6">
+  1703→              <button
+  1704→                onClick={() => setShowDepositModal(false)}
+  1705→                className="btn btn-ghost flex-1"
+  1706→              >
+  1707→                Cancel
+  1708→              </button>
+  1709→              <button
+  1710→                onClick={handleTakeDeposit}
+  1711→                disabled={actionLoading === "deposit"}
+  1712→                className="btn bg-amber-500 hover:bg-amber-600 text-white border-none flex-1"
+  1713→              >
+  1714→                {actionLoading === "deposit" ? (
+  1715→                  <span className="loading loading-spinner loading-sm"></span>
+  1716→                ) : (
+  1717→                  "Record Deposit"
+  1718→                )}
+  1719→              </button>
+  1720→            </div>
+  1721→          </div>
+  1722→        </div>
+  1723→      )}
+  1724→
+  1725→      {/* Add-on Picker Modal */}
+  1726→      {showAddOnPicker && (
+  1727→        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  1728→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddOnPicker(false)} />
+  1729→          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+  1730→            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+  1731→              <h3 className="text-lg font-bold text-slate-900">Add Add-on</h3>
+  1732→              <button
+  1733→                onClick={() => setShowAddOnPicker(false)}
+  1734→                className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+  1735→              >
+  1736→                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1737→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1738→                </svg>
+  1739→              </button>
+  1740→            </div>
+  1741→
+  1742→            <div className="flex-1 overflow-y-auto p-4">
+  1743→              {addOnsLoading ? (
+  1744→                <div className="flex items-center justify-center py-8">
+  1745→                  <span className="loading loading-spinner loading-md text-[#0066CC]"></span>
+  1746→                </div>
+  1747→              ) : availableAddOns.length === 0 ? (
+  1748→                <div className="text-center py-8">
+  1749→                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+  1750→                    <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1751→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+  1752→                    </svg>
+  1753→                  </div>
+  1754→                  <p className="text-sm font-medium text-slate-600">No add-on products available</p>
+  1755→                  <p className="text-xs text-slate-400 mt-1">Create add-on products in Settings first</p>
+  1756→                </div>
+  1757→              ) : (
+  1758→                <div className="space-y-2">
+  1759→                  {availableAddOns.map((addon) => (
+  1760→                    <button
+  1761→                      key={addon.id || addon._id}
+  1762→                      onClick={() => handleAddAddOn(addon)}
+  1763→                      disabled={actionLoading === "addon"}
+  1764→                      className="w-full p-4 text-left bg-slate-50 hover:bg-slate-100 rounded-xl transition-all"
+  1765→                    >
+  1766→                      <div className="flex items-center justify-between">
+  1767→                        <div>
+  1768→                          <p className="font-medium text-slate-900">{addon.name}</p>
+  1769→                          <p className="text-sm text-slate-500">
+  1770→                            {addon.category || "Uncategorized"}
+  1771→                            {addon.description && ` • ${addon.description}`}
+  1772→                          </p>
+  1773→                        </div>
+  1774→                        <div className="text-right">
+  1775→                          <p className="font-semibold text-slate-900">
+  1776→                            {formatCurrency(addon.defaultPriceNet)}
+  1777→                          </p>
+  1778→                          <p className="text-xs text-slate-500">
+  1779→                            {addon.vatTreatment === "EXEMPT" ? "VAT Exempt" : "+ VAT"}
+  1780→                          </p>
+  1781→                        </div>
+  1782→                      </div>
+  1783→                    </button>
+  1784→                  ))}
+  1785→                </div>
+  1786→              )}
+  1787→            </div>
+  1788→          </div>
+  1789→        </div>
+  1790→      )}
+  1791→
+  1792→      {/* Delete Confirmation Modal */}
+  1793→      {showDeleteConfirm && (
+  1794→        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  1795→          <div className="absolute inset-0 bg-black/50" onClick={() => setShowDeleteConfirm(false)} />
+  1796→          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+  1797→            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+  1798→              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1799→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  1800→              </svg>
+  1801→            </div>
+  1802→            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Delete Draft?</h3>
+  1803→            <p className="text-sm text-slate-500 text-center mb-6">
+  1804→              This will permanently delete this draft deal. This action cannot be undone.
+  1805→            </p>
+  1806→            <div className="flex gap-3">
+  1807→              <button
+  1808→                onClick={() => setShowDeleteConfirm(false)}
+  1809→                className="btn btn-ghost flex-1"
+  1810→              >
+  1811→                Cancel
+  1812→              </button>
+  1813→              <button
+  1814→                onClick={handleDeleteDraft}
+  1815→                disabled={actionLoading === "delete"}
+  1816→                className="btn bg-red-500 hover:bg-red-600 text-white border-none flex-1"
+  1817→              >
+  1818→                {actionLoading === "delete" ? (
+  1819→                  <span className="loading loading-spinner loading-sm"></span>
+  1820→                ) : (
+  1821→                  "Delete"
+  1822→                )}
+  1823→              </button>
+  1824→            </div>
+  1825→          </div>
+  1826→        </div>
+  1827→      )}
+  1828→    </div>
+  1829→  );
+  1830→}
+  1831→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,67 @@
+Title: Aftersales Costing VAT + KPI logic + realtime updates + correct attribution date
+
+VAT handling (No VAT + per component)
+
+Extend aftersales case costing model to store net amounts plus VAT treatment per component:
+
+partsNet, partsVatTreatment: STANDARD|NO_VAT, partsVatRate (default 0.2)
+
+labourNet, labourVatTreatment: STANDARD|NO_VAT, labourVatRate
+
+computed totals: totalNet, totalVat, totalGross
+
+Update UI: for Parts and Labour show:
+
+Net input (£)
+
+VAT applies toggle (Yes/No)
+
+Display computed VAT and totals (Net/VAT/Gross)
+
+If existing UI uses Ex/Inc VAT toggle: keep it, but internally always store net. If user enters Inc VAT, derive net.
+
+KPI display logic
+
+Update Aftersales page + Dashboard KPIs to default to Total Net (Ex VAT).
+
+Add optional toggle “Net / Gross”.
+
+KPIs must sum across:
+
+STANDARD VAT items (net + vat)
+
+NO_VAT items (vat=0)
+
+Correct month attribution
+
+Add costingAddedAt to aftersales cases.
+
+On first time a cost is saved (partsNet>0 or labourNet>0) and costingAddedAt is null → set to now. Do not change it on later edits.
+
+KPI aggregation windows (This Month / Last Month / YTD) must use costingAddedAt (not case createdAt).
+
+Migration: for existing cases with costs but no costingAddedAt, set it to updatedAt (or first costing change timestamp if available).
+
+Realtime UI updates (no reload needed)
+
+After saving costing in a drawer, the Aftersales board + KPI cards should update immediately on close:
+
+implement optimistic update + query invalidation for the board list + KPI endpoints.
+
+Apply the same pattern to:
+
+Stock drawer updates (issues/checklists/status)
+
+Submissions inbox (revalidate on completion; polling optional for public-form created submissions)
+
+Testing
+
+Add quick tests or manual test checklist:
+
+case created last year → add cost today → “This month” KPI increases
+
+NO_VAT parts + STANDARD labour → totals correct
+
+edit costs later → month attribution does not change
+
+close drawer → board/KPIs update without refresh

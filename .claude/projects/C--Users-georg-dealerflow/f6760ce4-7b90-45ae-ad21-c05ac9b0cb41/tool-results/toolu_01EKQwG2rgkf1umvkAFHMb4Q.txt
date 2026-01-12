@@ -1,0 +1,78 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  2754→                </button>
+  2755→              </div>
+  2756→            </div>
+  2757→
+  2758→            {/* Tabs - Dropdown on mobile, pills on desktop */}
+  2759→            <div className="bg-base-100 border-b border-base-300 px-4 py-2 overflow-x-hidden">
+  2760→              {/* Mobile: Dropdown selector */}
+  2761→              <div className="md:hidden">
+  2762→                <select
+  2763→                  value={activeTab}
+  2764→                  onChange={(e) => {
+  2765→                    setActiveTab(e.target.value);
+  2766→                    if (e.target.value === "activity" && selectedVehicle?.id) {
+  2767→                      fetchActivity(selectedVehicle.id);
+  2768→                    }
+  2769→                  }}
+  2770→                  className="select select-bordered w-full font-medium"
+  2771→                >
+  2772→                  <option value="overview">Overview</option>
+  2773→                  <option value="checklist">
+  2774→                    Checklist {selectedVehicle.tasks?.length > 0 ? `(${selectedVehicle.tasks.length})` : ""}
+  2775→                  </option>
+  2776→                  <option value="issues">
+  2777→                    Issues {selectedVehicle.issues?.length > 0 ? `(${selectedVehicle.issues.length})` : ""}
+  2778→                  </option>
+  2779→                  <option value="documents">
+  2780→                    Documents {selectedVehicle.documents?.length > 0 ? `(${selectedVehicle.documents.length})` : ""}
+  2781→                  </option>
+  2782→                  <option value="activity">Activity</option>
+  2783→                </select>
+  2784→              </div>
+  2785→
+  2786→              {/* Desktop: Tab pills */}
+  2787→              <div className="hidden md:block">
+  2788→                <div className="tabs tabs-bordered">
+  2789→                  <button
+  2790→                    className={`tab ${activeTab === "overview" ? "tab-active" : ""}`}
+  2791→                    onClick={() => setActiveTab("overview")}
+  2792→                  >
+  2793→                    Overview
+  2794→                  </button>
+  2795→                  <button
+  2796→                    className={`tab ${activeTab === "checklist" ? "tab-active" : ""}`}
+  2797→                    onClick={() => setActiveTab("checklist")}
+  2798→                  >
+  2799→                    Checklist {selectedVehicle.tasks?.length > 0 && `(${selectedVehicle.tasks.length})`}
+  2800→                  </button>
+  2801→                  <button
+  2802→                    className={`tab ${activeTab === "issues" ? "tab-active" : ""}`}
+  2803→                    onClick={() => setActiveTab("issues")}
+  2804→                  >
+  2805→                    Issues {selectedVehicle.issues?.length > 0 && `(${selectedVehicle.issues.length})`}
+  2806→                  </button>
+  2807→                  <button
+  2808→                    className={`tab ${activeTab === "documents" ? "tab-active" : ""}`}
+  2809→                    onClick={() => setActiveTab("documents")}
+  2810→                  >
+  2811→                    Documents {selectedVehicle.documents?.length > 0 && `(${selectedVehicle.documents.length})`}
+  2812→                  </button>
+  2813→                  <button
+  2814→                    className={`tab ${activeTab === "activity" ? "tab-active" : ""}`}
+  2815→                    onClick={() => {
+  2816→                      setActiveTab("activity");
+  2817→                      if (selectedVehicle?.id) {
+  2818→                        fetchActivity(selectedVehicle.id);
+  2819→                      }
+  2820→                    }}
+  2821→                  >
+  2822→                    Activity
+  2823→                  </button>
+  2824→                </div>
+  2825→              </div>
+  2826→            </div>
+  2827→
+  2828→            <div className="p-6 space-y-6">
+  2829→              {/* Overview Tab */}
+  2830→              {activeTab === "overview" && (

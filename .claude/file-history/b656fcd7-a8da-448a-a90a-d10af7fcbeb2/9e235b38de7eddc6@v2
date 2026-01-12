@@ -1,0 +1,87 @@
+/**
+ * Tenant Appraisals Page - /app/[dealerSlug]/appraisals
+ */
+
+import { useEffect, useState } from "react";
+import Head from "next/head";
+import Link from "next/link";
+import { TenantPage, withTenantProps } from "@/components/TenantPage";
+import { useDealer } from "@/contexts/DealerContext";
+
+// Inner component that uses context
+function AppraisalsContent({ dealer }) {
+  const { fetchWithTenant, tenantPath } = useDealer();
+  const [appraisals, setAppraisals] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchWithTenant("/api/appraisals")
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setAppraisals(Array.isArray(data) ? data : []))
+      .finally(() => setIsLoading(false));
+  }, [fetchWithTenant]);
+
+  return (
+    <>
+      <Head><title>Appraisals | {dealer?.name || 'DealerFlow'}</title></Head>
+
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Appraisals</h1>
+          <p className="text-slate-600 mt-1">Manage vehicle appraisals</p>
+        </div>
+        <Link href={tenantPath("appraisals/new")} className="px-4 py-2 bg-[#0066CC] text-white rounded-lg hover:bg-[#0055BB] transition-colors font-semibold">
+          New Appraisal
+        </Link>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="w-12 h-12 border-4 border-[#0066CC]/20 border-t-[#0066CC] rounded-full animate-spin" />
+        </div>
+      ) : appraisals.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No appraisals yet</h3>
+          <p className="text-slate-500 mb-4">Start by creating your first appraisal</p>
+          <Link href={tenantPath("appraisals/new")} className="px-4 py-2 bg-[#0066CC] text-white rounded-lg hover:bg-[#0055BB] transition-colors font-semibold">
+            Create Appraisal
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+          <div className="divide-y divide-slate-100">
+            {appraisals.map((a) => (
+              <Link
+                key={a.id || a._id}
+                href={tenantPath(`appraisals/${a.id || a._id}`)}
+                className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+              >
+                <div>
+                  <p className="font-mono font-bold text-slate-900">{a.vehicleReg}</p>
+                  <p className="text-sm text-slate-500">{a.vehicleMake} {a.vehicleModel}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  a.decision === "purchased" ? "bg-emerald-100 text-emerald-700" :
+                  a.decision === "declined" ? "bg-red-100 text-red-700" :
+                  "bg-amber-100 text-amber-700"
+                }`}>
+                  {a.decision || "pending"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default function TenantAppraisals({ dealer, dealerSlug, error }) {
+  return (
+    <TenantPage dealer={dealer} dealerSlug={dealerSlug} error={error}>
+      <AppraisalsContent dealer={dealer} />
+    </TenantPage>
+  );
+}
+
+export const getServerSideProps = withTenantProps();

@@ -1,0 +1,196 @@
+31:  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+133:  // Filters state - with localStorage persistence
+134:  const [activeFilters, setActiveFilters] = useState([]);
+135:  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+136:  const filterButtonRef = useRef(null);
+137:  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+140:  const openFiltersDropdown = useCallback(() => {
+141:    if (filterButtonRef.current) {
+142:      const rect = filterButtonRef.current.getBoundingClientRect();
+159:      setFilterPopoverPos({ top, right });
+161:    setShowFiltersDropdown(true);
+164:  // Load filters from localStorage on mount
+167:      const savedFilters = localStorage.getItem("salesPrepFilters");
+168:      if (savedFilters) {
+169:        setActiveFilters(JSON.parse(savedFilters));
+172:      console.warn("Failed to load saved filters:", e);
+176:  // Save filters to localStorage when they change
+179:      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+181:      console.warn("Failed to save filters:", e);
+183:  }, [activeFilters]);
+216:  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+269:    // Filter vehicles matching the query (VRM, make, or model)
+270:    const matches = vehicles.filter((v) => {
+1305:  const toggleFilter = (filter) => {
+1306:    setActiveFilters(prev =>
+1307:      prev.includes(filter)
+1308:        ? prev.filter(f => f !== filter)
+1309:        : [...prev, filter]
+1313:  const getFilteredVehicles = (vehicleList) => {
+1314:    if (activeFilters.length === 0) return vehicleList;
+1316:    return vehicleList.filter(vehicle => {
+1317:      return activeFilters.every(filter => {
+1320:        const activeIssues = issues.filter(i => {
+1325:        // Prep task filters
+1326:        if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+1327:        if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+1328:        if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+1329:        if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+1331:        // Issue filters
+1332:        if (filter === "needs_paint") return activeIssues.some(i => {
+1336:        if (filter === "needs_mechanical") return activeIssues.some(i => {
+1340:        if (filter === "needs_electrical") return activeIssues.some(i => {
+1345:        // Location filter
+1346:        if (filter === "offsite") return vehicle.locationId != null;
+1348:        // MOT filters
+1349:        if (filter === "mot_due_soon") {
+1356:        if (filter === "mot_expired") {
+1363:        // Sale type filters
+1364:        if (filter === "trade_only") return vehicle.saleType === "TRADE";
+1365:        if (filter === "retail_only") return vehicle.saleType === "RETAIL" || !vehicle.saleType;
+1367:        // Vehicle type filters
+1368:        if (filter === "type_stock") return vehicle.type === "STOCK" || !vehicle.type;
+1369:        if (filter === "type_courtesy") return vehicle.type === "COURTESY";
+1370:        if (filter === "type_fleet") return vehicle.type === "FLEET_OTHER";
+1378:    let statusVehicles = vehicles.filter(v => v.status === status);
+1380:    // Apply VRM filter if set
+1381:    if (vrmFilter) {
+1382:      const query = vrmFilter.toUpperCase().replace(/\s/g, "");
+1383:      statusVehicles = statusVehicles.filter((v) => {
+1391:    const filtered = getFilteredVehicles(statusVehicles);
+1396:    return [...filtered].sort((a, b) => {
+1415:  const getFilterCount = (filter) => {
+1416:    const allFiltered = getFilteredVehicles(vehicles.filter(v => {
+1419:      const activeIssues = issues.filter(i => {
+1424:      if (filter === "awaiting_pdi") return !tasks.find(t => t.name.toLowerCase().includes("pdi") && t.status === "done");
+1425:      if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
+1426:      if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
+1427:      if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+1428:      if (filter === "needs_paint") return activeIssues.some(i => {
+1432:      if (filter === "needs_mechanical") return activeIssues.some(i => {
+1436:      if (filter === "needs_electrical") return activeIssues.some(i => {
+1440:      if (filter === "offsite") return v.locationId != null;
+1441:      if (filter === "mot_due_soon") {
+1448:      if (filter === "mot_expired") {
+1453:      if (filter === "trade_only") return v.saleType === "TRADE";
+1454:      if (filter === "retail_only") return v.saleType === "RETAIL" || !v.saleType;
+1455:      if (filter === "type_stock") return v.type === "STOCK" || !v.type;
+1456:      if (filter === "type_courtesy") return v.type === "COURTESY";
+1457:      if (filter === "type_fleet") return v.type === "FLEET_OTHER";
+1460:    return allFiltered.length;
+1483:  // Apply VRM filter to board (pressing Enter)
+1484:  const applyVrmFilter = () => {
+1485:    const filterValue = vrmSearch.trim();
+1486:    setVrmFilter(filterValue);
+1488:    if (filterValue) {
+1489:      toast.success(`Filtering by: ${filterValue}`);
+1493:  // Clear VRM filter
+1494:  const clearVrmFilter = () => {
+1496:    setVrmFilter("");
+1570:    const completedTasks = tasks.filter(t => t.status === "done").length;
+1881:    const activeIssues = issues.filter(i => {
+1919:      {/* Consolidated Filters */}
+1945:                    onClick={clearVrmFilter}
+1959:              className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+1960:              onClick={() => setActiveFilters([])}
+1969:            {/* Consolidated Filters - Strictly Separated Desktop/Mobile */}
+1973:                ref={filterButtonRef}
+1975:                  activeFilters.length > 0
+1979:                onClick={() => showFiltersDropdown ? setShowFiltersDropdown(false) : openFiltersDropdown()}
+1984:                <span className="hidden sm:inline">Filters</span>
+1985:                {activeFilters.length > 0 && (
+1987:                    activeFilters.length > 0 ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+1988:                  }`}>{activeFilters.length}</span>
+1995:              {showFiltersDropdown && (
+2001:                      onClick={() => setShowFiltersDropdown(false)}
+2004:                    {/* Desktop Filter Panel - Fixed position, viewport-clamped */}
+2007:                      style={{ top: filterPopoverPos.top, right: filterPopoverPos.right }}
+2011:                        <h3 className="font-semibold text-slate-900">Filters</h3>
+2013:                          onClick={() => setShowFiltersDropdown(false)}
+2033:                            ].map(filter => {
+2034:                              const isActive = activeFilters.includes(filter.key);
+2035:                              const count = getFilterCount(filter.key);
+2038:                                  key={filter.key}
+2039:                                  onClick={() => toggleFilter(filter.key)}
+2046:                                  <span>{filter.label}</span>
+2064:                            ].map(filter => {
+2065:                              const isActive = activeFilters.includes(filter.key);
+2066:                              const count = getFilterCount(filter.key);
+2069:                                  key={filter.key}
+2070:                                  onClick={() => toggleFilter(filter.key)}
+2077:                                  <span>{filter.label}</span>
+2092:                              const isActive = activeFilters.includes("offsite");
+2093:                              const count = getFilterCount("offsite");
+2096:                                  onClick={() => toggleFilter("offsite")}
+2121:                            ].map(filter => {
+2122:                              const isActive = activeFilters.includes(filter.key);
+2123:                              const count = getFilterCount(filter.key);
+2126:                                  key={filter.key}
+2127:                                  onClick={() => toggleFilter(filter.key)}
+2134:                                  <span>{filter.label}</span>
+2151:                            ].map(filter => {
+2152:                              const isActive = activeFilters.includes(filter.key);
+2153:                              const count = getFilterCount(filter.key);
+2156:                                  key={filter.key}
+2157:                                  onClick={() => toggleFilter(filter.key)}
+2164:                                  <span>{filter.label}</span>
+2181:                            ].map(filter => {
+2182:                              const isActive = activeFilters.includes(filter.key);
+2183:                              const count = getFilterCount(filter.key);
+2186:                                  key={filter.key}
+2187:                                  onClick={() => toggleFilter(filter.key)}
+2194:                                  <span>{filter.label}</span>
+2208:                          onClick={() => setActiveFilters([])}
+2214:                          onClick={() => setShowFiltersDropdown(false)}
+2230:                    isOpen={showFiltersDropdown}
+2231:                    onClose={() => setShowFiltersDropdown(false)}
+2233:                    title="Filters"
+2237:                          onClick={() => setActiveFilters([])}
+2243:                          onClick={() => setShowFiltersDropdown(false)}
+2246:                          Apply {activeFilters.length > 0 && `(${activeFilters.length})`}
+2258:                    ].map(filter => {
+2259:                      const isActive = activeFilters.includes(filter.key);
+2260:                      const count = getFilterCount(filter.key);
+2263:                          key={filter.key}
+2264:                          onClick={() => toggleFilter(filter.key)}
+2271:                          <span>{filter.label}</span>
+2285:                    ].map(filter => {
+2286:                      const isActive = activeFilters.includes(filter.key);
+2287:                      const count = getFilterCount(filter.key);
+2290:                          key={filter.key}
+2291:                          onClick={() => toggleFilter(filter.key)}
+2298:                          <span>{filter.label}</span>
+2309:                      const isActive = activeFilters.includes("offsite");
+2310:                      const count = getFilterCount("offsite");
+2313:                          onClick={() => toggleFilter("offsite")}
+2334:                    ].map(filter => {
+2335:                      const isActive = activeFilters.includes(filter.key);
+2336:                      const count = getFilterCount(filter.key);
+2339:                          key={filter.key}
+2340:                          onClick={() => toggleFilter(filter.key)}
+2347:                          <span>{filter.label}</span>
+2360:                    ].map(filter => {
+2361:                      const isActive = activeFilters.includes(filter.key);
+2362:                      const count = getFilterCount(filter.key);
+2365:                          key={filter.key}
+2366:                          onClick={() => toggleFilter(filter.key)}
+2373:                          <span>{filter.label}</span>
+2386:                    ].map(filter => {
+2387:                      const isActive = activeFilters.includes(filter.key);
+2388:                      const count = getFilterCount(filter.key);
+2391:                          key={filter.key}
+2392:                          onClick={() => toggleFilter(filter.key)}
+2399:                          <span>{filter.label}</span>
+2432:            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
+2464:                    const completedTasks = tasks.filter(t => t.status === "done").length;
+2719:                    const completedTasks = tasks.filter(t => t.status === "done").length;
+3716:                            filterTypeTags={["SUPPLIER"]}
+3895:                                        ? `Parts: ${task.partsOrders.filter(o => o.status === "RECEIVED").length}/${task.partsOrders.length} Received`
+4646:                  placeholder="e.g., Oil filter + air filter"
+5032:          {COLUMNS.filter(c => c.key !== moveCurrentColumn).map((targetCol) => (
+5072:                    const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
+5733:              {formData.type === "STOCK" && formData.saleType === "TRADE" && "Trade vehicles are marked separately and can be filtered"}
+5808:                      onClick={() => setOtherDocuments(otherDocuments.filter((_, i) => i !== idx))}
+5854:                            setInitialIssues(initialIssues.filter((_, i) => i !== index));
+6001:    setPhotoFiles(prev => prev.filter((_, i) => i !== index));
+6002:    setPhotoPreviews(prev => prev.filter((_, i) => i !== index));

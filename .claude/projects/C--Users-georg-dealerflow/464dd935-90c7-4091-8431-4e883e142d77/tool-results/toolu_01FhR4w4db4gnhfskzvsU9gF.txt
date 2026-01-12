@@ -1,0 +1,103 @@
+     1→/**
+     2→ * AI Warranty Suggestions API
+     3→ *
+     4→ * POST - Generate AI suggestions for warranty/aftercare cases
+     5→ * Returns structured JSON with diagnostic guidance
+     6→ */
+     7→
+     8→import { withDealerContext } from "@/libs/authContext";
+     9→import { callOpenAI, UK_DEALER_CONTEXT } from "@/libs/openai";
+    10→
+    11→const SYSTEM_PROMPT = `${UK_DEALER_CONTEXT}
+    12→
+    13→You are helping diagnose a warranty claim or aftercare issue. Based on the information provided, generate practical diagnostic suggestions.
+    14→
+    15→CRITICAL: You must respond with ONLY valid JSON. No markdown, no code fences, no prose outside the JSON.
+    16→The JSON must have exactly these 5 keys:
+    17→- suspected_issues: array of {title, why, urgency} where urgency is "low", "med", or "high"
+    18→- checks_to_run: array of {step, tools, time_estimate_mins}
+    19→- questions_for_customer: array of {question, why}
+    20→- parts_to_consider: array of {part, notes}
+    21→- safety_notes: array of {note}
+    22→
+    23→Rules:
+    24→- If you don't have enough information, populate questions_for_customer instead of guessing
+    25→- Be practical and cost-conscious (used car dealer context)
+    26→- Time estimates should be realistic workshop times
+    27→- Always include relevant safety considerations
+    28→- Maximum 5 items per array`;
+    29→
+    30→async function handler(req, res, ctx) {
+    31→  if (req.method !== "POST") {
+    32→    return res.status(405).json({ error: "Method not allowed" });
+    33→  }
+    34→
+    35→  const {
+    36→    vehicleMake,
+    37→    vehicleModel,
+    38→    vehicleYear,
+    39→    mileage,
+    40→    fuelType,
+    41→    symptomDescription,
+    42→    faultCodes,
+    43→    warrantyType,
+    44→    additionalContext,
+    45→  } = req.body;
+    46→
+    47→  if (!symptomDescription) {
+    48→    return res.status(400).json({ error: "Symptom description is required" });
+    49→  }
+    50→
+    51→  // Build context for AI
+    52→  const contextParts = [];
+    53→
+    54→  if (vehicleMake || vehicleModel) {
+    55→    contextParts.push(`Vehicle: ${[vehicleYear, vehicleMake, vehicleModel].filter(Boolean).join(" ")}`);
+    56→  }
+    57→  if (mileage) {
+    58→    contextParts.push(`Mileage: ${mileage}`);
+    59→  }
+    60→  if (fuelType) {
+    61→    contextParts.push(`Fuel type: ${fuelType}`);
+    62→  }
+    63→  if (warrantyType) {
+    64→    contextParts.push(`Warranty: ${warrantyType}`);
+    65→  }
+    66→  if (faultCodes) {
+    67→    contextParts.push(`Fault codes: ${faultCodes}`);
+    68→  }
+    69→  if (additionalContext) {
+    70→    contextParts.push(`Additional info: ${additionalContext}`);
+    71→  }
+    72→
+    73→  const userPrompt = `Please analyse this warranty/aftercare issue and provide diagnostic suggestions.
+    74→
+    75→${contextParts.length > 0 ? "VEHICLE & CONTEXT:\n" + contextParts.join("\n") + "\n\n" : ""}REPORTED SYMPTOMS:
+    76→${symptomDescription}
+    77→
+    78→Generate your response as valid JSON with the exact schema specified.`;
+    79→
+    80→  const result = await callOpenAI(SYSTEM_PROMPT, userPrompt);
+    81→
+    82→  if (result.isDummy) {
+    83→    return res.status(200).json({
+    84→      success: true,
+    85→      isDummy: true,
+    86→      message: result.error || "AI not configured - showing placeholder",
+    87→      suggestions: result.data,
+    88→    });
+    89→  }
+    90→
+    91→  return res.status(200).json({
+    92→    success: true,
+    93→    isDummy: false,
+    94→    suggestions: result.data,
+    95→  });
+    96→}
+    97→
+    98→export default withDealerContext(handler);
+    99→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

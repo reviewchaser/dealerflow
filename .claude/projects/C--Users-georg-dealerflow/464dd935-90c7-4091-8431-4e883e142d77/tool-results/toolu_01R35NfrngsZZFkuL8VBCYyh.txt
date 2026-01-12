@@ -1,0 +1,27 @@
+The file C:\Users\georg\dealerflow\libs\vehicle\normalizeVrmLookup.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   169→ * Normalize transmission to consistent format
+   170→ * @param {string} transmission - Raw transmission from DVLA
+   171→ * @returns {string} - Normalized transmission
+   172→ */
+   173→export function normalizeTransmission(transmission) {
+   174→  if (!transmission) return "";
+   175→
+   176→  const normalized = transmission.toUpperCase().trim();
+   177→
+   178→  // Map common variations to capitalized form (for form select compatibility)
+   179→  const transMap = {
+   180→    MANUAL: "Manual",
+   181→    AUTOMATIC: "Automatic",
+   182→    AUTO: "Automatic",
+   183→    SEMI: "Semi-Auto",
+   184→    "SEMI-AUTOMATIC": "Semi-Auto",
+   185→    "SEMI-AUTO": "Semi-Auto",
+   186→    CVT: "CVT",
+   187→  };
+   188→
+   189→  return transMap[normalized] || transmission;
+   190→}
+   191→
+   192→/**
+   193→ * Check if model is missing and needs manual entry
+   194→ * @param {object} normalizedData - Normalized vehicle data from normalizeDvlaResponse

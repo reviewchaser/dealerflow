@@ -1,0 +1,288 @@
+DealerHQ — Sales Classification + Customer Picker + KPIs + Reporting + Numbering
+Goal
+
+Improve Sales module to support correct legal classification (Retail/Trade + distance/in-person + personal vs business use), fix customer creation/search inside the sale, unblock deposit workflow, implement custom KPI date range, and add a proper reporting area (stock value + VAT reports). Also make invoice/receipt numbering automatic (not editable next number).
+
+1) Fix: Customer search + create inside Sale (BLOCKER)
+Problem
+
+Within a sale, I still cannot search for or create/select a customer. This blocks “Take Deposit”.
+
+Required behaviour
+
+In Deal Drawer → Customer tab:
+
+Search contacts by name/email/phone/company
+
+Select a contact as “Sold To”
+
+Create a new customer inline if not found
+
+Auto-select newly created customer
+
+Minimal required field for creating a contact: name/displayName only (pick one field and standardise everywhere)
+
+Tasks
+
+Fix schema mismatch (displayName vs name) so contact creation works consistently
+
+Fix ContactPicker wiring in Sale drawer:
+
+ensure it calls search API
+
+ensure create action calls create API
+
+ensure selected contact id is written to the Sale record
+
+Acceptance tests
+
+Create sale → Customer tab → type “John” → results show
+
+Type a new name → “Create …” appears → click → contact created + attached
+
+Refresh → still attached
+
+Take deposit becomes enabled once customer + deposit inputs are valid
+
+2) Sale classification logic (rights & terms) — restructure Deal Details
+Problem
+
+The current “Deal Details” section is too flat and doesn’t match real-world legal classification. We need sale type first, then conditional questions.
+
+Required UI changes
+
+Rename “Deal Details” → “Sale Classification” (or “Sale Setup”).
+
+Required fields and conditional logic
+Step 1 — Sale Type (first decision)
+
+Options:
+
+Retail
+
+Trade
+
+Export
+
+Step 2 — Retail only: buyer use
+
+If Sale Type = Retail, ask:
+
+Buyer is:
+
+Personal use (consumer)
+
+Business use (business customer)
+
+(We will use this to decide CRA vs business sale wording.)
+
+Step 3 — Retail only: sale channel
+
+If Sale Type = Retail, ask:
+
+Sale channel:
+
+In person (on-premises)
+
+Distance sale (remote)
+
+Step 4 — Trade/Business details (only when not consumer)
+
+If buyer is business use OR Sale Type is Trade:
+
+Add optional fields:
+
+Company name
+
+Company reg number (optional)
+
+VAT number (optional)
+
+Ensure invoice templates can reflect business sale terms later.
+
+Persist on the Sale model
+
+Store:
+
+saleType: retail | trade | export
+
+buyerUse: personal | business (only relevant for retail)
+
+saleChannel: in_person | distance (only relevant for retail)
+These fields must be saved and available for documents and reporting.
+
+Acceptance tests
+
+Switching Sale Type updates which fields appear
+
+Retail shows buyerUse + channel options
+
+Trade/Export do not show consumer fields
+
+Values persist on refresh and are visible in summary
+
+3) Make deposit workflow clear and unblocked
+Problem
+
+Deposit action appears but cannot be used; “deal details” is confusing vs money actions.
+
+Required UI structure (Summary tab)
+
+Order sections like this:
+
+Deal Readiness
+
+Sale Classification (from section 2)
+
+Pricing (vehicle price, add-ons total, total due)
+
+Deposit (deposit amount + method, then action)
+
+Rename “Actions” block → “Deposit & Progress”.
+
+Deposit gating rules
+
+“Take Deposit” button enabled only if:
+
+Customer selected
+
+Vehicle sale price set (>0)
+
+Deposit amount entered (>0)
+
+Payment method selected (cash/card/bank transfer)
+
+If disabled, show inline reason list (not just greyed out).
+
+Acceptance tests
+
+With no customer: deposit disabled with reason
+
+Once customer + price + deposit amount + method set: deposit enabled and works
+
+Taking deposit creates a payment entry, updates status to “Deposit Taken”, and updates balance due
+
+4) KPI period selector: add Custom Range (+ URL persistence)
+Required period options
+
+Last 7 days
+
+Last 30 days
+
+This month
+
+Last month
+
+Quarter to date
+
+Year to date
+
+All time
+
+Custom… (From / To date picker)
+
+Behaviour
+
+When custom selected, show date inputs
+
+Persist in URL: ?from=YYYY-MM-DD&to=YYYY-MM-DD
+
+KPI API and list must respect these dates
+
+Revenue/profit KPIs must not include Drafts unless explicitly intended
+
+Acceptance tests
+
+Selecting Custom shows date pickers
+
+Changing dates updates KPIs
+
+Refresh preserves selection from URL
+
+5) Reporting: where to put “Total SIV” and VAT report exports
+Requirement
+
+Add a Reports area (Management) — do NOT bloat Sales page.
+
+Create:
+
+Management → Reports → Inventory
+
+total stock count
+
+total known SIV
+
+unknown SIV count + coverage
+
+avg days in stock
+
+Management → Reports → VAT
+
+Period selector (with Custom range)
+
+Purchases VAT (VAT qualifying vehicles purchased in range)
+
+Sales VAT (standard VAT sales output VAT in range)
+
+Export CSV: purchases and sales lines
+
+Export PDF: summary + line items
+
+VAT report data requirements:
+
+Purchases: vehicle, purchase date, SIV inc VAT, VAT portion (calculated), supplier, stock number
+
+Sales: vehicle, invoice date, sale price, VAT treatment, output VAT, customer type
+
+(If PDFs are too big right now, do CSV first, PDF second — but plan for both.)
+
+6) Sales Settings: invoice/receipt numbering must be automatic
+Problem
+
+Settings page shows editable “Next invoice number / Next receipt number”. These should NOT be user-editable (they’ll break sequences).
+
+Required behaviour
+
+User can set:
+
+invoice prefix (INV)
+
+starting number (initial seed) ONLY (or “Reset sequence” behind confirmation)
+
+System controls:
+
+next invoice number (read-only display)
+
+increments automatically when invoice is generated
+
+Same for receipt numbering
+
+Implementation
+
+Store counters per dealer (atomic increment)
+
+Use Mongo atomic update (findOneAndUpdate with $inc) when generating invoice/receipt
+
+Show preview like “Next invoice will be INV000123” (formatting optional)
+
+Acceptance tests
+
+Next numbers displayed but cannot be edited
+
+Generating invoice increments counter
+
+Concurrent invoice generation does not create duplicates
+
+QA checklist (must complete)
+
+Customer search/create works inside sale and globally
+
+Deposit can be taken after prerequisites and updates status/payment/balance
+
+Sale classification fields behave conditionally and persist
+
+KPI custom range works and persists in URL
+
+Reports pages load and export works (CSV at minimum)
+
+Settings numbering is read-only and increments correctly

@@ -1,0 +1,229 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import AftercareCase from "@/models/AftercareCase";
+     3→import AftercareCaseComment from "@/models/AftercareCaseComment";
+     4→import { withDealerContext } from "@/libs/authContext";
+     5→import { getOpenAIClient, safeJsonParse } from "@/libs/openai";
+     6→
+     7→async function handler(req, res, ctx) {
+     8→  if (req.method !== "POST") {
+     9→    return res.status(405).json({ error: "Method not allowed" });
+    10→  }
+    11→
+    12→  if (!process.env.OPENAI_API_KEY) {
+    13→    return res.status(500).json({
+    14→      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+    15→    });
+    16→  }
+    17→
+    18→  const openai = getOpenAIClient();
+    19→  if (!openai) {
+    20→    return res.status(500).json({ error: "OpenAI client not available" });
+    21→  }
+    22→
+    23→  await connectMongo();
+    24→
+    25→  const { dealerId, userId } = ctx;
+    26→  const { caseId, regenerate } = req.body || {};
+    27→
+    28→  if (!caseId) {
+    29→    return res.status(400).json({ error: "caseId is required" });
+    30→  }
+    31→
+    32→  try {
+    33→    // Fetch the case with all details (scoped to dealer)
+    34→    const aftercareCase = await AftercareCase.findOne({ _id: caseId, dealerId })
+    35→      .populate("contactId", "name email phone")
+    36→      .populate("vehicleId", "make model regCurrent year mileage")
+    37→      .lean();
+    38→
+    39→    if (!aftercareCase) {
+    40→      return res.status(404).json({ error: "Case not found" });
+    41→    }
+    42→
+    43→    // Return cached AI review unless explicitly regenerating
+    44→    if (aftercareCase.aiReview?.payload && !regenerate) {
+    45→      return res.status(200).json({
+    46→        ok: true,
+    47→        summary: aftercareCase.aiReview.payload,
+    48→        cached: true,
+    49→        generatedAt: aftercareCase.aiReview.generatedAt,
+    50→      });
+    51→    }
+    52→
+    53→    // Fetch comments for additional context (dealer scoped)
+    54→    const comments = await AftercareCaseComment.find({
+    55→      aftercareCaseId: caseId,
+    56→      dealerId,
+    57→    })
+    58→      .sort({ createdAt: 1 })
+    59→      .lean();
+    60→
+    61→    // Build compact context for AI (cap lengths to control tokens/cost)
+    62→    const safeIssue =
+    63→      (aftercareCase.details?.issueDescription ||
+    64→        aftercareCase.issueDescription ||
+    65→        "No description provided") + "";
+    66→
+    67→    const caseContext = {
+    68→      customer: aftercareCase.contactId?.name || "Unknown customer",
+    69→      customerEmail: aftercareCase.contactId?.email || null,
+    70→      customerPhone: aftercareCase.contactId?.phone || null,
+    71→      vehicle: {
+    72→        make:
+    73→          aftercareCase.vehicleId?.make ||
+    74→          aftercareCase.details?.vehicleMake ||
+    75→          "Unknown",
+    76→        model:
+    77→          aftercareCase.vehicleId?.model ||
+    78→          aftercareCase.details?.vehicleModel ||
+    79→          "",
+    80→        reg:
+    81→          aftercareCase.regAtPurchase ||
+    82→          aftercareCase.vehicleId?.regCurrent ||
+    83→          "Unknown",
+    84→        year: aftercareCase.vehicleId?.year || null,
+    85→        mileage:
+    86→          aftercareCase.vehicleId?.mileage ||
+    87→          aftercareCase.details?.mileageAtPurchase ||
+    88→          null,
+    89→      },
+    90→      issue: safeIssue.slice(0, 2000),
+    91→      source: aftercareCase.source || "Manual",
+    92→      priority: aftercareCase.priority || "normal",
+    93→      status: aftercareCase.boardStatus || "not_booked_in",
+    94→      warrantyType: aftercareCase.warrantyType || "Dealer Warranty",
+    95→      purchaseDate:
+    96→        aftercareCase.purchaseDate || aftercareCase.details?.dateOfPurchase || null,
+    97→      daysOpen: Math.floor(
+    98→        (Date.now() - new Date(aftercareCase.createdAt).getTime()) /
+    99→          (1000 * 60 * 60 * 24)
+   100→      ),
+   101→      repairLocation: aftercareCase.repairLocationType || "WITH_CUSTOMER",
+   102→      partsRequired: !!aftercareCase.partsRequired,
+   103→      partsDetails: aftercareCase.partsDetails || null,
+   104→      courtesyRequired: !!aftercareCase.courtesyRequired,
+   105→      timeline: (aftercareCase.events || [])
+   106→        .slice(-10)
+   107→        .map((e) => ({
+   108→          type: e.type,
+   109→          summary: (e.summary || "").slice(0, 200),
+   110→          date: e.createdAt,
+   111→        })),
+   112→      comments: (comments || [])
+   113→        .slice(-5)
+   114→        .map((c) => ({
+   115→          text: (c.text || "").slice(0, 400),
+   116→          isInternal: !!c.isInternal,
+   117→          date: c.createdAt,
+   118→        })),
+   119→    };
+   120→
+   121→    const prompt = `You are an expert automotive warranty/aftersales case analyst for a UK car dealership.
+   122→Return VALID JSON only (no markdown, no extra commentary).
+   123→
+   124→CASE DETAILS:
+   125→- Customer: ${caseContext.customer}
+   126→- Vehicle: ${caseContext.vehicle.year || ""} ${caseContext.vehicle.make} ${caseContext.vehicle.model} (${caseContext.vehicle.reg})
+   127→- Mileage: ${caseContext.vehicle.mileage || "Unknown"}
+   128→- Purchase Date: ${
+   129→      caseContext.purchaseDate
+   130→        ? new Date(caseContext.purchaseDate).toLocaleDateString()
+   131→        : "Unknown"
+   132→    }
+   133→- Warranty Type: ${caseContext.warrantyType}
+   134→- Days Open: ${caseContext.daysOpen}
+   135→- Priority: ${caseContext.priority}
+   136→- Current Status: ${caseContext.status}
+   137→- Repair Location: ${caseContext.repairLocation}
+   138→- Parts Required: ${caseContext.partsRequired ? "Yes" : "No"}
+   139→${caseContext.partsDetails ? `- Parts Details: ${caseContext.partsDetails}` : ""}
+   140→- Courtesy Car Required: ${caseContext.courtesyRequired ? "Yes" : "No"}
+   141→
+   142→ISSUE REPORTED:
+   143→${caseContext.issue}
+   144→
+   145→${
+   146→  caseContext.comments.length > 0
+   147→    ? `RECENT COMMENTS:
+   148→${caseContext.comments
+   149→  .map((c) => `- ${c.text} (${c.isInternal ? "Internal" : "Customer"})`)
+   150→  .join("\n")}`
+   151→    : ""
+   152→}
+   153→
+   154→${
+   155→  caseContext.timeline.length > 0
+   156→    ? `RECENT ACTIVITY:
+   157→${caseContext.timeline.map((t) => `- ${t.summary}`).join("\n")}`
+   158→    : ""
+   159→}
+   160→
+   161→Respond with JSON:
+   162→{
+   163→  "summary": "2-3 sentence summary of the case and current status",
+   164→  "assessment": "Is this likely warranty, wear & tear, customer misuse, etc. (keep balanced)",
+   165→  "recommendedActions": ["2-5 concrete next steps in order"],
+   166→  "estimatedComplexity": "LOW | MEDIUM | HIGH",
+   167→  "riskLevel": "LOW | MEDIUM | HIGH",
+   168→  "draftCustomerReply": "Short empathetic UK customer message (2-4 sentences)",
+   169→  "draftInternalNote": "Short internal note for staff"
+   170→}
+   171→`;
+   172→
+   173→    const completion = await openai.chat.completions.create({
+   174→      model: "gpt-4o-mini",
+   175→      messages: [
+   176→        {
+   177→          role: "system",
+   178→          content: "Return JSON only. No markdown. No extra keys.",
+   179→        },
+   180→        { role: "user", content: prompt },
+   181→      ],
+   182→      temperature: 0.7,
+   183→      max_tokens: 1000,
+   184→      response_format: { type: "json_object" },
+   185→    });
+   186→
+   187→    const responseText = completion.choices?.[0]?.message?.content || "";
+   188→    let aiResponse;
+   189→    try {
+   190→      aiResponse = safeJsonParse(responseText);
+   191→    } catch (parseError) {
+   192→      console.error("Failed to parse AI JSON:", responseText);
+   193→      return res.status(500).json({ error: "Failed to parse AI response JSON" });
+   194→    }
+   195→
+   196→    const generatedAt = new Date();
+   197→
+   198→    // Store result on the case
+   199→    await AftercareCase.updateOne(
+   200→      { _id: caseId, dealerId },
+   201→      {
+   202→        $set: {
+   203→          aiReview: {
+   204→            payload: aiResponse,
+   205→            generatedAt,
+   206→            generatedByUserId: userId,
+   207→          },
+   208→        },
+   209→      }
+   210→    );
+   211→
+   212→    return res.status(200).json({
+   213→      ok: true,
+   214→      summary: aiResponse,
+   215→      cached: false,
+   216→      generatedAt: generatedAt.toISOString(),
+   217→    });
+   218→  } catch (error) {
+   219→    console.error("Error generating warranty summary:", error);
+   220→    return res.status(500).json({ error: "Failed to generate summary" });
+   221→  }
+   222→}
+   223→
+   224→export default withDealerContext(handler);
+   225→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

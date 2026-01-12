@@ -1,0 +1,46 @@
+The file C:\Users\georg\dealerflow\pages\api\forms\submissions.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   354→            case "TEST_DRIVE":
+   355→              updates.testDriveCount = (vehicle.testDriveCount || 0) + 1;
+   356→              break;
+   357→
+   358→            case "DELIVERY":
+   359→              updates.deliverySubmissionId = submission._id;
+   360→              updates.status = "delivered";
+   361→              // Auto-complete Delivery task on this vehicle (idempotent)
+   362→              try {
+   363→                const deliveryTask = await VehicleTask.findOne({
+   364→                  vehicleId: vehicle._id,
+   365→                  name: { $regex: /^(Delivery|Vehicle Delivery|Handover)$/i }
+   366→                });
+   367→                if (deliveryTask && deliveryTask.status !== "done" && deliveryTask.status !== "DONE") {
+   368→                  await VehicleTask.findByIdAndUpdate(deliveryTask._id, {
+   369→                    status: "done",
+   370→                    completedAt: new Date(),
+   371→                    notes: deliveryTask.notes ? `${deliveryTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+   372→                  });
+   373→                }
+   374→              } catch (taskError) {
+   375→                console.error("Error completing Delivery task:", taskError);
+   376→              }
+   377→              break;
+   378→
+   379→            case "SERVICE_RECEIPT":
+   380→              updates.serviceReceiptSubmissionId = submission._id;
+   381→              updates.serviceReceiptCompletedAt = new Date();
+   382→              break;
+   383→          }
+   384→
+   385→          if (Object.keys(updates).length > 0) {
+   386→            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+   387→          }
+   388→
+   389→          // Link the submission to the vehicle via linkedVehicleId
+   390→          await FormSubmission.findByIdAndUpdate(submission._id, {
+   391→            linkedVehicleId: vehicle._id
+   392→          });
+   393→        }
+   394→      }
+   395→
+   396→      // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
+   397→      if (form.type === "WARRANTY_CLAIM") {
+   398→        try {

@@ -1,0 +1,16 @@
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\activity.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\documents.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\job-sheet.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\labels\[labelId].js
+C:\Users\georg\dealerflow\pages\api\vehicles\courtesy.js
+C:\Users\georg\dealerflow\pages\api\vehicles\vrm-suggestions.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id].js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\tasks.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\prep-summary.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\issues.js
+C:\Users\georg\dealerflow\pages\api\vehicles\index.js
+C:\Users\georg\dealerflow\pages\api\vehicles\search.js
+C:\Users\georg\dealerflow\pages\api\vehicles\stock.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\images.js
+C:\Users\georg\dealerflow\pages\api\vehicles\[id]\primary-image.js
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js

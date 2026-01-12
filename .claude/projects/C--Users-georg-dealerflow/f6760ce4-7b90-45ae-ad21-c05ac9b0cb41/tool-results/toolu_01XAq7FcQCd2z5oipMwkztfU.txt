@@ -1,0 +1,6 @@
+195:  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+1999:              activeStage={mobileActiveColumn}
+2000:              onStageChange={setMobileActiveColumn}
+2006:            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
+
+[Showing results with pagination = limit: 30, offset: 0]

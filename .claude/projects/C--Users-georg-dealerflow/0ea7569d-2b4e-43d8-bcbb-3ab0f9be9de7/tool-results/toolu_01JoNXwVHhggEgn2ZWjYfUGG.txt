@@ -1,0 +1,44 @@
+  1750→
+  1751→  return (
+  1752→    <DashboardLayout>
+  1753→      <Head><title>Stock & Prep | DealerFlow</title></Head>
+  1754→
+  1755→      <div className="flex justify-between items-center mb-6">
+  1756→        <div>
+  1757→          <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
+  1758→          <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; Drag cards to move between stages</p>
+  1759→        </div>
+  1760→        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
+  1761→          + Add Vehicle
+  1762→        </button>
+  1763→      </div>
+  1764→
+  1765→      {/* Consolidated Filters */}
+  1766→      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-3">
+  1767→        <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
+  1768→            {/* VRM Search */}
+  1769→            {/* VRM Search with anchored dropdown */}
+  1770→            <div className="relative shrink-0">
+  1771→              <div className="relative">
+  1772→                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1773→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1774→                </svg>
+  1775→                <input
+  1776→                  ref={vrmSearchInputRef}
+  1777→                  type="text"
+  1778→                  placeholder={vrmFilter ? `Filtered: ${vrmFilter}` : "Search VRM..."}
+  1779→                  className={`input input-sm input-bordered pl-9 pr-8 w-32 sm:w-48 font-mono uppercase ${vrmFilter ? "border-blue-400 bg-blue-50" : ""}`}
+  1780→                  value={vrmSearch}
+  1781→                  onChange={(e) => handleVrmSearchChange(e.target.value)}
+  1782→                  onFocus={() => {
+  1783→                    if (vrmSearch.length >= 2) {
+  1784→                      setShowVrmDropdown(true);
+  1785→                    }
+  1786→                  }}
+  1787→                  onKeyDown={handleVrmKeyDown}
+  1788→                />
+  1789→                {(vrmSearch || vrmFilter) && (
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

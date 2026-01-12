@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   108→          <div className="hidden md:flex items-center gap-3">
+   109→            <Link href="/auth/signin" className="px-4 py-2 text-sm font-medium text-slate-700 hover:text-slate-900 transition-colors">
+   110→              Sign in
+   111→            </Link>
+   112→            <Link href="/auth/signup?plan=free" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+   113→              Get started free
+   114→            </Link>
+   115→          </div>
+   116→
+   117→          {/* Mobile Menu Button */}
+   118→          <button

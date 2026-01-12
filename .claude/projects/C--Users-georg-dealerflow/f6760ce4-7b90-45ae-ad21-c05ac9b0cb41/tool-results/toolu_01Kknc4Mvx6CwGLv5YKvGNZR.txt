@@ -1,0 +1,84 @@
+  1635→            <div className="relative shrink-0">
+  1636→              <div className="relative">
+  1637→                <svg className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1638→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  1639→                </svg>
+  1640→                <input
+  1641→                  type="text"
+  1642→                  placeholder="Search VRM..."
+  1643→                  className="input input-sm input-bordered pl-9 pr-8 w-32 sm:w-44 font-mono uppercase"
+  1644→                  value={vrmSearch}
+  1645→                  onChange={(e) => {
+  1646→                    setVrmSearch(e.target.value.toUpperCase());
+  1647→                    setShowVrmDropdown(e.target.value.length >= 2);
+  1648→                  }}
+  1649→                  onFocus={() => vrmSearch.length >= 2 && setShowVrmDropdown(true)}
+  1650→                  onKeyDown={(e) => {
+  1651→                    if (e.key === "Escape") {
+  1652→                      setShowVrmDropdown(false);
+  1653→                      e.target.blur();
+  1654→                    }
+  1655→                  }}
+  1656→                />
+  1657→                {vrmSearch && (
+  1658→                  <button
+  1659→                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+  1660→                    onClick={() => {
+  1661→                      setVrmSearch("");
+  1662→                      setShowVrmDropdown(false);
+  1663→                    }}
+  1664→                  >
+  1665→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1666→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  1667→                    </svg>
+  1668→                  </button>
+  1669→                )}
+  1670→              </div>
+  1671→
+  1672→              {/* VRM Search Dropdown */}
+  1673→              {showVrmDropdown && (
+  1674→                <>
+  1675→                  <div className="fixed inset-0 z-10" onClick={() => setShowVrmDropdown(false)}></div>
+  1676→                  <div className="absolute top-full left-0 mt-1 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-20 overflow-hidden">
+  1677→                    {getVrmSearchResults().length > 0 ? (
+  1678→                      <ul className="py-1 max-h-64 overflow-y-auto">
+  1679→                        {getVrmSearchResults().map((vehicle) => (
+  1680→                          <li key={vehicle.id || vehicle._id}>
+  1681→                            <button
+  1682→                              className="w-full px-4 py-2.5 text-left hover:bg-slate-50 flex items-center justify-between gap-2 transition-colors"
+  1683→                              onClick={() => handleVrmSelect(vehicle)}
+  1684→                            >
+  1685→                              <div className="flex items-center gap-3">
+  1686→                                <span className="font-mono font-bold text-slate-900">{vehicle.regCurrent}</span>
+  1687→                                <span className="text-sm text-slate-500">{vehicle.make} {vehicle.model}</span>
+  1688→                              </div>
+  1689→                              <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+  1690→                                {getStatusLabel(vehicle.status)}
+  1691→                              </span>
+  1692→                            </button>
+  1693→                          </li>
+  1694→                        ))}
+  1695→                      </ul>
+  1696→                    ) : (
+  1697→                      <div className="px-4 py-6 text-center">
+  1698→                        <svg className="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1699→                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1700→                        </svg>
+  1701→                        <p className="text-sm text-slate-500">No vehicles found</p>
+  1702→                        <p className="text-xs text-slate-400 mt-1">Try a different registration</p>
+  1703→                      </div>
+  1704→                    )}
+  1705→                  </div>
+  1706→                </>
+  1707→              )}
+  1708→            </div>
+  1709→
+  1710→            <div className="divider divider-horizontal mx-1 shrink-0 hidden sm:flex"></div>
+  1711→
+  1712→            {/* All Vehicles Button */}
+  1713→            <button
+  1714→              className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

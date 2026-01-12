@@ -1,0 +1,231 @@
+     1→/**
+     2→ * DVLA Vehicle Enquiry Service API
+     3→ *
+     4→ * POST /api/dvla/vehicle-enquiry
+     5→ * Body: { registrationNumber: string }
+     6→ *
+     7→ * Server-side proxy to DVLA VES API - key never hits browser.
+     8→ * https://developer-portal.driver-vehicle-licensing.api.gov.uk/
+     9→ */
+    10→
+    11→import { getServerSession } from "next-auth/next";
+    12→import { authOptions } from "../auth/[...nextauth]";
+    13→
+    14→// Normalize VRM: trim, uppercase, remove spaces
+    15→function normalizeVrm(vrm) {
+    16→  if (!vrm) return "";
+    17→  return vrm.trim().toUpperCase().replace(/\s+/g, "");
+    18→}
+    19→
+    20→// Format response fields for display
+    21→function formatDvlaResponse(data) {
+    22→  return {
+    23→    // Core vehicle identification
+    24→    registrationNumber: data.registrationNumber,
+    25→    make: data.make || null,
+    26→    colour: data.colour || null,
+    27→    yearOfManufacture: data.yearOfManufacture || null,
+    28→
+    29→    // Extended DVLA details to store
+    30→    dvlaDetails: {
+    31→      co2Emissions: data.co2Emissions || null,
+    32→      engineCapacity: data.engineCapacity || null,
+    33→      fuelType: data.fuelType || null,
+    34→      markedForExport: data.markedForExport || false,
+    35→      monthOfFirstRegistration: data.monthOfFirstRegistration || null,
+    36→      motStatus: data.motStatus || null,
+    37→      motExpiryDate: data.motExpiryDate || null,
+    38→      revenueWeight: data.revenueWeight || null,
+    39→      taxDueDate: data.taxDueDate || null,
+    40→      taxStatus: data.taxStatus || null,
+    41→      yearOfManufacture: data.yearOfManufacture || null,
+    42→      euroStatus: data.euroStatus || null,
+    43→      dateOfLastV5CIssued: data.dateOfLastV5CIssued || null,
+    44→      wheelplan: data.wheelplan || null,
+    45→      typeApproval: data.typeApproval || null,
+    46→    },
+    47→
+    48→    // Timestamp of this lookup
+    49→    lastDvlaFetchAt: new Date().toISOString(),
+    50→  };
+    51→}
+    52→
+    53→export default async function handler(req, res) {
+    54→  if (req.method !== "POST") {
+    55→    return res.status(405).json({ ok: false, code: "METHOD_NOT_ALLOWED" });
+    56→  }
+    57→
+    58→  // Require authentication
+    59→  const session = await getServerSession(req, res, authOptions);
+    60→  if (!session?.user) {
+    61→    return res.status(401).json({ ok: false, code: "UNAUTHORIZED" });
+    62→  }
+    63→
+    64→  const { registrationNumber } = req.body;
+    65→  if (!registrationNumber) {
+    66→    return res.status(400).json({
+    67→      ok: false,
+    68→      code: "MISSING_VRM",
+    69→      message: "Registration number is required",
+    70→    });
+    71→  }
+    72→
+    73→  const cleanVrm = normalizeVrm(registrationNumber);
+    74→
+    75→  // Basic format validation (2-8 alphanumeric characters)
+    76→  if (cleanVrm.length < 2 || cleanVrm.length > 8 || !/^[A-Z0-9]+$/.test(cleanVrm)) {
+    77→    return res.status(400).json({
+    78→      ok: false,
+    79→      code: "INVALID_FORMAT",
+    80→      message: "Registration number must be 2-8 alphanumeric characters",
+    81→    });
+    82→  }
+    83→
+    84→  // Support both DVLA_VES_API_KEY and DVLA_API_KEY for backwards compatibility
+    85→  const apiKey = process.env.DVLA_VES_API_KEY || process.env.DVLA_API_KEY;
+    86→
+    87→  // Return dummy data in development if no API key
+    88→  if (!apiKey) {
+    89→    if (process.env.NODE_ENV === "development") {
+    90→      console.warn("[DVLA] API key not configured - returning dummy data");
+    91→      return res.status(200).json({
+    92→        ok: true,
+    93→        isDummy: true,
+    94→        data: generateDummyResponse(cleanVrm),
+    95→      });
+    96→    }
+    97→    return res.status(503).json({
+    98→      ok: false,
+    99→      code: "NOT_CONFIGURED",
+   100→      message: "DVLA integration not configured",
+   101→    });
+   102→  }
+   103→
+   104→  try {
+   105→    const response = await fetch(
+   106→      "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles",
+   107→      {
+   108→        method: "POST",
+   109→        headers: {
+   110→          "Content-Type": "application/json",
+   111→          "x-api-key": apiKey,
+   112→        },
+   113→        body: JSON.stringify({ registrationNumber: cleanVrm }),
+   114→      }
+   115→    );
+   116→
+   117→    // Handle DVLA API errors
+   118→    if (!response.ok) {
+   119→      const status = response.status;
+   120→
+   121→      if (status === 404) {
+   122→        return res.status(404).json({
+   123→          ok: false,
+   124→          code: "NOT_FOUND",
+   125→          message: "No vehicle found with this registration number",
+   126→        });
+   127→      }
+   128→
+   129→      if (status === 400) {
+   130→        return res.status(400).json({
+   131→          ok: false,
+   132→          code: "INVALID_FORMAT",
+   133→          message: "Invalid registration number format",
+   134→        });
+   135→      }
+   136→
+   137→      if (status === 429) {
+   138→        return res.status(429).json({
+   139→          ok: false,
+   140→          code: "RATE_LIMIT",
+   141→          message: "Too many requests. Please try again later.",
+   142→        });
+   143→      }
+   144→
+   145→      if (status === 401 || status === 403) {
+   146→        console.error("[DVLA] Authentication/authorization error:", status);
+   147→        return res.status(503).json({
+   148→          ok: false,
+   149→          code: "DVLA_ERROR",
+   150→          message: "DVLA service authentication error",
+   151→        });
+   152→      }
+   153→
+   154→      console.error("[DVLA] Unexpected error:", status);
+   155→      return res.status(503).json({
+   156→        ok: false,
+   157→        code: "DVLA_ERROR",
+   158→        message: "DVLA service unavailable",
+   159→      });
+   160→    }
+   161→
+   162→    const rawData = await response.json();
+   163→
+   164→    // Log raw DVLA response for debugging fuel/model mapping
+   165→    console.log("DVLA_RAW", JSON.stringify(rawData, null, 2));
+   166→
+   167→    const formattedData = formatDvlaResponse(rawData);
+   168→
+   169→    return res.status(200).json({
+   170→      ok: true,
+   171→      isDummy: false,
+   172→      data: formattedData,
+   173→    });
+   174→  } catch (error) {
+   175→    console.error("[DVLA] Network error:", error.message);
+   176→
+   177→    // Fall back to dummy data in development
+   178→    if (process.env.NODE_ENV === "development") {
+   179→      console.warn("[DVLA] Falling back to dummy data due to network error");
+   180→      return res.status(200).json({
+   181→        ok: true,
+   182→        isDummy: true,
+   183→        data: generateDummyResponse(cleanVrm),
+   184→      });
+   185→    }
+   186→
+   187→    return res.status(503).json({
+   188→      ok: false,
+   189→      code: "DVLA_ERROR",
+   190→      message: "Unable to connect to DVLA service",
+   191→    });
+   192→  }
+   193→}
+   194→
+   195→/**
+   196→ * Generate dummy data for development/testing
+   197→ */
+   198→function generateDummyResponse(vrm) {
+   199→  const now = new Date();
+   200→  const motExpiry = new Date(now);
+   201→  motExpiry.setMonth(motExpiry.getMonth() + Math.floor(Math.random() * 12) + 1);
+   202→
+   203→  const taxDue = new Date(now);
+   204→  taxDue.setMonth(taxDue.getMonth() + Math.floor(Math.random() * 12) + 1);
+   205→
+   206→  return formatDvlaResponse({
+   207→    registrationNumber: vrm,
+   208→    make: "FORD",
+   209→    colour: "BLUE",
+   210→    yearOfManufacture: 2019,
+   211→    co2Emissions: 135,
+   212→    engineCapacity: 1498,
+   213→    fuelType: "PETROL",
+   214→    markedForExport: false,
+   215→    monthOfFirstRegistration: "2019-03",
+   216→    motStatus: "Valid",
+   217→    motExpiryDate: motExpiry.toISOString().split("T")[0],
+   218→    revenueWeight: null,
+   219→    taxDueDate: taxDue.toISOString().split("T")[0],
+   220→    taxStatus: "Taxed",
+   221→    euroStatus: "EURO 6",
+   222→    dateOfLastV5CIssued: "2023-06-15",
+   223→    wheelplan: "2 AXLE RIGID BODY",
+   224→    typeApproval: "M1",
+   225→  });
+   226→}
+   227→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

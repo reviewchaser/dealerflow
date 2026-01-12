@@ -1,0 +1,10 @@
+The file C:\Users\georg\dealerflow\pages\sales.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   174→      toast.success("Deal created");
+   175→      setShowCreateModal(false);
+   176→      setVehicleSearch("");
+   177→      await router.push(`/sales?id=${newDealId}`, undefined, { shallow: true });
+   178→      fetchDeals();
+   179→    } catch (error) {
+   180→      console.error("[Sales] Create deal error:", error);
+   181→      toast.error(error.message || "Could not create sale");
+   182→    } finally {

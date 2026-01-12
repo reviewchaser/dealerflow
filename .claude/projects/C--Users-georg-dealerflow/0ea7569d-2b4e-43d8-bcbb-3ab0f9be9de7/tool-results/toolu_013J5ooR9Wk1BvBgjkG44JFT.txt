@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\components\DealDrawer.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1220→                          </div>
+  1221→                        </div>
+  1222→                      </div>
+  1223→                    </div>
+  1224→                  )}
+  1225→
+  1226→                  {/* Pricing Summary */}
+  1227→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1228→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1229→                      <div className="flex items-center justify-between">
+  1230→                        <div className="flex items-center gap-2">

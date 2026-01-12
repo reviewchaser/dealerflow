@@ -1,0 +1,7 @@
+705-        </nav>
+706-
+707-        {/* Footer - Collapse Toggle + SaaS Branding */}
+708:        <div className={`mt-auto border-t border-slate-100 ${sidebarCollapsed ? "p-2" : "p-4"}`}>
+709-          {/* Collapse Toggle Button */}
+710-          <button
+711-            onClick={toggleSidebarCollapsed}

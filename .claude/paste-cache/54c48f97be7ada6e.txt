@@ -1,0 +1,287 @@
+Priority 0 — Fix Sales “cannot open / closes instantly” bug (must be done first)
+Current symptoms
+
+Create Sale → select a vehicle → modal/drawer closes immediately back to Sales list
+
+A draft sale is created and appears in the list
+
+Clicking any sale briefly opens drawer then immediately closes and returns to list
+
+Required outcome
+
+Creating a sale should end with the DealDrawer open on that sale
+
+Clicking a sale should always open DealDrawer and stay open
+
+Drawer must not auto-close on fetch/loading/error states
+
+Must be debugged and tested so it cannot regress
+
+Implementation requirements (do this approach, not a patch)
+
+Make drawer open state URL-driven
+
+Use: /app/[dealerSlug]/sales?saleId=<id>
+
+Drawer is open if saleId exists in search params.
+
+Closing drawer removes saleId from URL with router.replace(baseUrl, { scroll:false })
+
+Clicking a sale must only update the URL
+
+router.push(${baseUrl}?saleId=${sale._id}, { scroll:false })
+
+After creating a sale, route to it
+
+Create sale API returns new id
+
+Immediately router.push(${baseUrl}?saleId=${newId}, { scroll:false })
+
+Do not do any follow-up navigation that clears the param
+
+Remove any code that auto-closes the drawer
+
+Search for setOpen(false) / onOpenChange(false) triggered by:
+
+!sale
+
+fetch error
+
+loading
+
+list refresh
+
+Replace with in-drawer states:
+
+skeleton while loading
+
+error UI (retry)
+
+not-found UI (no auto-close)
+
+Add temporary console traces to find the culprit
+
+log when saleId changes
+
+trace when drawer closes
+
+log mount/unmount
+
+Remove these logs after fix is confirmed
+
+Testing checklist (must be completed)
+
+Create sale from Sales page → select vehicle → drawer opens and remains open
+
+Create sale from Vehicle drawer → opens newly created sale drawer
+
+Refresh page with ?saleId=... → drawer opens correctly
+
+Click sale in list 10 times → never closes unexpectedly
+
+Simulate API failure → drawer shows error but stays open
+
+Filtering/tabs/period changes do not close drawer unless user closes it
+
+Priority 1 — Purchase info rules (SIV + VAT calculation + stock number)
+
+You’ve added the Purchase Info section (good). Now adjust the logic:
+
+1) SIV definition
+
+SIV = total purchase price INCLUDING VAT (single number input)
+
+Do NOT store “VAT on purchase” as a required manual field for VAT qualifying vehicles
+
+2) VAT % comes from Settings
+
+Add to Settings page:
+
+defaultVatRate (default 20)
+
+Use that % to calculate VAT portion automatically when VAT scheme is VAT Qualifying
+
+3) UI changes in Vehicle Drawer → Purchase Info
+
+Replace:
+
+“VAT on Purchase” manual input (remove or make read-only derived)
+With:
+
+Purchase price (SIV) [£] (user input)
+
+VAT scheme (dropdown):
+
+VAT Qualifying
+
+Margin Scheme
+
+No VAT / Exempt
+
+Derived display fields (non-editable):
+
+“VAT portion on purchase” (only if VAT qualifying)
+
+“Net purchase (ex VAT)” (only if VAT qualifying)
+
+VAT calculation:
+
+Given SIV includes VAT and vatRate = 20%:
+
+Net = SIV / (1 + vatRate)
+
+VAT = SIV - Net
+
+Round to 2dp.
+
+4) Invoice reference field change
+
+“Invoice Ref” is not required and should not be treated as the stock number.
+
+Replace the concept with Stock Number:
+
+auto-assigned sequential integer per dealer
+
+starts at 1 for earliest stock
+
+never changes once assigned
+
+visible on vehicle card + drawer identity block
+
+Implementation approach:
+
+Add stockNumber to Vehicle model
+
+On vehicle creation:
+
+find max stockNumber for that dealer
+
+assign next = max + 1
+
+For existing vehicles with null:
+
+migration script assigns by createdAt ascending (earliest = 1)
+
+Keep “Invoice Ref” as optional text if you still want it (but not required).
+
+Priority 2 — Sales invoicing: add “Zero VAT” option
+Requirement
+
+When invoicing a sale, user must be able to choose VAT treatment including:
+
+Standard VAT (VAT qualifying)
+
+Margin scheme
+
+Zero-rated VAT (export / special case)
+
+Exempt / No VAT (if relevant)
+
+How to implement cleanly
+
+Add a vatTreatment (or similar) field on Sale:
+
+standard
+
+margin
+
+zeroRated
+
+exempt
+
+Rules:
+
+If vehicle is VAT qualifying:
+
+default to standard
+
+If vehicle is margin scheme:
+
+default to margin
+
+If vehicle is no VAT:
+
+default to exempt
+
+Allow user to override to zeroRated where needed
+
+Invoice calculations:
+
+standard: output VAT calculated normally
+
+zeroRated: VAT due = 0, but sale is still VAT-relevant (keep record)
+
+exempt: VAT due = 0, treated as exempt
+
+margin: VAT handled via margin scheme logic (already planned)
+
+Also ensure reporting distinguishes zero-rated vs exempt (important for VAT returns).
+
+Priority 3 — Remaining agreed roadmap items (implement after above)
+A) Missing SIV indicators + filters
+
+Vehicle card badge: “Missing SIV”
+
+Filter: Missing purchase info
+
+KPI coverage indicator everywhere profit is shown:
+
+“Included: 9/15 vehicles” (never assume missing is £0)
+
+B) Sales KPIs period flexibility
+
+Extend period options:
+
+Last 7 days
+
+Last 30 days
+
+This month
+
+Last month
+
+Quarter to date
+
+Year to date
+
+All time
+
+Custom range (From / To)
+
+Persist selection in URL.
+
+C) Stock Insights location (not on Sales page)
+
+Create Stock & Prep → Insights (or Reports)
+
+Total stock count (by status)
+
+Total known SIV + unknown SIV count
+
+Avg days in stock
+
+Age buckets
+
+Sales page stays transactional (revenue, VAT due, profit, units).
+
+D) DVLA/MOT enhancements (later)
+
+VIN auto-populate where available
+
+Recall status surfaced
+
+MOT history modal/timeline
+
+Notes on behaviour you specifically requested
+
+VAT on purchase should not be manually entered for VAT qualifying
+
+VAT rate comes from settings (default 20%)
+
+SIV is total inc VAT
+
+Stock number is auto (not invoice ref)
+
+Sales creation/open bug must be fully debugged + tested first
+
+Add “Zero VAT” option at invoicing

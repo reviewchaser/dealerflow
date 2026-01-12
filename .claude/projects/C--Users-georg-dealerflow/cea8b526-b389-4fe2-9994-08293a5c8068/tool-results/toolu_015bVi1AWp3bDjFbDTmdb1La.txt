@@ -1,0 +1,504 @@
+     1→import { useEffect, useState } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import ShareFormModal from "@/components/ShareFormModal";
+     7→import { useSession } from "next-auth/react";
+     8→import { toast } from "react-hot-toast";
+     9→
+    10→// Human-readable form type labels
+    11→// Note: Appraisal forms are handled in the dedicated Appraisals section
+    12→const FORM_TYPE_LABELS = {
+    13→  PDI: "PDI",
+    14→  TEST_DRIVE: "Test Drive",
+    15→  WARRANTY_CLAIM: "Warranty Claim",
+    16→  COURTESY_OUT: "Courtesy Car Out",
+    17→  COURTESY_IN: "Courtesy Car In",
+    18→  SERVICE_RECEIPT: "Service Receipt",
+    19→  REVIEW_FEEDBACK: "Review & Feedback",
+    20→  OTHER: "Other",
+    21→};
+    22→
+    23→// Form type colors for icons and accents
+    24→const FORM_TYPE_STYLES = {
+    25→  PDI: { bg: "bg-blue-50", text: "text-blue-600", accent: "border-blue-500" },
+    26→  TEST_DRIVE: { bg: "bg-cyan-50", text: "text-cyan-600", accent: "border-cyan-500" },
+    27→  WARRANTY_CLAIM: { bg: "bg-red-50", text: "text-red-600", accent: "border-red-500" },
+    28→  COURTESY_OUT: { bg: "bg-emerald-50", text: "text-emerald-600", accent: "border-emerald-500" },
+    29→  COURTESY_IN: { bg: "bg-green-50", text: "text-green-600", accent: "border-green-500" },
+    30→  SERVICE_RECEIPT: { bg: "bg-teal-50", text: "text-teal-600", accent: "border-teal-500" },
+    31→  REVIEW_FEEDBACK: { bg: "bg-pink-50", text: "text-pink-600", accent: "border-pink-500" },
+    32→  OTHER: { bg: "bg-slate-50", text: "text-slate-600", accent: "border-slate-500" },
+    33→};
+    34→
+    35→// Small form type icons for list items
+    36→const FormTypeIcon = ({ type, size = "w-4 h-4" }) => {
+    37→  const iconProps = { className: size, fill: "none", viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 1.5 };
+    38→  switch (type) {
+    39→    case "PDI":
+    40→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+    41→    case "TEST_DRIVE":
+    42→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>;
+    43→    case "WARRANTY_CLAIM":
+    44→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>;
+    45→    case "COURTESY_OUT":
+    46→    case "COURTESY_IN":
+    47→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" /></svg>;
+    48→    case "SERVICE_RECEIPT":
+    49→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
+    50→    case "REVIEW_FEEDBACK":
+    51→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>;
+    52→    default:
+    53→      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
+    54→  }
+    55→};
+    56→
+    57→// Large feature icon for detail panel
+    58→const LargeFormIcon = ({ type }) => {
+    59→  const styles = FORM_TYPE_STYLES[type] || FORM_TYPE_STYLES.OTHER;
+    60→  return (
+    61→    <div className={`w-12 h-12 rounded-xl ${styles.bg} ${styles.text} flex items-center justify-center flex-shrink-0`}>
+    62→      <FormTypeIcon type={type} size="w-6 h-6" />
+    63→    </div>
+    64→  );
+    65→};
+    66→
+    67→// Time ago helper
+    68→const timeAgo = (date) => {
+    69→  const now = new Date();
+    70→  const then = new Date(date);
+    71→  const seconds = Math.floor((now - then) / 1000);
+    72→
+    73→  if (seconds < 60) return "Just now";
+    74→  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    75→  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    76→  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    77→  return then.toLocaleDateString();
+    78→};
+    79→
+    80→export default function Forms() {
+    81→  const router = useRouter();
+    82→  const { data: session, status } = useSession();
+    83→  const [activeTab, setActiveTab] = useState(router.query.tab || "submissions");
+    84→  const [forms, setForms] = useState([]);
+    85→  const [filteredForms, setFilteredForms] = useState([]);
+    86→  const [submissions, setSubmissions] = useState([]);
+    87→  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+    88→  const [isLoading, setIsLoading] = useState(true);
+    89→  const [shareForm, setShareForm] = useState(null);
+    90→  const [selectedSubmission, setSelectedSubmission] = useState(null);
+    91→  const [submissionDetail, setSubmissionDetail] = useState(null);
+    92→  const [isLoadingDetail, setIsLoadingDetail] = useState(false);
+    93→  const [error, setError] = useState(null);
+    94→  const [isEditing, setIsEditing] = useState(false);
+    95→  const [editFormData, setEditFormData] = useState({});
+    96→  const [isSavingEdit, setIsSavingEdit] = useState(false);
+    97→
+    98→  // Filters for templates
+    99→  const [templateTypeFilter, setTemplateTypeFilter] = useState(router.query.type || "");
+   100→
+   101→  // Filters for submissions
+   102→  const [filterFormType, setFilterFormType] = useState("");
+   103→  const [searchQuery, setSearchQuery] = useState("");
+   104→  const [vrmSearch, setVrmSearch] = useState("");
+   105→  const [selectedFormId, setSelectedFormId] = useState("");
+   106→  const [statusFilter, setStatusFilter] = useState("");
+   107→
+   108→  const dealerId = session?.user?.dealerId || "000000000000000000000000";
+   109→
+   110→  useEffect(() => {
+   111→    if (status === "loading") return;
+   112→    loadForms();
+   113→    loadSubmissions();
+   114→  }, [status]);
+   115→
+   116→  useEffect(() => {
+   117→    if (router.query.tab) setActiveTab(router.query.tab);
+   118→    if (router.query.type) setTemplateTypeFilter(router.query.type);
+   119→  }, [router.query]);
+   120→
+   121→  useEffect(() => {
+   122→    applyFilters();
+   123→  }, [submissions, filterFormType, searchQuery, vrmSearch, selectedFormId, statusFilter]);
+   124→
+   125→  useEffect(() => {
+   126→    applyTemplateFilters();
+   127→  }, [forms, templateTypeFilter]);
+   128→
+   129→  // Load submission detail when selected
+   130→  useEffect(() => {
+   131→    if (selectedSubmission) {
+   132→      // Use id or _id depending on what's available (toJSON plugin transforms _id to id)
+   133→      const submissionId = selectedSubmission.id || selectedSubmission._id;
+   134→      loadSubmissionDetail(submissionId);
+   135→    } else {
+   136→      setSubmissionDetail(null);
+   137→    }
+   138→  }, [selectedSubmission]);
+   139→
+   140→  const loadForms = async () => {
+   141→    try {
+   142→      setError(null);
+   143→      const res = await fetch(`/api/forms?dealerId=${dealerId}`);
+   144→      const data = await res.json();
+   145→      if (res.ok && Array.isArray(data)) {
+   146→        setForms(data);
+   147→      } else if (data.error) {
+   148→        setError(data.error);
+   149→        setForms([]);
+   150→      } else {
+   151→        setForms([]);
+   152→      }
+   153→      setIsLoading(false);
+   154→    } catch (err) {
+   155→      console.error("Failed to load forms:", err);
+   156→      setError("Failed to load forms");
+   157→      setForms([]);
+   158→      setIsLoading(false);
+   159→    }
+   160→  };
+   161→
+   162→  const loadSubmissions = async () => {
+   163→    try {
+   164→      setIsLoading(true);
+   165→      const res = await fetch(`/api/forms/submissions?dealerId=${dealerId}`);
+   166→      const data = await res.json();
+   167→      if (Array.isArray(data)) {
+   168→        setSubmissions(data);
+   169→        // Auto-select the most recent submission (first item since sorted newest first)
+   170→        if (data.length > 0 && !selectedSubmission) {
+   171→          setSelectedSubmission(data[0]);
+   172→        }
+   173→      } else {
+   174→        console.error("API returned non-array:", data);
+   175→        setSubmissions([]);
+   176→      }
+   177→      setIsLoading(false);
+   178→    } catch (error) {
+   179→      console.error("Failed to load submissions:", error);
+   180→      setSubmissions([]);
+   181→      setIsLoading(false);
+   182→    }
+   183→  };
+   184→
+   185→  const loadSubmissionDetail = async (id) => {
+   186→    try {
+   187→      setIsLoadingDetail(true);
+   188→      console.log("Loading submission detail for ID:", id);
+   189→      const res = await fetch(`/api/forms/submissions/${id}`);
+   190→      const data = await res.json();
+   191→      console.log("API response:", res.status, data);
+   192→
+   193→      // Check for errors or missing submission
+   194→      if (!res.ok || data.error || !data.submission) {
+   195→        console.error("Failed to load submission:", data.error || "No submission data", data);
+   196→        setSubmissionDetail(null);
+   197→        return;
+   198→      }
+   199→
+   200→      setSubmissionDetail(data);
+   201→
+   202→      // Mark as viewed if it's new
+   203→      const submission = submissions.find(s => (s.id || s._id) === id);
+   204→      if (submission && !submission.viewed) {
+   205→        markAsViewed(id);
+   206→      }
+   207→    } catch (error) {
+   208→      console.error("Failed to load submission detail:", error);
+   209→      setSubmissionDetail(null);
+   210→    } finally {
+   211→      setIsLoadingDetail(false);
+   212→    }
+   213→  };
+   214→
+   215→  const markAsViewed = async (id) => {
+   216→    try {
+   217→      await fetch(`/api/forms/submissions/${id}`, {
+   218→        method: "PATCH",
+   219→        headers: { "Content-Type": "application/json" },
+   220→        body: JSON.stringify({ viewed: true, status: "viewed" }),
+   221→      });
+   222→      // Update local state
+   223→      setSubmissions(prev => prev.map(s =>
+   224→        (s.id || s._id) === id ? { ...s, viewed: true, status: "viewed" } : s
+   225→      ));
+   226→    } catch (error) {
+   227→      console.error("Failed to mark as viewed:", error);
+   228→    }
+   229→  };
+   230→
+   231→  const applyFilters = () => {
+   232→    // Exclude REVIEW_FEEDBACK submissions - they appear in dedicated Reviews page
+   233→    let filtered = [...submissions].filter(s => s.formId?.type !== "REVIEW_FEEDBACK");
+   234→
+   235→    if (filterFormType) {
+   236→      filtered = filtered.filter((s) => s.formId?.type === filterFormType);
+   237→    }
+   238→
+   239→    if (selectedFormId) {
+   240→      filtered = filtered.filter((s) => s.formId?._id === selectedFormId);
+   241→    }
+   242→
+   243→    if (statusFilter) {
+   244→      if (statusFilter === "new") {
+   245→        filtered = filtered.filter((s) => !s.viewed && s.status !== "viewed");
+   246→      } else {
+   247→        filtered = filtered.filter((s) => s.status === statusFilter);
+   248→      }
+   249→    }
+   250→
+   251→    if (vrmSearch) {
+   252→      const vrmQuery = vrmSearch.toLowerCase().replace(/\s/g, "");
+   253→      filtered = filtered.filter((s) => {
+   254→        const answers = s.rawAnswers || {};
+   255→        const vrmFields = [
+   256→          answers.vrm,
+   257→          answers.reg,
+   258→          answers.registration,
+   259→          answers.vehicle_reg,
+   260→          answers.regCurrent,
+   261→          answers.courtesy_vrm,
+   262→        ];
+   263→        return vrmFields.some(
+   264→          (field) => field && field.toLowerCase().replace(/\s/g, "").includes(vrmQuery)
+   265→        );
+   266→      });
+   267→    }
+   268→
+   269→    if (searchQuery) {
+   270→      const query = searchQuery.toLowerCase();
+   271→      filtered = filtered.filter((s) => {
+   272→        const answers = s.rawAnswers || {};
+   273→        return (
+   274→          answers.name?.toLowerCase().includes(query) ||
+   275→          answers.email?.toLowerCase().includes(query) ||
+   276→          answers.phone?.toLowerCase().includes(query)
+   277→        );
+   278→      });
+   279→    }
+   280→
+   281→    setFilteredSubmissions(filtered);
+   282→  };
+   283→
+   284→  const applyTemplateFilters = () => {
+   285→    let filtered = [...forms];
+   286→
+   287→    if (templateTypeFilter) {
+   288→      if (templateTypeFilter === "COURTESY") {
+   289→        filtered = filtered.filter((f) => f.type === "COURTESY_IN" || f.type === "COURTESY_OUT");
+   290→      } else {
+   291→        filtered = filtered.filter((f) => f.type === templateTypeFilter);
+   292→      }
+   293→    }
+   294→
+   295→    setFilteredForms(filtered);
+   296→  };
+   297→
+   298→  const handleDeleteForm = async (formId) => {
+   299→    if (!confirm("Delete this form template? This cannot be undone.")) return;
+   300→
+   301→    try {
+   302→      const res = await fetch(`/api/forms/${formId}`, {
+   303→        method: "DELETE",
+   304→      });
+   305→      if (!res.ok) throw new Error("Failed to delete");
+   306→      loadForms();
+   307→    } catch (error) {
+   308→      alert("Failed to delete form");
+   309→    }
+   310→  };
+   311→
+   312→  const getPublicUrl = (form) => {
+   313→    if (!form.isPublic || !form.publicSlug) return null;
+   314→    return `${window.location.origin}/public/forms/${form.publicSlug}`;
+   315→  };
+   316→
+   317→  const getSubmissionCount = (formId) => {
+   318→    return submissions.filter((s) => s.formId?._id === formId).length;
+   319→  };
+   320→
+   321→  const getVrm = (submission) => {
+   322→    const answers = submission.rawAnswers || {};
+   323→    return answers.vrm || answers.reg || answers.registration || answers.courtesy_vrm || null;
+   324→  };
+   325→
+   326→  // Denylist for PDF export - system/duplicate fields to exclude
+   327→  const EXPORT_DENYLIST = [
+   328→    'year', 'vehicle_year', 'vehicleyear',
+   329→    'vehicle_make', 'vehiclemake',
+   330→    'vehicle_model', 'vehiclemodel',
+   331→    '_id', '__v', 'createdAt', 'updatedAt'
+   332→  ];
+   333→
+   334→  const isExportDenied = (key) => {
+   335→    const lowerKey = key.toLowerCase().replace(/[_-]/g, '');
+   336→    return EXPORT_DENYLIST.some(denied => lowerKey === denied.toLowerCase().replace(/[_-]/g, ''));
+   337→  };
+   338→
+   339→  // Format issues array for display/PDF
+   340→  const formatIssuesForPdf = (issues) => {
+   341→    if (!Array.isArray(issues)) {
+   342→      // Try to parse if it's a string
+   343→      try {
+   344→        issues = JSON.parse(issues);
+   345→      } catch {
+   346→        return '<span style="color: #999; font-style: italic;">No issues data</span>';
+   347→      }
+   348→    }
+   349→
+   350→    // Filter out resolved/complete issues
+   351→    const resolvedStatuses = ['complete', 'completed', 'resolved', 'done', 'closed'];
+   352→    const activeIssues = issues.filter(issue => {
+   353→      const status = (issue.status || '').toLowerCase();
+   354→      return !resolvedStatuses.includes(status);
+   355→    });
+   356→
+   357→    if (activeIssues.length === 0) {
+   358→      return '<span style="color: #16a34a; font-weight: 500;">No outstanding issues</span>';
+   359→    }
+   360→
+   361→    return `<ol style="margin: 0; padding-left: 20px; list-style-type: decimal;">
+   362→      ${activeIssues.map(issue => `
+   363→        <li style="margin-bottom: 12px; padding: 8px; background: #fef3c7; border-radius: 4px; border-left: 3px solid #f59e0b;">
+   364→          <strong>${issue.category || 'Unknown'}${issue.subcategory ? ` / ${issue.subcategory}` : ''}</strong>
+   365→          <br/><span style="color: #374151;">${issue.description || 'No description'}</span>
+   366→          ${issue.actionNeeded ? `<br/><span style="color: #6b7280; font-size: 12px;">Action: ${issue.actionNeeded}</span>` : ''}
+   367→          <br/><span style="display: inline-block; margin-top: 4px; padding: 2px 8px; background: #fbbf24; color: #78350f; border-radius: 9999px; font-size: 11px; font-weight: 600;">
+   368→            ${issue.status || 'Outstanding'}
+   369→          </span>
+   370→          ${issue.notes ? `<br/><span style="color: #6b7280; font-size: 12px; font-style: italic;">Notes: ${issue.notes}</span>` : ''}
+   371→        </li>
+   372→      `).join('')}
+   373→    </ol>`;
+   374→  };
+   375→
+   376→  // Format photos array for display/PDF
+   377→  const formatPhotosForPdf = (photos) => {
+   378→    if (!photos) return '<span style="color: #999; font-style: italic;">No photos</span>';
+   379→
+   380→    // Try to parse if string
+   381→    let photoArray = photos;
+   382→    if (typeof photos === 'string') {
+   383→      try {
+   384→        photoArray = JSON.parse(photos);
+   385→      } catch {
+   386→        // If it's a URL string, treat as single photo
+   387→        if (photos.startsWith('http') || photos.startsWith('/')) {
+   388→          photoArray = [{ url: photos }];
+   389→        } else {
+   390→          return '<span style="color: #999; font-style: italic;">No photos</span>';
+   391→        }
+   392→      }
+   393→    }
+   394→
+   395→    if (!Array.isArray(photoArray) || photoArray.length === 0) {
+   396→      return '<span style="color: #999; font-style: italic;">No photos</span>';
+   397→    }
+   398→
+   399→    // Filter out empty objects
+   400→    const validPhotos = photoArray.filter(p => p && (p.url || (typeof p === 'string' && p.length > 0)));
+   401→
+   402→    if (validPhotos.length === 0) {
+   403→      return '<span style="color: #999; font-style: italic;">No photos</span>';
+   404→    }
+   405→
+   406→    return `<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+   407→      ${validPhotos.map(photo => {
+   408→        const url = typeof photo === 'string' ? photo : photo.url;
+   409→        const filename = typeof photo === 'object' ? (photo.filename || 'Photo') : 'Photo';
+   410→        return url ? `
+   411→          <div style="text-align: center;">
+   412→            <img src="${url}" alt="${filename}" style="max-width: 100%; max-height: 120px; border-radius: 4px; border: 1px solid #e5e5e5;" />
+   413→            <div style="font-size: 10px; color: #666; margin-top: 4px;">${filename}</div>
+   414→          </div>
+   415→        ` : '';
+   416→      }).join('')}
+   417→    </div>`;
+   418→  };
+   419→
+   420→  const formatFieldValue = (value, fieldType = null, fieldName = null) => {
+   421→    if (value === null || value === undefined) return "—";
+   422→    if (typeof value === "boolean") return value ? "Yes" : "No";
+   423→
+   424→    // Handle signature fields - check if it's base64 image data
+   425→    if (fieldType === "SIGNATURE" || (typeof value === "string" && value.startsWith("data:image/"))) {
+   426→      return `<img src="${value}" alt="Signature" style="max-width: 300px; max-height: 150px; border: 1px solid #e5e5e5; border-radius: 4px; background: white;" />`;
+   427→    }
+   428→
+   429→    // Handle issues field specially
+   430→    const lowerFieldName = (fieldName || '').toLowerCase();
+   431→    if (lowerFieldName === 'issues' || lowerFieldName.includes('issue')) {
+   432→      if (Array.isArray(value) || (typeof value === 'string' && value.startsWith('['))) {
+   433→        return formatIssuesForPdf(value);
+   434→      }
+   435→    }
+   436→
+   437→    // Handle photos field specially
+   438→    if (lowerFieldName === 'photos' || lowerFieldName.includes('photo') || lowerFieldName.includes('image')) {
+   439→      if (Array.isArray(value) || (typeof value === 'string' && value.startsWith('['))) {
+   440→        return formatPhotosForPdf(value);
+   441→      }
+   442→    }
+   443→
+   444→    if (typeof value === "object") return JSON.stringify(value);
+   445→    return value.toString();
+   446→  };
+   447→
+   448→  // Format for display (non-HTML)
+   449→  const formatFieldValueDisplay = (value, fieldType = null) => {
+   450→    if (value === null || value === undefined) return "—";
+   451→    if (typeof value === "boolean") return value ? "Yes" : "No";
+   452→    // For signatures in UI display, return a placeholder - the actual image is rendered separately
+   453→    if (fieldType === "SIGNATURE" || (typeof value === "string" && value.startsWith("data:image/"))) {
+   454→      return null; // Will be handled specially in the UI
+   455→    }
+   456→    if (typeof value === "object") return JSON.stringify(value);
+   457→    return value.toString();
+   458→  };
+   459→
+   460→  // Start editing
+   461→  const handleStartEdit = () => {
+   462→    setEditFormData({ ...submissionDetail.submission?.rawAnswers });
+   463→    setIsEditing(true);
+   464→  };
+   465→
+   466→  // Cancel editing
+   467→  const handleCancelEdit = () => {
+   468→    setIsEditing(false);
+   469→    setEditFormData({});
+   470→  };
+   471→
+   472→  // Save edit
+   473→  const handleSaveEdit = async () => {
+   474→    const subId = selectedSubmission.id || selectedSubmission._id;
+   475→    if (!subId) {
+   476→      toast.error("No submission selected");
+   477→      return;
+   478→    }
+   479→    setIsSavingEdit(true);
+   480→    try {
+   481→      const res = await fetch(`/api/forms/submissions/${subId}`, {
+   482→        method: "PUT",
+   483→        headers: { "Content-Type": "application/json" },
+   484→        body: JSON.stringify({ rawAnswers: editFormData }),
+   485→      });
+   486→
+   487→      if (!res.ok) {
+   488→        const errorData = await res.json().catch(() => ({}));
+   489→        throw new Error(errorData.error || "Failed to save");
+   490→      }
+   491→
+   492→      // Reload submission detail
+   493→      await loadSubmissionDetail(subId);
+   494→      setIsEditing(false);
+   495→      setEditFormData({});
+   496→      toast.success("Submission updated");
+   497→    } catch (error) {
+   498→      console.error("Error saving edit:", error);
+   499→      toast.error(error.message || "Failed to save changes");
+   500→    } finally {
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

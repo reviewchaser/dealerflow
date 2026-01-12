@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\api\vehicles\search.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    82→        { model: { $regex: q, $options: "i" } },
+    83→      ];
+    84→    }
+    85→
+    86→    const vehicles = await Vehicle.find(query)
+    87→      .sort({ updatedAt: -1, createdAt: -1 }) // Sort by most recent activity first
+    88→      .limit(parseInt(limit))
+    89→      .lean();
+    90→
+    91→    // Transform for form use
+    92→    const results = vehicles.map((v) => ({
+    93→      id: v._id.toString(),

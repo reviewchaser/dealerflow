@@ -1,0 +1,636 @@
+     1→import { useState, useEffect, useRef } from "react";
+     2→import { useRouter } from "next/router";
+     3→import Head from "next/head";
+     4→import Link from "next/link";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→
+     9→export default function NewVehicle() {
+    10→  const router = useRouter();
+    11→  const [isLoading, setIsLoading] = useState(false);
+    12→  const [isLookingUp, setIsLookingUp] = useState(false);
+    13→
+    14→  // VRM suggestions state
+    15→  const [vrmSuggestions, setVrmSuggestions] = useState([]);
+    16→  const [showSuggestions, setShowSuggestions] = useState(false);
+    17→  const [isSearching, setIsSearching] = useState(false);
+    18→  const [selectedAppraisal, setSelectedAppraisal] = useState(null);
+    19→  const suggestionRef = useRef(null);
+    20→  const searchTimeoutRef = useRef(null);
+    21→
+    22→  const [formData, setFormData] = useState({
+    23→    vehicleReg: "",
+    24→    make: "",
+    25→    model: "",
+    26→    year: "",
+    27→    colour: "",
+    28→    mileage: "",
+    29→    fuelType: "",
+    30→    transmission: "",
+    31→    engineSize: "",
+    32→    doors: "",
+    33→    purchasePrice: "",
+    34→    salePrice: "",
+    35→    notes: "",
+    36→    motExpiryDate: "",
+    37→  });
+    38→  const [dvlaDetails, setDvlaDetails] = useState(null);
+    39→  const [lastDvlaFetchAt, setLastDvlaFetchAt] = useState(null);
+    40→
+    41→  // Close suggestions when clicking outside
+    42→  useEffect(() => {
+    43→    function handleClickOutside(event) {
+    44→      if (suggestionRef.current && !suggestionRef.current.contains(event.target)) {
+    45→        setShowSuggestions(false);
+    46→      }
+    47→    }
+    48→    document.addEventListener("mousedown", handleClickOutside);
+    49→    return () => document.removeEventListener("mousedown", handleClickOutside);
+    50→  }, []);
+    51→
+    52→  const handleChange = (e) => {
+    53→    const { name, value } = e.target;
+    54→    setFormData((prev) => ({ ...prev, [name]: value }));
+    55→
+    56→    // Search for VRM suggestions when typing in the registration field
+    57→    if (name === "vehicleReg" && value.length >= 2) {
+    58→      // Debounce the search
+    59→      if (searchTimeoutRef.current) {
+    60→        clearTimeout(searchTimeoutRef.current);
+    61→      }
+    62→      searchTimeoutRef.current = setTimeout(() => {
+    63→        searchVrmSuggestions(value);
+    64→      }, 300);
+    65→    } else if (name === "vehicleReg" && value.length < 2) {
+    66→      setVrmSuggestions([]);
+    67→      setShowSuggestions(false);
+    68→    }
+    69→  };
+    70→
+    71→  const searchVrmSuggestions = async (query) => {
+    72→    setIsSearching(true);
+    73→    try {
+    74→      const res = await fetch(`/api/vehicles/vrm-suggestions?q=${encodeURIComponent(query)}`);
+    75→      if (res.ok) {
+    76→        const data = await res.json();
+    77→        setVrmSuggestions(data);
+    78→        setShowSuggestions(data.length > 0);
+    79→      }
+    80→    } catch (error) {
+    81→      console.error("Error fetching VRM suggestions:", error);
+    82→    } finally {
+    83→      setIsSearching(false);
+    84→    }
+    85→  };
+    86→
+    87→  const selectAppraisal = (appraisal) => {
+    88→    setSelectedAppraisal(appraisal);
+    89→    setFormData((prev) => ({
+    90→      ...prev,
+    91→      vehicleReg: appraisal.vehicleReg,
+    92→      make: appraisal.vehicleMake || prev.make,
+    93→      model: appraisal.vehicleModel || prev.model,
+    94→      year: appraisal.vehicleYear || prev.year,
+    95→      colour: appraisal.colour || prev.colour,
+    96→      mileage: appraisal.mileage || prev.mileage,
+    97→      fuelType: appraisal.fuelType || prev.fuelType,
+    98→      purchasePrice: appraisal.proposedPurchasePrice || prev.purchasePrice,
+    99→      notes: appraisal.conditionNotes || prev.notes,
+   100→    }));
+   101→    setShowSuggestions(false);
+   102→    toast.success(`Loaded data from ${appraisal.type === "buying" ? "buying appraisal" : "customer PX"}`);
+   103→  };
+   104→
+   105→  const handleDvlaLookup = async () => {
+   106→    if (!formData.vehicleReg) {
+   107→      toast.error("Please enter a registration number");
+   108→      return;
+   109→    }
+   110→
+   111→    setIsLookingUp(true);
+   112→    try {
+   113→      // Call both new DVLA VES endpoint and MOT APIs in parallel
+   114→      const [dvlaResponse, motResponse] = await Promise.all([
+   115→        fetch("/api/dvla/vehicle-enquiry", {
+   116→          method: "POST",
+   117→          headers: { "Content-Type": "application/json" },
+   118→          body: JSON.stringify({ registrationNumber: formData.vehicleReg }),
+   119→        }),
+   120→        fetch(`/api/mot?vrm=${encodeURIComponent(formData.vehicleReg)}`).catch(() => null),
+   121→      ]);
+   122→
+   123→      const dvlaResult = await dvlaResponse.json();
+   124→      const motData = motResponse?.ok ? await motResponse.json() : null;
+   125→
+   126→      // Handle DVLA error responses
+   127→      if (!dvlaResult.ok) {
+   128→        const errorCode = dvlaResult.code || "UNKNOWN";
+   129→        switch (errorCode) {
+   130→          case "NOT_FOUND":
+   131→            toast.error("VRM not found - please check the registration");
+   132→            break;
+   133→          case "INVALID_FORMAT":
+   134→            toast.error("Invalid registration format");
+   135→            break;
+   136→          case "NOT_CONFIGURED":
+   137→            toast.error("DVLA integration not configured");
+   138→            break;
+   139→          case "RATE_LIMIT":
+   140→            toast.error("Too many requests, please try again later");
+   141→            break;
+   142→          case "DVLA_ERROR":
+   143→            toast.error("DVLA service unavailable, try again later");
+   144→            break;
+   145→          default:
+   146→            toast.error(dvlaResult.message || "Lookup failed");
+   147→        }
+   148→        return;
+   149→      }
+   150→
+   151→      const dvlaData = dvlaResult.data;
+   152→
+   153→      if (dvlaResult.isDummy) {
+   154→        showDummyNotification("DVLA API");
+   155→      }
+   156→
+   157→      // Store DVLA details for persisting when vehicle is saved
+   158→      setDvlaDetails(dvlaData.dvlaDetails);
+   159→      setLastDvlaFetchAt(dvlaData.lastDvlaFetchAt);
+   160→
+   161→      // Use DVLA data primarily, but fallback to MOT data for fields DVLA often misses
+   162→      // MOT API (DVSA) typically has better model/fuelType data than DVLA
+   163→
+   164→      // Normalize fuel type from DVLA (uppercase) to form format (capitalized)
+   165→      const normalizeFuelForForm = (fuelType) => {
+   166→        if (!fuelType) return "";
+   167→        const fuelMap = {
+   168→          PETROL: "Petrol",
+   169→          DIESEL: "Diesel",
+   170→          ELECTRIC: "Electric",
+   171→          HYBRID: "Hybrid",
+   172→          "HYBRID ELECTRIC": "Hybrid",
+   173→          "PLUG-IN HYBRID": "Hybrid",
+   174→          "PETROL/ELECTRIC HYBRID": "Hybrid",
+   175→          "DIESEL/ELECTRIC HYBRID": "Hybrid",
+   176→        };
+   177→        return fuelMap[fuelType.toUpperCase()] || fuelType;
+   178→      };
+   179→
+   180→      const rawFuel = dvlaData.dvlaDetails?.fuelType || motData?.fuelType || "";
+   181→      const normalizedFuel = normalizeFuelForForm(rawFuel);
+   182→
+   183→      setFormData((prev) => ({
+   184→        ...prev,
+   185→        make: dvlaData.make || motData?.make || prev.make,
+   186→        model: motData?.model || prev.model, // DVLA doesn't return model, use MOT data
+   187→        year: dvlaData.yearOfManufacture || motData?.manufactureYear || prev.year,
+   188→        colour: dvlaData.colour || motData?.primaryColour || prev.colour,
+   189→        fuelType: normalizedFuel || prev.fuelType,
+   190→        engineSize: dvlaData.dvlaDetails?.engineCapacity ? `${dvlaData.dvlaDetails.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
+   191→        motExpiryDate: dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
+   192→      }));
+   193→
+   194→      const messages = ["Vehicle details loaded"];
+   195→      if (dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry) {
+   196→        const motDate = dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry;
+   197→        messages.push(`MOT expires: ${new Date(motDate).toLocaleDateString()}`);
+   198→      }
+   199→      toast.success(messages.join(" • "));
+   200→    } catch (error) {
+   201→      toast.error("DVLA service unavailable, try again later");
+   202→    } finally {
+   203→      setIsLookingUp(false);
+   204→    }
+   205→  };
+   206→
+   207→  const handleSubmit = async (e) => {
+   208→    e.preventDefault();
+   209→    setIsLoading(true);
+   210→
+   211→    try {
+   212→      const response = await fetch("/api/vehicles", {
+   213→        method: "POST",
+   214→        headers: { "Content-Type": "application/json" },
+   215→        body: JSON.stringify({
+   216→          regCurrent: formData.vehicleReg,
+   217→          make: formData.make,
+   218→          model: formData.model,
+   219→          year: formData.year,
+   220→          colour: formData.colour,
+   221→          mileageCurrent: formData.mileage,
+   222→          fuelType: formData.fuelType,
+   223→          transmission: formData.transmission,
+   224→          notes: formData.notes,
+   225→          motExpiryDate: formData.motExpiryDate || null,
+   226→          // Include DVLA details if available from lookup
+   227→          dvlaDetails: dvlaDetails || null,
+   228→          lastDvlaFetchAt: lastDvlaFetchAt || null,
+   229→        }),
+   230→      });
+   231→
+   232→      if (!response.ok) {
+   233→        const err = await response.json();
+   234→        throw new Error(err.error || "Failed to create vehicle");
+   235→      }
+   236→
+   237→      toast.success("Vehicle added successfully!");
+   238→      router.push("/vehicles");
+   239→    } catch (error) {
+   240→      console.error(error);
+   241→      toast.error(error.message);
+   242→    } finally {
+   243→      setIsLoading(false);
+   244→    }
+   245→  };
+   246→
+   247→  return (
+   248→    <DashboardLayout>
+   249→      <Head>
+   250→        <title>Add Vehicle | DealerFlow</title>
+   251→      </Head>
+   252→
+   253→      <div className="mb-8">
+   254→        <Link href="/vehicles" className="btn btn-ghost btn-sm mb-4">
+   255→          ← Back to Vehicles
+   256→        </Link>
+   257→        <h1 className="text-3xl font-bold">Add New Vehicle</h1>
+   258→        <p className="text-base-content/60 mt-2">
+   259→          Add a vehicle directly to your stock
+   260→        </p>
+   261→      </div>
+   262→
+   263→      <form onSubmit={handleSubmit} className="max-w-4xl space-y-6">
+   264→        {/* Vehicle Registration Lookup */}
+   265→        <div className="card bg-base-200">
+   266→          <div className="card-body">
+   267→            <h2 className="card-title">Vehicle Registration</h2>
+   268→            <div className="flex gap-4">
+   269→              <div className="form-control flex-1 relative" ref={suggestionRef}>
+   270→                <input
+   271→                  type="text"
+   272→                  name="vehicleReg"
+   273→                  value={formData.vehicleReg}
+   274→                  onChange={handleChange}
+   275→                  onFocus={() => {
+   276→                    if (vrmSuggestions.length > 0) setShowSuggestions(true);
+   277→                  }}
+   278→                  className="input input-bordered uppercase text-xl font-mono"
+   279→                  placeholder="AB12 CDE"
+   280→                  required
+   281→                  autoComplete="off"
+   282→                />
+   283→
+   284→                {/* VRM Suggestions Dropdown */}
+   285→                {showSuggestions && vrmSuggestions.length > 0 && (
+   286→                  <div className="absolute top-full left-0 right-0 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+   287→                    <div className="p-2 text-xs text-base-content/60 border-b border-base-300 bg-base-200">
+   288→                      Existing appraisals found - click to import data
+   289→                    </div>
+   290→                    {vrmSuggestions.map((suggestion) => (
+   291→                      <button
+   292→                        key={`${suggestion.type}-${suggestion.id}`}
+   293→                        type="button"
+   294→                        onClick={() => selectAppraisal(suggestion)}
+   295→                        className="w-full p-3 text-left hover:bg-base-200 border-b border-base-300 last:border-b-0 transition-colors"
+   296→                      >
+   297→                        <div className="flex items-start justify-between gap-2">
+   298→                          <div className="flex-1 min-w-0">
+   299→                            <div className="flex items-center gap-2 mb-1">
+   300→                              <span className="font-mono font-bold text-lg">
+   301→                                {suggestion.vehicleReg}
+   302→                              </span>
+   303→                              <span className={`badge badge-sm ${suggestion.type === "buying" ? "badge-primary" : "badge-secondary"}`}>
+   304→                                {suggestion.type === "buying" ? "Buying" : "Customer PX"}
+   305→                              </span>
+   306→                              {suggestion.issueCount > 0 && (
+   307→                                <span className="badge badge-sm badge-warning">
+   308→                                  {suggestion.issueCount} issue{suggestion.issueCount !== 1 ? "s" : ""}
+   309→                                </span>
+   310→                              )}
+   311→                            </div>
+   312→                            <div className="text-sm text-base-content/70">
+   313→                              {suggestion.vehicleYear && `${suggestion.vehicleYear} `}
+   314→                              {suggestion.vehicleMake} {suggestion.vehicleModel}
+   315→                              {suggestion.colour && ` - ${suggestion.colour}`}
+   316→                            </div>
+   317→                            {suggestion.mileage && (
+   318→                              <div className="text-xs text-base-content/50">
+   319→                                {Number(suggestion.mileage).toLocaleString()} miles
+   320→                              </div>
+   321→                            )}
+   322→                            {suggestion.type === "customer_px" && suggestion.customerName && (
+   323→                              <div className="text-xs text-base-content/50 mt-1">
+   324→                                From: {suggestion.customerName}
+   325→                              </div>
+   326→                            )}
+   327→                          </div>
+   328→                          <div className="text-right">
+   329→                            {suggestion.proposedPurchasePrice && (
+   330→                              <div className="text-sm font-semibold text-success">
+   331→                                £{Number(suggestion.proposedPurchasePrice).toLocaleString()}
+   332→                              </div>
+   333→                            )}
+   334→                            <div className="text-xs text-base-content/50">
+   335→                              {new Date(suggestion.createdAt).toLocaleDateString()}
+   336→                            </div>
+   337→                          </div>
+   338→                        </div>
+   339→                      </button>
+   340→                    ))}
+   341→                  </div>
+   342→                )}
+   343→
+   344→                {isSearching && (
+   345→                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+   346→                    <span className="loading loading-spinner loading-sm"></span>
+   347→                  </div>
+   348→                )}
+   349→              </div>
+   350→              <button
+   351→                type="button"
+   352→                className="btn btn-secondary"
+   353→                onClick={handleDvlaLookup}
+   354→                disabled={isLookingUp}
+   355→              >
+   356→                {isLookingUp ? (
+   357→                  <span className="loading loading-spinner"></span>
+   358→                ) : (
+   359→                  "Lookup"
+   360→                )}
+   361→              </button>
+   362→            </div>
+   363→
+   364→            {/* Selected appraisal info */}
+   365→            {selectedAppraisal && (
+   366→              <div className="alert alert-info mt-4">
+   367→                <div className="flex-1">
+   368→                  <span className="font-semibold">
+   369→                    Imported from {selectedAppraisal.type === "buying" ? "buying appraisal" : "customer PX"}
+   370→                  </span>
+   371→                  {selectedAppraisal.issueCount > 0 && (
+   372→                    <span className="ml-2 badge badge-warning">
+   373→                      {selectedAppraisal.issueCount} recorded issue{selectedAppraisal.issueCount !== 1 ? "s" : ""}
+   374→                    </span>
+   375→                  )}
+   376→                  <p className="text-sm mt-1">
+   377→                    Issues and documents will be transferred when you save.
+   378→                    {selectedAppraisal.type === "customer_px" && selectedAppraisal.customerName && (
+   379→                      <> From customer: {selectedAppraisal.customerName}</>
+   380→                    )}
+   381→                  </p>
+   382→                </div>
+   383→                <button
+   384→                  type="button"
+   385→                  className="btn btn-ghost btn-sm"
+   386→                  onClick={() => setSelectedAppraisal(null)}
+   387→                >
+   388→                  Clear
+   389→                </button>
+   390→              </div>
+   391→            )}
+   392→          </div>
+   393→        </div>
+   394→
+   395→        {/* Vehicle Details */}
+   396→        <div className="card bg-base-200">
+   397→          <div className="card-body">
+   398→            <h2 className="card-title">Vehicle Details</h2>
+   399→
+   400→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   401→              <div className="form-control">
+   402→                <label className="label">
+   403→                  <span className="label-text">Make *</span>
+   404→                </label>
+   405→                <input
+   406→                  type="text"
+   407→                  name="make"
+   408→                  value={formData.make}
+   409→                  onChange={handleChange}
+   410→                  className="input input-bordered"
+   411→                  placeholder="Ford"
+   412→                  required
+   413→                />
+   414→              </div>
+   415→              <div className="form-control">
+   416→                <label className="label">
+   417→                  <span className="label-text">Model *</span>
+   418→                </label>
+   419→                <input
+   420→                  type="text"
+   421→                  name="model"
+   422→                  value={formData.model}
+   423→                  onChange={handleChange}
+   424→                  className="input input-bordered"
+   425→                  placeholder="Focus"
+   426→                  required
+   427→                />
+   428→              </div>
+   429→            </div>
+   430→
+   431→            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+   432→              <div className="form-control">
+   433→                <label className="label">
+   434→                  <span className="label-text">Year</span>
+   435→                </label>
+   436→                <input
+   437→                  type="number"
+   438→                  name="year"
+   439→                  value={formData.year}
+   440→                  onChange={handleChange}
+   441→                  className="input input-bordered"
+   442→                  placeholder="2019"
+   443→                />
+   444→              </div>
+   445→              <div className="form-control">
+   446→                <label className="label">
+   447→                  <span className="label-text">Colour</span>
+   448→                </label>
+   449→                <input
+   450→                  type="text"
+   451→                  name="colour"
+   452→                  value={formData.colour}
+   453→                  onChange={handleChange}
+   454→                  className="input input-bordered"
+   455→                  placeholder="Blue"
+   456→                />
+   457→              </div>
+   458→              <div className="form-control">
+   459→                <label className="label">
+   460→                  <span className="label-text">Mileage</span>
+   461→                </label>
+   462→                <input
+   463→                  type="number"
+   464→                  name="mileage"
+   465→                  value={formData.mileage}
+   466→                  onChange={handleChange}
+   467→                  className="input input-bordered"
+   468→                  placeholder="50000"
+   469→                />
+   470→              </div>
+   471→              <div className="form-control">
+   472→                <label className="label">
+   473→                  <span className="label-text">Doors</span>
+   474→                </label>
+   475→                <input
+   476→                  type="number"
+   477→                  name="doors"
+   478→                  value={formData.doors}
+   479→                  onChange={handleChange}
+   480→                  className="input input-bordered"
+   481→                  placeholder="5"
+   482→                />
+   483→              </div>
+   484→            </div>
+   485→
+   486→            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+   487→              <div className="form-control">
+   488→                <label className="label">
+   489→                  <span className="label-text">Fuel Type</span>
+   490→                </label>
+   491→                <select
+   492→                  name="fuelType"
+   493→                  value={formData.fuelType}
+   494→                  onChange={handleChange}
+   495→                  className="select select-bordered"
+   496→                >
+   497→                  <option value="">Select...</option>
+   498→                  <option value="Petrol">Petrol</option>
+   499→                  <option value="Diesel">Diesel</option>
+   500→                  <option value="Hybrid">Hybrid</option>
+   501→                  <option value="Electric">Electric</option>
+   502→                </select>
+   503→              </div>
+   504→              <div className="form-control">
+   505→                <label className="label">
+   506→                  <span className="label-text">Transmission</span>
+   507→                </label>
+   508→                <select
+   509→                  name="transmission"
+   510→                  value={formData.transmission}
+   511→                  onChange={handleChange}
+   512→                  className="select select-bordered"
+   513→                >
+   514→                  <option value="">Select...</option>
+   515→                  <option value="Manual">Manual</option>
+   516→                  <option value="Automatic">Automatic</option>
+   517→                </select>
+   518→              </div>
+   519→              <div className="form-control">
+   520→                <label className="label">
+   521→                  <span className="label-text">Engine Size</span>
+   522→                </label>
+   523→                <input
+   524→                  type="text"
+   525→                  name="engineSize"
+   526→                  value={formData.engineSize}
+   527→                  onChange={handleChange}
+   528→                  className="input input-bordered"
+   529→                  placeholder="1.5L"
+   530→                />
+   531→              </div>
+   532→              <div className="form-control">
+   533→                <label className="label">
+   534→                  <span className="label-text">MOT Expiry</span>
+   535→                </label>
+   536→                <input
+   537→                  type="date"
+   538→                  name="motExpiryDate"
+   539→                  value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
+   540→                  onChange={handleChange}
+   541→                  className="input input-bordered"
+   542→                />
+   543→              </div>
+   544→            </div>
+   545→          </div>
+   546→        </div>
+   547→
+   548→        {/* Pricing */}
+   549→        <div className="card bg-base-200">
+   550→          <div className="card-body">
+   551→            <h2 className="card-title">Pricing</h2>
+   552→
+   553→            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   554→              <div className="form-control">
+   555→                <label className="label">
+   556→                  <span className="label-text">Purchase Price (£)</span>
+   557→                </label>
+   558→                <input
+   559→                  type="number"
+   560→                  name="purchasePrice"
+   561→                  value={formData.purchasePrice}
+   562→                  onChange={handleChange}
+   563→                  className="input input-bordered"
+   564→                  placeholder="5000"
+   565→                />
+   566→              </div>
+   567→              <div className="form-control">
+   568→                <label className="label">
+   569→                  <span className="label-text">Sale Price (£)</span>
+   570→                </label>
+   571→                <input
+   572→                  type="number"
+   573→                  name="salePrice"
+   574→                  value={formData.salePrice}
+   575→                  onChange={handleChange}
+   576→                  className="input input-bordered"
+   577→                  placeholder="6500"
+   578→                />
+   579→              </div>
+   580→            </div>
+   581→
+   582→            {formData.purchasePrice && formData.salePrice && (
+   583→              <div className="alert alert-info mt-4">
+   584→                <span>
+   585→                  Potential Profit: £{(Number(formData.salePrice) - Number(formData.purchasePrice)).toLocaleString()}
+   586→                </span>
+   587→              </div>
+   588→            )}
+   589→          </div>
+   590→        </div>
+   591→
+   592→        {/* Notes */}
+   593→        <div className="card bg-base-200">
+   594→          <div className="card-body">
+   595→            <h2 className="card-title">Notes</h2>
+   596→            <div className="form-control">
+   597→              <textarea
+   598→                name="notes"
+   599→                value={formData.notes}
+   600→                onChange={handleChange}
+   601→                className="textarea textarea-bordered h-32"
+   602→                placeholder="Any additional notes about this vehicle..."
+   603→              ></textarea>
+   604→            </div>
+   605→          </div>
+   606→        </div>
+   607→
+   608→        {/* Actions */}
+   609→        <div className="flex gap-4">
+   610→          <Link href="/vehicles" className="btn btn-ghost">
+   611→            Cancel
+   612→          </Link>
+   613→          <button
+   614→            type="submit"
+   615→            className="btn btn-primary"
+   616→            disabled={isLoading}
+   617→          >
+   618→            {isLoading ? (
+   619→              <>
+   620→                <span className="loading loading-spinner"></span>
+   621→                Saving...
+   622→              </>
+   623→            ) : (
+   624→              "Add Vehicle"
+   625→            )}
+   626→          </button>
+   627→        </div>
+   628→      </form>
+   629→    </DashboardLayout>
+   630→  );
+   631→}
+   632→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

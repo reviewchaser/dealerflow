@@ -1,0 +1,260 @@
+Context
+
+DealerHQ is now close to production use for a real dealership. We need a final UX polish pass + one feature addition (Aftersales costings) + remove a confusing internal “vehicle_id” from customer-facing areas.
+
+1) Stock page VRM search suggestions UI (mobile + desktop)
+Problem
+
+VRM search works, but the suggestions dropdown is rendering in the wrong place:
+
+On mobile it appears over the top of the search box / off-screen
+
+On desktop it looks like positioning/overlay is also incorrect
+
+Required fix
+
+The suggestions list must be anchored directly beneath the search input, same width as the input (or input container).
+
+It must not jump to the top-left, overlap weirdly, or get clipped.
+
+Must behave correctly when the keyboard opens on mobile.
+
+Likely cause (debug properly)
+
+This is usually one of:
+
+dropdown is position: fixed without correct anchor coordinates
+
+dropdown is inside a container with transform/overflow causing coordinate issues
+
+portal mounting to body without correct anchorEl calculation
+
+missing relative parent for absolute dropdown
+
+z-index / stacking context problems
+
+Implementation suggestion (choose best)
+
+Use a proper Popover/Combobox pattern:
+
+input wrapper position: relative
+
+dropdown position: absolute; top: 100%; left: 0; right: 0;
+
+z-index above board
+
+on mobile: ensure it scrolls (max-height, overflow:auto) and never renders off-screen
+
+Done when
+
+iPhone Safari + Android Chrome: dropdown appears directly under the input and stays visible when typing.
+
+Desktop: dropdown appears correctly and does not cover random UI.
+
+Dropdown closes on selection, Escape, clicking away.
+
+2) Tooltips on mobile: keep them on-screen and visually tidy
+Problem
+
+Tooltips (“Drag vehicles between columns…”) are off screen / awkward on mobile.
+
+Required fix
+
+Tooltips must:
+
+Never overflow screen width
+
+Be readable, padded, and not cover primary CTA buttons
+
+Be dismissible (X) and respect safe areas
+
+Implementation
+
+Use a responsive tooltip container:
+
+max-width: calc(100vw - 32px)
+
+left/right constraints (no fixed huge widths)
+
+If using a popper library: enable flip, shift, preventOverflow, boundary: viewport
+
+On mobile, consider rendering as a dismissible callout banner below header instead of “floating” tooltip.
+
+Done when
+
+On mobile, tooltips always fit fully on screen without horizontal scrolling.
+
+They don’t block the search box or “Add Vehicle”.
+
+3) Dashboard “Pending Prep” card: it’s low value → make it actionable
+Current issue
+
+“Pending Prep” just lists vehicles and shows “in stock”, which isn’t meaningful.
+
+Replace with something more useful (implement)
+
+Turn it into a Prep Priorities widget. For each vehicle show:
+
+VRM + make/model
+
+Current stage (Not Advertised / In Prep / Sold in Progress etc.)
+
+Open issues count + severity (mechanical first)
+
+Remaining checklist tasks (e.g. 3/7 remaining)
+
+Days in stock (already shown elsewhere) OR days in current stage
+
+Add quick actions:
+
+“Open vehicle”
+
+“Mark next task complete” (optional if easy)
+
+Sort order:
+
+Sold in progress (urgent)
+
+In prep with mechanical issues
+
+Longest days in stock
+
+Done when
+
+This widget helps you decide what to do next at a glance.
+
+It’s not a generic list—there is urgency and meaning.
+
+4) Submissions: remove “Vehicle ID” from user-facing views
+Problem
+
+A submission shows an internal field like vehicle_id which is meaningless to users.
+
+Required fix
+
+Do not render internal fields like vehicle_id on any customer-facing submission view/PDF/detail.
+
+Replace with something useful:
+
+VRM
+
+Stock number (see below)
+
+Or “Vehicle: <Make> <Model> <Year>”
+
+Optional improvement: add “Stock Number”
+
+If we want a stable internal identifier that is user-friendly:
+
+Add stockNumber per dealer
+
+Start at 0001 and increment (per dealer)
+
+Show it in stock cards + submissions + aftersales
+
+Done when
+
+No pages show raw internal IDs.
+
+Submission detail pages look clean and dealership-friendly.
+
+5) Aftersales costings feature (new)
+Goal
+
+Dealers need to track total aftersales cost per month/year, and per case, to understand profitability.
+
+Recommended approach (balanced: useful + simple)
+
+On each Aftersales case, add a Costing section:
+
+Fields:
+
+partsCost (number, default 0)
+
+labourCost (number, default 0)
+
+vatMode enum: EX_VAT / INC_VAT
+
+notes (optional)
+
+Derived:
+
+totalCost = partsCost + labourCost
+
+Why this is best now:
+
+Simple enough to be entered quickly
+
+Still lets us report meaningful totals
+
+Doesn’t require line items yet (we can add later)
+
+Backend changes
+
+Update AftersalesCase model (or whatever it’s called) to include the costing fields above.
+
+Add validation (>= 0, sensible max maybe).
+
+Add endpoints to update costing:
+
+either within existing PATCH /api/aftersales/:id
+
+or /api/aftersales/:id/costing
+
+Frontend changes
+
+In case detail drawer/page: “Costing” card with Parts/Labour inputs + VAT mode selector.
+
+Show total cost prominently.
+
+Aftersales page KPI cards (top)
+
+Add 3–5 KPIs above the list:
+
+“Aftersales cost this month”
+
+“Aftersales cost last month”
+
+“Aftersales cost YTD”
+
+“Open cases”
+
+“Avg cost per case (month)”
+
+Add filters:
+
+date range (this month / last month / custom)
+
+status (open/closed)
+
+optionally vehicle
+
+Dashboard KPIs
+
+Add at least:
+
+“Aftersales cost this month”
+
+“Open aftersales cases”
+
+Done when
+
+You can open a case, enter parts/labour, and totals update immediately.
+
+Aftersales page shows month totals correctly.
+
+Dashboard shows at least one aftersales cost KPI.
+
+QA checklist Claude must do before marking complete
+
+Test iPhone Safari & desktop:
+
+VRM dropdown position correct
+
+tooltip on-screen and dismissible
+
+dashboard “Prep Priorities” shows meaningful info
+
+no internal IDs appear in submissions
+
+aftersales cost totals correct for “this month”

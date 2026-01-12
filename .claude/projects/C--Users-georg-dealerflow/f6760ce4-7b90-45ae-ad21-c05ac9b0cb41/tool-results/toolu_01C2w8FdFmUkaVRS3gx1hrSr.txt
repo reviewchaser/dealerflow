@@ -1,0 +1,25 @@
+448:  const handleDrop = async (e, newStatus) => {
+449-    e.preventDefault();
+450-    if (!draggedCard || draggedCard.boardStatus === newStatus) {
+451-      setDraggedCard(null);
+452-      return;
+453-    }
+454-    const caseId = draggedCard.id || draggedCard._id;
+455-
+456-    // Optimistic update
+457-    setCases(prev => prev.map(c =>
+458-      (c.id || c._id) === caseId ? { ...c, boardStatus: newStatus } : c
+--
+1222:                  onDrop={(e) => handleDrop(e, col.key)}
+1223-                >
+1224-                  {/* Integrated Header - Same as Sales & Prep */}
+1225-                  <div className="flex items-center justify-between mb-3">
+1226-                    <div className="flex items-center gap-2">
+1227-                      <h3 className="font-semibold text-slate-700 text-sm">
+1228-                        {col.label}
+1229-                      </h3>
+1230-                      <span className="bg-slate-900/10 text-slate-700 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center">
+1231-                        {columnCases.length}
+1232-                      </span>
+
+[Showing results with pagination = limit: 30, offset: 0]

@@ -1,0 +1,104 @@
+     1→import { useState, useEffect } from "react";
+     2→import { toast } from "react-hot-toast";
+     3→import VehicleImageUploader from "@/components/VehicleImageUploader";
+     4→import VehicleImageGallery from "@/components/VehicleImageGallery";
+     5→
+     6→// Helper for relative time display
+     7→const relativeTime = (date) => {
+     8→  if (!date) return "";
+     9→  const days = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+    10→  if (days === 0) {
+    11→    const hours = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60));
+    12→    if (hours === 0) {
+    13→      const mins = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60));
+    14→      return mins <= 1 ? "Just now" : `${mins}m ago`;
+    15→    }
+    16→    return `${hours}h ago`;
+    17→  }
+    18→  if (days === 1) return "Yesterday";
+    19→  if (days < 7) return `${days}d ago`;
+    20→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    21→  return `${Math.floor(days / 30)}mo ago`;
+    22→};
+    23→
+    24→// Format date helper
+    25→const formatDate = (date) => {
+    26→  if (!date) return "";
+    27→  return new Date(date).toLocaleDateString("en-GB", {
+    28→    day: "numeric",
+    29→    month: "short",
+    30→    year: "numeric",
+    31→  });
+    32→};
+    33→
+    34→// DVLA Details formatting helpers
+    35→const formatMonthYear = (monthStr) => {
+    36→  // Format YYYY-MM to "Dec 2004"
+    37→  if (!monthStr) return null;
+    38→  try {
+    39→    const [year, month] = monthStr.split("-");
+    40→    const date = new Date(parseInt(year), parseInt(month) - 1);
+    41→    return date.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+    42→  } catch {
+    43→    return monthStr;
+    44→  }
+    45→};
+    46→
+    47→const formatEngineCapacity = (cc) => {
+    48→  if (!cc) return null;
+    49→  return `${cc.toLocaleString()} cc`;
+    50→};
+    51→
+    52→const formatCo2 = (g) => {
+    53→  if (!g) return null;
+    54→  return `${g} g/km`;
+    55→};
+    56→
+    57→const formatWeight = (kg) => {
+    58→  if (!kg) return null;
+    59→  return `${kg.toLocaleString()} kg`;
+    60→};
+    61→
+    62→const STATUS_LABELS = {
+    63→  in_stock: "In Prep",
+    64→  in_prep: "Advertised",
+    65→  live: "Sold In Progress",
+    66→  reserved: "Completed",
+    67→  delivered: "Delivered",
+    68→};
+    69→
+    70→/**
+    71→ * VehicleDrawer - A reusable component to display vehicle details in a drawer/modal
+    72→ *
+    73→ * Props:
+    74→ * - vehicleId: The ID of the vehicle to display
+    75→ * - isOpen: Whether the drawer is open
+    76→ * - onClose: Function to call when closing the drawer
+    77→ * - isStacked: If true, renders as a stacked drawer (overlays another drawer)
+    78→ * - readOnly: If true, hides editing controls (default: true for warranty context)
+    79→ */
+    80→export default function VehicleDrawer({
+    81→  vehicleId,
+    82→  isOpen,
+    83→  onClose,
+    84→  isStacked = false,
+    85→  readOnly = true,
+    86→}) {
+    87→  const [vehicle, setVehicle] = useState(null);
+    88→  const [isLoading, setIsLoading] = useState(false);
+    89→  const [activeTab, setActiveTab] = useState("overview");
+    90→  const [expandedIssues, setExpandedIssues] = useState({});
+    91→
+    92→  // Lock body scroll when drawer is open
+    93→  useEffect(() => {
+    94→    if (isOpen) {
+    95→      const scrollY = window.scrollY;
+    96→      document.body.style.position = "fixed";
+    97→      document.body.style.top = `-${scrollY}px`;
+    98→      document.body.style.left = "0";
+    99→      document.body.style.right = "0";
+   100→      document.body.style.overflow = "hidden";
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

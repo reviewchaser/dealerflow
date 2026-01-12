@@ -1,0 +1,17 @@
+const mongoose = require('mongoose');
+
+async function fix() {
+  await mongoose.connect('mongodb+srv://accounts_db_user:NeSyY6B079@cluster0.lqoi4pv.mongodb.net/dealerflow?retryWrites=true&w=majority&appName=Cluster0');
+
+  // Update the driving licence field label
+  const result = await mongoose.connection.db.collection('formfields').updateMany(
+    { fieldName: 'licence_photo', label: 'Upload Driving Licence (Front & Back)' },
+    { $set: { label: 'Upload Driving Licence (Front)' } }
+  );
+  console.log('Updated licence field labels:', result.modifiedCount);
+
+  await mongoose.disconnect();
+  console.log('Done!');
+}
+
+fix().catch(console.error);

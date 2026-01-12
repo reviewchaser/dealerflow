@@ -1,0 +1,82 @@
+17:  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+18:  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+19:  { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
+20:  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+21:  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+39:// Helper to compute duration label based on status
+46:      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+49:    return { days: 0, label: "Sold", isSold: true };
+55:  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+197:  // Vehicle Labels state
+198:  const [availableLabels, setAvailableLabels] = useState([]);
+199:  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+200:  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+201:  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+354:    fetchLabels();
+393:  const fetchLabels = async () => {
+395:      const res = await fetch("/api/labels");
+397:      setAvailableLabels(Array.isArray(data) ? data : []);
+399:      console.error("Failed to load labels:", error);
+443:  // Toggle a label on/off for a vehicle
+444:  const toggleVehicleLabel = async (vehicleId, labelId) => {
+446:      const res = await fetch(`/api/vehicles/${vehicleId}/labels/${labelId}`, {
+455:            labels: updatedData.labels || [],
+461:      toast.error("Failed to update label");
+465:  // Create a new label
+466:  const createLabel = async () => {
+467:    if (!newLabelForm.name.trim()) {
+468:      toast.error("Label name is required");
+472:      const res = await fetch("/api/labels", {
+475:        body: JSON.stringify(newLabelForm),
+478:        const newLabel = await res.json();
+479:        setAvailableLabels(prev => [...prev, newLabel]);
+480:        setNewLabelForm({ name: "", colour: "#6366f1" });
+481:        setShowAddLabelModal(false);
+482:        toast.success("Label created");
+485:      toast.error("Failed to create label");
+494:    setShowLabelsDropdown(false); // Close labels dropdown when opening new vehicle
+871:    const labels = {
+879:    return labels[order.supplierType] || order.supplierType;
+1558:  const getStatusLabel = (statusKey) => {
+1560:    return col ? col.label : statusKey;
+1575:    // Get status label from COLUMNS
+1577:    const statusLabel = statusColumn ? statusColumn.label : vehicle.status;
+1595:    .field-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; }
+1627:      <span class="badge badge-status">${statusLabel}</span>
+1637:        <div class="field-label">Registration</div>
+1641:        <div class="field-label">VIN</div>
+1645:        <div class="field-label">Make</div>
+1649:        <div class="field-label">Model</div>
+1653:        <div class="field-label">Year</div>
+1657:        <div class="field-label">Mileage</div>
+1661:        <div class="field-label">Colour</div>
+1665:        <div class="field-label">Fuel Type</div>
+1669:        <div class="field-label">MOT Expiry</div>
+1864:      return { type: "unknown", label: "Unknown", days: null, class: "bg-slate-100 text-slate-500 border border-slate-200" };
+1872:      return { type: "expired", label: `Expired ${daysOverdue}d`, days: daysOverdue, class: "bg-red-50 text-red-700 border border-red-200" };
+1875:      return { type: "due_soon", label: `${daysUntilExpiry}d`, days: daysUntilExpiry, class: "bg-amber-50 text-amber-700 border border-amber-200" };
+1877:    return { type: "valid", label: `${daysUntilExpiry}d`, days: daysUntilExpiry, class: null };
+2029:                              { key: "awaiting_pdi", label: "Awaiting PDI" },
+2030:                              { key: "awaiting_valet", label: "Awaiting Valet" },
+2031:                              { key: "awaiting_photos", label: "Awaiting Photos" },
+2032:                              { key: "awaiting_mot", label: "Awaiting MOT" },
+2046:                                  <span>{filter.label}</span>
+2061:                              { key: "needs_paint", label: "Needs Paint" },
+2062:                              { key: "needs_mechanical", label: "Needs Mechanical" },
+2063:                              { key: "needs_electrical", label: "Needs Electrical" },
+2077:                                  <span>{filter.label}</span>
+2118:                              { key: "type_stock", label: "Stock Vehicles" },
+2119:                              { key: "type_courtesy", label: "Courtesy Vehicles" },
+2120:                              { key: "type_fleet", label: "Fleet Vehicles" },
+2134:                                  <span>{filter.label}</span>
+2149:                              { key: "trade_only", label: "Trade Only" },
+2150:                              { key: "retail_only", label: "Retail Only" },
+2164:                                  <span>{filter.label}</span>
+2179:                              { key: "mot_expired", label: "MOT Expired" },
+2180:                              { key: "mot_due_soon", label: "MOT Due Soon" },
+2194:                                  <span>{filter.label}</span>
+2254:                      { key: "awaiting_pdi", label: "Awaiting PDI" },
+2255:                      { key: "awaiting_valet", label: "Awaiting Valet" },
+2256:                      { key: "awaiting_photos", label: "Awaiting Photos" },
+
+[Showing results with pagination = limit: 80, offset: 0]

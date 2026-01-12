@@ -1,0 +1,43 @@
+     1→/**
+     2→ * SectionTitle Component - Consistent section headers
+     3→ * Usage:
+     4→ *   <SectionTitle>Customer Details</SectionTitle>
+     5→ *   <SectionTitle icon="📋" action={<Button>Add</Button>}>Forms</SectionTitle>
+     6→ */
+     7→
+     8→export function SectionTitle({
+     9→  children,
+    10→  icon,
+    11→  action,
+    12→  subtitle,
+    13→  className = "",
+    14→  size = "default",
+    15→}) {
+    16→  const sizes = {
+    17→    sm: "text-xs",
+    18→    default: "text-sm",
+    19→    lg: "text-base",
+    20→  };
+    21→
+    22→  return (
+    23→    <div className={`flex items-center justify-between gap-2 mb-3 ${className}`}>
+    24→      <div className="flex items-center gap-2 min-w-0">
+    25→        {icon && <span className="flex-shrink-0">{icon}</span>}
+    26→        <div className="min-w-0">
+    27→          <h3 className={`${sizes[size] || sizes.default} font-bold text-slate-700 uppercase tracking-wide`}>
+    28→            {children}
+    29→          </h3>
+    30→          {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+    31→        </div>
+    32→      </div>
+    33→      {action && <div className="flex-shrink-0">{action}</div>}
+    34→    </div>
+    35→  );
+    36→}
+    37→
+    38→export default SectionTitle;
+    39→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

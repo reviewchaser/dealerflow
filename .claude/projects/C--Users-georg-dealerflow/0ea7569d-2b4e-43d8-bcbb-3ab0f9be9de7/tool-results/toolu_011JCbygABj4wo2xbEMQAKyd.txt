@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1797→                  </button>
+  1798→                )}
+  1799→              </div>
+  1800→
+  1801→              {/* VRM Search Dropdown - Anchored to input container */}
+  1802→              {showVrmDropdown && (
+  1803→                <div
+  1804→                  ref={vrmDropdownRef}
+  1805→                  className="absolute left-0 top-full mt-2 w-64 sm:w-80 min-w-full max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-xl border border-slate-200 z-[9999] overflow-hidden"
+  1806→                >
+  1807→                  {vrmSearchResults.length > 0 ? (
+  1808→                    <>
+  1809→                      <ul className="py-1 max-h-64 overflow-y-auto">
+  1810→                        {vrmSearchResults.map((vehicle, idx) => {

@@ -1,0 +1,34 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3545→      {showAddModal && (
+  3546→        <AddVehicleModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); fetchVehicles(); }} />
+  3547→      )}
+  3548→
+  3549→      {showAddIssueModal && (
+  3550→        <AddIssueModal
+  3551→          issueForm={issueForm}
+  3552→          setIssueForm={setIssueForm}
+  3553→          isEditing={!!editingIssue}
+  3554→          onClose={() => {
+  3555→            setShowAddIssueModal(false);
+  3556→            setEditingIssue(null);
+  3557→            setIssueForm({
+  3558→              category: "",
+  3559→              subcategory: "",
+  3560→              description: "",
+  3561→              actionNeeded: "",
+  3562→              priority: "medium",
+  3563→              location: "",
+  3564→              status: "outstanding",
+  3565→              notes: "",
+  3566→              photos: [],
+  3567→              partsRequired: false,
+  3568→              partsDetails: "",
+  3569→            });
+  3570→          }}
+  3571→          onSubmit={editingIssue ? saveEditedIssue : addIssue}
+  3572→        />
+  3573→      )}
+  3574→
+  3575→      {showAddDocumentModal && (
+  3576→        <AddDocumentModal
+  3577→          documentForm={documentForm}

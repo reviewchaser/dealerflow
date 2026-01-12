@@ -1,0 +1,11 @@
+7:import { BottomSheet } from "@/components/ui/BottomSheet";
+108:  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+158:  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+1403:                onClick={() => setShowFiltersDropdown(!showFiltersDropdown)}
+1416:              {showFiltersDropdown && (
+1613:                  <BottomSheet
+1614:                    isOpen={showFiltersDropdown}
+1793:                  </BottomSheet>
+1816:                      mobileActiveColumn === col.key
+1823:                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
+1835:            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {

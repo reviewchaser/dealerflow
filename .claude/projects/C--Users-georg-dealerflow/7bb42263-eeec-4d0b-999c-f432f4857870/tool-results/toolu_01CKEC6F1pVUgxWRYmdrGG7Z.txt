@@ -1,0 +1,2 @@
+<tool_use_error>Found 2 matches of the string to replace, but replace_all is false. To replace all occurrences, set replace_all to true. To replace only one occurrence, please provide more context to uniquely identify the instance.
+String: Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (</tool_use_error>

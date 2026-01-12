@@ -1,0 +1,272 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Deal from "@/models/Deal";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import Dealer from "@/models/Dealer";
+     5→import SalesDocument from "@/models/SalesDocument";
+     6→import DocumentCounter from "@/models/DocumentCounter";
+     7→import crypto from "crypto";
+     8→import { withDealerContext } from "@/libs/authContext";
+     9→
+    10→/**
+    11→ * Generate Invoice API
+    12→ * POST /api/deals/[id]/generate-invoice
+    13→ *
+    14→ * Generates an invoice for a deal and transitions status to INVOICED.
+    15→ */
+    16→async function handler(req, res, ctx) {
+    17→  await connectMongo();
+    18→  const { dealerId, userId } = ctx;
+    19→  const { id } = req.query;
+    20→
+    21→  if (req.method !== "POST") {
+    22→    return res.status(405).json({ error: "Method not allowed" });
+    23→  }
+    24→
+    25→  // Validate ID format
+    26→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    27→    return res.status(400).json({ error: "Invalid deal ID" });
+    28→  }
+    29→
+    30→  // Get the deal with all related data
+    31→  const deal = await Deal.findOne({ _id: id, dealerId })
+    32→    .populate("vehicleId")
+    33→    .populate("soldToContactId")
+    34→    .populate("invoiceToContactId")
+    35→    .populate("partExchangeId");
+    36→
+    37→  if (!deal) {
+    38→    return res.status(404).json({ error: "Deal not found" });
+    39→  }
+    40→
+    41→  // Validate deal can be invoiced
+    42→  if (deal.status === "CANCELLED") {
+    43→    return res.status(400).json({ error: "Cannot invoice a cancelled deal" });
+    44→  }
+    45→  if (deal.status === "COMPLETED") {
+    46→    return res.status(400).json({ error: "Deal is already completed" });
+    47→  }
+    48→  if (deal.status === "INVOICED" || deal.status === "DELIVERED") {
+    49→    // Check if invoice already exists
+    50→    const existingInvoice = await SalesDocument.findOne({
+    51→      dealId: deal._id,
+    52→      type: "INVOICE",
+    53→      status: { $ne: "VOID" },
+    54→    });
+    55→    if (existingInvoice) {
+    56→      return res.status(400).json({
+    57→        error: "Invoice already exists",
+    58→        invoiceId: existingInvoice._id.toString(),
+    59→        documentNumber: existingInvoice.documentNumber,
+    60→      });
+    61→    }
+    62→  }
+    63→
+    64→  // Customer is required
+    65→  if (!deal.soldToContactId) {
+    66→    return res.status(400).json({ error: "Customer is required before generating invoice" });
+    67→  }
+    68→
+    69→  // Vehicle price is required
+    70→  if (!deal.vehiclePriceGross && deal.vehiclePriceGross !== 0) {
+    71→    return res.status(400).json({ error: "Vehicle price is required before generating invoice" });
+    72→  }
+    73→
+    74→  // Get dealer for settings
+    75→  const dealer = await Dealer.findById(dealerId);
+    76→
+    77→  // Allocate document number atomically
+    78→  const defaultPrefix = dealer?.salesSettings?.invoiceNumberPrefix || "INV";
+    79→  const { documentNumber } = await DocumentCounter.allocateNumber(
+    80→    dealerId,
+    81→    "INVOICE",
+    82→    defaultPrefix
+    83→  );
+    84→
+    85→  // Calculate totals
+    86→  const vehicle = deal.vehicleId;
+    87→  const customer = deal.soldToContactId;
+    88→  const invoiceTo = deal.invoiceToContactId;
+    89→  const px = deal.partExchangeId;
+    90→
+    91→  // Add-ons calculations
+    92→  const addOnsNetTotal = (deal.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0);
+    93→  const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+    94→    if (a.vatTreatment === "STANDARD") {
+    95→      return sum + (a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2));
+    96→    }
+    97→    return sum;
+    98→  }, 0);
+    99→
+   100→  // Total payments
+   101→  const totalPaid = (deal.payments || [])
+   102→    .filter(p => !p.isRefunded)
+   103→    .reduce((sum, p) => sum + p.amount, 0);
+   104→
+   105→  // Part exchange net value
+   106→  const pxNetValue = px ? (px.allowance || 0) - (px.settlement || 0) : 0;
+   107→
+   108→  // Calculate grand total based on VAT scheme
+   109→  let subtotal, totalVat, grandTotal;
+   110→
+   111→  if (deal.vatScheme === "VAT_QUALIFYING") {
+   112→    subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
+   113→    totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
+   114→    grandTotal = subtotal + totalVat;
+   115→  } else {
+   116→    // Margin scheme - no VAT breakdown
+   117→    subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
+   118→    totalVat = 0;
+   119→    grandTotal = subtotal;
+   120→  }
+   121→
+   122→  const balanceDue = grandTotal - totalPaid - pxNetValue;
+   123→
+   124→  // Build snapshot data
+   125→  const snapshotData = {
+   126→    vehicle: {
+   127→      regCurrent: vehicle.regCurrent,
+   128→      vin: vehicle.vin,
+   129→      make: vehicle.make,
+   130→      model: vehicle.model,
+   131→      derivative: vehicle.derivative,
+   132→      year: vehicle.year,
+   133→      mileage: vehicle.mileageCurrent,
+   134→      colour: vehicle.colour,
+   135→    },
+   136→    customer: {
+   137→      name: customer.displayName,
+   138→      companyName: customer.companyName,
+   139→      email: customer.email,
+   140→      phone: customer.phone,
+   141→      address: customer.address,
+   142→    },
+   143→    invoiceTo: invoiceTo ? {
+   144→      name: invoiceTo.displayName,
+   145→      companyName: invoiceTo.companyName,
+   146→      email: invoiceTo.email,
+   147→      address: invoiceTo.address,
+   148→    } : null,
+   149→    // Deliver To: customer if invoiced to finance company, or delivery address if specified
+   150→    deliverTo: invoiceTo ? {
+   151→      name: customer.displayName,
+   152→      companyName: customer.companyName,
+   153→      phone: customer.phone,
+   154→      address: deal.deliveryAddress?.isDifferent ? deal.deliveryAddress : customer.address,
+   155→    } : (deal.deliveryAddress?.isDifferent ? {
+   156→      name: customer.displayName,
+   157→      companyName: customer.companyName,
+   158→      phone: customer.phone,
+   159→      address: deal.deliveryAddress,
+   160→    } : null),
+   161→    vatScheme: deal.vatScheme,
+   162→    vehiclePriceNet: deal.vehiclePriceNet,
+   163→    vehicleVatAmount: deal.vehicleVatAmount,
+   164→    vehiclePriceGross: deal.vehiclePriceGross,
+   165→    addOns: (deal.addOns || []).map(a => ({
+   166→      name: a.name,
+   167→      qty: a.qty || 1,
+   168→      unitPriceNet: a.unitPriceNet,
+   169→      vatTreatment: a.vatTreatment,
+   170→      vatRate: a.vatRate,
+   171→    })),
+   172→    addOnsNetTotal,
+   173→    addOnsVatTotal,
+   174→    partExchange: px ? {
+   175→      vrm: px.vrm,
+   176→      make: px.make,
+   177→      model: px.model,
+   178→      allowance: px.allowance,
+   179→      settlement: px.settlement,
+   180→    } : null,
+   181→    payments: (deal.payments || []).map(p => ({
+   182→      type: p.type,
+   183→      amount: p.amount,
+   184→      method: p.method,
+   185→      paidAt: p.paidAt,
+   186→      reference: p.reference,
+   187→    })),
+   188→    subtotal,
+   189→    totalVat,
+   190→    grandTotal,
+   191→    totalPaid,
+   192→    partExchangeNet: pxNetValue,
+   193→    balanceDue,
+   194→    termsText: deal.termsSnapshotText || getTermsText(deal, dealer),
+   195→    dealer: {
+   196→      name: dealer.name,
+   197→      companyName: dealer.companyName,
+   198→      address: dealer.companyAddress,
+   199→      phone: dealer.companyPhone,
+   200→      email: dealer.companyEmail,
+   201→      vatNumber: dealer.salesSettings?.vatNumber,
+   202→      companyNumber: dealer.salesSettings?.companyNumber,
+   203→      logoUrl: dealer.logoUrl,
+   204→    },
+   205→    bankDetails: dealer.salesSettings?.bankDetails || {},
+   206→    // Include agreed work items (requests)
+   207→    requests: (deal.requests || []).map(req => ({
+   208→      title: req.title,
+   209→      details: req.details,
+   210→      type: req.type,
+   211→      status: req.status,
+   212→    })),
+   213→  };
+   214→
+   215→  // Generate share token
+   216→  const shareToken = crypto.randomBytes(32).toString("base64url");
+   217→  const shareTokenHash = crypto.createHash("sha256").update(shareToken).digest("hex");
+   218→
+   219→  // Create invoice document
+   220→  const invoice = await SalesDocument.create({
+   221→    dealerId,
+   222→    dealId: deal._id,
+   223→    type: "INVOICE",
+   224→    documentNumber,
+   225→    status: "ISSUED",
+   226→    issuedAt: new Date(),
+   227→    snapshotData,
+   228→    shareToken,
+   229→    shareTokenHash,
+   230→    shareExpiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
+   231→    createdByUserId: userId,
+   232→  });
+   233→
+   234→  // Update deal
+   235→  deal.status = "INVOICED";
+   236→  deal.invoicedAt = new Date();
+   237→  deal.updatedByUserId = userId;
+   238→  await deal.save();
+   239→
+   240→  // Update vehicle status
+   241→  await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
+   242→    salesStatus: "SOLD_IN_PROGRESS",
+   243→  });
+   244→
+   245→  return res.status(200).json({
+   246→    success: true,
+   247→    dealId: deal._id.toString(),
+   248→    dealStatus: deal.status,
+   249→    invoiceId: invoice._id.toString(),
+   250→    documentNumber,
+   251→    shareToken,
+   252→    shareUrl: `${process.env.NEXTAUTH_URL || ""}/public/invoice/${shareToken}`,
+   253→    grandTotal,
+   254→    balanceDue,
+   255→  });
+   256→}
+   257→
+   258→/**
+   259→ * Get appropriate terms text based on buyer type and sale channel
+   260→ */
+   261→function getTermsText(deal, dealer) {
+   262→  const terms = dealer?.salesSettings?.terms || {};
+   263→  const key = `${deal.buyerType?.toLowerCase() || "consumer"}${deal.saleChannel === "DISTANCE" ? "Distance" : "InPerson"}`;
+   264→  return terms[key] || terms.consumerInPerson || "";
+   265→}
+   266→
+   267→export default withDealerContext(handler);
+   268→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

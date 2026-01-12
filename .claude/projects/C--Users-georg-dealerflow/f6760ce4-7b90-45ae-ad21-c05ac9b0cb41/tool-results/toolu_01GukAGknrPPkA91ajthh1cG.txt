@@ -1,0 +1,22 @@
+194:  const [mobileActiveColumn, setMobileActiveColumn] = useState("not_booked_in");
+195-
+196-  // Job sheet share state
+197-  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+198-  const [jobSheetLink, setJobSheetLink] = useState(null);
+199-  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+200-
+201-  useEffect(() => { fetchCases(); }, []);
+202-
+203-  // Auto-open case from query param (e.g., /warranty?caseId=123)
+204-  useEffect(() => {
+--
+1071:            activeStage={mobileActiveColumn}
+1072-            onStageChange={setMobileActiveColumn}
+1073-            className="mb-4"
+1074-          />
+1075-
+1076-          {/* Mobile Single Column View */}
+1077-          <div className="md:hidden">
+1078:            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
+
+[Showing results with pagination = limit: 20, offset: 0]

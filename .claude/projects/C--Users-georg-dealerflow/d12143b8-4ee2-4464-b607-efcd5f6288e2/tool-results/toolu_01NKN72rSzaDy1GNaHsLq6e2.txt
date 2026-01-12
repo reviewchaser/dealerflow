@@ -1,0 +1,196 @@
+     1→/**
+     2→ * MobileModal Component - Full-screen modal optimized for mobile
+     3→ *
+     4→ * Features:
+     5→ * - Uses 100dvh for dynamic viewport height (iOS Safari URL bar)
+     6→ * - Sticky header and footer with safe area insets
+     7→ * - Scrollable content area
+     8→ * - Portal rendering for fixed positioning
+     9→ * - Scroll lock to prevent background scrolling
+    10→ *
+    11→ * Usage:
+    12→ *   <MobileModal isOpen={isOpen} onClose={handleClose} title="Add Vehicle">
+    13→ *     <form>...</form>
+    14→ *     <MobileModal.Footer>
+    15→ *       <button onClick={handleClose}>Cancel</button>
+    16→ *       <button type="submit">Save</button>
+    17→ *     </MobileModal.Footer>
+    18→ *   </MobileModal>
+    19→ */
+    20→
+    21→import { useEffect, useRef, Children, isValidElement } from "react";
+    22→import { Portal } from "./Portal";
+    23→
+    24→export function MobileModal({
+    25→  isOpen,
+    26→  onClose,
+    27→  title,
+    28→  children,
+    29→  maxWidth = "max-w-4xl", // Tailwind max-width class for desktop
+    30→  className = "",
+    31→}) {
+    32→  const modalRef = useRef(null);
+    33→
+    34→  // Lock body scroll and prevent horizontal pan when open
+    35→  useEffect(() => {
+    36→    if (isOpen) {
+    37→      const scrollY = window.scrollY;
+    38→      const html = document.documentElement;
+    39→
+    40→      // Lock both html and body to prevent any horizontal movement
+    41→      document.body.style.position = "fixed";
+    42→      document.body.style.top = `-${scrollY}px`;
+    43→      document.body.style.left = "0";
+    44→      document.body.style.right = "0";
+    45→      document.body.style.width = "100%";
+    46→      document.body.style.overflow = "hidden";
+    47→      document.body.style.overflowX = "hidden";
+    48→      // Use manipulation instead of none to allow pinch zoom on iOS
+    49→      document.body.style.touchAction = "manipulation";
+    50→
+    51→      html.style.overflow = "hidden";
+    52→      html.style.overflowX = "hidden";
+    53→
+    54→      // Add class for additional CSS-based locking
+    55→      document.body.classList.add("modal-open");
+    56→
+    57→      return () => {
+    58→        document.body.style.position = "";
+    59→        document.body.style.top = "";
+    60→        document.body.style.left = "";
+    61→        document.body.style.right = "";
+    62→        document.body.style.width = "";
+    63→        document.body.style.overflow = "";
+    64→        document.body.style.overflowX = "";
+    65→        document.body.style.touchAction = "";
+    66→
+    67→        html.style.overflow = "";
+    68→        html.style.overflowX = "";
+    69→
+    70→        document.body.classList.remove("modal-open");
+    71→        window.scrollTo(0, scrollY);
+    72→      };
+    73→    }
+    74→  }, [isOpen]);
+    75→
+    76→  // Handle escape key
+    77→  useEffect(() => {
+    78→    const handleEscape = (e) => {
+    79→      if (e.key === "Escape" && isOpen) {
+    80→        onClose();
+    81→      }
+    82→    };
+    83→    window.addEventListener("keydown", handleEscape);
+    84→    return () => window.removeEventListener("keydown", handleEscape);
+    85→  }, [isOpen, onClose]);
+    86→
+    87→  if (!isOpen) return null;
+    88→
+    89→  // Separate footer from other children
+    90→  let footerContent = null;
+    91→  const contentChildren = Children.toArray(children).filter((child) => {
+    92→    if (isValidElement(child) && child.type === MobileModalFooter) {
+    93→      footerContent = child;
+    94→      return false;
+    95→    }
+    96→    return true;
+    97→  });
+    98→
+    99→  return (
+   100→    <Portal>
+   101→      <div
+   102→        className="fixed inset-0 z-[9999]"
+   103→        style={{
+   104→          touchAction: "pan-x pan-y pinch-zoom", // Allow pinch zoom
+   105→          overscrollBehavior: "contain"
+   106→        }}
+   107→      >
+   108→        {/* Backdrop - prevent touch events from reaching background */}
+   109→        <div
+   110→          className="fixed inset-0 bg-black/50"
+   111→          onClick={onClose}
+   112→          onTouchMove={(e) => {
+   113→            // Only prevent default if not a pinch zoom (single touch)
+   114→            if (e.touches && e.touches.length === 1) {
+   115→              e.preventDefault();
+   116→            }
+   117→          }}
+   118→          aria-hidden="true"
+   119→          style={{ touchAction: "pan-x pan-y pinch-zoom" }}
+   120→        />
+   121→
+   122→        {/* Modal Container - Centered on desktop, full screen on mobile */}
+   123→        <div className="fixed inset-0 flex items-start md:items-center justify-center p-0 md:p-4">
+   124→          {/* Modal */}
+   125→          <div
+   126→            ref={modalRef}
+   127→            role="dialog"
+   128→            aria-modal="true"
+   129→            aria-labelledby="mobile-modal-title"
+   130→            className={`
+   131→              relative bg-white shadow-2xl flex flex-col
+   132→              w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:rounded-xl
+   133→              ${maxWidth}
+   134→              ${className}
+   135→            `}
+   136→          >
+   137→            {/* Header - Sticky with safe area padding on mobile */}
+   138→            <div
+   139→              className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white md:rounded-t-xl"
+   140→              style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
+   141→            >
+   142→              <h2
+   143→                id="mobile-modal-title"
+   144→                className="text-lg md:text-xl font-bold text-slate-900"
+   145→              >
+   146→                {title}
+   147→              </h2>
+   148→              <button
+   149→                type="button"
+   150→                onClick={onClose}
+   151→                className="p-2 -mr-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+   152→                aria-label="Close"
+   153→              >
+   154→                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   155→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   156→                </svg>
+   157→              </button>
+   158→            </div>
+   159→
+   160→            {/* Content - Scrollable vertically with pinch zoom allowed */}
+   161→            <div
+   162→              className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-4 md:p-6 min-h-0"
+   163→              style={{ touchAction: "pan-y pinch-zoom", WebkitOverflowScrolling: "touch" }}
+   164→            >
+   165→              {contentChildren}
+   166→            </div>
+   167→
+   168→            {/* Footer - Sticky with safe area padding on mobile */}
+   169→            {footerContent && (
+   170→              <div
+   171→                className="shrink-0 border-t border-slate-200 bg-white px-4 md:px-6 py-4 md:rounded-b-xl"
+   172→                style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+   173→              >
+   174→                {footerContent.props.children}
+   175→              </div>
+   176→            )}
+   177→          </div>
+   178→        </div>
+   179→      </div>
+   180→    </Portal>
+   181→  );
+   182→}
+   183→
+   184→// Footer component for extracting footer content
+   185→function MobileModalFooter({ children }) {
+   186→  return <>{children}</>;
+   187→}
+   188→
+   189→MobileModal.Footer = MobileModalFooter;
+   190→
+   191→export default MobileModal;
+   192→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

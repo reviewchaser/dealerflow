@@ -1,0 +1,4 @@
+total 12
+drwxr-xr-x 1 georg 197609 0 Dec 30 13:12 .
+drwxr-xr-x 1 georg 197609 0 Jan 10 21:26 ..
+drwxr-xr-x 1 georg 197609 0 Jan 10 20:49 [dealerSlug]

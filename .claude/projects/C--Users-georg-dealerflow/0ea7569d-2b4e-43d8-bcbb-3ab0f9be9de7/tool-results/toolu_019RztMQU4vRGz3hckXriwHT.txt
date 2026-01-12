@@ -1,0 +1,12 @@
+The file C:\Users\georg\dealerflow\pages\dashboard.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   323→            <div>
+   324→              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+   325→                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+   326→              </h1>
+   327→              <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+   328→              <div className="mt-2"><PageHint id="dashboard">Your daily overview. See key stats, quick actions, and things needing attention at a glance.</PageHint></div>
+   329→            </div>
+   330→            <div className="hidden md:flex items-center gap-3">
+   331→              <div className="text-right">
+   332→                <p className="text-sm font-bold text-slate-800">
+   333→                  {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}

@@ -1,0 +1,24 @@
+    70→  const [activeTab, setActiveTab] = useState("overview");
+    71→  const [actionLoading, setActionLoading] = useState(null);
+    72→
+    73→  // DEBUG: Log props changes
+    74→  useEffect(() => {
+    75→    console.log("[DealDrawer] Props:", { dealId, isOpen });
+    76→  }, [dealId, isOpen]);
+    77→
+    78→  // DEBUG: Log mount/unmount
+    79→  useEffect(() => {
+    80→    console.log("[DealDrawer] MOUNTED");
+    81→    return () => console.log("[DealDrawer] UNMOUNTED");
+    82→  }, []);
+    83→
+    84→  // Deposit modal state
+    85→  const [showDepositModal, setShowDepositModal] = useState(false);
+    86→  const [depositAmount, setDepositAmount] = useState("");
+    87→  const [depositMethod, setDepositMethod] = useState("CARD");
+    88→  const [depositReference, setDepositReference] = useState("");
+    89→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

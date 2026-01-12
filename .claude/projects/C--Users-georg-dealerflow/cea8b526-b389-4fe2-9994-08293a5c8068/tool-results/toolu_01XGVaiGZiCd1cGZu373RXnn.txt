@@ -1,0 +1,59 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON";
+     3→
+     4→const editHistorySchema = new mongoose.Schema({
+     5→  editedAt: { type: Date, default: Date.now },
+     6→  editedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+     7→  editedByName: { type: String },
+     8→  previousAnswers: { type: Object },
+     9→}, { _id: false });
+    10→
+    11→// PDI Issue schema for structured issue data
+    12→const pdiIssueSchema = new mongoose.Schema({
+    13→  category: { type: String, enum: ["Cosmetic", "Mechanical", "Electrical", "Other"], required: true },
+    14→  subcategory: { type: String, required: true },
+    15→  description: { type: String, required: true },
+    16→  actionNeeded: { type: String },
+    17→  photos: [{ type: String }],
+    18→  status: { type: String, enum: ["Outstanding", "Ordered", "In Progress", "Complete"], default: "Outstanding" },
+    19→  notes: { type: String },
+    20→}, { _id: false });
+    21→
+    22→const formSubmissionSchema = new mongoose.Schema(
+    23→  {
+    24→    formId: { type: mongoose.Schema.Types.ObjectId, ref: "Form", required: true },
+    25→    dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer" },
+    26→    submittedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    27→    submittedByContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+    28→    linkedVehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    29→    linkedLeadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead" },
+    30→    linkedVehicleSaleId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleSale" },
+    31→    linkedAftercareCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "AftercareCase" },
+    32→    linkedAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "Appraisal" },
+    33→    linkedCustomerPXAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerPXAppraisal" },
+    34→    submittedAt: { type: Date, default: Date.now },
+    35→    rawAnswers: { type: Object, required: true }, // field_name → value
+    36→    viewed: { type: Boolean, default: false },
+    37→    viewedAt: { type: Date },
+    38→    viewedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    39→    status: { type: String, enum: ["new", "viewed", "actioned", "archived"], default: "new" },
+    40→    // Edit tracking
+    41→    editHistory: [editHistorySchema],
+    42→    lastEditedAt: { type: Date },
+    43→    lastEditedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    44→    lastEditedByName: { type: String },
+    45→    // PDI Issues - structured issue data for automation
+    46→    pdiIssues: [pdiIssueSchema],
+    47→    // Track VehicleIssue IDs created from this submission (for idempotency)
+    48→    createdIssueIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "VehicleIssue" }],
+    49→  },
+    50→  { timestamps: true }
+    51→);
+    52→
+    53→formSubmissionSchema.plugin(toJSON);
+    54→export default mongoose.models.FormSubmission || mongoose.model("FormSubmission", formSubmissionSchema);
+    55→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

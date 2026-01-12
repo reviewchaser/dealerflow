@@ -1,0 +1,404 @@
+     1→import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+     2→import Head from "next/head";
+     3→import Link from "next/link";
+     4→import { useRouter } from "next/router";
+     5→import DashboardLayout from "@/components/DashboardLayout";
+     6→import { toast } from "react-hot-toast";
+     7→import { showDummyNotification } from "@/utils/notifications";
+     8→import { BottomSheet } from "@/components/ui/BottomSheet";
+     9→import { PageHint } from "@/components/ui";
+    10→import { Portal } from "@/components/ui/Portal";
+    11→import { MobileStageSelector } from "@/components/ui/PageShell";
+    12→import useDealerRedirect from "@/hooks/useDealerRedirect";
+    13→import VehicleImage from "@/components/VehicleImage";
+    14→
+    15→const COLUMNS = [
+    16→  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
+    17→  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+    18→  { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
+    19→  { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
+    20→  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+    21→];
+    22→
+    23→const ISSUE_SUBCATEGORIES = {
+    24→  mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+    25→  electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+    26→  bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+    27→  interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+    28→  tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+    29→  mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+    30→  service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+    31→  fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+    32→  other: ["General", "Misc"],
+    33→};
+    34→
+    35→// Sold statuses - these show "Sold X days" instead of "In stock X days"
+    36→const SOLD_STATUSES = ["live", "reserved", "delivered"];
+    37→
+    38→// Helper to compute duration label based on status
+    39→const getVehicleDuration = (vehicle) => {
+    40→  const isSold = SOLD_STATUSES.includes(vehicle.status);
+    41→
+    42→  if (isSold) {
+    43→    if (vehicle.soldAt) {
+    44→      const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
+    45→      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+    46→    }
+    47→    // Legacy sold vehicle without soldAt - just show "Sold"
+    48→    return { days: 0, label: "Sold", isSold: true };
+    49→  }
+    50→
+    51→  const daysInStock = vehicle.createdAt
+    52→    ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+    53→    : 0;
+    54→  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+    55→};
+    56→
+    57→export default function SalesPrep() {
+    58→  const router = useRouter();
+    59→  const { isRedirecting } = useDealerRedirect();
+    60→  const [vehicles, setVehicles] = useState([]);
+    61→  const [isLoading, setIsLoading] = useState(true);
+    62→  const [selectedVehicle, setSelectedVehicle] = useState(null);
+    63→  const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
+    64→  const [showAddModal, setShowAddModal] = useState(false);
+    65→  const [draggedCard, setDraggedCard] = useState(null);
+    66→  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+    67→  const [newTaskName, setNewTaskName] = useState("");
+    68→  const [activeTab, setActiveTab] = useState("overview");
+    69→  const [editingTaskId, setEditingTaskId] = useState(null);
+    70→  const [editingTaskName, setEditingTaskName] = useState("");
+    71→
+    72→  // Parts ordering state
+    73→  const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
+    74→  const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
+    75→  const [partsOrderForm, setPartsOrderForm] = useState({
+    76→    supplierType: "EURO_CAR_PARTS",
+    77→    supplierName: "",
+    78→    orderRef: "",
+    79→    expectedAt: "",
+    80→    notes: "",
+    81→  });
+    82→  const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
+    83→
+    84→  // Column sorting state
+    85→  const [columnSortOptions, setColumnSortOptions] = useState({});
+    86→
+    87→  // Job sheet share state
+    88→  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+    89→  const [jobSheetLink, setJobSheetLink] = useState(null);
+    90→  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+    91→
+    92→  // Prep summary share state
+    93→  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+    94→  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+    95→  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+    96→
+    97→  // Manual share fallback modal
+    98→  const [showManualShareModal, setShowManualShareModal] = useState(false);
+    99→  const [manualShareUrl, setManualShareUrl] = useState("");
+   100→
+   101→  // Mobile move bottom sheet
+   102→  const [moveVehicle, setMoveVehicle] = useState(null);
+   103→  const [moveCurrentColumn, setMoveCurrentColumn] = useState(null);
+   104→
+   105→  // Touch device detection for adaptive hints
+   106→  const [isTouchDevice, setIsTouchDevice] = useState(false);
+   107→  useEffect(() => {
+   108→    // Check for touch capability
+   109→    const hasTouch = window.matchMedia('(pointer: coarse)').matches;
+   110→    setIsTouchDevice(hasTouch);
+   111→  }, []);
+   112→
+   113→  // Issues state
+   114→  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
+   115→  const [editingIssue, setEditingIssue] = useState(null); // For edit mode
+   116→  const [issueForm, setIssueForm] = useState({
+   117→    category: "",
+   118→    subcategory: "",
+   119→    description: "",
+   120→    actionNeeded: "",
+   121→    priority: "medium",
+   122→    location: "",
+   123→    status: "outstanding",
+   124→    notes: "",
+   125→    photos: [],
+   126→    partsRequired: false,
+   127→    partsDetails: "",
+   128→  });
+   129→  const [issueUpdateContent, setIssueUpdateContent] = useState({});
+   130→  const [expandedIssues, setExpandedIssues] = useState({});
+   131→
+   132→  // Filters state - with localStorage persistence
+   133→  const [activeFilters, setActiveFilters] = useState([]);
+   134→  const [showFiltersDropdown, setShowFiltersDropdown] = useState(false);
+   135→  const filterButtonRef = useRef(null);
+   136→  const [filterPopoverPos, setFilterPopoverPos] = useState({ top: 0, right: 0 });
+   137→
+   138→  // Calculate popover position when opening
+   139→  const openFiltersDropdown = useCallback(() => {
+   140→    if (filterButtonRef.current) {
+   141→      const rect = filterButtonRef.current.getBoundingClientRect();
+   142→      const viewportHeight = window.innerHeight;
+   143→      const viewportWidth = window.innerWidth;
+   144→
+   145→      // Position below the button, aligned to right edge
+   146→      let top = rect.bottom + 8;
+   147→      let right = viewportWidth - rect.right;
+   148→
+   149→      // Ensure popover doesn't go below viewport (max 70vh height + 16px padding)
+   150→      const popoverHeight = Math.min(viewportHeight * 0.7, 600);
+   151→      if (top + popoverHeight > viewportHeight - 16) {
+   152→        top = Math.max(16, viewportHeight - popoverHeight - 16);
+   153→      }
+   154→
+   155→      // Ensure popover doesn't go off right edge
+   156→      right = Math.max(16, right);
+   157→
+   158→      setFilterPopoverPos({ top, right });
+   159→    }
+   160→    setShowFiltersDropdown(true);
+   161→  }, []);
+   162→
+   163→  // Load filters from localStorage on mount
+   164→  useEffect(() => {
+   165→    try {
+   166→      const savedFilters = localStorage.getItem("salesPrepFilters");
+   167→      if (savedFilters) {
+   168→        setActiveFilters(JSON.parse(savedFilters));
+   169→      }
+   170→    } catch (e) {
+   171→      console.warn("Failed to load saved filters:", e);
+   172→    }
+   173→  }, []);
+   174→
+   175→  // Save filters to localStorage when they change
+   176→  useEffect(() => {
+   177→    try {
+   178→      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
+   179→    } catch (e) {
+   180→      console.warn("Failed to save filters:", e);
+   181→    }
+   182→  }, [activeFilters]);
+   183→
+   184→  // Documents state
+   185→  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+   186→  const [documentForm, setDocumentForm] = useState({
+   187→    name: "",
+   188→    type: "other",
+   189→    file: null,
+   190→  });
+   191→
+   192→  // Location state
+   193→  const [locations, setLocations] = useState([]);
+   194→  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+   195→
+   196→  // Vehicle Labels state
+   197→  const [availableLabels, setAvailableLabels] = useState([]);
+   198→  const [showLabelsDropdown, setShowLabelsDropdown] = useState(false);
+   199→  const [showAddLabelModal, setShowAddLabelModal] = useState(false);
+   200→  const [newLabelForm, setNewLabelForm] = useState({ name: "", colour: "#6366f1" });
+   201→
+   202→  // Activity log state
+   203→  const [activityData, setActivityData] = useState({ activities: [], total: 0, hasMore: false });
+   204→  const [activityLoading, setActivityLoading] = useState(false);
+   205→
+   206→  // Sales/Deal state for quick action
+   207→  const [vehicleDeal, setVehicleDeal] = useState(null);
+   208→  const [dealLoading, setDealLoading] = useState(false);
+   209→  const [creatingDeal, setCreatingDeal] = useState(false);
+   210→
+   211→  // VRM Search state
+   212→  const [vrmSearch, setVrmSearch] = useState("");
+   213→  const [showVrmDropdown, setShowVrmDropdown] = useState(false);
+   214→  const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
+   215→  const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+   216→  const vrmSearchInputRef = useRef(null);
+   217→  const vrmDropdownRef = useRef(null);
+   218→
+   219→  // VRM dropdown position state - calculated once and updated on changes
+   220→  const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0, width: 320 });
+   221→
+   222→  // Calculate dropdown position relative to input (with mobile Safari fixes)
+   223→  const updateVrmDropdownPosition = useCallback(() => {
+   224→    if (!vrmSearchInputRef.current) return;
+   225→    const rect = vrmSearchInputRef.current.getBoundingClientRect();
+   226→
+   227→    // Use visualViewport for more accurate positioning on mobile (especially iOS Safari with keyboard)
+   228→    const viewportHeight = window.visualViewport?.height || window.innerHeight;
+   229→    const viewportWidth = window.visualViewport?.width || window.innerWidth;
+   230→    const viewportOffsetTop = window.visualViewport?.offsetTop || 0;
+   231→
+   232→    // Calculate available space below the input
+   233→    const spaceBelow = viewportHeight - (rect.bottom - viewportOffsetTop);
+   234→    const dropdownHeight = 280; // Approximate max height of dropdown
+   235→
+   236→    // If not enough space below, position above (mobile-friendly)
+   237→    const shouldPositionAbove = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+   238→
+   239→    const top = shouldPositionAbove
+   240→      ? rect.top + viewportOffsetTop - dropdownHeight - 4
+   241→      : rect.bottom + viewportOffsetTop + 4;
+   242→
+   243→    // On mobile, use full width minus padding for better usability
+   244→    const isMobile = viewportWidth < 640;
+   245→    const desiredWidth = isMobile ? viewportWidth - 32 : Math.max(rect.width, 320);
+   246→    const maxWidth = viewportWidth - 32; // 16px padding on each side
+   247→    const width = Math.min(desiredWidth, maxWidth);
+   248→
+   249→    // Adjust left position to keep dropdown in viewport
+   250→    let left = isMobile ? 16 : rect.left;
+   251→    if (left + width > viewportWidth - 16) {
+   252→      left = viewportWidth - width - 16;
+   253→    }
+   254→    if (left < 16) {
+   255→      left = 16;
+   256→    }
+   257→
+   258→    setVrmDropdownPos({ top, left, width });
+   259→  }, []);
+   260→
+   261→  // Compute VRM search results reactively based on vrmSearch and vehicles
+   262→  const vrmSearchResults = useMemo(() => {
+   263→    if (vrmSearch.length < 2) return [];
+   264→    if (!vehicles.length) return [];
+   265→
+   266→    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+   267→
+   268→    // Filter vehicles matching the query (VRM, make, or model)
+   269→    const matches = vehicles.filter((v) => {
+   270→      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
+   271→      const make = (v.make || "").toUpperCase();
+   272→      const model = (v.model || "").toUpperCase();
+   273→      return vrm.includes(query) || make.includes(query) || model.includes(query);
+   274→    });
+   275→
+   276→    // Sort by createdAt (most recently added to stock first)
+   277→    const sorted = [...matches].sort((a, b) => {
+   278→      const aDate = new Date(a.createdAt || 0);
+   279→      const bDate = new Date(b.createdAt || 0);
+   280→      return bDate - aDate;
+   281→    });
+   282→
+   283→    return sorted.slice(0, 10);
+   284→  }, [vrmSearch, vehicles]);
+   285→
+   286→  // Reset selection when dropdown opens
+   287→  useEffect(() => {
+   288→    if (showVrmDropdown) {
+   289→      setVrmSelectedIndex(-1);
+   290→    }
+   291→  }, [showVrmDropdown]);
+   292→
+   293→  // Update dropdown position when it opens and on viewport changes
+   294→  useEffect(() => {
+   295→    if (!showVrmDropdown) return;
+   296→
+   297→    // Initial position calculation
+   298→    updateVrmDropdownPosition();
+   299→
+   300→    // Handle viewport changes (iOS Safari keyboard handling)
+   301→    const handleViewportChange = () => {
+   302→      updateVrmDropdownPosition();
+   303→    };
+   304→
+   305→    // Handle scroll in parent containers
+   306→    const handleScroll = () => {
+   307→      updateVrmDropdownPosition();
+   308→    };
+   309→
+   310→    // Listen to visualViewport for mobile keyboard handling
+   311→    if (window.visualViewport) {
+   312→      window.visualViewport.addEventListener("resize", handleViewportChange);
+   313→      window.visualViewport.addEventListener("scroll", handleViewportChange);
+   314→    }
+   315→
+   316→    // Also listen to window scroll and resize
+   317→    window.addEventListener("scroll", handleScroll, true);
+   318→    window.addEventListener("resize", handleViewportChange);
+   319→
+   320→    return () => {
+   321→      if (window.visualViewport) {
+   322→        window.visualViewport.removeEventListener("resize", handleViewportChange);
+   323→        window.visualViewport.removeEventListener("scroll", handleViewportChange);
+   324→      }
+   325→      window.removeEventListener("scroll", handleScroll, true);
+   326→      window.removeEventListener("resize", handleViewportChange);
+   327→    };
+   328→  }, [showVrmDropdown, updateVrmDropdownPosition]);
+   329→
+   330→  // Close dropdown when clicking outside
+   331→  useEffect(() => {
+   332→    const handleClickOutside = (e) => {
+   333→      if (
+   334→        showVrmDropdown &&
+   335→        vrmSearchInputRef.current &&
+   336→        !vrmSearchInputRef.current.contains(e.target) &&
+   337→        vrmDropdownRef.current &&
+   338→        !vrmDropdownRef.current.contains(e.target)
+   339→      ) {
+   340→        setShowVrmDropdown(false);
+   341→      }
+   342→    };
+   343→    document.addEventListener("mousedown", handleClickOutside);
+   344→    return () => document.removeEventListener("mousedown", handleClickOutside);
+   345→  }, [showVrmDropdown]);
+   346→
+   347→  // Mobile state
+   348→  const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
+   349→
+   350→  useEffect(() => {
+   351→    fetchVehicles();
+   352→    fetchLocations();
+   353→    fetchLabels();
+   354→  }, []);
+   355→
+   356→  // Handle addVehicle query param (from Quick Add menu)
+   357→  useEffect(() => {
+   358→    if (router.query.addVehicle === "1") {
+   359→      setShowAddModal(true);
+   360→      // Remove the query param from URL without reload
+   361→      router.replace("/sales-prep", undefined, { shallow: true });
+   362→    }
+   363→  }, [router.query.addVehicle]);
+   364→
+   365→  const fetchVehicles = async () => {
+   366→    try {
+   367→      const res = await fetch("/api/vehicles");
+   368→      if (!res.ok) {
+   369→        throw new Error(`API error: ${res.status}`);
+   370→      }
+   371→      const data = await res.json();
+   372→      setVehicles(Array.isArray(data) ? data : []);
+   373→    } catch (error) {
+   374→      console.error("Failed to load vehicles:", error);
+   375→      toast.error("Failed to load vehicles");
+   376→      setVehicles([]);
+   377→    } finally {
+   378→      setIsLoading(false);
+   379→    }
+   380→  };
+   381→
+   382→  const fetchLocations = async () => {
+   383→    try {
+   384→      const res = await fetch("/api/locations");
+   385→      const data = await res.json();
+   386→      setLocations(data);
+   387→    } catch (error) {
+   388→      console.error("Failed to load locations:", error);
+   389→    }
+   390→  };
+   391→
+   392→  const fetchLabels = async () => {
+   393→    try {
+   394→      const res = await fetch("/api/labels");
+   395→      const data = await res.json();
+   396→      setAvailableLabels(Array.isArray(data) ? data : []);
+   397→    } catch (error) {
+   398→      console.error("Failed to load labels:", error);
+   399→    }
+   400→  };
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,130 @@
+The file C:\Users\georg\dealerflow\pages\appraisals\px\[id].js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   785→                )}
+   786→              </button>
+   787→            </div>
+   788→          </div>
+   789→          <div className="modal-backdrop" onClick={() => setShowIssueModal(false)}></div>
+   790→        </div>
+   791→      )}
+   792→
+   793→      {/* Email Valuation Modal */}
+   794→      {showEmailModal && (
+   795→        <div className="modal modal-open">
+   796→          <div className="modal-box max-w-md">
+   797→            <div className="flex items-center justify-between mb-6">
+   798→              <h3 className="text-xl font-bold text-slate-900">Email Valuation</h3>
+   799→              <button
+   800→                type="button"
+   801→                onClick={() => {
+   802→                  setShowEmailModal(false);
+   803→                  setEmailTo("");
+   804→                  setEmailMessage("");
+   805→                }}
+   806→                className="btn btn-ghost btn-sm btn-circle"
+   807→              >
+   808→                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   809→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   810→                </svg>
+   811→              </button>
+   812→            </div>
+   813→
+   814→            <form onSubmit={handleSendEmail} className="space-y-4">
+   815→              <div className="form-control">
+   816→                <label className="label">
+   817→                  <span className="label-text font-medium">Recipient Email</span>
+   818→                </label>
+   819→                <input
+   820→                  type="email"
+   821→                  className="input input-bordered w-full"
+   822→                  placeholder="customer@example.com"
+   823→                  value={emailTo}
+   824→                  onChange={(e) => setEmailTo(e.target.value)}
+   825→                  required
+   826→                />
+   827→              </div>
+   828→
+   829→              <div className="form-control">
+   830→                <label className="label">
+   831→                  <span className="label-text font-medium">Personal Message (optional)</span>
+   832→                </label>
+   833→                <textarea
+   834→                  className="textarea textarea-bordered w-full"
+   835→                  placeholder="Add a message to include with the valuation..."
+   836→                  value={emailMessage}
+   837→                  onChange={(e) => setEmailMessage(e.target.value)}
+   838→                  rows={3}
+   839→                />
+   840→              </div>
+   841→
+   842→              <div className="form-control">
+   843→                <label className="cursor-pointer label justify-start gap-3">
+   844→                  <input
+   845→                    type="checkbox"
+   846→                    className="checkbox checkbox-primary"
+   847→                    checked={includeValuation}
+   848→                    onChange={(e) => setIncludeValuation(e.target.checked)}
+   849→                  />
+   850→                  <span className="label-text">
+   851→                    Include valuation amount
+   852→                    {appraisal.proposedPurchasePrice ? (
+   853→                      <span className="text-emerald-600 font-semibold ml-1">
+   854→                        (£{appraisal.proposedPurchasePrice.toLocaleString()})
+   855→                      </span>
+   856→                    ) : (
+   857→                      <span className="text-slate-400 ml-1">(not set)</span>
+   858→                    )}
+   859→                  </span>
+   860→                </label>
+   861→              </div>
+   862→
+   863→              <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-600">
+   864→                <p className="font-medium mb-1">Email will include:</p>
+   865→                <ul className="list-disc list-inside text-xs space-y-0.5 text-slate-500">
+   866→                  <li>Vehicle details ({appraisal.vehicleReg})</li>
+   867→                  {includeValuation && appraisal.proposedPurchasePrice && <li>Valuation amount</li>}
+   868→                  {emailMessage && <li>Your personal message</li>}
+   869→                </ul>
+   870→              </div>
+   871→
+   872→              <div className="modal-action">
+   873→                <button
+   874→                  type="button"
+   875→                  className="btn btn-ghost"
+   876→                  onClick={() => {
+   877→                    setShowEmailModal(false);
+   878→                    setEmailTo("");
+   879→                    setEmailMessage("");
+   880→                  }}
+   881→                >
+   882→                  Cancel
+   883→                </button>
+   884→                <button
+   885→                  type="submit"
+   886→                  className="btn btn-primary gap-2"
+   887→                  disabled={isSendingEmail || !emailTo.trim()}
+   888→                >
+   889→                  {isSendingEmail ? (
+   890→                    <>
+   891→                      <span className="loading loading-spinner loading-sm"></span>
+   892→                      Sending...
+   893→                    </>
+   894→                  ) : (
+   895→                    <>
+   896→                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   897→                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+   898→                      </svg>
+   899→                      Send Email
+   900→                    </>
+   901→                  )}
+   902→                </button>
+   903→              </div>
+   904→            </form>
+   905→          </div>
+   906→          <div className="modal-backdrop" onClick={() => setShowEmailModal(false)}></div>
+   907→        </div>
+   908→      )}
+   909→
+   910→    </DashboardLayout>
+   911→  );
+   912→}
+   913→

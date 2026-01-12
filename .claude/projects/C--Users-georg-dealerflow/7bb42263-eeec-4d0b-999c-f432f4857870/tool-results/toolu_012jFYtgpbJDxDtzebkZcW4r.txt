@@ -1,0 +1,26 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  3254→                                </div>
+  3255→                              )}
+  3256→                            </div>
+  3257→
+  3258→                            {/* Edit and Delete buttons */}
+  3259→                            <div className="flex justify-end gap-2 mt-2">
+  3260→                              <button
+  3261→                                className="btn btn-ghost btn-xs"
+  3262→                                onClick={() => openEditIssue(issue)}
+  3263→                              >
+  3264→                                Edit
+  3265→                              </button>
+  3266→                              <button
+  3267→                                className="btn btn-ghost btn-xs text-error"
+  3268→                                onClick={() => {
+  3269→                                  if (confirm("Delete this issue?")) deleteIssue(issue.id);
+  3270→                                }}
+  3271→                              >
+  3272→                                Delete
+  3273→                              </button>
+  3274→                            </div>
+  3275→                          </div>
+  3276→                        </div>
+  3277→                      ))}
+  3278→                    </div>

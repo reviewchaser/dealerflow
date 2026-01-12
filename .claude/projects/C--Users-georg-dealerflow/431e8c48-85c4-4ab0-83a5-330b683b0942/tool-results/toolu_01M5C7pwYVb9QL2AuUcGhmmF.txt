@@ -1,0 +1,149 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import { withDealerContext } from "@/libs/authContext";
+     3→import { getOpenAIClient, safeJsonParse } from "@/libs/openai";
+     4→
+     5→// CHANGE THIS import if your model name differs:
+     6→import Appraisal from "@/models/Appraisal";
+     7→
+     8→async function handler(req, res, ctx) {
+     9→  if (req.method !== "POST") {
+    10→    return res.status(405).json({ error: "Method not allowed" });
+    11→  }
+    12→
+    13→  if (!process.env.OPENAI_API_KEY) {
+    14→    return res.status(500).json({
+    15→      error: "OpenAI not configured. Please set OPENAI_API_KEY in .env.local and restart the server.",
+    16→    });
+    17→  }
+    18→
+    19→  const openai = getOpenAIClient();
+    20→  if (!openai) {
+    21→    return res.status(500).json({ error: "OpenAI client not available" });
+    22→  }
+    23→
+    24→  await connectMongo();
+    25→
+    26→  const { dealerId, userId } = ctx;
+    27→  const { appraisalId, regenerate } = req.body || {};
+    28→
+    29→  if (!appraisalId) {
+    30→    return res.status(400).json({ error: "appraisalId is required" });
+    31→  }
+    32→
+    33→  try {
+    34→    const appraisal = await Appraisal.findOne({ _id: appraisalId, dealerId }).lean();
+    35→
+    36→    if (!appraisal) {
+    37→      return res.status(404).json({ error: "Appraisal not found" });
+    38→    }
+    39→
+    40→    // Return cached unless regenerate
+    41→    if (appraisal.aiSummary?.payload && !regenerate) {
+    42→      return res.status(200).json({
+    43→        ok: true,
+    44→        summary: appraisal.aiSummary.payload,
+    45→        cached: true,
+    46→        generatedAt: appraisal.aiSummary.generatedAt,
+    47→      });
+    48→    }
+    49→
+    50→    // Build compact input context (adjust field names to match your model)
+    51→    const context = {
+    52→      vrm: appraisal.vrm || appraisal.reg || null,
+    53→      make: appraisal.make || null,
+    54→      model: appraisal.model || null,
+    55→      derivative: appraisal.derivative || null,
+    56→      year: appraisal.year || null,
+    57→      fuel: appraisal.fuel || null,
+    58→      mileage: appraisal.mileage || null,
+    59→      transmission: appraisal.transmission || null,
+    60→      owners: appraisal.owners || null,
+    61→      serviceHistory: appraisal.serviceHistory || appraisal.service || null,
+    62→      motExpiry: appraisal.motExpiry || null,
+    63→      conditionNotes: (appraisal.conditionNotes || appraisal.notes || "").slice(0, 2000),
+    64→      // If you store issues/damage from appraisal
+    65→      issues: (appraisal.issues || []).slice(0, 20),
+    66→      photosCount: Array.isArray(appraisal.photos) ? appraisal.photos.length : null,
+    67→      source: appraisal.source || null,
+    68→    };
+    69→
+    70→    const prompt = `You are a UK used car dealer appraisal assistant.
+    71→Return VALID JSON only.
+    72→
+    73→You are helping a dealer decide what to pay for a vehicle and what prep is likely needed.
+    74→Be practical, conservative, and avoid guessing specific prices unless data supports it.
+    75→
+    76→APPRAISAL DATA:
+    77→${JSON.stringify(context, null, 2)}
+    78→
+    79→Respond with JSON:
+    80→{
+    81→  "overallAssessment": "Short paragraph",
+    82→  "keyPositives": ["0-6 bullets"],
+    83→  "keyNegatives": ["0-10 bullets"],
+    84→  "recommendedChecks": ["0-8 bullets"],
+    85→  "reconditioningJobs": [
+    86→    { "title": "Job", "why": "Reason", "roughCostBand": "£ | ££ | £££" }
+    87→  ],
+    88→  "pricingNotes": ["0-6 bullets"],
+    89→  "recommendedDecision": "BUY | BUY_IF_PRICE_RIGHT | AVOID",
+    90→  "confidence": "LOW | MED | HIGH"
+    91→}
+    92→`;
+    93→
+    94→    const completion = await openai.chat.completions.create({
+    95→      model: "gpt-4o-mini",
+    96→      messages: [
+    97→        {
+    98→          role: "system",
+    99→          content: "Return JSON only. No markdown. No extra keys.",
+   100→        },
+   101→        { role: "user", content: prompt },
+   102→      ],
+   103→      temperature: 0.6,
+   104→      max_tokens: 1100,
+   105→      response_format: { type: "json_object" },
+   106→    });
+   107→
+   108→    const responseText = completion.choices?.[0]?.message?.content || "";
+   109→    let aiResponse;
+   110→    try {
+   111→      aiResponse = safeJsonParse(responseText);
+   112→    } catch (parseError) {
+   113→      console.error("Failed to parse AI JSON:", responseText);
+   114→      return res.status(500).json({ error: "Failed to parse AI response JSON" });
+   115→    }
+   116→
+   117→    const generatedAt = new Date();
+   118→
+   119→    await Appraisal.updateOne(
+   120→      { _id: appraisalId, dealerId },
+   121→      {
+   122→        $set: {
+   123→          aiSummary: {
+   124→            payload: aiResponse,
+   125→            generatedAt,
+   126→            generatedByUserId: userId,
+   127→          },
+   128→        },
+   129→      }
+   130→    );
+   131→
+   132→    return res.status(200).json({
+   133→      ok: true,
+   134→      summary: aiResponse,
+   135→      cached: false,
+   136→      generatedAt: generatedAt.toISOString(),
+   137→    });
+   138→  } catch (error) {
+   139→    console.error("Error generating appraisal summary:", error);
+   140→    return res.status(500).json({ error: "Failed to generate summary" });
+   141→  }
+   142→}
+   143→
+   144→export default withDealerContext(handler);
+   145→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

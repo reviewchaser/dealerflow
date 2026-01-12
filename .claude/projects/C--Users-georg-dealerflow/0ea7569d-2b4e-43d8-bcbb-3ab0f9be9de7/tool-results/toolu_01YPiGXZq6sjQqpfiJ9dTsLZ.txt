@@ -1,0 +1,496 @@
+     1→import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+     2→import { createPortal } from "react-dom";
+     3→import { toast } from "react-hot-toast";
+     4→
+     5→// Simple debounce hook
+     6→function useDebounce(value, delay) {
+     7→  const [debouncedValue, setDebouncedValue] = useState(value);
+     8→  useEffect(() => {
+     9→    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    10→    return () => clearTimeout(handler);
+    11→  }, [value, delay]);
+    12→  return debouncedValue;
+    13→}
+    14→
+    15→/**
+    16→ * ContactPicker - Searchable contact picker with inline creation
+    17→ *
+    18→ * Props:
+    19→ * - value: Selected contact ID
+    20→ * - onChange: (contactId, contact) => void
+    21→ * - filterTypeTags: Array of type tags to filter by (e.g., ["customer"])
+    22→ * - placeholder: Input placeholder text
+    23→ * - label: Optional label for the field
+    24→ * - disabled: Whether the picker is disabled
+    25→ * - allowCreate: Whether to allow creating new contacts (default true)
+    26→ */
+    27→export default function ContactPicker({
+    28→  value,
+    29→  onChange,
+    30→  filterTypeTags = [],
+    31→  placeholder = "Search contacts...",
+    32→  label,
+    33→  disabled = false,
+    34→  allowCreate = true,
+    35→}) {
+    36→  const [isOpen, setIsOpen] = useState(false);
+    37→  const [searchQuery, setSearchQuery] = useState("");
+    38→  const [contacts, setContacts] = useState([]);
+    39→  const [isLoading, setIsLoading] = useState(false);
+    40→  const [selectedContact, setSelectedContact] = useState(null);
+    41→  const [showCreateForm, setShowCreateForm] = useState(false);
+    42→  const containerRef = useRef(null);
+    43→  const inputRef = useRef(null);
+    44→  const dropdownRef = useRef(null);
+    45→  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+    46→  const [isMounted, setIsMounted] = useState(false);
+    47→
+    48→  // Track mount state for portal
+    49→  useEffect(() => {
+    50→    setIsMounted(true);
+    51→    return () => setIsMounted(false);
+    52→  }, []);
+    53→
+    54→  // Update dropdown position when open
+    55→  useEffect(() => {
+    56→    if (isOpen && containerRef.current) {
+    57→      const updatePosition = () => {
+    58→        const rect = containerRef.current.getBoundingClientRect();
+    59→        setDropdownPosition({
+    60→          top: rect.bottom + window.scrollY + 4,
+    61→          left: rect.left + window.scrollX,
+    62→          width: rect.width,
+    63→        });
+    64→      };
+    65→      updatePosition();
+    66→      window.addEventListener("scroll", updatePosition, true);
+    67→      window.addEventListener("resize", updatePosition);
+    68→      return () => {
+    69→        window.removeEventListener("scroll", updatePosition, true);
+    70→        window.removeEventListener("resize", updatePosition);
+    71→      };
+    72→    }
+    73→  }, [isOpen]);
+    74→
+    75→  // Debounced search query
+    76→  const debouncedSearch = useDebounce(searchQuery, 200);
+    77→
+    78→  // Create form state
+    79→  const [createForm, setCreateForm] = useState({
+    80→    contactType: "individual",
+    81→    firstName: "",
+    82→    lastName: "",
+    83→    companyName: "",
+    84→    email: "",
+    85→    phone: "",
+    86→  });
+    87→  const [isCreating, setIsCreating] = useState(false);
+    88→
+    89→  // Load selected contact details
+    90→  useEffect(() => {
+    91→    if (value && !selectedContact) {
+    92→      fetch(`/api/contacts/${value}`)
+    93→        .then((res) => res.ok ? res.json() : null)
+    94→        .then((data) => {
+    95→          if (data) setSelectedContact(data);
+    96→        })
+    97→        .catch(() => {});
+    98→    } else if (!value) {
+    99→      setSelectedContact(null);
+   100→    }
+   101→  }, [value]);
+   102→
+   103→  // Search contacts
+   104→  const searchContacts = useCallback(async (query) => {
+   105→    setIsLoading(true);
+   106→    try {
+   107→      let url = `/api/contacts?search=${encodeURIComponent(query || "")}`;
+   108→      if (filterTypeTags.length > 0) {
+   109→        // Normalize to uppercase to match API expectations
+   110→        const typeTag = filterTypeTags[0].toUpperCase();
+   111→        url += `&type=${typeTag}`;
+   112→      }
+   113→      const res = await fetch(url);
+   114→      if (!res.ok) throw new Error("Failed to search contacts");
+   115→      const data = await res.json();
+   116→      setContacts(data);
+   117→    } catch (error) {
+   118→      console.error(error);
+   119→    } finally {
+   120→      setIsLoading(false);
+   121→    }
+   122→  }, [filterTypeTags]);
+   123→
+   124→  // Search when dropdown opens or debounced search changes
+   125→  useEffect(() => {
+   126→    if (isOpen) {
+   127→      searchContacts(debouncedSearch);
+   128→    }
+   129→  }, [isOpen, debouncedSearch, searchContacts]);
+   130→
+   131→  // Click outside handler
+   132→  useEffect(() => {
+   133→    const handleClickOutside = (e) => {
+   134→      const isOutsideContainer = containerRef.current && !containerRef.current.contains(e.target);
+   135→      const isOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(e.target);
+   136→      if (isOutsideContainer && isOutsideDropdown) {
+   137→        setIsOpen(false);
+   138→        setShowCreateForm(false);
+   139→      }
+   140→    };
+   141→
+   142→    document.addEventListener("mousedown", handleClickOutside);
+   143→    return () => document.removeEventListener("mousedown", handleClickOutside);
+   144→  }, []);
+   145→
+   146→  const handleSelect = (contact) => {
+   147→    setSelectedContact(contact);
+   148→    onChange?.(contact.id || contact._id, contact);
+   149→    setIsOpen(false);
+   150→    setSearchQuery("");
+   151→  };
+   152→
+   153→  const handleClear = () => {
+   154→    setSelectedContact(null);
+   155→    onChange?.(null, null);
+   156→    setSearchQuery("");
+   157→  };
+   158→
+   159→  const handleCreate = async (e) => {
+   160→    e.preventDefault();
+   161→    setIsCreating(true);
+   162→
+   163→    try {
+   164→      // Compute displayName from firstName/lastName or companyName
+   165→      let displayName;
+   166→      if (createForm.contactType === "company") {
+   167→        displayName = createForm.companyName?.trim();
+   168→      } else {
+   169→        displayName = `${createForm.firstName || ""} ${createForm.lastName || ""}`.trim();
+   170→      }
+   171→
+   172→      if (!displayName) {
+   173→        toast.error("Name is required");
+   174→        setIsCreating(false);
+   175→        return;
+   176→      }
+   177→
+   178→      // Normalize typeTags to uppercase
+   179→      const normalizedTypeTags = (filterTypeTags.length > 0 ? filterTypeTags : ["CUSTOMER"])
+   180→        .map(t => t.toUpperCase());
+   181→
+   182→      const payload = {
+   183→        displayName,
+   184→        companyName: createForm.companyName,
+   185→        email: createForm.email,
+   186→        phone: createForm.phone,
+   187→        typeTags: normalizedTypeTags,
+   188→      };
+   189→
+   190→      const res = await fetch("/api/contacts", {
+   191→        method: "POST",
+   192→        headers: { "Content-Type": "application/json" },
+   193→        body: JSON.stringify(payload),
+   194→      });
+   195→
+   196→      if (!res.ok) {
+   197→        const err = await res.json();
+   198→        throw new Error(err.error || "Failed to create contact");
+   199→      }
+   200→
+   201→      const newContact = await res.json();
+   202→      toast.success("Contact created");
+   203→      handleSelect(newContact);
+   204→      setShowCreateForm(false);
+   205→      setCreateForm({
+   206→        contactType: "individual",
+   207→        firstName: "",
+   208→        lastName: "",
+   209→        companyName: "",
+   210→        email: "",
+   211→        phone: "",
+   212→      });
+   213→    } catch (error) {
+   214→      toast.error(error.message);
+   215→    } finally {
+   216→      setIsCreating(false);
+   217→    }
+   218→  };
+   219→
+   220→  return (
+   221→    <div ref={containerRef} className="relative">
+   222→      {label && (
+   223→        <label className="block text-sm font-medium text-slate-700 mb-1">
+   224→          {label}
+   225→        </label>
+   226→      )}
+   227→
+   228→      {/* Selected contact display or search input */}
+   229→      {selectedContact ? (
+   230→        <div className="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-xl">
+   231→          <div className="w-10 h-10 bg-[#0066CC]/10 rounded-full flex items-center justify-center shrink-0">
+   232→            <span className="text-sm font-bold text-[#0066CC]">
+   233→              {(selectedContact.displayName || "?")[0].toUpperCase()}
+   234→            </span>
+   235→          </div>
+   236→          <div className="flex-1 min-w-0">
+   237→            <p className="font-medium text-slate-900 truncate">
+   238→              {selectedContact.displayName}
+   239→            </p>
+   240→            {selectedContact.email && (
+   241→              <p className="text-sm text-slate-500 truncate">
+   242→                {selectedContact.email}
+   243→              </p>
+   244→            )}
+   245→          </div>
+   246→          {!disabled && (
+   247→            <button
+   248→              type="button"
+   249→              onClick={handleClear}
+   250→              className="btn btn-ghost btn-sm btn-circle text-slate-400 hover:text-red-500"
+   251→            >
+   252→              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   253→                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   254→              </svg>
+   255→            </button>
+   256→          )}
+   257→        </div>
+   258→      ) : (
+   259→        <div className="relative">
+   260→          <svg
+   261→            className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+   262→            fill="none"
+   263→            stroke="currentColor"
+   264→            viewBox="0 0 24 24"
+   265→          >
+   266→            <path
+   267→              strokeLinecap="round"
+   268→              strokeLinejoin="round"
+   269→              strokeWidth={2}
+   270→              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+   271→            />
+   272→          </svg>
+   273→          <input
+   274→            ref={inputRef}
+   275→            type="text"
+   276→            value={searchQuery}
+   277→            onChange={(e) => setSearchQuery(e.target.value)}
+   278→            onFocus={() => setIsOpen(true)}
+   279→            placeholder={placeholder}
+   280→            disabled={disabled}
+   281→            className="input input-bordered w-full pl-10"
+   282→          />
+   283→        </div>
+   284→      )}
+   285→
+   286→      {/* Dropdown - rendered via portal for proper z-index */}
+   287→      {isOpen && !selectedContact && isMounted && createPortal(
+   288→        <div
+   289→          ref={dropdownRef}
+   290→          className="bg-white rounded-xl border border-slate-200 shadow-2xl max-h-80 overflow-hidden"
+   291→          style={{
+   292→            position: "fixed",
+   293→            top: dropdownPosition.top,
+   294→            left: dropdownPosition.left,
+   295→            width: dropdownPosition.width,
+   296→            zIndex: 99999,
+   297→          }}
+   298→        >
+   299→          {showCreateForm ? (
+   300→            <form onSubmit={handleCreate} className="p-4 space-y-3">
+   301→              <div className="flex items-center justify-between mb-2">
+   302→                <h4 className="font-semibold text-slate-900">New Contact</h4>
+   303→                <button
+   304→                  type="button"
+   305→                  onClick={() => setShowCreateForm(false)}
+   306→                  className="text-slate-400 hover:text-slate-600"
+   307→                >
+   308→                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   309→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   310→                  </svg>
+   311→                </button>
+   312→              </div>
+   313→
+   314→              <div className="flex gap-2">
+   315→                <button
+   316→                  type="button"
+   317→                  onClick={() => setCreateForm((p) => ({ ...p, contactType: "individual" }))}
+   318→                  className={`flex-1 btn btn-sm ${createForm.contactType === "individual" ? "btn-primary" : "btn-ghost"}`}
+   319→                >
+   320→                  Individual
+   321→                </button>
+   322→                <button
+   323→                  type="button"
+   324→                  onClick={() => setCreateForm((p) => ({ ...p, contactType: "company" }))}
+   325→                  className={`flex-1 btn btn-sm ${createForm.contactType === "company" ? "btn-primary" : "btn-ghost"}`}
+   326→                >
+   327→                  Business
+   328→                </button>
+   329→              </div>
+   330→
+   331→              {createForm.contactType === "individual" ? (
+   332→                <div className="grid grid-cols-2 gap-2">
+   333→                  <input
+   334→                    type="text"
+   335→                    placeholder="First name"
+   336→                    value={createForm.firstName}
+   337→                    onChange={(e) => setCreateForm((p) => ({ ...p, firstName: e.target.value }))}
+   338→                    className="input input-bordered input-sm"
+   339→                    required
+   340→                  />
+   341→                  <input
+   342→                    type="text"
+   343→                    placeholder="Last name"
+   344→                    value={createForm.lastName}
+   345→                    onChange={(e) => setCreateForm((p) => ({ ...p, lastName: e.target.value }))}
+   346→                    className="input input-bordered input-sm"
+   347→                    required
+   348→                  />
+   349→                </div>
+   350→              ) : (
+   351→                <input
+   352→                  type="text"
+   353→                  placeholder="Company name"
+   354→                  value={createForm.companyName}
+   355→                  onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
+   356→                  className="input input-bordered input-sm w-full"
+   357→                  required
+   358→                />
+   359→              )}
+   360→
+   361→              <input
+   362→                type="email"
+   363→                placeholder="Email (optional)"
+   364→                value={createForm.email}
+   365→                onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+   366→                className="input input-bordered input-sm w-full"
+   367→              />
+   368→
+   369→              <input
+   370→                type="tel"
+   371→                placeholder="Phone (optional)"
+   372→                value={createForm.phone}
+   373→                onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
+   374→                className="input input-bordered input-sm w-full"
+   375→              />
+   376→
+   377→              <div className="flex gap-2 pt-2">
+   378→                <button
+   379→                  type="button"
+   380→                  onClick={() => setShowCreateForm(false)}
+   381→                  className="btn btn-ghost btn-sm flex-1"
+   382→                >
+   383→                  Cancel
+   384→                </button>
+   385→                <button
+   386→                  type="submit"
+   387→                  disabled={isCreating}
+   388→                  className="btn btn-primary btn-sm flex-1"
+   389→                >
+   390→                  {isCreating ? (
+   391→                    <span className="loading loading-spinner loading-xs"></span>
+   392→                  ) : (
+   393→                    "Create"
+   394→                  )}
+   395→                </button>
+   396→              </div>
+   397→            </form>
+   398→          ) : (
+   399→            <>
+   400→              {/* Search results */}
+   401→              <div className="max-h-60 overflow-y-auto">
+   402→                {isLoading ? (
+   403→                  <div className="flex items-center justify-center py-8">
+   404→                    <span className="loading loading-spinner loading-sm text-[#0066CC]"></span>
+   405→                  </div>
+   406→                ) : contacts.length === 0 ? (
+   407→                  <div className="p-4 text-center">
+   408→                    {searchQuery ? (
+   409→                      <div className="space-y-3">
+   410→                        <p className="text-sm text-slate-500">No contacts found for "{searchQuery}"</p>
+   411→                        {allowCreate && (
+   412→                          <button
+   413→                            type="button"
+   414→                            onClick={() => {
+   415→                              setCreateForm(prev => ({
+   416→                                ...prev,
+   417→                                firstName: searchQuery.split(" ")[0] || "",
+   418→                                lastName: searchQuery.split(" ").slice(1).join(" ") || "",
+   419→                                companyName: searchQuery,
+   420→                              }));
+   421→                              setShowCreateForm(true);
+   422→                            }}
+   423→                            className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+   424→                          >
+   425→                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   426→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   427→                            </svg>
+   428→                            Create "{searchQuery}"
+   429→                          </button>
+   430→                        )}
+   431→                      </div>
+   432→                    ) : (
+   433→                      <p className="text-sm text-slate-500">Type to search contacts</p>
+   434→                    )}
+   435→                  </div>
+   436→                ) : (
+   437→                  <div className="py-1">
+   438→                    {contacts.slice(0, 10).map((contact) => (
+   439→                      <button
+   440→                        key={contact.id || contact._id}
+   441→                        type="button"
+   442→                        onClick={() => handleSelect(contact)}
+   443→                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-left"
+   444→                      >
+   445→                        <div className="w-9 h-9 bg-[#0066CC]/10 rounded-full flex items-center justify-center shrink-0">
+   446→                          <span className="text-sm font-bold text-[#0066CC]">
+   447→                            {(contact.displayName || "?")[0].toUpperCase()}
+   448→                          </span>
+   449→                        </div>
+   450→                        <div className="flex-1 min-w-0">
+   451→                          <p className="font-medium text-slate-900 truncate">
+   452→                            {contact.displayName}
+   453→                          </p>
+   454→                          <p className="text-xs text-slate-500 truncate">
+   455→                            {contact.email || contact.phone || "No contact info"}
+   456→                          </p>
+   457→                        </div>
+   458→                        {contact.typeTags?.some(t => t.toUpperCase() === "CUSTOMER") && (
+   459→                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded">
+   460→                            Customer
+   461→                          </span>
+   462→                        )}
+   463→                      </button>
+   464→                    ))}
+   465→                  </div>
+   466→                )}
+   467→              </div>
+   468→
+   469→              {/* Create new option */}
+   470→              {allowCreate && (
+   471→                <div className="border-t border-slate-100 p-2">
+   472→                  <button
+   473→                    type="button"
+   474→                    onClick={() => setShowCreateForm(true)}
+   475→                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0066CC] hover:bg-[#0066CC]/5 rounded-lg transition-colors"
+   476→                  >
+   477→                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   478→                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+   479→                    </svg>
+   480→                    Create new contact
+   481→                  </button>
+   482→                </div>
+   483→              )}
+   484→            </>
+   485→          )}
+   486→        </div>,
+   487→        document.body
+   488→      )}
+   489→    </div>
+   490→  );
+   491→}
+   492→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

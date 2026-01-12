@@ -1,0 +1,292 @@
+import connectMongo from "@/libs/mongoose";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
+import FormSubmissionFile from "@/models/FormSubmissionFile";
+import Vehicle from "@/models/Vehicle";
+import VehicleTask from "@/models/VehicleTask";
+import Contact from "@/models/Contact";
+import AftercareCase from "@/models/AftercareCase";
+import { requireDealerContext } from "@/libs/authContext";
+
+export default async function handler(req, res) {
+  await connectMongo();
+
+  // GET requires authentication
+  if (req.method === "GET") {
+    try {
+      const ctx = await requireDealerContext(req, res);
+      const { dealerId } = ctx;
+      let { formId, formType, search, startDate, endDate } = req.query;
+
+      let query = { dealerId };
+
+      // Filter by form
+      if (formId) {
+        query.formId = formId;
+      }
+
+      // Filter by form type
+      if (formType) {
+        const forms = await Form.find({ dealerId, type: formType });
+        const formIds = forms.map((f) => f._id);
+        query.formId = { $in: formIds };
+      }
+
+      // Date range filter
+      if (startDate || endDate) {
+        query.submittedAt = {};
+        if (startDate) query.submittedAt.$gte = new Date(startDate);
+        if (endDate) query.submittedAt.$lte = new Date(endDate);
+      }
+
+      // Search filter (search in rawAnswers)
+      if (search) {
+        query.$or = [
+          { "rawAnswers.name": { $regex: search, $options: "i" } },
+          { "rawAnswers.email": { $regex: search, $options: "i" } },
+          { "rawAnswers.phone": { $regex: search, $options: "i" } },
+          { "rawAnswers.reg": { $regex: search, $options: "i" } },
+          { "rawAnswers.vrm": { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const submissions = await FormSubmission.find(query)
+        .populate("formId")
+        .populate("submittedByContactId")
+        .populate("linkedVehicleId")
+        .populate("linkedAftercareCaseId")
+        .sort({ submittedAt: -1 });
+
+      return res.status(200).json(submissions);
+    } catch (error) {
+      return res.status(error.status || 500).json({ error: error.message || "Failed to fetch submissions" });
+    }
+  }
+
+  // POST is public - form submissions from public forms
+  if (req.method === "POST") {
+    try {
+      const { formId, rawAnswers, submittedByContactId, files } = req.body;
+
+      if (!formId || !rawAnswers) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const form = await Form.findById(formId);
+      if (!form) {
+        return res.status(404).json({ error: "Form not found" });
+      }
+
+      // Ensure dealerId is set - fallback to first dealer if form doesn't have one
+      let dealerId = form.dealerId;
+      if (!dealerId) {
+        const Dealer = (await import("@/models/Dealer")).default;
+        const firstDealer = await Dealer.findOne().lean();
+        if (firstDealer) {
+          dealerId = firstDealer._id;
+          // Also update the form to have the dealerId for future submissions
+          await Form.findByIdAndUpdate(formId, { dealerId });
+        }
+      }
+
+      const submission = await FormSubmission.create({
+        formId,
+        dealerId,
+        rawAnswers,
+        submittedByContactId,
+        submittedAt: new Date(),
+      });
+
+      // Handle file uploads if provided
+      if (files && Array.isArray(files)) {
+        const filePromises = files.map((file) =>
+          FormSubmissionFile.create({
+            formSubmissionId: submission._id,
+            ...file,
+          })
+        );
+        await Promise.all(filePromises);
+      }
+
+      // Vehicle integration - update vehicle records based on form type
+      const vrm = rawAnswers.vrm || rawAnswers.courtesy_vrm || rawAnswers.vehicle_reg;
+      if (vrm) {
+        const vehicle = await Vehicle.findOne({
+          regCurrent: vrm.toUpperCase().replace(/\s/g, ""),
+          dealerId: form.dealerId
+        });
+
+        if (vehicle) {
+          const updates = {};
+
+          switch (form.type) {
+            case "PDI":
+              updates.pdiSubmissionId = submission._id;
+              updates.pdiCompletedAt = new Date();
+              // Auto-complete PDI task on this vehicle (idempotent - only if not already done)
+              try {
+                const pdiTask = await VehicleTask.findOne({
+                  vehicleId: vehicle._id,
+                  name: { $regex: /^(PDI|Pre-Delivery Inspection|Pre Delivery Inspection)$/i }
+                });
+                if (pdiTask && pdiTask.status !== "done" && pdiTask.status !== "DONE") {
+                  await VehicleTask.findByIdAndUpdate(pdiTask._id, {
+                    status: "done",
+                    completedAt: new Date(),
+                    notes: pdiTask.notes ? `${pdiTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+                  });
+                }
+              } catch (taskError) {
+                console.error("Error completing PDI task:", taskError);
+                // Don't fail the submission if task completion fails
+              }
+              break;
+
+            case "TEST_DRIVE":
+              updates.testDriveCount = (vehicle.testDriveCount || 0) + 1;
+              break;
+
+            case "DELIVERY":
+              updates.deliverySubmissionId = submission._id;
+              updates.status = "delivered";
+              // Auto-complete Delivery task on this vehicle (idempotent)
+              try {
+                const deliveryTask = await VehicleTask.findOne({
+                  vehicleId: vehicle._id,
+                  name: { $regex: /^(Delivery|Vehicle Delivery|Handover)$/i }
+                });
+                if (deliveryTask && deliveryTask.status !== "done" && deliveryTask.status !== "DONE") {
+                  await VehicleTask.findByIdAndUpdate(deliveryTask._id, {
+                    status: "done",
+                    completedAt: new Date(),
+                    notes: deliveryTask.notes ? `${deliveryTask.notes}\n\nCompleted via form submission` : "Completed via form submission"
+                  });
+                }
+              } catch (taskError) {
+                console.error("Error completing Delivery task:", taskError);
+              }
+              break;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await Vehicle.findByIdAndUpdate(vehicle._id, { $set: updates });
+          }
+        }
+      }
+
+      // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
+      if (form.type === "WARRANTY_CLAIM") {
+        try {
+          const customerEmail = rawAnswers.email?.toLowerCase().trim();
+          const customerName = rawAnswers.customer_name?.trim();
+          const customerPhone = rawAnswers.phone?.trim();
+          const vrmNormalized = vrm ? vrm.toUpperCase().replace(/\s/g, "") : null;
+          const warrantyType = rawAnswers.warranty_type;
+          const issueDescription = rawAnswers.issue_description;
+
+          if (customerEmail && customerName) {
+            // Find or create contact
+            let contact = await Contact.findOne({
+              dealerId,
+              email: { $regex: new RegExp(`^${customerEmail}$`, "i") }
+            });
+
+            if (!contact) {
+              contact = await Contact.create({
+                dealerId,
+                name: customerName,
+                email: customerEmail,
+                phone: customerPhone,
+              });
+            }
+
+            // Check for existing case with same VRM + contact (deduplication)
+            let existingCase = null;
+            if (vrmNormalized) {
+              existingCase = await AftercareCase.findOne({
+                dealerId,
+                contactId: contact._id,
+                regAtPurchase: vrmNormalized,
+                status: { $nin: ["resolved", "closed"] } // Only match open cases
+              });
+            }
+
+            if (existingCase) {
+              // Append submission to existing case
+              await AftercareCase.findByIdAndUpdate(existingCase._id, {
+                $addToSet: { linkedSubmissionIds: submission._id },
+                // Update details with latest submission info
+                $set: {
+                  warrantyType: warrantyType || existingCase.warrantyType,
+                }
+              });
+
+              // Link submission to case
+              await FormSubmission.findByIdAndUpdate(submission._id, {
+                linkedAftercareCaseId: existingCase._id
+              });
+            } else {
+              // Create new AftercareCase
+              // Try to find vehicle to link
+              let linkedVehicleId = null;
+              if (vrmNormalized) {
+                const vehicle = await Vehicle.findOne({
+                  dealerId,
+                  $or: [
+                    { regCurrent: vrmNormalized },
+                    { regAtPurchase: vrmNormalized }
+                  ]
+                });
+                if (vehicle) {
+                  linkedVehicleId = vehicle._id;
+                }
+              }
+
+              const newCase = await AftercareCase.create({
+                dealerId,
+                contactId: contact._id,
+                vehicleId: linkedVehicleId,
+                source: "warranty_claim_form",
+                status: "new",
+                boardStatus: "not_booked_in",
+                priority: "normal",
+                summary: issueDescription ? issueDescription.substring(0, 100) : "Warranty claim submitted",
+                details: {
+                  issueDescription,
+                  mileage: rawAnswers.exact_mileage,
+                  purchaseDate: rawAnswers.purchase_date,
+                  vehicleMakeModel: rawAnswers.vehicle_make_model,
+                  customerAddress: {
+                    street: rawAnswers.address_street,
+                    line2: rawAnswers.address_line2,
+                    city: rawAnswers.address_city,
+                    county: rawAnswers.address_county,
+                    postcode: rawAnswers.address_postcode,
+                  }
+                },
+                regAtPurchase: vrmNormalized,
+                warrantyType,
+                linkedSubmissionIds: [submission._id],
+              });
+
+              // Link submission to case
+              await FormSubmission.findByIdAndUpdate(submission._id, {
+                linkedAftercareCaseId: newCase._id
+              });
+            }
+          }
+        } catch (caseError) {
+          console.error("Error creating/updating AftercareCase:", caseError);
+          // Don't fail the submission if case creation fails
+        }
+      }
+
+      return res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating submission:", error);
+      return res.status(500).json({ error: "Failed to create submission" });
+    }
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}

@@ -1,0 +1,176 @@
+     1→import mongoose from "mongoose";
+     2→import toJSON from "./plugins/toJSON.js";
+     3→
+     4→// Dealer status for admin control
+     5→export const DEALER_STATUS = {
+     6→  ACTIVE: "ACTIVE",
+     7→  DISABLED: "DISABLED",
+     8→};
+     9→
+    10→// Dealer plan tiers
+    11→export const DEALER_PLAN = {
+    12→  FREE: "FREE",       // Free tier - limited features, requires approval
+    13→  TRIAL: "TRIAL",     // Trial period - full features
+    14→  PAID: "PAID",       // Paid subscription - full features
+    15→};
+    16→
+    17→// Approval status for new registrations
+    18→export const APPROVAL_STATUS = {
+    19→  PENDING: "PENDING",     // Awaiting super-admin approval
+    20→  APPROVED: "APPROVED",   // Approved and active
+    21→  REJECTED: "REJECTED",   // Rejected - can't access
+    22→};
+    23→
+    24→const dealerSchema = new mongoose.Schema(
+    25→  {
+    26→    name: { type: String, required: true },
+    27→    // Platform admin can disable dealers
+    28→    status: {
+    29→      type: String,
+    30→      enum: Object.values(DEALER_STATUS),
+    31→      default: DEALER_STATUS.ACTIVE,
+    32→      index: true,
+    33→    },
+    34→    // Subscription plan tier
+    35→    plan: {
+    36→      type: String,
+    37→      enum: Object.values(DEALER_PLAN),
+    38→      default: DEALER_PLAN.TRIAL, // New dealers start on trial
+    39→      index: true,
+    40→    },
+    41→    // Approval status for new registrations
+    42→    approvalStatus: {
+    43→      type: String,
+    44→      enum: Object.values(APPROVAL_STATUS),
+    45→      default: APPROVAL_STATUS.APPROVED, // Existing dealers are approved by default
+    46→      index: true,
+    47→    },
+    48→    approvedAt: { type: Date },
+    49→    approvedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    50→    rejectedAt: { type: Date },
+    51→    rejectedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    52→    rejectionReason: { type: String },
+    53→    // Company details for forms and branding
+    54→    companyName: { type: String }, // Legal company name e.g. "My New Motor LTD"
+    55→    companyAddress: { type: String }, // Full address for forms
+    56→    companyPhone: { type: String }, // Phone for forms/contact
+    57→    companyEmail: { type: String }, // Email for forms/contact
+    58→    // Legacy fields (kept for compatibility)
+    59→    address: { type: String },
+    60→    phone: { type: String },
+    61→    email: { type: String },
+    62→    websiteUrl: { type: String },
+    63→    googleReviewUrl: { type: String },
+    64→    logoUrl: { type: String }, // Dealer logo for branding (deprecated - use logoKey)
+    65→    logoKey: { type: String }, // S3 object key for logo (private bucket)
+    66→    slug: { type: String, unique: true, sparse: true }, // URL slug for public forms
+    67→    settings: { type: Object, default: {} }, // branding, default task templates
+    68→    // Form customization - intro text, T&Cs per form type
+    69→    formCustomText: {
+    70→      type: Map,
+    71→      of: {
+    72→        introText: String,
+    73→        termsText: String,
+    74→        contactPhone: String,
+    75→      },
+    76→      default: {},
+    77→    },
+    78→    // === ONBOARDING FIELDS ===
+    79→    completedOnboarding: { type: Boolean, default: false },
+    80→    timezone: { type: String, default: "Europe/London" },
+    81→    // Comprehensive onboarding state with module/form toggles
+    82→    onboarding: {
+    83→      completedAt: { type: Date },
+    84→      dismissedAt: { type: Date },
+    85→      enabledModules: {
+    86→        salesPrep: { type: Boolean, default: true },
+    87→        appraisals: { type: Boolean, default: true },
+    88→        warranty: { type: Boolean, default: false },
+    89→        reviews: { type: Boolean, default: false },
+    90→      },
+    91→      enabledForms: [{ type: String }], // ["PDI", "DELIVERY", "TEST_DRIVE", ...]
+    92→      completedSteps: [{ type: String }], // ["first_vehicle", "first_appraisal", ...]
+    93→    },
+    94→    primaryContactEmail: { type: String },
+    95→    primaryContactPhone: { type: String },
+    96→    // Board configuration for Sales & Prep view
+    97→    boardConfig: {
+    98→      columns: [{
+    99→        key: { type: String },
+   100→        label: { type: String },
+   101→        order: { type: Number },
+   102→        color: { type: String },
+   103→      }]
+   104→    },
+   105→    // Task auto-completion settings
+   106→    taskAutoComplete: {
+   107→      enabled: { type: Boolean, default: true },
+   108→      mappings: [{
+   109→        formType: { type: String },
+   110→        taskName: { type: String },
+   111→      }]
+   112→    },
+   113→    // Default task template group for new vehicles
+   114→    defaultTaskTemplateGroupId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleTaskTemplateGroup" },
+   115→
+   116→    // === SALES SETTINGS ===
+   117→    salesSettings: {
+   118→      // Sequential numbering
+   119→      nextStockNumber: { type: Number, default: 1 },
+   120→      stockNumberPrefix: { type: String, default: "" },
+   121→      nextDealNumber: { type: Number, default: 1 },
+   122→      dealNumberPrefix: { type: String, default: "D" },
+   123→      nextInvoiceNumber: { type: Number, default: 1 },
+   124→      invoiceNumberPrefix: { type: String, default: "INV" },
+   125→      nextDepositReceiptNumber: { type: Number, default: 1 },
+   126→      depositReceiptPrefix: { type: String, default: "DEP" },
+   127→
+   128→      // Default VAT settings
+   129→      defaultVatScheme: {
+   130→        type: String,
+   131→        enum: ["MARGIN", "VAT_QUALIFYING", "NO_VAT"],
+   132→        default: "MARGIN",
+   133→      },
+   134→      vatRate: { type: Number, default: 0.2 },
+   135→
+   136→      // VAT registration
+   137→      vatNumber: { type: String },
+   138→      vatRegistered: { type: Boolean, default: false },
+   139→
+   140→      // Company registration
+   141→      companyNumber: { type: String },
+   142→
+   143→      // Bank details for invoices
+   144→      bankDetails: {
+   145→        accountName: { type: String },
+   146→        sortCode: { type: String },
+   147→        accountNumber: { type: String },
+   148→        iban: { type: String },
+   149→        bic: { type: String },
+   150→      },
+   151→
+   152→      // Terms templates
+   153→      terms: {
+   154→        consumerInPerson: { type: String },
+   155→        consumerDistance: { type: String },
+   156→        businessInPerson: { type: String },
+   157→        businessDistance: { type: String },
+   158→        depositTerms: { type: String },
+   159→      },
+   160→
+   161→      // Default warranty
+   162→      defaultWarrantyMonths: { type: Number, default: 3 },
+   163→    },
+   164→  },
+   165→  { timestamps: true }
+   166→);
+   167→
+   168→dealerSchema.plugin(toJSON);
+   169→
+   170→// Use existing model or create new one (prevents OverwriteModelError in dev)
+   171→export default mongoose.models?.Dealer || mongoose.model("Dealer", dealerSchema);
+   172→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

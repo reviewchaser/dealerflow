@@ -1,0 +1,26 @@
+C:\Users\georg\dealerflow\middleware.js:56:  '/api/appraisals',
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:72:      const res = await fetch(`/api/appraisals/${id}`);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:84:      const res = await fetch(`/api/appraisals/issues?appraisalId=${id}`);
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:95:      await fetch(`/api/appraisals/${id}`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:110:      const res = await fetch(`/api/appraisals/${id}/convert`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:181:      const res = await fetch("/api/appraisals/issues", {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:218:      await fetch(`/api/appraisals/issues/${issueId}`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:231:      const res = await fetch(`/api/appraisals/${id}/share`, {
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:253:      const res = await fetch(`/api/appraisals/${id}/share`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\appraisals\[id].js:665:                      await fetch(`/api/appraisals/${id}`, { method: "DELETE" });
+C:\Users\georg\dealerflow\pages\sales-prep.js:4229:      const res = await fetch(`/api/appraisals/search-unconverted?q=${encodeURIComponent(vrm)}`);
+C:\Users\georg\dealerflow\pages\sales-prep.js:4271:      const res = await fetch(`/api/appraisals/by-vrm?vrm=${encodeURIComponent(vrm)}`);
+C:\Users\georg\dealerflow\pages\sales-prep.js:4310:        : `/api/appraisals/${matchedAppraisal.id}/convert`;
+C:\Users\georg\dealerflow\pages\sales-prep.js:4480:        await fetch(`/api/appraisals/${matchedAppraisal.id}`, {
+C:\Users\georg\dealerflow\pages\appraisals\index.js:78:      const res = await fetch(`/api/appraisals?decision=${filter}`);
+C:\Users\georg\dealerflow\pages\appraisals\index.js:130:      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:147:        : `/api/appraisals/${appraisal.id || appraisal._id}/convert`;
+C:\Users\georg\dealerflow\pages\appraisals\index.js:178:      const endpoint = type === "px" ? `/api/customer-px/${id}` : `/api/appraisals/${id}`;
+C:\Users\georg\dealerflow\pages\appraisals\new.js:223:      const res = await fetch("/api/appraisals", {
+C:\Users\georg\dealerflow\pages\appraisals\new.js:238:        await fetch("/api/appraisals/issues", {
+C:\Users\georg\dealerflow\pages\warranty.js:539:      const res = await fetch("/api/ai/case-review", {
+C:\Users\georg\dealerflow\pages\warranty.js:562:      const res = await fetch("/api/ai/warranty-suggestions", {
+C:\Users\georg\dealerflow\pages\px\a\[token].js:40:      const res = await fetch("/api/appraisals/share-links/validate", {
+C:\Users\georg\dealerflow\pages\px\a\[token].js:102:      const res = await fetch("/api/appraisals/share-links/submit", {
+C:\Users\georg\dealerflow\pages\api\ai\case-review.js:1:// /pages/api/ai/case-review.js
+C:\Users\georg\dealerflow\pages\api\ai\health.js:4: * GET /api/ai/health

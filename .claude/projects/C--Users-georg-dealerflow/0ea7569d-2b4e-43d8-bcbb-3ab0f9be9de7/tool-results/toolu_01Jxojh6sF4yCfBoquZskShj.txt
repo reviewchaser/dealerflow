@@ -1,0 +1,404 @@
+  1200→                                    Take Deposit
+  1201→                                  </>
+  1202→                                )}
+  1203→                              </button>
+  1204→                            </div>
+  1205→                          );
+  1206→                        })()}
+  1207→
+  1208→                        {/* Generate Invoice */}
+  1209→                        {(deal.status === "DEPOSIT_TAKEN" || (deal.status === "DRAFT" && deal.soldToContactId && deal.vehiclePriceGross > 0)) && (
+  1210→                          <button
+  1211→                            onClick={handleGenerateInvoice}
+  1212→                            disabled={actionLoading}
+  1213→                            className="btn btn-sm w-full bg-blue-500 hover:bg-blue-600 text-white border-none"
+  1214→                          >
+  1215→                            {actionLoading === "invoice" ? (
+  1216→                              <span className="loading loading-spinner loading-xs"></span>
+  1217→                            ) : (
+  1218→                              <>
+  1219→                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1220→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  1221→                                </svg>
+  1222→                                Generate Invoice
+  1223→                              </>
+  1224→                            )}
+  1225→                          </button>
+  1226→                        )}
+  1227→
+  1228→                        {/* Mark Delivered */}
+  1229→                        {deal.status === "INVOICED" && (
+  1230→                          <button
+  1231→                            onClick={handleMarkDelivered}
+  1232→                            disabled={actionLoading}
+  1233→                            className="btn btn-sm w-full bg-purple-500 hover:bg-purple-600 text-white border-none"
+  1234→                          >
+  1235→                            {actionLoading === "delivered" ? (
+  1236→                              <span className="loading loading-spinner loading-xs"></span>
+  1237→                            ) : (
+  1238→                              <>
+  1239→                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1240→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+  1241→                                </svg>
+  1242→                                Mark Delivered
+  1243→                              </>
+  1244→                            )}
+  1245→                          </button>
+  1246→                        )}
+  1247→
+  1248→                        {/* Complete Deal */}
+  1249→                        {deal.status === "DELIVERED" && (
+  1250→                          <button
+  1251→                            onClick={handleMarkCompleted}
+  1252→                            disabled={actionLoading}
+  1253→                            className="btn btn-sm w-full bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+  1254→                          >
+  1255→                            {actionLoading === "completed" ? (
+  1256→                              <span className="loading loading-spinner loading-xs"></span>
+  1257→                            ) : (
+  1258→                              <>
+  1259→                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1260→                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1261→                                </svg>
+  1262→                                Complete Deal
+  1263→                              </>
+  1264→                            )}
+  1265→                          </button>
+  1266→                        )}
+  1267→
+  1268→                        {/* Delete/Cancel actions */}
+  1269→                        <div className="pt-2 border-t border-slate-100">
+  1270→                          {deal.status === "DRAFT" ? (
+  1271→                            <button
+  1272→                              onClick={() => setShowDeleteConfirm(true)}
+  1273→                              disabled={actionLoading}
+  1274→                              className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50"
+  1275→                            >
+  1276→                              Delete Draft
+  1277→                            </button>
+  1278→                          ) : (
+  1279→                            <button
+  1280→                              onClick={handleCancelDeal}
+  1281→                              disabled={actionLoading}
+  1282→                              className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50"
+  1283→                            >
+  1284→                              Cancel Deal
+  1285→                            </button>
+  1286→                          )}
+  1287→                        </div>
+  1288→                      </div>
+  1289→                    </div>
+  1290→                  )}
+  1291→
+  1292→                  {/* Pricing Summary */}
+  1293→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1294→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1295→                      <div className="flex items-center justify-between">
+  1296→                        <div className="flex items-center gap-2">
+  1297→                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+  1298→                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1299→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1300→                            </svg>
+  1301→                          </div>
+  1302→                          <h3 className="text-sm font-bold text-slate-800">Pricing</h3>
+  1303→                        </div>
+  1304→                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+  1305→                          deal.vatScheme === "VAT_QUALIFYING"
+  1306→                            ? "bg-blue-100 text-blue-700"
+  1307→                            : "bg-slate-100 text-slate-600"
+  1308→                        }`}>
+  1309→                          {VAT_SCHEME_LABELS[deal.vatScheme] || deal.vatScheme}
+  1310→                        </span>
+  1311→                      </div>
+  1312→                    </div>
+  1313→                    <div className="p-4 space-y-3">
+  1314→                      {/* Vehicle Price - Editable for Draft */}
+  1315→                      <div className="flex justify-between items-center">
+  1316→                        <span className="text-sm text-slate-600">Vehicle</span>
+  1317→                        {deal.status === "DRAFT" && isEditingPrice ? (
+  1318→                          <div className="flex items-center gap-2">
+  1319→                            <div className="relative w-28">
+  1320→                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+  1321→                              <input
+  1322→                                type="number"
+  1323→                                step="0.01"
+  1324→                                className="input input-sm input-bordered w-full pl-6 pr-2 text-right"
+  1325→                                value={priceInput}
+  1326→                                onChange={(e) => setPriceInput(e.target.value)}
+  1327→                                onKeyDown={(e) => {
+  1328→                                  if (e.key === "Enter") handleUpdatePrice();
+  1329→                                  if (e.key === "Escape") setIsEditingPrice(false);
+  1330→                                }}
+  1331→                                autoFocus
+  1332→                              />
+  1333→                            </div>
+  1334→                            <button
+  1335→                              onClick={handleUpdatePrice}
+  1336→                              disabled={actionLoading === "field"}
+  1337→                              className="btn btn-xs btn-ghost text-emerald-600"
+  1338→                            >
+  1339→                              ✓
+  1340→                            </button>
+  1341→                            <button
+  1342→                              onClick={() => setIsEditingPrice(false)}
+  1343→                              className="btn btn-xs btn-ghost text-slate-400"
+  1344→                            >
+  1345→                              ✕
+  1346→                            </button>
+  1347→                          </div>
+  1348→                        ) : (
+  1349→                          <div className="flex items-center gap-2">
+  1350→                            <span className="font-semibold text-slate-900">
+  1351→                              {deal.vehiclePriceGross > 0
+  1352→                                ? formatCurrency(deal.vehiclePriceGross)
+  1353→                                : "—"}
+  1354→                            </span>
+  1355→                            {deal.status === "DRAFT" && (
+  1356→                              <button
+  1357→                                onClick={() => {
+  1358→                                  setPriceInput(deal.vehiclePriceGross?.toString() || "");
+  1359→                                  setIsEditingPrice(true);
+  1360→                                }}
+  1361→                                className="btn btn-xs btn-ghost text-[#0066CC]"
+  1362→                              >
+  1363→                                Edit
+  1364→                              </button>
+  1365→                            )}
+  1366→                          </div>
+  1367→                        )}
+  1368→                      </div>
+  1369→
+  1370→                      {/* Show net + VAT breakdown for VAT Qualifying */}
+  1371→                      {deal.vatScheme === "VAT_QUALIFYING" && deal.vehiclePriceGross > 0 && (
+  1372→                        <div className="text-xs text-slate-500 text-right">
+  1373→                          Net: {formatCurrency(deal.vehiclePriceNet)} + VAT: {formatCurrency(deal.vehicleVatAmount)}
+  1374→                        </div>
+  1375→                      )}
+  1376→
+  1377→                      {/* Add-ons */}
+  1378→                      {totals.addOnsNetTotal > 0 && (
+  1379→                        <div className="flex justify-between items-center">
+  1380→                          <span className="text-sm text-slate-600">Add-ons</span>
+  1381→                          <span className="font-semibold text-slate-900">
+  1382→                            {formatCurrency(totals.addOnsNetTotal)}
+  1383→                          </span>
+  1384→                        </div>
+  1385→                      )}
+  1386→
+  1387→                      {/* VAT (only for VAT Qualifying) */}
+  1388→                      {deal.vatScheme === "VAT_QUALIFYING" && totals.totalVat > 0 && (
+  1389→                        <div className="flex justify-between items-center">
+  1390→                          <span className="text-sm text-slate-600">VAT @ 20%</span>
+  1391→                          <span className="font-semibold text-slate-900">
+  1392→                            {formatCurrency(totals.totalVat)}
+  1393→                          </span>
+  1394→                        </div>
+  1395→                      )}
+  1396→
+  1397→                      <div className="border-t border-slate-100 pt-3">
+  1398→                        <div className="flex justify-between items-center">
+  1399→                          <span className="text-sm font-semibold text-slate-700">Total</span>
+  1400→                          <span className="text-lg font-bold text-slate-900">
+  1401→                            {formatCurrency(totals.grandTotal)}
+  1402→                          </span>
+  1403→                        </div>
+  1404→                      </div>
+  1405→
+  1406→                      {/* Part Exchange */}
+  1407→                      {totals.pxNetValue > 0 && (
+  1408→                        <div className="flex justify-between items-center text-emerald-600">
+  1409→                          <span className="text-sm">Part Exchange</span>
+  1410→                          <span className="font-semibold">-{formatCurrency(totals.pxNetValue)}</span>
+  1411→                        </div>
+  1412→                      )}
+  1413→
+  1414→                      {/* Payments */}
+  1415→                      {totals.totalPaid > 0 && (
+  1416→                        <div className="flex justify-between items-center text-emerald-600">
+  1417→                          <span className="text-sm">Paid</span>
+  1418→                          <span className="font-semibold">-{formatCurrency(totals.totalPaid)}</span>
+  1419→                        </div>
+  1420→                      )}
+  1421→
+  1422→                      {/* Balance Due */}
+  1423→                      <div className="border-t border-slate-100 pt-3">
+  1424→                        <div className="flex justify-between items-center">
+  1425→                          <span className="text-sm font-semibold text-slate-700">Balance Due</span>
+  1426→                          <span className={`text-lg font-bold ${
+  1427→                            totals.balanceDue <= 0 ? "text-emerald-600" : "text-slate-900"
+  1428→                          }`}>
+  1429→                            {formatCurrency(Math.max(0, totals.balanceDue))}
+  1430→                          </span>
+  1431→                        </div>
+  1432→                      </div>
+  1433→                    </div>
+  1434→                  </div>
+  1435→
+  1436→                  {/* Timeline */}
+  1437→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1438→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1439→                      <div className="flex items-center gap-2">
+  1440→                        <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+  1441→                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1442→                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  1443→                          </svg>
+  1444→                        </div>
+  1445→                        <h3 className="text-sm font-bold text-slate-800">Timeline</h3>
+  1446→                      </div>
+  1447→                    </div>
+  1448→                    <div className="p-4 space-y-3 text-sm">
+  1449→                      <div className="flex justify-between">
+  1450→                        <span className="text-slate-500">Created</span>
+  1451→                        <span className="text-slate-900">{formatDateTime(deal.createdAt)}</span>
+  1452→                      </div>
+  1453→                      {deal.depositTakenAt && (
+  1454→                        <div className="flex justify-between">
+  1455→                          <span className="text-slate-500">Deposit Taken</span>
+  1456→                          <span className="text-slate-900">{formatDateTime(deal.depositTakenAt)}</span>
+  1457→                        </div>
+  1458→                      )}
+  1459→                      {deal.invoicedAt && (
+  1460→                        <div className="flex justify-between">
+  1461→                          <span className="text-slate-500">Invoiced</span>
+  1462→                          <span className="text-slate-900">{formatDateTime(deal.invoicedAt)}</span>
+  1463→                        </div>
+  1464→                      )}
+  1465→                      {deal.deliveredAt && (
+  1466→                        <div className="flex justify-between">
+  1467→                          <span className="text-slate-500">Delivered</span>
+  1468→                          <span className="text-slate-900">{formatDateTime(deal.deliveredAt)}</span>
+  1469→                        </div>
+  1470→                      )}
+  1471→                      {deal.completedAt && (
+  1472→                        <div className="flex justify-between">
+  1473→                          <span className="text-slate-500">Completed</span>
+  1474→                          <span className="text-slate-900">{formatDateTime(deal.completedAt)}</span>
+  1475→                        </div>
+  1476→                      )}
+  1477→                      {deal.cancelledAt && (
+  1478→                        <div className="flex justify-between text-red-600">
+  1479→                          <span>Cancelled</span>
+  1480→                          <span>{formatDateTime(deal.cancelledAt)}</span>
+  1481→                        </div>
+  1482→                      )}
+  1483→                    </div>
+  1484→                  </div>
+  1485→
+  1486→                  {/* Notes */}
+  1487→                  {(deal.notes || deal.internalNotes) && (
+  1488→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1489→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1490→                        <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+  1491→                      </div>
+  1492→                      <div className="p-4 space-y-3">
+  1493→                        {deal.notes && (
+  1494→                          <div>
+  1495→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Customer Notes</span>
+  1496→                            <p className="text-sm text-slate-700 mt-1">{deal.notes}</p>
+  1497→                          </div>
+  1498→                        )}
+  1499→                        {deal.internalNotes && (
+  1500→                          <div>
+  1501→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Internal Notes</span>
+  1502→                            <p className="text-sm text-slate-700 mt-1">{deal.internalNotes}</p>
+  1503→                          </div>
+  1504→                        )}
+  1505→                      </div>
+  1506→                    </div>
+  1507→                  )}
+  1508→                </div>
+  1509→              )}
+  1510→
+  1511→              {/* Customer Tab */}
+  1512→              {activeTab === "customer" && (
+  1513→                <div className="space-y-4">
+  1514→                  {/* Sold To Section */}
+  1515→                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1516→                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1517→                      <div className="flex items-center justify-between">
+  1518→                        <div className="flex items-center gap-2">
+  1519→                          <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
+  1520→                            <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1521→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  1522→                            </svg>
+  1523→                          </div>
+  1524→                          <h3 className="text-sm font-bold text-slate-800">Sold To</h3>
+  1525→                        </div>
+  1526→                        {deal.customer && deal.status === "DRAFT" && !isEditingCustomer && (
+  1527→                          <button
+  1528→                            onClick={() => setIsEditingCustomer(true)}
+  1529→                            className="btn btn-ghost btn-xs text-[#0066CC]"
+  1530→                          >
+  1531→                            Change
+  1532→                          </button>
+  1533→                        )}
+  1534→                      </div>
+  1535→                    </div>
+  1536→                    <div className="p-4">
+  1537→                      {isEditingCustomer || !deal.customer ? (
+  1538→                        <div className="space-y-3">
+  1539→                          <ContactPicker
+  1540→                            value={deal.soldToContactId}
+  1541→                            onChange={(contactId) => handleUpdateCustomer(contactId)}
+  1542→                            filterTypeTags={["customer"]}
+  1543→                            placeholder="Search or create a customer..."
+  1544→                          />
+  1545→                          {isEditingCustomer && (
+  1546→                            <button
+  1547→                              onClick={() => setIsEditingCustomer(false)}
+  1548→                              className="btn btn-ghost btn-sm w-full"
+  1549→                            >
+  1550→                              Cancel
+  1551→                            </button>
+  1552→                          )}
+  1553→                        </div>
+  1554→                      ) : (
+  1555→                        <div className="space-y-3">
+  1556→                          <div>
+  1557→                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1558→                            <p className="font-semibold text-slate-900 mt-0.5">{deal.customer.displayName}</p>
+  1559→                          </div>
+  1560→                          {deal.customer.companyName && (
+  1561→                            <div>
+  1562→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Company</span>
+  1563→                              <p className="text-slate-700 mt-0.5">{deal.customer.companyName}</p>
+  1564→                            </div>
+  1565→                          )}
+  1566→                          {deal.customer.email && (
+  1567→                            <div>
+  1568→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Email</span>
+  1569→                              <p className="text-slate-700 mt-0.5">{deal.customer.email}</p>
+  1570→                            </div>
+  1571→                          )}
+  1572→                          {deal.customer.phone && (
+  1573→                            <div>
+  1574→                              <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Phone</span>
+  1575→                              <p className="text-slate-700 mt-0.5">{deal.customer.phone}</p>
+  1576→                            </div>
+  1577→                          )}
+  1578→                        </div>
+  1579→                      )}
+  1580→                    </div>
+  1581→                  </div>
+  1582→
+  1583→                  {/* Invoice To (if different) */}
+  1584→                  {deal.invoiceTo && deal.invoiceTo.id !== deal.customer?.id && (
+  1585→                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+  1586→                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+  1587→                        <div className="flex items-center gap-2">
+  1588→                          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+  1589→                            <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1590→                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  1591→                            </svg>
+  1592→                          </div>
+  1593→                          <h3 className="text-sm font-bold text-slate-800">Invoice To</h3>
+  1594→                        </div>
+  1595→                      </div>
+  1596→                      <div className="p-4 space-y-3">
+  1597→                        <div>
+  1598→                          <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Name</span>
+  1599→                          <p className="font-semibold text-slate-900 mt-0.5">{deal.invoiceTo.displayName}</p>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

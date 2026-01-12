@@ -1,0 +1,44 @@
+   315→    <DashboardLayout>
+   316→      <Head><title>Dashboard | DealerFlow</title></Head>
+   317→
+   318→      {/* Hero Header with Rich Gradient */}
+   319→      <div className="relative -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 pt-8 pb-10 mb-8 hero-gradient border-b border-slate-200/50">
+   320→        <div className="max-w-7xl mx-auto">
+   321→          <div className="flex items-start justify-between">
+   322→            <div>
+   323→              <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
+   324→                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}
+   325→              </h1>
+   326→              <p className="text-slate-600 mt-1.5 text-base">Here's what's happening with your dealership today</p>
+   327→            </div>
+   328→            <div className="hidden md:flex items-center gap-3">
+   329→              <div className="text-right">
+   330→                <p className="text-sm font-bold text-slate-800">
+   331→                  {new Date().toLocaleDateString('en-GB', { weekday: 'long' })}
+   332→                </p>
+   333→                <p className="text-xs text-slate-500">
+   334→                  {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+   335→                </p>
+   336→              </div>
+   337→              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0066CC] to-[#14B8A6] flex items-center justify-center text-white shadow-lg">
+   338→                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   339→                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+   340→                </svg>
+   341→              </div>
+   342→            </div>
+   343→          </div>
+   344→
+   345→          {/* Today's Activity Pills */}
+   346→          {hasTodayData && (
+   347→            <div className="mt-6 flex items-center gap-3 flex-wrap">
+   348→              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Today</span>
+   349→              <div className="h-4 w-px bg-slate-300" />
+   350→              <div className="flex items-center gap-2 flex-wrap">
+   351→                {(stats?.today?.events ?? 0) > 0 && (
+   352→                  <Link href="/calendar" className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#0066CC]/20 text-[#0066CC] rounded-xl text-sm font-semibold hover:bg-[#0066CC]/5 hover:border-[#0066CC]/40 transition-all shadow-sm">
+   353→                    <span className="w-2.5 h-2.5 rounded-full bg-[#0066CC] animate-pulse" />
+   354→                    {stats.today.events} event{stats.today.events !== 1 ? "s" : ""}
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,11 @@
+The file C:\Users\georg\dealerflow\pages\marketing.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   137→              <a href="#pricing" className="px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+   138→              <a href="#how-it-works" className="px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg" onClick={() => setMobileMenuOpen(false)}>How it works</a>
+   139→            </nav>
+   140→            <div className="mt-4 pt-4 border-t border-slate-200 flex flex-col gap-2">
+   141→              <Link href="/auth/signin" className="px-4 py-2.5 text-sm font-medium text-center text-slate-700 border border-slate-300 rounded-lg">Sign in</Link>
+   142→              <Link href="/auth/signup?plan=free" className="px-4 py-2.5 text-sm font-medium text-center text-white bg-blue-600 rounded-lg">Get started free</Link>
+   143→            </div>
+   144→          </div>
+   145→        )}
+   146→      </div>

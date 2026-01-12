@@ -1,0 +1,20 @@
+C:\Users\georg\dealerflow\libs\r2Client.js:61:  r2Client = new S3Client({
+C:\Users\georg\dealerflow\libs\r2Client.js-62-    region: process.env.S3_REGION || "auto",
+C:\Users\georg\dealerflow\libs\r2Client.js-63-    endpoint: endpoint,
+C:\Users\georg\dealerflow\libs\r2Client.js-64-    credentials: {
+C:\Users\georg\dealerflow\libs\r2Client.js-65-      accessKeyId: process.env.S3_ACCESS_KEY,
+C:\Users\georg\dealerflow\libs\r2Client.js-66-      secretAccessKey: process.env.S3_SECRET_KEY,
+--
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js:78:  return new S3Client({
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js-79-    region: process.env.S3_REGION || "auto",
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js-80-    endpoint: process.env.S3_ENDPOINT,
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js-81-    credentials: {
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js-82-      accessKeyId: process.env.S3_ACCESS_KEY,
+C:\Users\georg\dealerflow\pages\api\vehicles\upload.js-83-      secretAccessKey: process.env.S3_SECRET_KEY,
+--
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js:66:  return new S3Client({
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js-67-    region: process.env.S3_REGION || "auto",
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js-68-    endpoint: process.env.S3_ENDPOINT,
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js-69-    credentials: {
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js-70-      accessKeyId: process.env.S3_ACCESS_KEY,
+C:\Users\georg\dealerflow\pages\api\dealer\logo.js-71-      secretAccessKey: process.env.S3_SECRET_KEY,

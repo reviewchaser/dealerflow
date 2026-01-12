@@ -1,0 +1,87 @@
+     1→# =============================================================================
+     2→# REQUIRED - Database
+     3→# =============================================================================
+     4→MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/dealerflow?retryWrites=true&w=majority
+     5→
+     6→# =============================================================================
+     7→# REQUIRED - Authentication (NextAuth.js)
+     8→# =============================================================================
+     9→NEXTAUTH_URL=https://your-domain.com
+    10→NEXTAUTH_SECRET=generate-a-random-32-char-secret-here
+    11→
+    12→# OAuth Provider - Google
+    13→GOOGLE_ID=your-google-client-id
+    14→GOOGLE_SECRET=your-google-client-secret
+    15→
+    16→# =============================================================================
+    17→# OPTIONAL - Development Only
+    18→# =============================================================================
+    19→# Enable dev login (allows test123 password for any email)
+    20→# NEVER enable this in production - only for local testing
+    21→# ENABLE_DEV_LOGIN=true
+    22→# NEXT_PUBLIC_ENABLE_DEV_LOGIN=true
+    23→
+    24→# =============================================================================
+    25→# OPTIONAL - Email Provider (choose one)
+    26→# =============================================================================
+    27→# Option 1: Mailgun (recommended for production)
+    28→# MAILGUN_API_KEY=your-mailgun-api-key
+    29→# MAILGUN_DOMAIN=mg.yourdomain.com
+    30→# EMAIL_FROM=noreply@yourdomain.com
+    31→
+    32→# Option 2: SMTP (e.g., Gmail, SendGrid SMTP)
+    33→# SMTP_HOST=smtp.gmail.com
+    34→# SMTP_PORT=587
+    35→# SMTP_USER=your-email@gmail.com
+    36→# SMTP_PASS=your-app-password
+    37→# EMAIL_FROM=your-email@gmail.com
+    38→
+    39→# =============================================================================
+    40→# OPTIONAL - External APIs
+    41→# =============================================================================
+    42→# DVLA Vehicle Enquiry Service (required for VRM lookups in production)
+    43→# Get your API key: https://developer-portal.driver-vehicle-licensing.api.gov.uk/
+    44→# In development, dummy data is returned if not configured
+    45→# DVLA_API_KEY=your-dvla-api-key
+    46→
+    47→# AI-powered features - Anthropic Claude (for AI Case Review)
+    48→# ANTHROPIC_API_KEY=your-anthropic-api-key
+    49→
+    50→# AI-powered features - OpenAI (for AI Diagnostics/Suggestions)
+    51→# Required to use AI warranty/appraisal suggestions
+    52→# OPENAI_API_KEY=your-openai-api-key
+    53→
+    54→# =============================================================================
+    55→# OPTIONAL - File Uploads (AWS S3)
+    56→# =============================================================================
+    57→# Required for file uploads on Vercel (local filesystem is read-only)
+    58→# Without S3, uploads will only work in local development
+    59→# S3_ACCESS_KEY=your-s3-access-key
+    60→# S3_SECRET_KEY=your-s3-secret-key
+    61→# S3_BUCKET=your-bucket-name
+    62→# S3_REGION=eu-west-2
+    63→#
+    64→# S3 Bucket Setup (Private - Recommended):
+    65→# 1. Create an S3 bucket with "Block all public access" ENABLED (default)
+    66→# 2. NO bucket policy needed - bucket stays private
+    67→# 3. Create IAM user with least-privilege policy:
+    68→#    {
+    69→#      "Version": "2012-10-17",
+    70→#      "Statement": [{
+    71→#        "Effect": "Allow",
+    72→#        "Action": [
+    73→#          "s3:PutObject",
+    74→#          "s3:GetObject"
+    75→#        ],
+    76→#        "Resource": "arn:aws:s3:::your-bucket-name/*"
+    77→#      }]
+    78→#    }
+    79→# 4. Set env vars above with IAM credentials
+    80→#
+    81→# Note: Files are served via signed URLs (temporary, secure access)
+    82→# No public access to bucket is required or recommended
+    83→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

@@ -1,0 +1,99 @@
+import connectMongo from "@/libs/mongoose";
+import Dealer from "@/models/Dealer";
+
+export default async function handler(req, res) {
+  try {
+    await connectMongo();
+
+    if (req.method === "GET") {
+      const { slug } = req.query;
+
+      let dealer;
+
+      if (slug) {
+        // Find by slug or ID
+        dealer = await Dealer.findOne({ slug }).lean();
+        if (!dealer) {
+          // Try finding by ID if slug doesn't match
+          try {
+            dealer = await Dealer.findById(slug).lean();
+          } catch (e) {
+            // Invalid ID format, ignore
+          }
+        }
+      } else {
+        // Get the first (and only) dealer
+        dealer = await Dealer.findOne().lean();
+      }
+
+      if (!dealer) {
+        if (slug) {
+          return res.status(404).json({ error: "Dealer not found" });
+        }
+        // Auto-create a default dealer if none exists
+        dealer = await Dealer.create({
+          name: "My Dealership",
+          email: "",
+          phone: "",
+          address: "",
+        });
+        dealer = dealer.toJSON();
+      } else {
+        dealer.id = dealer._id.toString();
+        delete dealer._id;
+      }
+
+      return res.status(200).json(dealer);
+    }
+
+    if (req.method === "PUT") {
+      const { name, email, phone, address, websiteUrl, googleReviewUrl, logoUrl, settings } = req.body;
+
+      console.log("[Dealer API] PUT request body:", req.body);
+
+      let dealer = await Dealer.findOne();
+
+      if (!dealer) {
+        // Create if doesn't exist
+        dealer = await Dealer.create({
+          name: name || "My Dealership",
+          email,
+          phone,
+          address,
+          websiteUrl,
+          googleReviewUrl,
+          logoUrl,
+          settings,
+        });
+        console.log("[Dealer API] Created new dealer:", dealer);
+      } else {
+        // Update existing dealer - use $set for explicit updates
+        const updateFields = {};
+        if (name !== undefined) updateFields.name = name;
+        if (email !== undefined) updateFields.email = email;
+        if (phone !== undefined) updateFields.phone = phone;
+        if (address !== undefined) updateFields.address = address;
+        if (websiteUrl !== undefined) updateFields.websiteUrl = websiteUrl;
+        if (googleReviewUrl !== undefined) updateFields.googleReviewUrl = googleReviewUrl;
+        if (logoUrl !== undefined) updateFields.logoUrl = logoUrl;
+        if (settings !== undefined) updateFields.settings = settings;
+
+        console.log("[Dealer API] Updating dealer with:", updateFields);
+
+        dealer = await Dealer.findByIdAndUpdate(
+          dealer._id,
+          { $set: updateFields },
+          { new: true, runValidators: true }
+        );
+        console.log("[Dealer API] Updated dealer:", dealer);
+      }
+
+      return res.status(200).json(dealer.toJSON());
+    }
+
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (error) {
+    console.error("Dealer API error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+}

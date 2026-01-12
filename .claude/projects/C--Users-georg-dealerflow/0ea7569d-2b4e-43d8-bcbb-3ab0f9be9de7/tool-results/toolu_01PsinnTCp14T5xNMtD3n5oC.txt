@@ -1,0 +1,2 @@
+202:  const handleDeleteDeal = async (dealId, e) => {
+721:                            onClick={(e) => handleDeleteDeal(deal.id, e)}

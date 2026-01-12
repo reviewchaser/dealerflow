@@ -1,0 +1,65 @@
+The file C:\Users\georg\dealerflow\pages\sales-prep.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+  1241→    }));
+  1242→    return allFiltered.length;
+  1243→  };
+  1244→
+  1245→  // VRM Search functions - debounced API search
+  1246→  const searchVehiclesApi = async (query) => {
+  1247→    if (query.length < 2) {
+  1248→      setVrmSearchResults([]);
+  1249→      return;
+  1250→    }
+  1251→
+  1252→    setVrmSearchLoading(true);
+  1253→    try {
+  1254→      const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(query)}&limit=10`);
+  1255→      if (res.ok) {
+  1256→        const results = await res.json();
+  1257→        // Sort by updatedAt (most recent activity first)
+  1258→        results.sort((a, b) => {
+  1259→          const aDate = new Date(a.updatedAt || a.createdAt || 0);
+  1260→          const bDate = new Date(b.updatedAt || b.createdAt || 0);
+  1261→          return bDate - aDate;
+  1262→        });
+  1263→        setVrmSearchResults(results);
+  1264→      }
+  1265→    } catch (err) {
+  1266→      console.error("VRM search error:", err);
+  1267→    } finally {
+  1268→      setVrmSearchLoading(false);
+  1269→    }
+  1270→  };
+  1271→
+  1272→  const handleVrmSearchChange = (value) => {
+  1273→    const normalized = value.toUpperCase();
+  1274→    setVrmSearch(normalized);
+  1275→
+  1276→    // Clear previous timeout
+  1277→    if (vrmSearchTimeout.current) {
+  1278→      clearTimeout(vrmSearchTimeout.current);
+  1279→    }
+  1280→
+  1281→    if (normalized.length >= 2) {
+  1282→      setShowVrmDropdown(true);
+  1283→      // Debounce API call by 250ms
+  1284→      vrmSearchTimeout.current = setTimeout(() => {
+  1285→        searchVehiclesApi(normalized);
+  1286→      }, 250);
+  1287→    } else {
+  1288→      setVrmSearchResults([]);
+  1289→      setShowVrmDropdown(false);
+  1290→    }
+  1291→  };
+  1292→
+  1293→  // Cleanup timeout on unmount
+  1294→  useEffect(() => {
+  1295→    return () => {
+  1296→      if (vrmSearchTimeout.current) {
+  1297→        clearTimeout(vrmSearchTimeout.current);
+  1298→      }
+  1299→    };
+  1300→  }, []);
+  1301→
+  1302→  const handleVrmSelect = (vehicle) => {
+  1303→    // Close dropdown and clear search
+  1304→    setVrmSearch("");

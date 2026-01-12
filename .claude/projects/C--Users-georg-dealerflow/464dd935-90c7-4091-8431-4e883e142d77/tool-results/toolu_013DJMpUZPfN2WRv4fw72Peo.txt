@@ -1,0 +1,84 @@
+    80→  };
+    81→
+    82→  const handleDvlaLookup = async () => {
+    83→    if (!formData.vehicleReg) return toast.error("Enter registration first");
+    84→    setIsLookingUp(true);
+    85→    setAiHints(null);
+    86→    setDvlaData(null);
+    87→
+    88→    try {
+    89→      const res = await fetch("/api/dvla-lookup", {
+    90→        method: "POST",
+    91→        headers: { "Content-Type": "application/json" },
+    92→        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
+    93→      });
+    94→      const data = await res.json();
+    95→
+    96→      // Handle error responses
+    97→      if (!res.ok) {
+    98→        const errorCode = data.errorCode || "UNKNOWN";
+    99→        switch (errorCode) {
+   100→          case "NOT_FOUND":
+   101→            toast.error("VRM not found - please check the registration");
+   102→            break;
+   103→          case "INVALID_FORMAT":
+   104→            toast.error("Invalid registration format");
+   105→            break;
+   106→          case "NOT_CONFIGURED":
+   107→          case "AUTH_FAILED":
+   108→          case "ACCESS_DENIED":
+   109→            toast.error("DVLA integration not configured");
+   110→            break;
+   111→          case "NETWORK_ERROR":
+   112→          case "SERVICE_ERROR":
+   113→            toast.error("DVLA service unavailable, try again later");
+   114→            break;
+   115→          default:
+   116→            toast.error(data.message || "Lookup failed");
+   117→        }
+   118→        return;
+   119→      }
+   120→
+   121→      setDvlaData(data);
+   122→      if (data.isDummy) showDummyNotification("DVLA API");
+   123→
+   124→      setFormData((prev) => ({
+   125→        ...prev,
+   126→        vehicleMake: data.make || prev.vehicleMake,
+   127→        vehicleModel: data.model || prev.vehicleModel,
+   128→        vehicleYear: data.yearOfManufacture || prev.vehicleYear,
+   129→        colour: data.colour || prev.colour,
+   130→        fuelType: data.fuelType || prev.fuelType,
+   131→      }));
+   132→
+   133→      // Fetch AI hints
+   134→      fetchAiHints(data.make, data.model, data.yearOfManufacture);
+   135→    } catch (error) {
+   136→      toast.error("DVLA service unavailable, try again later");
+   137→    } finally {
+   138→      setIsLookingUp(false);
+   139→    }
+   140→  };
+   141→
+   142→  const fetchAiHints = async (make, model, year) => {
+   143→    setIsLoadingHints(true);
+   144→    try {
+   145→      const res = await fetch("/api/ai-hints", {
+   146→        method: "POST",
+   147→        headers: { "Content-Type": "application/json" },
+   148→        body: JSON.stringify({ make, model, year, mileage: formData.mileage }),
+   149→      });
+   150→      const data = await res.json();
+   151→      setAiHints(data);
+   152→      if (data.isDummy) showDummyNotification("AI Hints");
+   153→    } catch (error) {
+   154→      console.error("AI hints error:", error);
+   155→    } finally {
+   156→      setIsLoadingHints(false);
+   157→    }
+   158→  };
+   159→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

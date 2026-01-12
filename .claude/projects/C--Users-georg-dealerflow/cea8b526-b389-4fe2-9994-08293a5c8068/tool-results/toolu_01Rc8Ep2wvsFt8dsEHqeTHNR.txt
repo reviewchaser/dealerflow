@@ -1,0 +1,254 @@
+  1600→                        <button
+  1601→                          onClick={() => setShowFiltersDropdown(false)}
+  1602→                          className="bg-slate-900 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-slate-800 shadow-lg shadow-slate-200 transition-colors"
+  1603→                        >
+  1604→                          Apply Filters
+  1605→                        </button>
+  1606→                      </div>
+  1607→                    </div>
+  1608→                  </div>
+  1609→
+  1610→                  {/* ═══════════════════════════════════════════════════════════════ */}
+  1611→                  {/* MOBILE: Bottom Sheet (< lg screens) */}
+  1612→                  {/* ═══════════════════════════════════════════════════════════════ */}
+  1613→                  <BottomSheet
+  1614→                    isOpen={showFiltersDropdown}
+  1615→                    onClose={() => setShowFiltersDropdown(false)}
+  1616→                    title={
+  1617→                      <div className="flex items-center gap-3">
+  1618→                        <span>Filters</span>
+  1619→                        {activeFilters.length > 0 && (
+  1620→                          <button
+  1621→                            onClick={() => setActiveFilters([])}
+  1622→                            className="text-sm text-slate-500 hover:text-red-500 transition-colors font-normal"
+  1623→                          >
+  1624→                            Reset
+  1625→                          </button>
+  1626→                        )}
+  1627→                      </div>
+  1628→                    }
+  1629→                    footer={
+  1630→                      <button
+  1631→                        onClick={() => setShowFiltersDropdown(false)}
+  1632→                        className="w-full bg-slate-900 text-white py-3.5 rounded-xl text-base font-bold hover:bg-slate-800 active:bg-slate-700 transition-colors shadow-lg"
+  1633→                      >
+  1634→                        Apply Filters {activeFilters.length > 0 && `(${activeFilters.length})`}
+  1635→                      </button>
+  1636→                    }
+  1637→                  >
+  1638→                    {/* Prep Tasks */}
+  1639→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Prep Tasks</h5>
+  1640→                    {[
+  1641→                      { key: "awaiting_pdi", label: "Awaiting PDI" },
+  1642→                      { key: "awaiting_valet", label: "Awaiting Valet" },
+  1643→                      { key: "awaiting_photos", label: "Awaiting Photos" },
+  1644→                      { key: "awaiting_mot", label: "Awaiting MOT" },
+  1645→                    ].map(filter => {
+  1646→                      const isActive = activeFilters.includes(filter.key);
+  1647→                      const count = getFilterCount(filter.key);
+  1648→                      return (
+  1649→                        <button
+  1650→                          key={filter.key}
+  1651→                          onClick={() => toggleFilter(filter.key)}
+  1652→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1653→                            isActive
+  1654→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1655→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1656→                          }`}
+  1657→                        >
+  1658→                          <span>{filter.label}</span>
+  1659→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1660→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1661→                          }`}>{count}</span>
+  1662→                        </button>
+  1663→                      );
+  1664→                    })}
+  1665→
+  1666→                    {/* Issues */}
+  1667→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Issues</h5>
+  1668→                    {[
+  1669→                      { key: "needs_paint", label: "Needs Paint" },
+  1670→                      { key: "needs_mechanical", label: "Needs Mechanical" },
+  1671→                      { key: "needs_electrical", label: "Needs Electrical" },
+  1672→                    ].map(filter => {
+  1673→                      const isActive = activeFilters.includes(filter.key);
+  1674→                      const count = getFilterCount(filter.key);
+  1675→                      return (
+  1676→                        <button
+  1677→                          key={filter.key}
+  1678→                          onClick={() => toggleFilter(filter.key)}
+  1679→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1680→                            isActive
+  1681→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1682→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1683→                          }`}
+  1684→                        >
+  1685→                          <span>{filter.label}</span>
+  1686→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1687→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1688→                          }`}>{count}</span>
+  1689→                        </button>
+  1690→                      );
+  1691→                    })}
+  1692→
+  1693→                    {/* Location */}
+  1694→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Location</h5>
+  1695→                    {(() => {
+  1696→                      const isActive = activeFilters.includes("offsite");
+  1697→                      const count = getFilterCount("offsite");
+  1698→                      return (
+  1699→                        <button
+  1700→                          onClick={() => toggleFilter("offsite")}
+  1701→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1702→                            isActive
+  1703→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1704→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1705→                          }`}
+  1706→                        >
+  1707→                          <span>Offsite Only</span>
+  1708→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1709→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1710→                          }`}>{count}</span>
+  1711→                        </button>
+  1712→                      );
+  1713→                    })()}
+  1714→
+  1715→                    {/* Vehicle Type */}
+  1716→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Vehicle Type</h5>
+  1717→                    {[
+  1718→                      { key: "type_stock", label: "Stock Vehicles" },
+  1719→                      { key: "type_courtesy", label: "Courtesy Vehicles" },
+  1720→                      { key: "type_fleet", label: "Fleet Vehicles" },
+  1721→                    ].map(filter => {
+  1722→                      const isActive = activeFilters.includes(filter.key);
+  1723→                      const count = getFilterCount(filter.key);
+  1724→                      return (
+  1725→                        <button
+  1726→                          key={filter.key}
+  1727→                          onClick={() => toggleFilter(filter.key)}
+  1728→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1729→                            isActive
+  1730→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1731→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1732→                          }`}
+  1733→                        >
+  1734→                          <span>{filter.label}</span>
+  1735→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1736→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1737→                          }`}>{count}</span>
+  1738→                        </button>
+  1739→                      );
+  1740→                    })}
+  1741→
+  1742→                    {/* Sale Type */}
+  1743→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Sale Type</h5>
+  1744→                    {[
+  1745→                      { key: "trade_only", label: "Trade Only" },
+  1746→                      { key: "retail_only", label: "Retail Only" },
+  1747→                    ].map(filter => {
+  1748→                      const isActive = activeFilters.includes(filter.key);
+  1749→                      const count = getFilterCount(filter.key);
+  1750→                      return (
+  1751→                        <button
+  1752→                          key={filter.key}
+  1753→                          onClick={() => toggleFilter(filter.key)}
+  1754→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1755→                            isActive
+  1756→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1757→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1758→                          }`}
+  1759→                        >
+  1760→                          <span>{filter.label}</span>
+  1761→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1762→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1763→                          }`}>{count}</span>
+  1764→                        </button>
+  1765→                      );
+  1766→                    })}
+  1767→
+  1768→                    {/* MOT Status */}
+  1769→                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">MOT Status</h5>
+  1770→                    {[
+  1771→                      { key: "mot_expired", label: "MOT Expired" },
+  1772→                      { key: "mot_due_soon", label: "MOT Due Soon" },
+  1773→                    ].map(filter => {
+  1774→                      const isActive = activeFilters.includes(filter.key);
+  1775→                      const count = getFilterCount(filter.key);
+  1776→                      return (
+  1777→                        <button
+  1778→                          key={filter.key}
+  1779→                          onClick={() => toggleFilter(filter.key)}
+  1780→                          className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
+  1781→                            isActive
+  1782→                              ? "bg-blue-50 text-blue-700 border-2 border-blue-400 shadow-sm"
+  1783→                              : "text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100"
+  1784→                          }`}
+  1785→                        >
+  1786→                          <span>{filter.label}</span>
+  1787→                          <span className={`text-sm px-2.5 py-1 rounded-lg ${
+  1788→                            isActive ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+  1789→                          }`}>{count}</span>
+  1790→                        </button>
+  1791→                      );
+  1792→                    })}
+  1793→                  </BottomSheet>
+  1794→                </>
+  1795→              )}
+  1796→            </div>
+  1797→          </div>
+  1798→      </div>
+  1799→
+  1800→      {isLoading ? (
+  1801→        <div className="flex justify-center py-20">
+  1802→          <span className="loading loading-spinner loading-lg"></span>
+  1803→        </div>
+  1804→      ) : (
+  1805→        <>
+  1806→          {/* Mobile Column Tabs */}
+  1807→          <div className="md:hidden mb-4 overflow-x-auto">
+  1808→            <div className="flex gap-1 p-1 bg-slate-100 rounded-xl min-w-max">
+  1809→              {COLUMNS.map((col) => {
+  1810→                const count = getVehiclesByStatus(col.key).length;
+  1811→                return (
+  1812→                  <button
+  1813→                    key={col.key}
+  1814→                    onClick={() => setMobileActiveColumn(col.key)}
+  1815→                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+  1816→                      mobileActiveColumn === col.key
+  1817→                        ? "bg-white shadow-sm text-slate-900"
+  1818→                        : "text-slate-500 hover:text-slate-700"
+  1819→                    }`}
+  1820→                  >
+  1821→                    <span>{col.label}</span>
+  1822→                    <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+  1823→                      mobileActiveColumn === col.key ? "bg-slate-100" : "bg-slate-200/50"
+  1824→                    }`}>
+  1825→                      {count}
+  1826→                    </span>
+  1827→                  </button>
+  1828→                );
+  1829→              })}
+  1830→            </div>
+  1831→          </div>
+  1832→
+  1833→          {/* Mobile Single Column View */}
+  1834→          <div className="md:hidden">
+  1835→            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
+  1836→              const columnVehicles = getVehiclesByStatus(col.key);
+  1837→
+  1838→              // Issue category styling with icons (mobile)
+  1839→              const issueCategoryStyles = {
+  1840→                Mechanical: { bg: "bg-red-50", text: "text-red-700", border: "border-red-100", icon: (
+  1841→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1842→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+  1843→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  1844→                  </svg>
+  1845→                )},
+  1846→                Cosmetic: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-100", icon: (
+  1847→                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  1848→                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+  1849→                  </svg>
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

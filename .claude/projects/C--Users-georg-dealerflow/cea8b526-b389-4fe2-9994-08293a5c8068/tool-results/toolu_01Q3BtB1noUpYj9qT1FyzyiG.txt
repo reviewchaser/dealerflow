@@ -1,0 +1,312 @@
+     1→/**
+     2→ * PhotoGallery Component - Thumbnail grid with lightbox/modal viewer
+     3→ * Usage:
+     4→ *   <PhotoGallery photos={[{ url: '...', category: 'exterior' }]} />
+     5→ *   <PhotoGallery photos={urls} groupByCategory />
+     6→ */
+     7→
+     8→import { useState, useEffect, useCallback } from "react";
+     9→
+    10→// Category labels for display
+    11→const CATEGORY_LABELS = {
+    12→  exterior: "Exterior",
+    13→  interior: "Interior",
+    14→  dashboard: "Dashboard",
+    15→  odometer: "Odometer",
+    16→  damage: "Damage",
+    17→  documents: "Documents",
+    18→  other: "Other",
+    19→};
+    20→
+    21→export function PhotoGallery({
+    22→  photos = [],
+    23→  groupByCategory = false,
+    24→  maxVisible = 6,
+    25→  thumbnailSize = "default",
+    26→  className = "",
+    27→  showCount = true,
+    28→}) {
+    29→  const [lightboxOpen, setLightboxOpen] = useState(false);
+    30→  const [lightboxIndex, setLightboxIndex] = useState(0);
+    31→  const [showAll, setShowAll] = useState(false);
+    32→
+    33→  // Normalize photos to consistent format
+    34→  const normalizedPhotos = photos.map((photo, idx) => {
+    35→    if (typeof photo === "string") {
+    36→      return { url: photo, category: "other", id: idx };
+    37→    }
+    38→    return { ...photo, id: photo.id || idx };
+    39→  });
+    40→
+    41→  const thumbnailSizes = {
+    42→    sm: "w-16 h-16",
+    43→    default: "w-20 h-20",
+    44→    lg: "w-24 h-24",
+    45→    xl: "w-32 h-32",
+    46→  };
+    47→
+    48→  const size = thumbnailSizes[thumbnailSize] || thumbnailSizes.default;
+    49→  const visiblePhotos = showAll ? normalizedPhotos : normalizedPhotos.slice(0, maxVisible);
+    50→  const hiddenCount = normalizedPhotos.length - maxVisible;
+    51→
+    52→  const openLightbox = (index) => {
+    53→    setLightboxIndex(index);
+    54→    setLightboxOpen(true);
+    55→  };
+    56→
+    57→  // Group photos by category if requested
+    58→  const groupedPhotos = groupByCategory
+    59→    ? normalizedPhotos.reduce((acc, photo) => {
+    60→        const cat = photo.category || "other";
+    61→        if (!acc[cat]) acc[cat] = [];
+    62→        acc[cat].push(photo);
+    63→        return acc;
+    64→      }, {})
+    65→    : null;
+    66→
+    67→  if (normalizedPhotos.length === 0) {
+    68→    return (
+    69→      <div className={`text-sm text-slate-500 italic ${className}`}>
+    70→        No photos
+    71→      </div>
+    72→    );
+    73→  }
+    74→
+    75→  // Grouped view
+    76→  if (groupByCategory && groupedPhotos) {
+    77→    return (
+    78→      <>
+    79→        <div className={`space-y-4 ${className}`}>
+    80→          {Object.entries(groupedPhotos).map(([category, categoryPhotos]) => (
+    81→            <div key={category}>
+    82→              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">
+    83→                {CATEGORY_LABELS[category] || category} ({categoryPhotos.length})
+    84→              </p>
+    85→              <div className="flex flex-wrap gap-2">
+    86→                {categoryPhotos.map((photo, idx) => {
+    87→                  const globalIndex = normalizedPhotos.findIndex((p) => p.id === photo.id);
+    88→                  return (
+    89→                    <PhotoThumbnail
+    90→                      key={photo.id}
+    91→                      photo={photo}
+    92→                      size={size}
+    93→                      onClick={() => openLightbox(globalIndex)}
+    94→                    />
+    95→                  );
+    96→                })}
+    97→              </div>
+    98→            </div>
+    99→          ))}
+   100→        </div>
+   101→        <PhotoLightbox
+   102→          photos={normalizedPhotos}
+   103→          isOpen={lightboxOpen}
+   104→          currentIndex={lightboxIndex}
+   105→          onClose={() => setLightboxOpen(false)}
+   106→          onNavigate={setLightboxIndex}
+   107→        />
+   108→      </>
+   109→    );
+   110→  }
+   111→
+   112→  // Flat view
+   113→  return (
+   114→    <>
+   115→      <div className={`flex flex-wrap gap-2 ${className}`}>
+   116→        {visiblePhotos.map((photo, idx) => (
+   117→          <PhotoThumbnail
+   118→            key={photo.id}
+   119→            photo={photo}
+   120→            size={size}
+   121→            onClick={() => openLightbox(idx)}
+   122→          />
+   123→        ))}
+   124→        {!showAll && hiddenCount > 0 && (
+   125→          <button
+   126→            onClick={() => setShowAll(true)}
+   127→            className={`${size} rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 flex items-center justify-center transition-colors`}
+   128→          >
+   129→            <span className="text-sm font-semibold text-slate-600">+{hiddenCount}</span>
+   130→          </button>
+   131→        )}
+   132→      </div>
+   133→      {showCount && normalizedPhotos.length > 0 && (
+   134→        <p className="text-xs text-slate-500 mt-2">
+   135→          {normalizedPhotos.length} photo{normalizedPhotos.length !== 1 ? "s" : ""}
+   136→        </p>
+   137→      )}
+   138→      <PhotoLightbox
+   139→        photos={normalizedPhotos}
+   140→        isOpen={lightboxOpen}
+   141→        currentIndex={lightboxIndex}
+   142→        onClose={() => setLightboxOpen(false)}
+   143→        onNavigate={setLightboxIndex}
+   144→      />
+   145→    </>
+   146→  );
+   147→}
+   148→
+   149→function PhotoThumbnail({ photo, size, onClick }) {
+   150→  return (
+   151→    <button
+   152→      onClick={onClick}
+   153→      className={`${size} relative group rounded-lg overflow-hidden border border-slate-200 hover:border-violet-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2`}
+   154→    >
+   155→      <img
+   156→        src={photo.url}
+   157→        alt={photo.caption || photo.category || "Photo"}
+   158→        className="w-full h-full object-cover"
+   159→        loading="lazy"
+   160→      />
+   161→      {/* Hover overlay */}
+   162→      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+   163→        <svg
+   164→          className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"
+   165→          fill="none"
+   166→          stroke="currentColor"
+   167→          viewBox="0 0 24 24"
+   168→        >
+   169→          <path
+   170→            strokeLinecap="round"
+   171→            strokeLinejoin="round"
+   172→            strokeWidth={2}
+   173→            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+   174→          />
+   175→        </svg>
+   176→      </div>
+   177→      {/* Caption badge */}
+   178→      {photo.caption && (
+   179→        <span className="absolute bottom-0 left-0 right-0 text-[9px] bg-black/60 text-white px-1 py-0.5 truncate">
+   180→          {photo.caption}
+   181→        </span>
+   182→      )}
+   183→    </button>
+   184→  );
+   185→}
+   186→
+   187→function PhotoLightbox({ photos, isOpen, currentIndex, onClose, onNavigate }) {
+   188→  const handleKeyDown = useCallback(
+   189→    (e) => {
+   190→      if (!isOpen) return;
+   191→      if (e.key === "Escape") onClose();
+   192→      if (e.key === "ArrowLeft" && currentIndex > 0) onNavigate(currentIndex - 1);
+   193→      if (e.key === "ArrowRight" && currentIndex < photos.length - 1) onNavigate(currentIndex + 1);
+   194→    },
+   195→    [isOpen, currentIndex, photos.length, onClose, onNavigate]
+   196→  );
+   197→
+   198→  useEffect(() => {
+   199→    window.addEventListener("keydown", handleKeyDown);
+   200→    return () => window.removeEventListener("keydown", handleKeyDown);
+   201→  }, [handleKeyDown]);
+   202→
+   203→  useEffect(() => {
+   204→    if (isOpen) {
+   205→      document.body.style.overflow = "hidden";
+   206→    } else {
+   207→      document.body.style.overflow = "";
+   208→    }
+   209→    return () => {
+   210→      document.body.style.overflow = "";
+   211→    };
+   212→  }, [isOpen]);
+   213→
+   214→  if (!isOpen || !photos.length) return null;
+   215→
+   216→  const currentPhoto = photos[currentIndex];
+   217→  const hasPrev = currentIndex > 0;
+   218→  const hasNext = currentIndex < photos.length - 1;
+   219→
+   220→  return (
+   221→    <div
+   222→      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+   223→      onClick={onClose}
+   224→    >
+   225→      {/* Close button */}
+   226→      <button
+   227→        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+   228→        onClick={onClose}
+   229→      >
+   230→        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   231→          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+   232→        </svg>
+   233→      </button>
+   234→
+   235→      {/* Navigation - Previous */}
+   236→      {hasPrev && (
+   237→        <button
+   238→          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+   239→          onClick={(e) => {
+   240→            e.stopPropagation();
+   241→            onNavigate(currentIndex - 1);
+   242→          }}
+   243→        >
+   244→          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   245→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+   246→          </svg>
+   247→        </button>
+   248→      )}
+   249→
+   250→      {/* Navigation - Next */}
+   251→      {hasNext && (
+   252→        <button
+   253→          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+   254→          onClick={(e) => {
+   255→            e.stopPropagation();
+   256→            onNavigate(currentIndex + 1);
+   257→          }}
+   258→        >
+   259→          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   260→            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+   261→          </svg>
+   262→        </button>
+   263→      )}
+   264→
+   265→      {/* Main image */}
+   266→      <img
+   267→        src={currentPhoto.url}
+   268→        alt={currentPhoto.caption || `Photo ${currentIndex + 1}`}
+   269→        className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+   270→        onClick={(e) => e.stopPropagation()}
+   271→      />
+   272→
+   273→      {/* Bottom bar - counter + open original */}
+   274→      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 px-4 py-2 rounded-full bg-black/50 text-white text-sm">
+   275→        <span>
+   276→          {currentIndex + 1} / {photos.length}
+   277→        </span>
+   278→        {currentPhoto.category && (
+   279→          <>
+   280→            <span className="w-px h-4 bg-white/30" />
+   281→            <span className="text-white/70 capitalize">{currentPhoto.category}</span>
+   282→          </>
+   283→        )}
+   284→        <span className="w-px h-4 bg-white/30" />
+   285→        <a
+   286→          href={currentPhoto.url}
+   287→          target="_blank"
+   288→          rel="noopener noreferrer"
+   289→          className="flex items-center gap-1 hover:text-violet-300 transition-colors"
+   290→          onClick={(e) => e.stopPropagation()}
+   291→        >
+   292→          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+   293→            <path
+   294→              strokeLinecap="round"
+   295→              strokeLinejoin="round"
+   296→              strokeWidth={2}
+   297→              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+   298→            />
+   299→          </svg>
+   300→          Open
+   301→        </a>
+   302→      </div>
+   303→    </div>
+   304→  );
+   305→}
+   306→
+   307→export default PhotoGallery;
+   308→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

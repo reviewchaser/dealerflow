@@ -1,0 +1,15 @@
+The file C:\Users\georg\dealerflow\pages\overtime.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   316→      <div className="max-w-6xl mx-auto">
+   317→        {/* Header */}
+   318→        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+   319→          <div>
+   320→            <h1 className="text-2xl font-bold text-slate-900">Overtime</h1>
+   321→            <p className="text-slate-500 text-sm mt-1">
+   322→              Track and submit your weekly overtime hours
+   323→            </p>
+   324→            <div className="mt-2"><PageHint id="overtime">Log your extra hours worked each week. Submit for manager approval when ready.</PageHint></div>
+   325→          </div>
+   326→          <button
+   327→            onClick={() => handleCreate(selectedWeek)}
+   328→            className="btn btn-primary gap-2"
+   329→          >

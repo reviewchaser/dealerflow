@@ -1,0 +1,2 @@
+C:\Users\georg\dealerflow\pages\api\admin\dealers.js:23:            DealerMembership.countDocuments({ dealerId: dealer._id, status: "ACTIVE" }),
+C:\Users\georg\dealerflow\pages\api\admin\dealers.js:25:            DealerMembership.findOne({ dealerId: dealer._id, role: "OWNER", status: "ACTIVE" })

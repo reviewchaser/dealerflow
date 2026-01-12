@@ -1,0 +1,13 @@
+The file C:\Users\georg\dealerflow\pages\api\contacts\index.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+    78→      accountReference,
+    79→      financeSettings,
+    80→    } = req.body;
+    81→
+    82→    const contactName = displayName || name;
+    83→    if (!contactName) {
+    84→      return res.status(400).json({ error: "Name is required" });
+    85→    }
+    86→
+    87→    // Handle backward compatibility for type -> typeTags
+    88→    let tags = typeTags;
+    89→    if (!tags && type) {

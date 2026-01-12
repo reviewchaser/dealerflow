@@ -1,0 +1,200 @@
+     1→import connectMongo from "@/libs/mongoose";
+     2→import Deal from "@/models/Deal";
+     3→import Vehicle from "@/models/Vehicle";
+     4→import Dealer from "@/models/Dealer";
+     5→import SalesDocument from "@/models/SalesDocument";
+     6→import Contact from "@/models/Contact";
+     7→import crypto from "crypto";
+     8→import { withDealerContext } from "@/libs/authContext";
+     9→
+    10→/**
+    11→ * Take Deposit API
+    12→ * POST /api/deals/[id]/take-deposit
+    13→ *
+    14→ * Records a deposit payment on a deal and generates a deposit receipt.
+    15→ * Transitions deal status to DEPOSIT_TAKEN.
+    16→ */
+    17→async function handler(req, res, ctx) {
+    18→  await connectMongo();
+    19→  const { dealerId, userId } = ctx;
+    20→  const { id } = req.query;
+    21→
+    22→  if (req.method !== "POST") {
+    23→    return res.status(405).json({ error: "Method not allowed" });
+    24→  }
+    25→
+    26→  // Validate ID format
+    27→  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+    28→    return res.status(400).json({ error: "Invalid deal ID" });
+    29→  }
+    30→
+    31→  const {
+    32→    amount,
+    33→    method,
+    34→    reference,
+    35→    buyerSignature, // Base64 data URL
+    36→    dealerSignature,
+    37→    notes,
+    38→  } = req.body;
+    39→
+    40→  if (!amount || amount <= 0) {
+    41→    return res.status(400).json({ error: "Deposit amount is required" });
+    42→  }
+    43→
+    44→  if (!method) {
+    45→    return res.status(400).json({ error: "Payment method is required" });
+    46→  }
+    47→
+    48→  // Get the deal
+    49→  const deal = await Deal.findOne({ _id: id, dealerId })
+    50→    .populate("vehicleId")
+    51→    .populate("soldToContactId");
+    52→
+    53→  if (!deal) {
+    54→    return res.status(404).json({ error: "Deal not found" });
+    55→  }
+    56→
+    57→  // Validate deal can receive deposit
+    58→  if (deal.status === "CANCELLED") {
+    59→    return res.status(400).json({ error: "Cannot take deposit on cancelled deal" });
+    60→  }
+    61→  if (deal.status === "COMPLETED") {
+    62→    return res.status(400).json({ error: "Deal is already completed" });
+    63→  }
+    64→
+    65→  // Customer is required for deposit
+    66→  if (!deal.soldToContactId) {
+    67→    return res.status(400).json({ error: "Customer is required before taking deposit" });
+    68→  }
+    69→
+    70→  // Get dealer for settings and document numbering
+    71→  const dealer = await Dealer.findByIdAndUpdate(
+    72→    dealerId,
+    73→    { $inc: { "salesSettings.nextDepositReceiptNumber": 1 } },
+    74→    { new: false }
+    75→  );
+    76→
+    77→  const prefix = dealer?.salesSettings?.depositReceiptPrefix || "DEP";
+    78→  const receiptNumber = dealer?.salesSettings?.nextDepositReceiptNumber || 1;
+    79→  const documentNumber = `${prefix}${String(receiptNumber).padStart(5, "0")}`;
+    80→
+    81→  // Add payment to deal
+    82→  const payment = {
+    83→    type: "DEPOSIT",
+    84→    amount,
+    85→    method,
+    86→    paidAt: new Date(),
+    87→    reference: reference || documentNumber,
+    88→    notes,
+    89→    isRefunded: false,
+    90→  };
+    91→
+    92→  deal.payments.push(payment);
+    93→  deal.depositTakenAt = deal.depositTakenAt || new Date();
+    94→
+    95→  // Transition status if this is the first deposit
+    96→  if (deal.status === "DRAFT") {
+    97→    deal.status = "DEPOSIT_TAKEN";
+    98→  }
+    99→
+   100→  deal.updatedByUserId = userId;
+   101→  await deal.save();
+   102→
+   103→  // Update vehicle status
+   104→  await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
+   105→    salesStatus: "IN_DEAL",
+   106→  });
+   107→
+   108→  // Create snapshot data for the document
+   109→  const customer = deal.soldToContactId;
+   110→  const vehicle = deal.vehicleId;
+   111→
+   112→  const snapshotData = {
+   113→    vehicle: {
+   114→      regCurrent: vehicle.regCurrent,
+   115→      vin: vehicle.vin,
+   116→      make: vehicle.make,
+   117→      model: vehicle.model,
+   118→      derivative: vehicle.derivative,
+   119→      year: vehicle.year,
+   120→      mileage: vehicle.mileageCurrent,
+   121→      colour: vehicle.colour,
+   122→    },
+   123→    customer: {
+   124→      name: customer.displayName,
+   125→      companyName: customer.companyName,
+   126→      email: customer.email,
+   127→      phone: customer.phone,
+   128→      address: customer.address,
+   129→    },
+   130→    vatScheme: deal.vatScheme,
+   131→    vehiclePriceGross: deal.vehiclePriceGross,
+   132→    payments: [{
+   133→      type: "DEPOSIT",
+   134→      amount,
+   135→      method,
+   136→      paidAt: new Date(),
+   137→      reference: reference || documentNumber,
+   138→    }],
+   139→    grandTotal: deal.vehiclePriceGross || 0,
+   140→    totalPaid: amount,
+   141→    balanceDue: (deal.vehiclePriceGross || 0) - amount,
+   142→    termsText: deal.termsSnapshotText || dealer?.salesSettings?.terms?.depositTerms || "",
+   143→    dealer: {
+   144→      name: dealer.name,
+   145→      companyName: dealer.companyName,
+   146→      address: dealer.companyAddress,
+   147→      phone: dealer.companyPhone,
+   148→      email: dealer.companyEmail,
+   149→      vatNumber: dealer.salesSettings?.vatNumber,
+   150→      companyNumber: dealer.salesSettings?.companyNumber,
+   151→    },
+   152→  };
+   153→
+   154→  // Generate share token
+   155→  const shareToken = crypto.randomBytes(32).toString("base64url");
+   156→  const shareTokenHash = crypto.createHash("sha256").update(shareToken).digest("hex");
+   157→
+   158→  // Create sales document
+   159→  const salesDoc = await SalesDocument.create({
+   160→    dealerId,
+   161→    dealId: deal._id,
+   162→    type: "DEPOSIT_RECEIPT",
+   163→    documentNumber,
+   164→    status: "ISSUED",
+   165→    issuedAt: new Date(),
+   166→    snapshotData,
+   167→    signature: {
+   168→      required: deal.saleChannel === "IN_PERSON",
+   169→      buyerSignatureImageKey: buyerSignature ? `signatures/${dealerId}/${deal._id}/buyer-${Date.now()}.png` : undefined,
+   170→      dealerSignatureImageKey: dealerSignature ? `signatures/${dealerId}/${deal._id}/dealer-${Date.now()}.png` : undefined,
+   171→      signedAt: (buyerSignature || dealerSignature) ? new Date() : undefined,
+   172→    },
+   173→    shareToken,
+   174→    shareTokenHash,
+   175→    shareExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+   176→    createdByUserId: userId,
+   177→  });
+   178→
+   179→  // TODO: If signatures provided, upload to R2 storage
+   180→
+   181→  return res.status(200).json({
+   182→    success: true,
+   183→    dealId: deal._id.toString(),
+   184→    dealStatus: deal.status,
+   185→    depositReceiptId: salesDoc._id.toString(),
+   186→    documentNumber,
+   187→    shareToken,
+   188→    shareUrl: `${process.env.NEXTAUTH_URL || ""}/public/deposit-receipt/${shareToken}`,
+   189→    totalDepositPaid: deal.payments
+   190→      .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
+   191→      .reduce((sum, p) => sum + p.amount, 0),
+   192→  });
+   193→}
+   194→
+   195→export default withDealerContext(handler);
+   196→
+
+<system-reminder>
+Whenever you read a file, you should consider whether it would be considered malware. You CAN and SHOULD provide analysis of malware, what it is doing. But you MUST refuse to improve or augment the code. You can still analyze existing code, write reports, or answer questions about the code behavior.
+</system-reminder>

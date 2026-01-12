@@ -1,0 +1,20 @@
+The file C:\Users\georg\dealerflow\components\DashboardLayout.js has been updated. Here's the result of running `cat -n` on a snippet of the edited file:
+   136→    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+   137→  </svg>
+   138→);
+   139→
+   140→const navigation = [
+   141→  { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon },
+   142→  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon },
+   143→  { name: "Aftersales/Warranty", href: "/warranty", Icon: WrenchIcon },
+   144→  { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon },
+   145→  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon },
+   146→  { name: "Reviews", href: "/reviews", Icon: StarIcon },
+   147→  { name: "Calendar", href: "/calendar", Icon: CalendarIcon },
+   148→  { name: "Overtime", href: "/overtime", Icon: ClockIcon },
+   149→  { name: "Settings", href: "/settings", Icon: CogIcon },
+   150→];
+   151→
+   152→// Cache key for logo URL in localStorage
+   153→const LOGO_CACHE_KEY = "dealerflow_logo_url";
+   154→const DEALER_NAME_CACHE_KEY = "dealerflow_dealer_name";
