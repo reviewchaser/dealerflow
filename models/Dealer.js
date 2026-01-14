@@ -124,6 +124,10 @@ const dealerSchema = new mongoose.Schema(
       invoiceNumberPrefix: { type: String, default: "INV" },
       nextDepositReceiptNumber: { type: Number, default: 1 },
       depositReceiptPrefix: { type: String, default: "DEP" },
+      nextSelfBillNumber: { type: Number, default: 1 },
+      selfBillPrefix: { type: String, default: "SB" },
+      nextPaymentReceiptNumber: { type: Number, default: 1 },
+      paymentReceiptPrefix: { type: String, default: "PAY" },
 
       // Default VAT settings
       defaultVatScheme: {

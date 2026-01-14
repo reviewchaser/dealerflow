@@ -129,13 +129,26 @@ async function handler(req, res, ctx) {
     return sum;
   }, 0);
 
-  // Total payments
-  const totalPaid = (deal.payments || [])
-    .filter(p => !p.isRefunded)
+  // Total payments - broken down by type
+  const validPayments = (deal.payments || []).filter(p => !p.isRefunded);
+  const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0);
+  const depositPaid = validPayments
+    .filter(p => p.type === "DEPOSIT")
+    .reduce((sum, p) => sum + p.amount, 0);
+  const otherPayments = validPayments
+    .filter(p => p.type !== "DEPOSIT")
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Finance advance (if customer is financing through a company)
+  const financeAdvance = validPayments
+    .filter(p => p.type === "FINANCE_ADVANCE")
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Part exchange net value
   const pxNetValue = px ? (px.allowance || 0) - (px.settlement || 0) : 0;
+
+  // Delivery amount
+  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
 
   // Calculate grand total based on VAT scheme
   let subtotal, totalVat, grandTotal;
@@ -143,12 +156,12 @@ async function handler(req, res, ctx) {
   if (deal.vatScheme === "VAT_QUALIFYING") {
     subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
     totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-    grandTotal = subtotal + totalVat;
+    grandTotal = subtotal + totalVat + deliveryAmount;
   } else {
     // Margin scheme - no VAT breakdown
     subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
     totalVat = 0;
-    grandTotal = subtotal;
+    grandTotal = subtotal + deliveryAmount;
   }
 
   const balanceDue = grandTotal - totalPaid - pxNetValue;
@@ -203,6 +216,7 @@ async function handler(req, res, ctx) {
     } : null),
     vatScheme: deal.vatScheme,
     saleType: deal.saleType, // RETAIL, TRADE, or EXPORT
+    isVatRegistered: dealer?.salesSettings?.vatRegistered !== false,
     vehiclePriceNet: deal.vehiclePriceNet,
     vehicleVatAmount: deal.vehicleVatAmount,
     vehiclePriceGross: deal.vehiclePriceGross,
@@ -235,10 +249,21 @@ async function handler(req, res, ctx) {
       paidAt: p.paidAt,
       reference: p.reference,
     })),
+    // Delivery
+    delivery: deal.delivery ? {
+      amount: deal.delivery.amount,
+      isFree: deal.delivery.isFree,
+      notes: deal.delivery.notes,
+    } : null,
+    // Totals
     subtotal,
     totalVat,
     grandTotal,
+    // Payment breakdown for invoice display
     totalPaid,
+    depositPaid,
+    otherPayments,
+    financeAdvance,
     partExchangeNet: pxNetValue,
     balanceDue,
     termsText: deal.termsSnapshotText || getTermsText(deal, dealer),

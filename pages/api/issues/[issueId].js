@@ -4,6 +4,7 @@ import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
+import { logIssuePartsOrdered, logIssuePartsReceived, logIssueResolved } from "@/libs/activityLogger";
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -54,6 +55,20 @@ async function handler(req, res, ctx) {
         updates.completedAt = new Date();
       }
 
+      // Handle parts ordered toggle
+      const wasPartsOrdered = issue.partsOrdered;
+      if (updates.partsOrdered === true && !wasPartsOrdered) {
+        updates.partsOrderedAt = new Date();
+        updates.partsOrderedBy = userId;
+      }
+
+      // Handle parts received toggle
+      const wasPartsReceived = issue.partsReceived;
+      if (updates.partsReceived === true && !wasPartsReceived) {
+        updates.partsReceivedAt = new Date();
+        updates.partsReceivedBy = userId;
+      }
+
       updates.updatedByUserId = userId;
 
       const updatedIssue = await VehicleIssue.findByIdAndUpdate(
@@ -82,6 +97,21 @@ async function handler(req, res, ctx) {
             to: updates.status,
           },
         });
+
+        // Log to ActivityLog (for dashboard feed) when issue is resolved
+        if (isResolved) {
+          await logIssueResolved({
+            dealerId,
+            issueId: issue._id,
+            vehicleId: issue.vehicleId,
+            vehicleReg: vehicle.regCurrent,
+            vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+            category: issue.category,
+            subcategory: issue.subcategory,
+            userId,
+            userName: actorName,
+          });
+        }
       } else if (Object.keys(updates).length > 1) {
         // Log general update if other fields changed (not just status)
         await VehicleActivity.log({
@@ -96,6 +126,43 @@ async function handler(req, res, ctx) {
             category: issue.category,
             subcategory: issue.subcategory,
           },
+        });
+      }
+
+      // Log parts ordered to ActivityLog (for dashboard feed)
+      if (updates.partsOrdered === true && !wasPartsOrdered) {
+        console.log("[DEBUG] Logging parts ordered - vehicle data:", {
+          vehicleId: vehicle._id,
+          regCurrent: vehicle.regCurrent,
+          make: vehicle.make,
+          model: vehicle.model,
+        });
+        await logIssuePartsOrdered({
+          dealerId,
+          issueId: issue._id,
+          vehicleId: issue.vehicleId,
+          vehicleReg: vehicle.regCurrent,
+          vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+          category: issue.category,
+          subcategory: issue.subcategory,
+          supplier: updates.partsSupplier || null,
+          userId,
+          userName: actorName,
+        });
+      }
+
+      // Log parts received to ActivityLog (for dashboard feed)
+      if (updates.partsReceived === true && !wasPartsReceived) {
+        await logIssuePartsReceived({
+          dealerId,
+          issueId: issue._id,
+          vehicleId: issue.vehicleId,
+          vehicleReg: vehicle.regCurrent,
+          vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+          category: issue.category,
+          subcategory: issue.subcategory,
+          userId,
+          userName: actorName,
         });
       }
 

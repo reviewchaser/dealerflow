@@ -4,6 +4,7 @@ import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
+import { logTaskPartsOrdered, logTaskPartsReceived, logTaskCompleted } from "@/libs/activityLogger";
 
 // Human-readable labels for statuses
 const STATUS_LABELS = {
@@ -219,6 +220,20 @@ async function handler(req, res, ctx) {
             to: status,
           },
         });
+
+        // Also log task completion to ActivityLog for dashboard feed
+        if (isCompleted) {
+          await logTaskCompleted({
+            dealerId,
+            taskId: task._id,
+            vehicleId: task.vehicleId,
+            vehicleReg: vehicle.regCurrent,
+            vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+            taskName: task.name,
+            userId,
+            userName: actorName,
+          });
+        }
       }
 
       // Log activity for progress changes
@@ -309,6 +324,19 @@ async function handler(req, res, ctx) {
             order: partsOrderAdded,
           },
         });
+
+        // Also log to ActivityLog for dashboard feed
+        await logTaskPartsOrdered({
+          dealerId,
+          taskId: task._id,
+          vehicleId: task.vehicleId,
+          vehicleReg: vehicle.regCurrent,
+          vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+          taskName: task.name,
+          supplier: supplierDisplay,
+          userId,
+          userName: actorName,
+        });
       }
 
       // Log activity for parts order updated
@@ -340,6 +368,20 @@ async function handler(req, res, ctx) {
             after: partsOrderUpdated.after,
           },
         });
+
+        // Log to ActivityLog when parts are received (for dashboard feed)
+        if (partsOrderUpdated.after.status === "RECEIVED" && partsOrderUpdated.before.status !== "RECEIVED") {
+          await logTaskPartsReceived({
+            dealerId,
+            taskId: task._id,
+            vehicleId: task.vehicleId,
+            vehicleReg: vehicle.regCurrent,
+            vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+            taskName: task.name,
+            userId,
+            userName: actorName,
+          });
+        }
       }
 
       // Log activity for parts order removed

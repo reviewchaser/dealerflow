@@ -1,10 +1,20 @@
 import connectMongo from "@/libs/mongoose";
 import VehicleDocument from "@/models/VehicleDocument";
+import Vehicle from "@/models/Vehicle";
+import User from "@/models/User";
+import { withDealerContext } from "@/libs/authContext";
+import { logDocumentUploaded } from "@/libs/activityLogger";
 
-export default async function handler(req, res) {
+async function handler(req, res, ctx) {
   await connectMongo();
-
+  const { dealerId, userId, user } = ctx;
   const { id } = req.query; // vehicleId
+
+  // Verify vehicle belongs to this dealer
+  const vehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+  if (!vehicle) {
+    return res.status(404).json({ error: "Vehicle not found" });
+  }
 
   if (req.method === "GET") {
     try {
@@ -29,6 +39,23 @@ export default async function handler(req, res) {
         name,
         type,
         url,
+        uploadedBy: userId,
+      });
+
+      // Get actor name for activity logging
+      const actor = await User.findById(userId).lean();
+      const actorName = actor?.name || user?.name || user?.email || "System";
+
+      // Log to ActivityLog for dashboard feed
+      await logDocumentUploaded({
+        dealerId,
+        vehicleId: id,
+        vehicleReg: vehicle.regCurrent,
+        vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+        documentName: name,
+        documentType: type,
+        userId,
+        userName: actorName,
       });
 
       return res.status(201).json(document.toJSON());
@@ -40,3 +67,5 @@ export default async function handler(req, res) {
 
   return res.status(405).json({ error: "Method not allowed" });
 }
+
+export default withDealerContext(handler);

@@ -112,7 +112,13 @@ export default function AppraisalDetail() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ initialStatus: "in_stock" }),
       });
-      if (!res.ok) throw new Error("Failed to convert");
+      if (!res.ok) {
+        const error = await res.json();
+        if (res.status === 409) {
+          throw new Error(error.message || "Vehicle already in stock");
+        }
+        throw new Error(error.error || "Failed to convert");
+      }
       toast.success("Vehicle created!");
       router.push("/sales-prep");
     } catch (error) {

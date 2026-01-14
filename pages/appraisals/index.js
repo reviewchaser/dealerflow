@@ -41,6 +41,19 @@ export default function Appraisals() {
   const newDropdownRef = useRef(null);
   const vrmSearchRef = useRef(null);
 
+  // Helper to build context-aware URLs (tenant or legacy)
+  const buildUrl = (path) => {
+    // Check if we're in tenant context: /app/[dealerSlug]/...
+    if (router.asPath.startsWith("/app/")) {
+      const parts = router.asPath.split("/");
+      const tenantSlug = parts[2];
+      if (tenantSlug) {
+        return `/app/${tenantSlug}${path}`;
+      }
+    }
+    return path;
+  };
+
   useEffect(() => {
     fetchAppraisals();
     fetchPxAppraisals();
@@ -157,6 +170,9 @@ export default function Appraisals() {
 
       if (!res.ok) {
         const error = await res.json();
+        if (res.status === 409) {
+          throw new Error(error.message || "Vehicle already in stock");
+        }
         throw new Error(error.error || "Failed to convert");
       }
 
@@ -294,7 +310,7 @@ export default function Appraisals() {
             {showNewDropdown && (
               <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50">
                 <Link
-                  href="/appraisals/new"
+                  href={buildUrl("/appraisals/new")}
                   className="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
                   onClick={() => setShowNewDropdown(false)}
                 >
@@ -490,7 +506,7 @@ export default function Appraisals() {
             </p>
             <div className="flex justify-center gap-3">
               <Link
-                href="/appraisals/new"
+                href={buildUrl("/appraisals/new")}
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#0066CC] to-[#14B8A6] text-white rounded-xl font-medium shadow-lg shadow-[#0066CC]/30 hover:shadow-[#0066CC]/40 transition-all"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -518,7 +534,7 @@ export default function Appraisals() {
             const id = a.id || a._id;
             const isMenuOpen = openMenuId === id;
             const type = a.source;
-            const viewUrl = type === "px" ? `/appraisals/px/${id}` : `/appraisals/${id}`;
+            const viewUrl = buildUrl(type === "px" ? `/appraisals/px/${id}` : `/appraisals/${id}`);
 
             return (
               <div

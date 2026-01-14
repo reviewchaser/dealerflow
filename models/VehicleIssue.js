@@ -47,7 +47,16 @@ const vehicleIssueSchema = new mongoose.Schema(
     sourceFieldKey: { type: String },
     // Parts tracking
     partsRequired: { type: Boolean, default: false },
-    partsDetails: { type: String }, // supplier, part no, ordered by, ETA
+    partsDetails: { type: String }, // supplier, part no, ordered by, ETA (legacy)
+    // New structured parts tracking
+    partsOrdered: { type: Boolean, default: false },
+    partsOrderedAt: { type: Date },
+    partsOrderedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    partsSupplier: { type: String }, // e.g. "Euro Car Parts", "TPS"
+    partsNotes: { type: String }, // Order ref, ETA, any notes
+    partsReceived: { type: Boolean, default: false },
+    partsReceivedAt: { type: Date },
+    partsReceivedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

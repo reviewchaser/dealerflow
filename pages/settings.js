@@ -12,10 +12,14 @@ export default function Settings() {
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
   const [prepTasks, setPrepTasks] = useState([]);
+  const [addOns, setAddOns] = useState([]);
+  const [financeCompanies, setFinanceCompanies] = useState([]);
   const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", category: "OTHER" });
+  const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "" });
 
   // Dealer branding state
   const [dealer, setDealer] = useState(null);
@@ -101,6 +105,8 @@ export default function Settings() {
     fetchCategories();
     fetchLocations();
     fetchPrepTasks();
+    fetchAddOns();
+    fetchFinanceCompanies();
     fetchDealer();
     fetchIntegrationStatus();
   }, []);
@@ -175,6 +181,99 @@ export default function Settings() {
       toast.success("Label deleted");
     } catch (error) {
       toast.error("Failed to delete label");
+    }
+  };
+
+  // Add-on products functions
+  const fetchAddOns = async () => {
+    try {
+      const res = await fetch("/api/addons?active=all");
+      const data = await res.json();
+      setAddOns(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load add-ons:", error);
+    }
+  };
+
+  const addAddOn = async (e) => {
+    e.preventDefault();
+    if (!newAddOn.name) return toast.error("Product name required");
+    if (!newAddOn.defaultPriceNet) return toast.error("Price required");
+    try {
+      const res = await fetch("/api/addons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAddOn.name,
+          defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
+          category: newAddOn.category,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add");
+      setNewAddOn({ name: "", defaultPriceNet: "", category: "OTHER" });
+      fetchAddOns();
+      toast.success("Add-on product created");
+    } catch (error) {
+      toast.error("Failed to add product");
+    }
+  };
+
+  const deleteAddOn = async (addOnId) => {
+    if (!confirm("Delete this add-on product?")) return;
+    try {
+      await fetch(`/api/addons/${addOnId}`, { method: "DELETE" });
+      fetchAddOns();
+      toast.success("Add-on deleted");
+    } catch (error) {
+      toast.error("Failed to delete add-on");
+    }
+  };
+
+  // Finance companies functions
+  const fetchFinanceCompanies = async () => {
+    try {
+      const res = await fetch("/api/contacts?type=FINANCE&active=all");
+      const data = await res.json();
+      setFinanceCompanies(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Failed to load finance companies:", error);
+    }
+  };
+
+  const addFinanceCompany = async (e) => {
+    e.preventDefault();
+    if (!newFinanceCompany.name) return toast.error("Company name required");
+    try {
+      const res = await fetch("/api/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: newFinanceCompany.name,
+          typeTags: ["FINANCE"],
+          financeSettings: {
+            contactPerson: newFinanceCompany.contactPerson,
+            contactEmail: newFinanceCompany.contactEmail,
+            contactPhone: newFinanceCompany.contactPhone,
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to add");
+      setNewFinanceCompany({ name: "", contactPerson: "", contactEmail: "", contactPhone: "" });
+      fetchFinanceCompanies();
+      toast.success("Finance company added");
+    } catch (error) {
+      toast.error("Failed to add finance company");
+    }
+  };
+
+  const deleteFinanceCompany = async (contactId) => {
+    if (!confirm("Remove this finance company?")) return;
+    try {
+      await fetch(`/api/contacts/${contactId}`, { method: "DELETE" });
+      fetchFinanceCompanies();
+      toast.success("Finance company removed");
+    } catch (error) {
+      toast.error("Failed to remove finance company");
     }
   };
 
@@ -1013,6 +1112,140 @@ export default function Settings() {
               <button type="submit" className="btn btn-primary mt-6" disabled={isSavingSales}>
                 {isSavingSales ? <span className="loading loading-spinner loading-sm"></span> : "Save Sales Settings"}
               </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Add-on Products */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Add-on Products</h2>
+            <p className="text-sm text-base-content/60">Products that can be added to vehicle sales (e.g. "Paint Protection", "GAP Insurance", "Extended Warranty")</p>
+
+            <div className="space-y-2 mt-4">
+              {addOns.length === 0 ? (
+                <p className="text-sm text-base-content/50 text-center py-4">No add-on products created yet</p>
+              ) : (
+                addOns.map((addon) => (
+                  <div key={addon.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
+                    <div>
+                      <p className="font-medium">{addon.name}</p>
+                      <p className="text-xs text-base-content/60">
+                        {addon.category} · £{(addon.defaultPriceNet || 0).toFixed(2)} net
+                      </p>
+                    </div>
+                    <button
+                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => deleteAddOn(addon.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={addAddOn} className="mt-4 space-y-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="input input-bordered input-sm flex-1"
+                  placeholder="Product name"
+                  value={newAddOn.name}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, name: e.target.value })}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm w-28"
+                  placeholder="Price (net)"
+                  value={newAddOn.defaultPriceNet}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, defaultPriceNet: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                <select
+                  className="select select-bordered select-sm flex-1"
+                  value={newAddOn.category}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, category: e.target.value })}
+                >
+                  <option value="WARRANTY">Warranty</option>
+                  <option value="PROTECTION">Protection</option>
+                  <option value="FINANCE">Finance Product</option>
+                  <option value="ACCESSORY">Accessory</option>
+                  <option value="SERVICE">Service</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <button type="submit" className="btn btn-primary btn-sm">Add Product</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Finance Companies */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Finance Companies</h2>
+            <p className="text-sm text-base-content/60">Quick-add finance companies for part exchange settlements and customer finance</p>
+
+            <div className="space-y-2 mt-4">
+              {financeCompanies.length === 0 ? (
+                <p className="text-sm text-base-content/50 text-center py-4">No finance companies added yet</p>
+              ) : (
+                financeCompanies.map((fc) => (
+                  <div key={fc.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
+                    <div>
+                      <p className="font-medium">{fc.displayName || fc.name}</p>
+                      {fc.financeSettings?.contactPerson && (
+                        <p className="text-xs text-base-content/60">Contact: {fc.financeSettings.contactPerson}</p>
+                      )}
+                    </div>
+                    <button
+                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => deleteFinanceCompany(fc.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <form onSubmit={addFinanceCompany} className="mt-4 space-y-3">
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full"
+                placeholder="Company name (e.g. Santander, Black Horse)"
+                value={newFinanceCompany.name}
+                onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, name: e.target.value })}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  className="input input-bordered input-sm"
+                  placeholder="Contact person"
+                  value={newFinanceCompany.contactPerson}
+                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactPerson: e.target.value })}
+                />
+                <input
+                  type="email"
+                  className="input input-bordered input-sm"
+                  placeholder="Contact email"
+                  value={newFinanceCompany.contactEmail}
+                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactEmail: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="tel"
+                  className="input input-bordered input-sm flex-1"
+                  placeholder="Contact phone"
+                  value={newFinanceCompany.contactPhone}
+                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactPhone: e.target.value })}
+                />
+                <button type="submit" className="btn btn-primary btn-sm">Add Company</button>
+              </div>
             </form>
           </div>
         </div>

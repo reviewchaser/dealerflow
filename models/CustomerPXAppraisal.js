@@ -11,6 +11,7 @@ const customerPXAppraisalSchema = new mongoose.Schema(
     customerPhone: { type: String },
     // Vehicle info
     vehicleReg: { type: String, required: true, uppercase: true },
+    vin: { type: String, uppercase: true }, // VIN from MOT API lookup
     vehicleMake: { type: String },
     vehicleModel: { type: String },
     vehicleYear: { type: Number },

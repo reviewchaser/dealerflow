@@ -145,6 +145,7 @@ export const authOptions = {
         try {
           await connectMongo();
           const DealerMembership = (await import("@/models/DealerMembership")).default;
+          const Dealer = (await import("@/models/Dealer")).default;
           const User = (await import("@/models/User")).default;
 
           // Get user's default dealer or first active membership
@@ -168,9 +169,14 @@ export const authOptions = {
           if (membership) {
             token.dealerId = membership.dealerId.toString();
             token.role = membership.role;
+
+            // Also fetch dealer slug for middleware redirects
+            const dealer = await Dealer.findById(membership.dealerId).select("slug").lean();
+            token.dealerSlug = dealer?.slug || null;
           } else {
             token.dealerId = null;
             token.role = null;
+            token.dealerSlug = null;
           }
         } catch (error) {
           console.error("[JWT Callback] Error fetching dealer context:", error);

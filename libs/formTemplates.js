@@ -373,21 +373,15 @@ For emergencies, contact: {dealer.companyPhone}`,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════════
-  // Warranty Claim
+  // Aftersales Issue Report
   // ═══════════════════════════════════════════════════════════════════════════════
   {
-    name: "Warranty Claim",
+    name: "Aftersales Issue",
     type: "WARRANTY_CLAIM",
     visibility: "PUBLIC", // Fully public - customers can access
     isPublic: true, // Deprecated - kept for backward compat
-    publicSlug: "warranty-claim",
-    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to page 5 of your warranty booklet.
-
-We will only accept one claim per submission, submitting more than once may delay your claim being processed.
-
-Please allow up to 48 hours for a response.
-
-PLEASE NOTE: ONLY THE PURCHASER OF THE VEHICLE CAN SUBMIT A CLAIM AND MUST HAVE REGISTERED THEIR WARRANTY.`,
+    publicSlug: "aftersales-issue",
+    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.`,
     vrmLookup: { enabled: true, statuses: ["SOLD", "DELIVERED"] },
     termsText: `• I understand that I can use this form to report an issue however, it may not be a claimable issue.
 • I understand it may take up to 48 hours to receive a response to this claim form, and not to report the issue again as this may delay the claim further.
@@ -456,9 +450,7 @@ export const VALID_FORM_TYPES = ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTES
 // Default intro/terms text that can be customized per dealer
 export const DEFAULT_FORM_TEXT = {
   WARRANTY_CLAIM: {
-    introText: `Please fill out the form below in as much detail as possible. We will only accept one claim per submission, submitting more than once may delay your claim being processed.
-
-Please allow up to 48 hours for a response.`,
+    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.`,
   },
   TEST_DRIVE: {
     termsText: `By signing this form, I confirm that:

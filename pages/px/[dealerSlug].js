@@ -36,6 +36,7 @@ export default function CustomerPXForm() {
     customerEmail: "",
     customerPhone: "",
     vehicleReg: "",
+    vin: "",
     vehicleMake: "",
     vehicleModel: "",
     vehicleYear: "",
@@ -71,7 +72,7 @@ export default function CustomerPXForm() {
 
   const fetchDealerInfo = async () => {
     try {
-      const res = await fetch(`/api/dealer?slug=${dealerSlug}`);
+      const res = await fetch(`/api/public/dealer/${dealerSlug}`);
       if (res.ok) {
         const data = await res.json();
         setDealerInfo(data);
@@ -90,24 +91,60 @@ export default function CustomerPXForm() {
 
   const handleDvlaLookup = async () => {
     if (!formData.vehicleReg) return toast.error("Enter registration first");
+    const vrm = formData.vehicleReg.replace(/\s/g, "").toUpperCase();
     setIsLookingUp(true);
     try {
-      const res = await fetch("/api/dvla-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
-      });
-      const data = await res.json();
-      setDvlaData(data);
+      // Call both DVLA and MOT APIs in parallel for complete data
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch("/api/dvla-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicleReg: vrm }),
+        }),
+        fetch(`/api/mot?vrm=${vrm}`),
+      ]);
+
+      const dvlaOk = dvlaRes.ok;
+      const motOk = motRes.ok;
+
+      const dvlaDataResponse = dvlaOk ? await dvlaRes.json() : null;
+      const motData = motOk ? await motRes.json() : null;
+
+      if (!dvlaOk && !motOk) {
+        toast.error("Vehicle not found - please enter details manually");
+        return;
+      }
+
+      // Merge data from both sources (MOT has VIN and model, DVLA has more details)
+      const mergedData = {
+        make: dvlaDataResponse?.make || motData?.make,
+        model: motData?.model || dvlaDataResponse?.model,
+        yearOfManufacture: dvlaDataResponse?.yearOfManufacture || motData?.yearOfManufacture,
+        colour: dvlaDataResponse?.colour || motData?.colour,
+        fuelType: dvlaDataResponse?.fuelType || motData?.fuelType,
+        vin: motData?.vin || null,
+        isDummy: dvlaDataResponse?.isDummy,
+      };
+
+      setDvlaData(mergedData);
       setFormData((prev) => ({
         ...prev,
-        vehicleMake: data.make || prev.vehicleMake,
-        vehicleModel: data.model || prev.vehicleModel,
-        vehicleYear: data.yearOfManufacture || prev.vehicleYear,
-        colour: data.colour || prev.colour,
-        fuelType: data.fuelType || prev.fuelType,
+        vin: mergedData.vin || prev.vin,
+        vehicleMake: mergedData.make || prev.vehicleMake,
+        vehicleModel: mergedData.model || prev.vehicleModel,
+        vehicleYear: mergedData.yearOfManufacture || prev.vehicleYear,
+        colour: mergedData.colour || prev.colour,
+        fuelType: mergedData.fuelType || prev.fuelType,
       }));
-      toast.success("Vehicle details found!");
+
+      // Show appropriate message based on data completeness
+      if (mergedData.vin && mergedData.model) {
+        toast.success("Vehicle details found!");
+      } else if (mergedData.make) {
+        toast.success("Basic details found - some fields may need manual entry");
+      } else {
+        toast.error("Limited data found - please verify details manually");
+      }
     } catch (error) {
       toast.error("Lookup failed - please enter details manually");
     } finally {
@@ -389,6 +426,20 @@ export default function CustomerPXForm() {
           {/* Vehicle Details */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <h2 className="text-lg font-semibold text-slate-900 mb-4">Vehicle Details</h2>
+
+            {/* VIN - auto-populated from MOT lookup */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">VIN (Vehicle Identification Number)</label>
+              <input
+                type="text"
+                name="vin"
+                value={formData.vin}
+                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
+                maxLength={17}
+              />
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Make</label>

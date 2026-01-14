@@ -20,11 +20,15 @@ const ACTIVITY_TYPE = {
   ISSUE_CREATED: "ISSUE_CREATED",
   ISSUE_RESOLVED: "ISSUE_RESOLVED",
   ISSUE_UPDATED: "ISSUE_UPDATED",
+  ISSUE_PARTS_ORDERED: "ISSUE_PARTS_ORDERED",
+  ISSUE_PARTS_RECEIVED: "ISSUE_PARTS_RECEIVED",
 
   // Task activities
   TASK_COMPLETED: "TASK_COMPLETED",
   TASK_CREATED: "TASK_CREATED",
   TASK_UPDATED: "TASK_UPDATED",
+  TASK_PARTS_ORDERED: "TASK_PARTS_ORDERED",
+  TASK_PARTS_RECEIVED: "TASK_PARTS_RECEIVED",
 
   // Deal activities
   DEAL_CREATED: "DEAL_CREATED",
@@ -45,6 +49,12 @@ const ACTIVITY_TYPE = {
   // Form activities
   FORM_SUBMITTED: "FORM_SUBMITTED",
 
+  // Document activities
+  DOCUMENT_UPLOADED: "DOCUMENT_UPLOADED",
+
+  // Label activities
+  LABELS_UPDATED: "LABELS_UPDATED",
+
   // General
   NOTE_ADDED: "NOTE_ADDED",
 };
@@ -52,12 +62,20 @@ const ACTIVITY_TYPE = {
 // Category mappings for filtering
 const ACTIVITY_CATEGORY = {
   VEHICLE: ["VEHICLE_ADDED", "VEHICLE_STATUS_CHANGED", "VEHICLE_LOCATION_CHANGED", "VEHICLE_UPDATED"],
-  ISSUE: ["ISSUE_CREATED", "ISSUE_RESOLVED", "ISSUE_UPDATED"],
-  TASK: ["TASK_COMPLETED", "TASK_CREATED", "TASK_UPDATED"],
+  ISSUE: ["ISSUE_CREATED", "ISSUE_RESOLVED", "ISSUE_UPDATED", "ISSUE_PARTS_ORDERED", "ISSUE_PARTS_RECEIVED"],
+  TASK: ["TASK_COMPLETED", "TASK_CREATED", "TASK_UPDATED", "TASK_PARTS_ORDERED", "TASK_PARTS_RECEIVED"],
   DEAL: ["DEAL_CREATED", "DEPOSIT_TAKEN", "INVOICE_GENERATED", "VEHICLE_DELIVERED", "SALE_COMPLETED"],
   APPRAISAL: ["APPRAISAL_CREATED", "APPRAISAL_DECIDED"],
   AFTERCARE: ["AFTERCARE_CASE_CREATED", "AFTERCARE_CASE_UPDATED", "AFTERCARE_CASE_CLOSED"],
   FORM: ["FORM_SUBMITTED"],
+  // Combined category for dashboard filters
+  STOCK_PREP: [
+    "VEHICLE_ADDED", "VEHICLE_STATUS_CHANGED", "VEHICLE_LOCATION_CHANGED",
+    "TASK_COMPLETED", "TASK_CREATED", "TASK_PARTS_ORDERED", "TASK_PARTS_RECEIVED",
+    "ISSUE_CREATED", "ISSUE_RESOLVED", "ISSUE_UPDATED", "ISSUE_PARTS_ORDERED", "ISSUE_PARTS_RECEIVED",
+    "DOCUMENT_UPLOADED", "LABELS_UPDATED"
+  ],
+  SALES: ["DEAL_CREATED", "DEPOSIT_TAKEN", "INVOICE_GENERATED", "VEHICLE_DELIVERED", "SALE_COMPLETED"],
 };
 
 // Icon and color mappings for the UI
@@ -69,9 +87,13 @@ const ACTIVITY_CONFIG = {
   ISSUE_CREATED: { icon: "exclamation-triangle", color: "red" },
   ISSUE_RESOLVED: { icon: "check-circle", color: "green" },
   ISSUE_UPDATED: { icon: "pencil-square", color: "amber" },
+  ISSUE_PARTS_ORDERED: { icon: "cube", color: "blue" },
+  ISSUE_PARTS_RECEIVED: { icon: "check-badge", color: "green" },
   TASK_COMPLETED: { icon: "check", color: "green" },
   TASK_CREATED: { icon: "clipboard-list", color: "blue" },
   TASK_UPDATED: { icon: "clipboard-check", color: "amber" },
+  TASK_PARTS_ORDERED: { icon: "cube", color: "blue" },
+  TASK_PARTS_RECEIVED: { icon: "check-badge", color: "green" },
   DEAL_CREATED: { icon: "document-plus", color: "blue" },
   DEPOSIT_TAKEN: { icon: "currency-pound", color: "green" },
   INVOICE_GENERATED: { icon: "document-text", color: "purple" },
@@ -83,6 +105,8 @@ const ACTIVITY_CONFIG = {
   AFTERCARE_CASE_UPDATED: { icon: "shield-check", color: "amber" },
   AFTERCARE_CASE_CLOSED: { icon: "check-badge", color: "green" },
   FORM_SUBMITTED: { icon: "document-check", color: "blue" },
+  DOCUMENT_UPLOADED: { icon: "folder-arrow-up", color: "cyan" },
+  LABELS_UPDATED: { icon: "tag", color: "purple" },
   NOTE_ADDED: { icon: "chat-bubble", color: "slate" },
 };
 
@@ -166,7 +190,15 @@ activityLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 6
 // Static method to log an activity
 activityLogSchema.statics.log = async function(data) {
   try {
-    return await this.create(data);
+    console.log("[ActivityLog] Saving activity:", {
+      type: data.type,
+      vehicleReg: data.vehicleReg,
+      vehicleMakeModel: data.vehicleMakeModel,
+      description: data.description,
+    });
+    const result = await this.create(data);
+    console.log("[ActivityLog] Saved activity id:", result?._id?.toString());
+    return result;
   } catch (error) {
     console.error("[ActivityLog] Failed to log activity:", error);
     // Don't throw - activity logging should never break the main flow

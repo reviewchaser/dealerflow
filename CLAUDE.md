@@ -1,6 +1,159 @@
+Rules:
+
+1. First think through the problem, read the codebase for relevant files.
+2. Before you make any major changes, check in with me and I will verify the plan.
+3. Please every step of the way just give me a high level explanation of what changes you made
+4. Make every task and code change you do as simple as possible. We want to avoid making any massive or complex changes. Every change should impact as little code as possible. Everything is about simplicity.
+5. Maintain a documentation file that describes how the architecture of the app works inside and out.
+6. Never speculate about code you have not opened. If the user references a specific file, you MUST read the file before answering. Make sure to investigate and read relevant files BEFORE answering questions about the codebase. Never make any claims about code before investigating unless you are certain of the correct answer - give grounded and hallucination-free answers.
+
 # DealerHQ - Development Notes
 
-## Recent Work Completed (January 2026)
+## Recent Work Completed (13 January 2026)
+
+### Sales Module Amendments - 7 Fixes
+
+**1. Add-ons API Fix**
+- File: `components/SaleWizard.js`
+- Changed `/api/products` to `/api/addons` - add-ons now load correctly in wizard
+
+**2. Stock Book "In Stock" Filter Fix**
+- Files: `pages/api/vehicles/index.js`, `pages/stock-book.js`
+- API now parses `type` and `salesStatus` query parameters
+- Treats undefined/null salesStatus as "AVAILABLE" (using `$or` query)
+- "In Stock" tab now shows vehicles on page load without needing to click "All Vehicles"
+
+**3. Auto Stock Number**
+- File: `pages/stock-book.js`
+- Stock number now auto-assigned when saving purchase info (calls `/api/vehicles/[id]/assign-stock-number`)
+- Displayed as read-only field in drawer - no longer editable
+
+**4. Quick Actions on Deals List**
+- File: `pages/sales.js`
+- Added dropdown menu (three-dot icon) to each deal row with:
+  - View Details (all statuses)
+  - View Receipt (DEPOSIT_TAKEN with depositReceiptUrl)
+  - View Invoice (INVOICED, DELIVERED, COMPLETED with invoiceUrl)
+  - Delete (DRAFT, CANCELLED only)
+
+**5. DVSA MOT History API v2 Integration**
+- Endpoint: `/v1/trade/vehicles/registration/{vrm}` at `history.mot.api.gov.uk`
+- Returns: make, model, colour, fuel type, MOT history, manufacture date
+- **VIN is NOT returned** by DVSA API (confirmed via OpenAPI spec)
+- Requires OAuth (Microsoft Entra ID) + X-API-Key header
+- MOT API called in parallel with DVLA lookup for richer vehicle data
+
+**6. Add Vehicle Form in Stock Book**
+- File: `pages/stock-book.js`
+- New "Add Vehicle" button opens inline modal
+- VRM lookup with DVLA + MOT APIs in parallel
+- Full form with vehicle details AND purchase info
+- Auto-assigns stock number on creation if purchase info provided
+
+**7. Simplified Sales Wizard (Major Refactor)**
+- File: `components/SaleWizard.js`
+- Reduced from 8 steps to 4:
+  - Step 1: Vehicle & Sale Type (vehicle picker, sale type, buyer use, sale channel)
+  - Step 2: Customer & Part Exchange (customer search/create, PX toggle with VRM lookup)
+  - Step 3: Pricing & Add-ons (sale price, VAT scheme, payment type, deposit, add-ons picker)
+  - Step 4: Review (summary of all selections, create deal button)
+- Changed from full-screen to inline popup layout (`max-w-3xl`, `max-h-[85vh]`)
+- All step logic consolidated into single file (removed separate Step1-8 component files)
+- Searchable lists for vehicles, customers, and add-ons
+- PX VRM lookup integrated
+
+---
+
+## Previous Work (12 January 2026)
+
+### Bug Fixes & Amendments Batch #2
+
+**1. Dashboard Double-Load Fix**
+- Files: `libs/authOptions.js`, `middleware.js`
+- Problem: Dashboard would load then redirect causing visible "double load"
+- Solution: Added dealer slug to JWT token, middleware now redirects directly without client-side hop
+- Stores `dealerSlug` in JWT during authentication for instant middleware redirects
+
+**2. Custom Label Filtering Fix (Stock & Prep Page)**
+- File: `pages/sales-prep.js`
+- Problem: Labels showed "0" count even when vehicles had labels assigned
+- Fixed: Changed comparisons from `l._id` to `String(l.id || l._id || l)` to handle all label formats
+
+**3. Sidebar Highlight Fix**
+- File: `components/DashboardLayout.js`
+- Problem: Sales link was highlighted when on /sales-prep page (due to startsWith check)
+- Solution: Added `isNavItemActive()` helper that checks exact match or match with trailing `/`
+
+**4. Add-ons in Deposit Receipts**
+- Files: `pages/api/deals/[id]/take-deposit.js`, `pages/public/deposit-receipt/[token].js`
+- Add-ons are now included in deposit receipt snapshots and displayed on the receipt
+- Shows add-ons section with breakdown and updates totals to include add-on amounts
+
+**5. Mobile Column Filters (Stock & Prep Page)**
+- File: `pages/sales-prep.js`
+- Added sort dropdown button next to stage selector on mobile
+- Options: Oldest First, Newest First, A-Z (Make/Model)
+- Uses same `columnSortOptions` state as desktop for consistency
+
+**6. PageHint Tooltip Overlay Fix**
+- File: `components/ui/PageHint.js`
+- Problem: Hint banner expanded inside flex header causing overflow
+- Solution: Changed to dropdown tooltip pattern that appears below trigger button
+- Now uses outside-click to close and doesn't disrupt header layout
+
+**7. PDF Export for Reports**
+- File: `pages/reports/index.js`
+- Added Print/PDF dropdown with clear options for "Print Report" and "Save as PDF"
+- Both options trigger print dialog (browser's native PDF save)
+
+**8. VRM Lookup - API Limitations**
+- **Fields returned:** make, model, colour, fuel type, year, engine size, MOT history
+- **Fields NOT returned:** VIN, transmission
+- Neither DVLA nor DVSA APIs provide VIN or transmission data
+- **Result:** VIN and transmission must be entered manually on free tier
+- **Future:** Pro tier can use UK Vehicle Data API (~15p/lookup) for VIN/transmission auto-population
+- DVSA endpoint: `/v1/trade/vehicles/registration/{vrm}` at `history.mot.api.gov.uk`
+
+### Previous Bug Fixes Batch #1
+
+**1. Mobile Dropdown Overflow Fix (Submissions Page)**
+- File: `pages/forms.js`
+- Added viewport constraints to dropdown menus to prevent overflow on mobile
+- Applied `right-0 md:right-auto` and `maxWidth: 'calc(100vw - 2rem)'` to all dropdown-content elements
+
+**2. Label Filtering Bug (Sales Prep Page)**
+- File: `pages/sales-prep.js`
+- Fixed: Labels API returns `id` but code used `label._id` causing all labels to share undefined key
+- Changed all `label._id` references to `label.id || label._id` in filter sections
+
+**3. Warranty/Issue Report Form Overhaul**
+- File renamed: `pages/public/warranty-claim.js` → `pages/public/report-a-problem.js`
+- **New public URL:** `/public/report-a-problem`
+- Title changed to "Report An Issue"
+- Added warranty documentation reference text
+- Added "Please allow up to 48 hours for a response" message
+- Added DVLA lookup to auto-populate vehicle make from registration
+- Form submissions auto-create cases in Aftersales page via `/api/aftercare`
+
+**4. Aftersales Page Info Text**
+- File: `pages/warranty.js`
+- Added subtitle: "Customer submissions via the public form automatically appear here"
+
+**5. Sales/Deals Error Resolution**
+- Created: `scripts/clear-deals.js`
+- Run with `node scripts/clear-deals.js` to wipe all deals if schema changes break the page
+- Script resets vehicle salesStatus and clears related sales documents
+
+**6. Add-on Products Management**
+- File: `pages/settings.js`
+- Added full CRUD for Add-on Products in Settings page
+- Products can be added to deals in the sales module
+- Categories: WARRANTY, PROTECTION, FINANCE, ACCESSORY, SERVICE, OTHER
+- Stores name, defaultPriceNet, and category
+
+---
+
+## Previous Work (January 2026)
 
 ### Sales Module Implementation
 Full vehicle sales module with deal lifecycle, UK VAT handling, invoicing, and documents.

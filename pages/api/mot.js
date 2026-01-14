@@ -13,6 +13,7 @@ async function getOAuthToken() {
   // Check if we have a valid cached token (with 60s safety margin)
   const now = Date.now();
   if (cachedToken && tokenExpiresAt > now + 60000) {
+    console.log("[MOT API] Using cached OAuth token");
     return cachedToken;
   }
 
@@ -20,6 +21,8 @@ async function getOAuthToken() {
   const clientId = process.env.DVSA_CLIENT_ID;
   const clientSecret = process.env.DVSA_CLIENT_SECRET;
   const scope = process.env.DVSA_SCOPE;
+
+  console.log("[MOT API] OAuth config check - tokenUrl:", tokenUrl ? "set" : "MISSING", "clientId:", clientId ? "set" : "MISSING", "clientSecret:", clientSecret ? "set" : "MISSING", "scope:", scope || "not set");
 
   if (!tokenUrl || !clientId || !clientSecret) {
     throw new Error("Missing DVSA OAuth configuration");
@@ -34,6 +37,8 @@ async function getOAuthToken() {
   if (scope) {
     body.append("scope", scope);
   }
+
+  console.log("[MOT API] Requesting OAuth token from:", tokenUrl);
 
   const response = await fetch(tokenUrl, {
     method: "POST",
@@ -50,6 +55,7 @@ async function getOAuthToken() {
   }
 
   const data = await response.json();
+  console.log("[MOT API] OAuth token obtained successfully, expires_in:", data.expires_in);
   cachedToken = data.access_token;
   // Calculate expiry time (subtract 60s safety margin)
   tokenExpiresAt = now + (data.expires_in * 1000) - 60000;
@@ -118,27 +124,31 @@ async function handler(req, res, ctx) {
 
   try {
     const token = await getOAuthToken();
-    const apiBase = process.env.DVSA_API_BASE;
     const apiKey = process.env.DVSA_API_KEY;
 
-    if (!apiBase) {
-      throw new Error("Missing DVSA_API_BASE configuration");
+    // API Key is REQUIRED for DVSA MOT History API v2
+    if (!apiKey) {
+      console.error("[MOT API] DVSA_API_KEY is not configured");
+      return res.status(503).json({
+        error: "MOT API not configured",
+        errorCode: "CONFIG_ERROR",
+        message: "DVSA API key is missing. Please configure DVSA_API_KEY."
+      });
     }
 
+    // DVSA MOT History API v2 requires OAuth Bearer token + X-API-Key
     const headers = {
       "Authorization": `Bearer ${token}`,
-      "Accept": "application/json",
+      "X-API-Key": apiKey,
     };
 
-    // Add API key header if configured
-    if (apiKey) {
-      headers["x-api-key"] = apiKey;
-    }
+    // Correct endpoint: /v1/trade/vehicles/registration/{registration}
+    const apiBase = process.env.DVSA_API_BASE || "https://history.mot.api.gov.uk";
+    const fullUrl = `${apiBase}/v1/trade/vehicles/registration/${cleanVrm}`;
+    console.log("[MOT API] Making request to:", fullUrl);
+    console.log("[MOT API] API Key (first 8 chars):", apiKey.substring(0, 8) + "...");
 
-    const motResponse = await fetch(
-      `${apiBase}/trade/vehicles/mot-tests?registration=${cleanVrm}`,
-      { headers }
-    );
+    const motResponse = await fetch(fullUrl, { headers });
 
     if (motResponse.status === 404) {
       return res.status(404).json({
@@ -150,9 +160,21 @@ async function handler(req, res, ctx) {
     if (!motResponse.ok) {
       const errorText = await motResponse.text();
       console.error("[MOT API] DVSA API error:", motResponse.status, errorText);
+      console.error("[MOT API] Request URL was:", fullUrl);
+
+      // Try to parse error details
+      let errorDetails = {};
+      try {
+        errorDetails = JSON.parse(errorText);
+      } catch (e) {
+        errorDetails = { raw: errorText };
+      }
+
       return res.status(502).json({
         error: "Failed to fetch MOT data",
-        errorCode: "DVSA_ERROR"
+        errorCode: "DVSA_ERROR",
+        dvsaError: errorDetails,
+        hint: "Check DVSA_API_BASE URL and ensure you're using the correct API version"
       });
     }
 
@@ -197,6 +219,8 @@ async function handler(req, res, ctx) {
     }));
 
     // Return normalized response
+    // Note: VIN and transmission are NOT available from DVSA API - must be entered manually
+    // Pro tier can use UK Vehicle Data API for VIN/transmission auto-population (future)
     return res.status(200).json({
       registration: cleanVrm,
       make: vehicle.make || null,
@@ -207,10 +231,8 @@ async function handler(req, res, ctx) {
       motExpiry: motExpiry,
       manufactureYear: vehicle.manufactureYear || null,
       firstUsedDate: vehicle.firstUsedDate || null,
-      // Additional fields for stock autofill
-      vin: vehicle.vin || null,
-      transmission: vehicle.transmission || null, // May not be available
-      // Full MOT history for modal display
+      vin: null, // DVSA API does not return VIN
+      transmission: null, // DVSA API does not return transmission
       motHistory: motHistory,
     });
   } catch (error) {

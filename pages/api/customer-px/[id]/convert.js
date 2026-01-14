@@ -45,6 +45,23 @@ export default async function handler(req, res) {
 
     const { initialStatus = "in_stock" } = req.body;
 
+    // Check for duplicate VRM within this dealer
+    const normalizedReg = appraisal.vehicleReg?.toUpperCase().replace(/\s/g, "");
+    if (normalizedReg) {
+      const existingVehicle = await Vehicle.findOne({
+        dealerId: appraisal.dealerId,
+        regCurrent: normalizedReg,
+      }).lean();
+
+      if (existingVehicle) {
+        return res.status(409).json({
+          error: "Vehicle already in stock",
+          message: `A vehicle with registration ${normalizedReg} already exists in your inventory`,
+          existingVehicleId: existingVehicle._id,
+        });
+      }
+    }
+
     // Create vehicle with all details (including dealerId, MOT expiry, and document URLs from appraisal)
     const vehicle = await Vehicle.create({
       dealerId: appraisal.dealerId,

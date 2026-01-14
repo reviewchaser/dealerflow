@@ -3,6 +3,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import DealDrawer from "@/components/DealDrawer";
+import SaleWizard from "@/components/SaleWizard";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 
@@ -74,8 +75,10 @@ export default function Sales() {
   const selectedDealId = router.isReady ? (router.query.id || null) : null;
   const isDrawerOpen = !!selectedDealId;
 
-  // Create sale modal state
+  // Create sale modal state (legacy - kept for reference)
   const [showCreateModal, setShowCreateModal] = useState(false);
+  // Sale wizard state
+  const [showSaleWizard, setShowSaleWizard] = useState(false);
   const [availableVehicles, setAvailableVehicles] = useState([]);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [vehiclesError, setVehiclesError] = useState(null);
@@ -88,12 +91,17 @@ export default function Sales() {
     try {
       const statusParam = activeStatus !== "all" ? `?status=${activeStatus}` : "";
       const response = await fetch(`/api/deals${statusParam}`);
-      if (!response.ok) throw new Error("Failed to fetch deals");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("[Sales] API error:", response.status, errorData);
+        throw new Error(errorData.error || `Failed to fetch deals (${response.status})`);
+      }
       const data = await response.json();
-      setDeals(data);
+      setDeals(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error(error);
-      toast.error("Failed to load deals");
+      console.error("[Sales] Fetch error:", error);
+      toast.error(error.message || "Failed to load deals");
+      setDeals([]);
     } finally {
       setIsLoading(false);
     }
@@ -108,7 +116,7 @@ export default function Sales() {
   // Handle create=1 query param to open create modal
   useEffect(() => {
     if (router.query.create === "1") {
-      setShowCreateModal(true);
+      setShowSaleWizard(true);
       // Remove ONLY the create param, preserve id if present
       const { create, ...restQuery } = router.query;
       const queryString = Object.keys(restQuery).length > 0
@@ -427,7 +435,7 @@ export default function Sales() {
 
                 {/* Create Sale Button */}
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => setShowSaleWizard(true)}
                   className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
                 >
                   <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -628,7 +636,7 @@ export default function Sales() {
               </p>
               {!searchQuery && activeStatus === "all" && (
                 <button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => setShowSaleWizard(true)}
                   className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
                 >
                   <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -715,18 +723,60 @@ export default function Sales() {
                           </p>
                         </div>
 
-                        {/* Quick Actions for cancelled deals */}
-                        {deal.status === "CANCELLED" && (
+                        {/* Quick Actions Dropdown */}
+                        <div className="dropdown dropdown-end shrink-0 ml-2">
                           <button
-                            onClick={(e) => handleDeleteDeal(deal.id, e)}
-                            className="shrink-0 ml-2 p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                            title="Delete cancelled deal"
+                            tabIndex={0}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                            title="Quick actions"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                             </svg>
                           </button>
-                        )}
+                          <ul tabIndex={0} className="dropdown-content menu p-2 shadow-lg bg-white rounded-xl w-48 z-50 border border-slate-100">
+                            <li>
+                              <a onClick={() => handleDealClick(deal.id)} className="text-slate-700">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                View Details
+                              </a>
+                            </li>
+                            {deal.status === "DEPOSIT_TAKEN" && deal.depositReceiptUrl && (
+                              <li>
+                                <a href={deal.depositReceiptUrl} target="_blank" rel="noopener noreferrer" className="text-amber-600">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  View Receipt
+                                </a>
+                              </li>
+                            )}
+                            {["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status) && deal.invoiceUrl && (
+                              <li>
+                                <a href={deal.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  View Invoice
+                                </a>
+                              </li>
+                            )}
+                            {["DRAFT", "CANCELLED"].includes(deal.status) && (
+                              <li>
+                                <a onClick={(e) => handleDeleteDeal(deal.id, e)} className="text-red-600">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  Delete
+                                </a>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
                       </div>
                     </div>
 
@@ -779,7 +829,16 @@ export default function Sales() {
         onUpdate={fetchDeals}
       />
 
-      {/* Create Sale Modal - Vehicle Picker */}
+      {/* Sale Wizard */}
+      <SaleWizard
+        isOpen={showSaleWizard}
+        onClose={() => {
+          setShowSaleWizard(false);
+          fetchDeals(); // Refresh deals list after wizard closes
+        }}
+      />
+
+      {/* Create Sale Modal - Vehicle Picker (Legacy - kept for quick vehicle selection) */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowCreateModal(false)} />

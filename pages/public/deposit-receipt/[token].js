@@ -214,6 +214,46 @@ export default function DepositReceiptPage() {
               </div>
             </div>
 
+            {/* Add-ons (if any) */}
+            {snap.addOns?.length > 0 && (
+              <div>
+                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Add-ons Included</p>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full">
+                    <tbody className="divide-y divide-slate-100">
+                      {snap.addOns.map((addon, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-3 text-slate-900">
+                            {addon.name}
+                            {addon.qty > 1 && <span className="text-slate-500 text-sm ml-1">x{addon.qty}</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                            {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+                            {snap.isVatRegistered !== false && addon.vatTreatment === "STANDARD" && (
+                              <span className="text-slate-400 text-xs ml-1">+ VAT</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Finance Selection (if applicable) */}
+            {snap.financeSelection?.isFinanced && (
+              <div className="bg-blue-50 rounded-xl p-5 print:bg-blue-50 border border-blue-200">
+                <p className="text-sm text-blue-700 uppercase tracking-wide font-medium mb-2">Finance</p>
+                <p className="text-lg font-semibold text-blue-800">
+                  {snap.financeSelection.toBeConfirmed
+                    ? "To Be Confirmed"
+                    : snap.financeSelection.financeCompanyName || "Finance Company"}
+                </p>
+                <p className="text-sm text-blue-600 mt-1">Customer has indicated they wish to use finance for this purchase</p>
+              </div>
+            )}
+
             {/* Payment Details */}
             <div className="bg-emerald-50 rounded-xl p-6 print:bg-emerald-50">
               <p className="text-sm text-emerald-600 uppercase tracking-wide font-medium mb-4">Deposit Payment</p>
@@ -238,6 +278,30 @@ export default function DepositReceiptPage() {
                 <tbody className="divide-y divide-slate-100">
                   <tr>
                     <td className="px-4 py-3 text-slate-600">Vehicle Price</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.vehiclePriceGross)}</td>
+                  </tr>
+                  {snap.addOnsNetTotal > 0 && (
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600">Add-ons</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                        {formatCurrency(snap.addOnsNetTotal + (snap.isVatRegistered !== false ? (snap.addOnsVatTotal || 0) : 0))}
+                      </td>
+                    </tr>
+                  )}
+                  {(snap.delivery?.amount > 0 || snap.delivery?.isFree) && (
+                    <tr>
+                      <td className="px-4 py-3 text-slate-600">Delivery</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                        {snap.delivery?.isFree ? (
+                          <span className="text-emerald-600">FREE</span>
+                        ) : (
+                          formatCurrency(snap.delivery.amount)
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="px-4 py-3 text-slate-600">Total</td>
                     <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.grandTotal)}</td>
                   </tr>
                   <tr>
@@ -284,6 +348,39 @@ export default function DepositReceiptPage() {
                 </div>
                 <div className="text-right text-sm text-slate-500">
                   {formatDate(document.issuedAt)}
+                </div>
+              </div>
+            )}
+
+            {/* Signature Section - for non-distance sales */}
+            {snap.saleChannel !== "DISTANCE" && (
+              <div className="print:break-inside-avoid border-t border-slate-200 pt-6">
+                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-4">Acknowledgement</p>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-600">I confirm receipt of this deposit receipt and agreement to the terms stated.</p>
+                    <div className="border-b-2 border-slate-300 pt-8 mt-2">
+                      <p className="text-xs text-slate-400 -mb-1">Customer Signature</p>
+                    </div>
+                    <div className="border-b border-slate-200 pt-4">
+                      <p className="text-xs text-slate-400 -mb-1">Print Name</p>
+                    </div>
+                    <div className="border-b border-slate-200 pt-4">
+                      <p className="text-xs text-slate-400 -mb-1">Date</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs text-slate-600">Authorised on behalf of {snap.dealer?.companyName || snap.dealer?.name}</p>
+                    <div className="border-b-2 border-slate-300 pt-8 mt-2">
+                      <p className="text-xs text-slate-400 -mb-1">Dealer Signature</p>
+                    </div>
+                    <div className="border-b border-slate-200 pt-4">
+                      <p className="text-xs text-slate-400 -mb-1">Print Name</p>
+                    </div>
+                    <div className="border-b border-slate-200 pt-4">
+                      <p className="text-xs text-slate-400 -mb-1">Date</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

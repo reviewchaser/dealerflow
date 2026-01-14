@@ -81,6 +81,8 @@ export default function InvoicePage() {
 
   const snap = document.snapshotData;
   const isMargin = snap.vatScheme === "MARGIN";
+  const isVatRegistered = snap.isVatRegistered !== false;
+  const showVatColumns = showVatColumns && isVatRegistered;
   const invoiceTo = snap.invoiceTo?.name ? snap.invoiceTo : snap.customer;
 
   return (
@@ -134,7 +136,7 @@ export default function InvoicePage() {
                 <h1 className="text-2xl font-bold text-slate-900">INVOICE</h1>
                 <p className="text-slate-600 mt-1 text-base font-semibold">{document.documentNumber}</p>
                 <p className="text-slate-500 text-sm mt-1">{formatDate(document.issuedAt)}</p>
-                {snap.dealer?.vatNumber && (
+                {isVatRegistered && snap.dealer?.vatNumber && (
                   <p className="text-slate-400 text-xs mt-2">VAT No: {snap.dealer.vatNumber}</p>
                 )}
               </div>
@@ -156,7 +158,7 @@ export default function InvoicePage() {
               <div>
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">VAT Treatment</p>
                 <p className="text-lg font-semibold text-slate-900 mt-1">
-                  {isMargin ? "Margin Scheme" : snap.vatScheme === "VAT_QUALIFYING" ? "Standard VAT" : "Zero-rated"}
+                  {!isVatRegistered ? "Not VAT Registered" : isMargin ? "Margin Scheme" : snap.vatScheme === "VAT_QUALIFYING" ? "Standard VAT" : "Zero-rated"}
                 </p>
               </div>
             </div>
@@ -204,8 +206,8 @@ export default function InvoicePage() {
                     <tr>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">Description</th>
                       <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-24">Qty</th>
-                      {!isMargin && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">Net</th>}
-                      {!isMargin && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-24">VAT</th>}
+                      {showVatColumns && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">Net</th>}
+                      {showVatColumns && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-24">VAT</th>}
                       <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">{isMargin ? "Price" : "Gross"}</th>
                     </tr>
                   </thead>
@@ -223,8 +225,8 @@ export default function InvoicePage() {
                         </p>
                       </td>
                       <td className="px-4 py-3 text-right text-slate-600">1</td>
-                      {!isMargin && <td className="px-4 py-3 text-right text-slate-900">{formatCurrency(snap.vehiclePriceNet)}</td>}
-                      {!isMargin && <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(snap.vehicleVatAmount)}</td>}
+                      {showVatColumns && <td className="px-4 py-3 text-right text-slate-900">{formatCurrency(snap.vehiclePriceNet)}</td>}
+                      {showVatColumns && <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(snap.vehicleVatAmount)}</td>}
                       <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.vehiclePriceGross)}</td>
                     </tr>
 
@@ -236,12 +238,23 @@ export default function InvoicePage() {
                         <tr key={idx}>
                           <td className="px-4 py-3 text-slate-900">{addon.name}</td>
                           <td className="px-4 py-3 text-right text-slate-600">{addon.qty}</td>
-                          {!isMargin && <td className="px-4 py-3 text-right text-slate-900">{formatCurrency(addon.unitPriceNet * addon.qty)}</td>}
-                          {!isMargin && <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(addonVat)}</td>}
+                          {showVatColumns && <td className="px-4 py-3 text-right text-slate-900">{formatCurrency(addon.unitPriceNet * addon.qty)}</td>}
+                          {showVatColumns && <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(addonVat)}</td>}
                           <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(addonGross)}</td>
                         </tr>
                       );
                     })}
+
+                    {/* Delivery */}
+                    {(snap.delivery?.amount > 0 || snap.delivery?.isFree) && (
+                      <tr>
+                        <td className="px-4 py-3 text-slate-900">Delivery</td>
+                        <td className="px-4 py-3 text-right text-slate-600">1</td>
+                        {showVatColumns && <td className="px-4 py-3 text-right text-slate-900">{snap.delivery?.isFree ? "FREE" : formatCurrency(snap.delivery?.amount)}</td>}
+                        {showVatColumns && <td className="px-4 py-3 text-right text-slate-600">—</td>}
+                        <td className="px-4 py-3 text-right font-semibold text-slate-900">{snap.delivery?.isFree ? "FREE" : formatCurrency(snap.delivery?.amount)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -249,11 +262,11 @@ export default function InvoicePage() {
 
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-72">
+              <div className="w-80">
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full">
                     <tbody className="divide-y divide-slate-100">
-                      {!isMargin && (
+                      {showVatColumns && (
                         <>
                           <tr>
                             <td className="px-4 py-2 text-slate-600">Subtotal</td>
@@ -266,21 +279,58 @@ export default function InvoicePage() {
                         </>
                       )}
                       <tr className="bg-slate-800 text-white">
-                        <td className="px-4 py-3 font-semibold">Total</td>
+                        <td className="px-4 py-3 font-semibold">Cash Price</td>
                         <td className="px-4 py-3 text-right text-xl font-bold">{formatCurrency(snap.grandTotal)}</td>
                       </tr>
-                      {snap.partExchangeNet > 0 && (
+
+                      {/* Finance Advance - money paid directly by finance company */}
+                      {snap.financeAdvance > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-emerald-600">Part Exchange</td>
-                          <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.partExchangeNet)}</td>
+                          <td className="px-4 py-2 text-slate-600">Finance Advance</td>
+                          <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.financeAdvance)}</td>
                         </tr>
                       )}
-                      {snap.totalPaid > 0 && (
+
+                      {/* Part Exchange Allowance */}
+                      {snap.partExchange?.allowance > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-emerald-600">Payments Received</td>
+                          <td className="px-4 py-2 text-slate-600">Part Exchange Allowance</td>
+                          <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.partExchange.allowance)}</td>
+                        </tr>
+                      )}
+
+                      {/* Settlement Figure - added back (reduces PX value) */}
+                      {snap.partExchange?.settlement > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-slate-600">Settlement Figure</td>
+                          <td className="px-4 py-2 text-right font-semibold text-amber-600">+{formatCurrency(snap.partExchange.settlement)}</td>
+                        </tr>
+                      )}
+
+                      {/* Deposit Paid */}
+                      {snap.depositPaid > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-slate-600">Deposit Paid</td>
+                          <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.depositPaid)}</td>
+                        </tr>
+                      )}
+
+                      {/* Other Payments (balance payments after deposit) */}
+                      {snap.otherPayments > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-slate-600">Payments Received</td>
+                          <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.otherPayments)}</td>
+                        </tr>
+                      )}
+
+                      {/* Fallback: show totalPaid if individual breakdown not available */}
+                      {!snap.depositPaid && !snap.otherPayments && snap.totalPaid > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-slate-600">Payments Received</td>
                           <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.totalPaid)}</td>
                         </tr>
                       )}
+
                       <tr className="bg-blue-50">
                         <td className="px-4 py-3 font-bold text-blue-900">Balance Due</td>
                         <td className="px-4 py-3 text-right text-xl font-bold text-blue-900">{formatCurrency(snap.balanceDue)}</td>

@@ -104,17 +104,18 @@ export async function middleware(request) {
       return NextResponse.redirect(signInUrl);
     }
 
-    // Redirect legacy routes to canonical tenant routes if user has a default dealer
-    // The token includes dealerId from the JWT callback in authOptions
-    if (token.dealerId) {
-      // We need to look up the dealer slug - this requires an API call or header
-      // For now, set a header to tell the page to check for redirect client-side
-      const response = NextResponse.next();
-      response.headers.set('x-should-redirect-to-tenant', 'true');
-      return response;
+    // Redirect legacy routes to canonical tenant routes if user has a dealer slug
+    // The token includes dealerSlug from the JWT callback in authOptions
+    if (token.dealerSlug) {
+      // Direct redirect to tenant URL - no double load!
+      const tenantPath = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+      const tenantUrl = new URL(`/app/${token.dealerSlug}/${tenantPath}`, request.url);
+      // Preserve query parameters
+      tenantUrl.search = request.nextUrl.search;
+      return NextResponse.redirect(tenantUrl);
     }
 
-    // No dealer ID - let the page handle it (redirect to create-dealer)
+    // No dealer slug - let the page handle it (redirect to create-dealer or choose-dealer)
     return NextResponse.next();
   }
 

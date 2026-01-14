@@ -89,13 +89,16 @@ async function handler(req, res, ctx) {
     return sum;
   }, 0);
 
+  // Calculate delivery amount
+  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
+
   let grandTotal;
   if (deal.vatScheme === "VAT_QUALIFYING") {
     const subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
     const totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-    grandTotal = subtotal + totalVat;
+    grandTotal = subtotal + totalVat + deliveryAmount;
   } else {
-    grandTotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
+    grandTotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal + deliveryAmount;
   }
 
   const totalPaid = (deal.payments || [])

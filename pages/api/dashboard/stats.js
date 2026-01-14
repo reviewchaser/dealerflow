@@ -15,6 +15,7 @@ import Deal from "@/models/Deal";
 import ActivityLog from "@/models/ActivityLog";
 import VehicleLocation from "@/models/VehicleLocation";
 import PartExchange from "@/models/PartExchange";
+import CustomerPXAppraisal from "@/models/CustomerPXAppraisal";
 import { requireDealerContext } from "@/libs/authContext";
 
 // Default empty stats object for safe responses
@@ -190,7 +191,8 @@ async function handleStats(req, res, ctx) {
   const [
     topFormsAgg,
     todayCategoryCounts,
-    recentAppraisalsRaw,
+    recentDealerAppraisalsRaw,
+    recentCustomerPXAppraisalsRaw,
     recentVehiclesRaw,
     recentSubmissionsRaw,
     allForms,
@@ -230,9 +232,14 @@ async function handleStats(req, res, ctx) {
       { $unwind: { path: "$category", preserveNullAndEmptyArrays: true }},
       { $group: { _id: { $toLower: "$category.name" }, count: { $sum: 1 } }}
     ]),
-    // Recent appraisals
+    // Recent dealer buying appraisals
     Appraisal.find({ dealerId })
       .populate("contactId")
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean(),
+    // Recent customer PX appraisals
+    CustomerPXAppraisal.find({ dealerId })
       .sort({ createdAt: -1 })
       .limit(5)
       .lean(),
@@ -484,7 +491,23 @@ async function handleStats(req, res, ctx) {
     : "N/A";
 
   // Transform all recent items
-  const recentAppraisals = recentAppraisalsRaw.map(transformDoc);
+  // Combine dealer appraisals and customer PX appraisals into one list
+  const dealerAppraisals = recentDealerAppraisalsRaw.map(doc => ({
+    ...transformDoc(doc),
+    type: "dealer_appraisal",
+    displayReg: doc.vehicleReg,
+    displayName: doc.contactId?.displayName || doc.submitterName || "Unknown",
+  }));
+  const customerPXAppraisals = recentCustomerPXAppraisalsRaw.map(doc => ({
+    ...transformDoc(doc),
+    type: "customer_px",
+    displayReg: doc.vehicleReg,
+    displayName: doc.customerName || "Unknown",
+  }));
+  // Combine and sort by createdAt descending, take top 5
+  const recentAppraisals = [...dealerAppraisals, ...customerPXAppraisals]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
   const recentVehicles = recentVehiclesRaw.map(transformDoc);
   const recentSubmissions = recentSubmissionsRaw.map(transformDoc);
   const formsList = allForms.map(transformDoc);
@@ -753,6 +776,7 @@ async function handleStats(req, res, ctx) {
       timestamp: activity.createdAt,
       userName: activity.userName || "System",
       vehicleReg: activity.vehicleReg,
+      vehicleMakeModel: activity.vehicleMakeModel,
       vehicleId: activity.vehicleId?.toString(),
       metadata: activity.metadata || {},
     });

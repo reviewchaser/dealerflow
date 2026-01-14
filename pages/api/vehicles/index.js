@@ -29,8 +29,32 @@ async function handler(req, res, ctx) {
   const { dealerId } = ctx;
 
   if (req.method === "GET") {
-    const { status, forSale } = req.query;
+    const { status, forSale, type, salesStatus } = req.query;
     let query = { dealerId };
+
+    // Filter by vehicle type (STOCK, COURTESY, FLEET_OTHER)
+    if (type && type !== "all") {
+      query.type = type;
+    }
+
+    // Filter by salesStatus for stock book
+    // Note: Vehicles without salesStatus are treated as "AVAILABLE"
+    if (salesStatus && salesStatus !== "all") {
+      if (salesStatus === "SOLD") {
+        query.salesStatus = { $in: ["DELIVERED", "COMPLETED"] };
+      } else if (salesStatus === "IN_DEAL") {
+        query.salesStatus = { $in: ["IN_DEAL", "SOLD_IN_PROGRESS"] };
+      } else if (salesStatus === "AVAILABLE") {
+        // Match AVAILABLE or vehicles without salesStatus set
+        query.$or = [
+          { salesStatus: "AVAILABLE" },
+          { salesStatus: { $exists: false } },
+          { salesStatus: null }
+        ];
+      } else {
+        query.salesStatus = salesStatus;
+      }
+    }
 
     // For sale filter: get vehicles available for sale (but show all, including those with deals)
     // This allows the UI to show "Has active sale" and open the existing deal
@@ -196,6 +220,21 @@ async function handler(req, res, ctx) {
 
     if (!regCurrent || !make || !model) {
       return res.status(400).json({ error: "Reg, make and model required" });
+    }
+
+    // Check for duplicate VRM within this dealer
+    const normalizedReg = regCurrent.toUpperCase().replace(/\s/g, "");
+    const existingVehicle = await Vehicle.findOne({
+      dealerId,
+      regCurrent: normalizedReg,
+    }).lean();
+
+    if (existingVehicle) {
+      return res.status(409).json({
+        error: "Vehicle already in stock",
+        message: `A vehicle with registration ${normalizedReg} already exists in your inventory`,
+        existingVehicleId: existingVehicle._id,
+      });
     }
 
     const vehicleData = {

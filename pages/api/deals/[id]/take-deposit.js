@@ -129,6 +129,33 @@ async function handler(req, res, ctx) {
     }
   }
 
+  // Add-ons calculations (include if any add-ons exist on the deal)
+  const addOnsNetTotal = (deal.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0);
+  const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+    if (a.vatTreatment === "STANDARD") {
+      return sum + (a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2));
+    }
+    return sum;
+  }, 0);
+
+  // Calculate delivery amount
+  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
+
+  // Calculate grand total including add-ons and delivery
+  const vehicleTotal = deal.vehiclePriceGross || 0;
+  const addOnsTotal = addOnsNetTotal + addOnsVatTotal;
+  const grandTotal = vehicleTotal + addOnsTotal + deliveryAmount;
+
+  // Get finance company name if using finance
+  let financeCompanyName = null;
+  if (deal.financeSelection?.isFinanced && deal.financeSelection?.financeCompanyContactId) {
+    const financeCompany = await Contact.findById(deal.financeSelection.financeCompanyContactId).select("displayName name").lean();
+    financeCompanyName = financeCompany?.displayName || financeCompany?.name;
+  }
+
+  // Check if dealer is VAT registered
+  const isVatRegistered = dealer?.salesSettings?.vatRegistered !== false;
+
   const snapshotData = {
     vehicle: {
       regCurrent: vehicle.regCurrent,
@@ -149,6 +176,34 @@ async function handler(req, res, ctx) {
     },
     vatScheme: deal.vatScheme,
     vehiclePriceGross: deal.vehiclePriceGross,
+    // Include add-ons in deposit receipt
+    addOns: (deal.addOns || []).map(a => ({
+      name: a.name,
+      qty: a.qty || 1,
+      unitPriceNet: a.unitPriceNet,
+      vatTreatment: a.vatTreatment,
+      vatRate: a.vatRate,
+    })),
+    addOnsNetTotal,
+    addOnsVatTotal,
+    // Delivery
+    delivery: {
+      amount: deliveryAmount,
+      isFree: deal.delivery?.isFree || false,
+      notes: deal.delivery?.notes,
+    },
+    // Finance selection
+    financeSelection: deal.financeSelection?.isFinanced ? {
+      isFinanced: true,
+      financeCompanyName: financeCompanyName,
+      toBeConfirmed: deal.financeSelection?.toBeConfirmed || false,
+    } : null,
+    // Sale classification
+    saleType: deal.saleType,
+    buyerUse: deal.buyerUse,
+    saleChannel: deal.saleChannel,
+    // VAT registration status
+    isVatRegistered,
     payments: [{
       type: "DEPOSIT",
       amount,
@@ -156,9 +211,9 @@ async function handler(req, res, ctx) {
       paidAt: new Date(),
       reference: reference || documentNumber,
     }],
-    grandTotal: deal.vehiclePriceGross || 0,
+    grandTotal,
     totalPaid: amount,
-    balanceDue: (deal.vehiclePriceGross || 0) - amount,
+    balanceDue: grandTotal - amount,
     termsText: deal.termsSnapshotText || dealer?.salesSettings?.terms?.depositTerms || "",
     // Include agreed work items (requests)
     requests: (deal.requests || []).map(req => ({
@@ -178,7 +233,7 @@ async function handler(req, res, ctx) {
       address: dealer.companyAddress,
       phone: dealer.companyPhone,
       email: dealer.companyEmail,
-      vatNumber: dealer.salesSettings?.vatNumber,
+      vatNumber: isVatRegistered ? dealer.salesSettings?.vatNumber : null,
       companyNumber: dealer.salesSettings?.companyNumber,
       logoUrl: logoUrl,
     },

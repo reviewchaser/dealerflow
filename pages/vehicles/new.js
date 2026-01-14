@@ -21,6 +21,7 @@ export default function NewVehicle() {
 
   const [formData, setFormData] = useState({
     vehicleReg: "",
+    vin: "", // VIN from MOT API
     make: "",
     model: "",
     year: "",
@@ -189,6 +190,7 @@ export default function NewVehicle() {
         fuelType: normalizedFuel || prev.fuelType,
         engineSize: dvlaData.dvlaDetails?.engineCapacity ? `${dvlaData.dvlaDetails.engineCapacity}cc` : (motData?.engineSize || prev.engineSize),
         motExpiryDate: dvlaData.dvlaDetails?.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
+        vin: motData?.vin || prev.vin, // VIN from MOT API (not available from DVLA VES)
       }));
 
       const messages = ["Vehicle details loaded"];
@@ -214,6 +216,7 @@ export default function NewVehicle() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           regCurrent: formData.vehicleReg,
+          vin: formData.vin || null, // VIN from MOT API lookup
           make: formData.make,
           model: formData.model,
           year: formData.year,
@@ -541,6 +544,23 @@ export default function NewVehicle() {
                   className="input input-bordered"
                 />
               </div>
+            </div>
+
+            {/* VIN Number */}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">VIN (Chassis Number)</span>
+                <span className="label-text-alt text-slate-400">Auto-populated from VRM lookup when available</span>
+              </label>
+              <input
+                type="text"
+                name="vin"
+                value={formData.vin}
+                onChange={handleChange}
+                className="input input-bordered font-mono uppercase"
+                placeholder="e.g. WVWZZZ1KZ5P123456"
+                maxLength={17}
+              />
             </div>
           </div>
         </div>

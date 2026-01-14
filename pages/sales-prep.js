@@ -1373,7 +1373,8 @@ export default function SalesPrep() {
         if (filter.startsWith("label_")) {
           const labelId = filter.replace("label_", "");
           const vehicleLabels = vehicle.labels || [];
-          return vehicleLabels.some(l => (l._id || l) === labelId);
+          // Compare as strings to handle ObjectId and various label formats
+          return vehicleLabels.some(l => String(l.id || l._id || l) === labelId);
         }
 
         return true;
@@ -1466,7 +1467,8 @@ export default function SalesPrep() {
       if (filter.startsWith("label_")) {
         const labelId = filter.replace("label_", "");
         const vehicleLabels = v.labels || [];
-        return vehicleLabels.some(l => (l._id || l) === labelId);
+        // Compare as strings to handle ObjectId and various label formats
+        return vehicleLabels.some(l => String(l.id || l._id || l) === labelId);
       }
       return false;
     }));
@@ -1475,9 +1477,15 @@ export default function SalesPrep() {
 
   // Helper to get count for a label filter
   const getLabelFilterCount = (labelId) => {
+    // Convert labelId to string for comparison (handles ObjectId instances)
+    const targetId = String(labelId);
     return vehicles.filter(v => {
       const vehicleLabels = v.labels || [];
-      return vehicleLabels.some(l => (l._id || l) === labelId);
+      return vehicleLabels.some(l => {
+        // Handle multiple label formats: object with id/id, or just string ID
+        const vehicleLabelId = String(l.id || l._id || l);
+        return vehicleLabelId === targetId;
+      });
     }).length;
   };
 
@@ -2228,12 +2236,12 @@ export default function SalesPrep() {
                             <h5 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Labels</h5>
                             <div className="space-y-1.5">
                               {availableLabels.map(label => {
-                                const filterKey = `label_${label._id}`;
+                                const filterKey = `label_${label.id || label._id}`;
                                 const isActive = activeFilters.includes(filterKey);
-                                const count = getLabelFilterCount(label._id);
+                                const count = getLabelFilterCount(label.id || label._id);
                                 return (
                                   <button
-                                    key={label._id}
+                                    key={label.id || label._id}
                                     onClick={() => toggleFilter(filterKey)}
                                     className={`w-full flex justify-between items-center px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                                       isActive
@@ -2466,12 +2474,12 @@ export default function SalesPrep() {
                       <>
                         <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 mt-6">Labels</h5>
                         {availableLabels.map(label => {
-                          const filterKey = `label_${label._id}`;
+                          const filterKey = `label_${label.id || label._id}`;
                           const isActive = activeFilters.includes(filterKey);
-                          const count = getLabelFilterCount(label._id);
+                          const count = getLabelFilterCount(label.id || label._id);
                           return (
                             <button
-                              key={label._id}
+                              key={label.id || label._id}
                               onClick={() => toggleFilter(filterKey)}
                               className={`w-full flex justify-between items-center px-4 py-3.5 mb-2 rounded-xl text-base font-medium transition-all ${
                                 isActive
@@ -2507,15 +2515,70 @@ export default function SalesPrep() {
         <>
           {/* Mobile Column Tabs - Dropdown for clearer UX */}
           <div className="md:hidden mb-4">
-            <MobileStageSelector
-              stages={COLUMNS.map((col) => ({
-                value: col.key,
-                label: col.label,
-                count: getVehiclesByStatus(col.key).length,
-              }))}
-              activeStage={mobileActiveColumn}
-              onStageChange={setMobileActiveColumn}
-            />
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <MobileStageSelector
+                  stages={COLUMNS.map((col) => ({
+                    value: col.key,
+                    label: col.label,
+                    count: getVehiclesByStatus(col.key).length,
+                  }))}
+                  activeStage={mobileActiveColumn}
+                  onStageChange={setMobileActiveColumn}
+                />
+              </div>
+              {/* Mobile Sort Button */}
+              <div className="dropdown dropdown-end">
+                <label tabIndex={0} className="btn btn-sm gap-1.5 bg-white border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl h-10 px-3">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                  </svg>
+                  <span className="text-xs font-medium">
+                    {columnSortOptions[mobileActiveColumn] === "newest_first" ? "Newest" :
+                     columnSortOptions[mobileActiveColumn] === "alphabetical" ? "A-Z" : "Oldest"}
+                  </span>
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </label>
+                <ul tabIndex={0} className="dropdown-content z-30 menu p-2 shadow-lg bg-white rounded-xl w-48 mt-2 border border-slate-100">
+                  <li className="menu-title text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">Sort By</li>
+                  <li>
+                    <button
+                      className={`rounded-lg py-2.5 ${columnSortOptions[mobileActiveColumn] === "oldest_first" || !columnSortOptions[mobileActiveColumn] ? "active bg-slate-100" : ""}`}
+                      onClick={() => setColumnSortOptions(prev => ({ ...prev, [mobileActiveColumn]: "oldest_first" }))}
+                    >
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Oldest First
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      className={`rounded-lg py-2.5 ${columnSortOptions[mobileActiveColumn] === "newest_first" ? "active bg-slate-100" : ""}`}
+                      onClick={() => setColumnSortOptions(prev => ({ ...prev, [mobileActiveColumn]: "newest_first" }))}
+                    >
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Newest First
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      className={`rounded-lg py-2.5 ${columnSortOptions[mobileActiveColumn] === "alphabetical" ? "active bg-slate-100" : ""}`}
+                      onClick={() => setColumnSortOptions(prev => ({ ...prev, [mobileActiveColumn]: "alphabetical" }))}
+                    >
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9M3 12h5m4 0h8" />
+                      </svg>
+                      A-Z (Make/Model)
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Single Column View */}
@@ -4168,20 +4231,91 @@ export default function SalesPrep() {
 
                             {/* Parts Details */}
                             {issue.partsRequired && (
-                              <div className="flex items-start gap-2 p-3 bg-[#0066CC]/5 rounded-xl border border-[#0066CC]/10">
-                                <div className="w-7 h-7 rounded-lg bg-[#0066CC]/10 flex items-center justify-center shrink-0">
-                                  <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                                  </svg>
+                              <div className="p-3 bg-[#0066CC]/5 rounded-xl border border-[#0066CC]/10 space-y-3">
+                                <div className="flex items-start gap-2">
+                                  <div className="w-7 h-7 rounded-lg bg-[#0066CC]/10 flex items-center justify-center shrink-0">
+                                    <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
+                                      Parts Required
+                                    </span>
+                                    {issue.partsDetails && (
+                                      <p className="text-sm text-slate-600 mt-1">{issue.partsDetails}</p>
+                                    )}
+                                  </div>
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-[#0066CC]/10 text-[#0066CC]">
-                                    Parts Required
-                                  </span>
-                                  {issue.partsDetails && (
-                                    <p className="text-sm text-slate-600 mt-1">{issue.partsDetails}</p>
+
+                                {/* Parts Ordered Checkbox */}
+                                <div className="border-t border-[#0066CC]/10 pt-3">
+                                  <label className="flex items-center gap-2 cursor-pointer group">
+                                    <input
+                                      type="checkbox"
+                                      checked={issue.partsOrdered || false}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          updateIssue(issue.id, { partsOrdered: true });
+                                        } else {
+                                          updateIssue(issue.id, {
+                                            partsOrdered: false,
+                                            partsSupplier: null,
+                                            partsNotes: null,
+                                            partsReceived: false
+                                          });
+                                        }
+                                      }}
+                                      className="w-4 h-4 rounded border-slate-300 text-[#0066CC] focus:ring-[#0066CC]"
+                                    />
+                                    <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Parts Ordered</span>
+                                  </label>
+                                  {issue.partsOrderedAt && (
+                                    <p className="text-xs text-slate-500 mt-1 ml-6">
+                                      Ordered {new Date(issue.partsOrderedAt).toLocaleDateString('en-GB')}
+                                    </p>
+                                  )}
+
+                                  {/* Supplier & Notes - show when ordered */}
+                                  {issue.partsOrdered && (
+                                    <div className="mt-2 ml-6 space-y-2">
+                                      <input
+                                        type="text"
+                                        placeholder="Supplier name"
+                                        value={issue.partsSupplier || ""}
+                                        onChange={(e) => updateIssue(issue.id, { partsSupplier: e.target.value || null })}
+                                        className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                                      />
+                                      <input
+                                        type="text"
+                                        placeholder="Notes (order ref, ETA, etc.)"
+                                        value={issue.partsNotes || ""}
+                                        onChange={(e) => updateIssue(issue.id, { partsNotes: e.target.value })}
+                                        className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:ring-1 focus:ring-[#0066CC] focus:border-[#0066CC]"
+                                      />
+                                    </div>
                                   )}
                                 </div>
+
+                                {/* Parts Received Checkbox - only show if ordered */}
+                                {issue.partsOrdered && (
+                                  <div className="border-t border-[#0066CC]/10 pt-3">
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                      <input
+                                        type="checkbox"
+                                        checked={issue.partsReceived || false}
+                                        onChange={(e) => updateIssue(issue.id, { partsReceived: e.target.checked })}
+                                        className="w-4 h-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+                                      />
+                                      <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">Parts Received</span>
+                                    </label>
+                                    {issue.partsReceivedAt && (
+                                      <p className="text-xs text-slate-500 mt-1 ml-6">
+                                        Received {new Date(issue.partsReceivedAt).toLocaleDateString('en-GB')}
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
 
@@ -5226,7 +5360,7 @@ function AddVehicleModal({ onClose, onSuccess }) {
   const [locations, setLocations] = useState([]);
   const [prepTemplates, setPrepTemplates] = useState([]);
   const [formData, setFormData] = useState({
-    regCurrent: "", make: "", model: "", year: "", mileageCurrent: "",
+    regCurrent: "", vin: "", make: "", model: "", year: "", mileageCurrent: "",
     fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
     motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
     engineCapacity: "", // Engine capacity in cc (autofilled from lookup or manual entry)
@@ -5395,6 +5529,9 @@ function AddVehicleModal({ onClose, onSuccess }) {
 
       if (!res.ok) {
         const error = await res.json();
+        if (res.status === 409) {
+          throw new Error(error.message || "Vehicle already in stock");
+        }
         throw new Error(error.error || "Failed to convert appraisal");
       }
 
@@ -5411,40 +5548,70 @@ function AddVehicleModal({ onClose, onSuccess }) {
     if (!formData.regCurrent) return toast.error("Enter registration first");
     setIsLookingUp(true);
     try {
-      const res = await fetch("/api/dvla-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleReg: formData.regCurrent }),
-      });
-      const data = await res.json();
+      const vrm = formData.regCurrent.replace(/\s/g, "").toUpperCase();
 
-      // Check for error response
-      if (!res.ok || data.error) {
-        toast.error(data.message || data.error || "Vehicle not found");
+      // Call both DVLA and MOT APIs in parallel for complete data
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch("/api/dvla-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicleReg: vrm }),
+        }),
+        fetch(`/api/mot?vrm=${vrm}`),
+      ]);
+
+      const dvlaData = await dvlaRes.json();
+      let motData = null;
+
+      // Parse MOT response and log any errors
+      if (motRes.ok) {
+        motData = await motRes.json();
+        console.log("[Lookup] MOT data received:", motData);
+      } else {
+        const motError = await motRes.json().catch(() => ({}));
+        console.warn("[Lookup] MOT API failed:", motRes.status, motError);
+      }
+
+      // Check for error response - need at least one successful lookup
+      if ((!dvlaRes.ok || dvlaData.error) && !motData) {
+        toast.error(dvlaData.message || dvlaData.error || "Vehicle not found");
         return;
       }
 
-      if (data.isDummy) showDummyNotification("DVLA API");
+      if (dvlaData.isDummy) showDummyNotification("DVLA API");
 
-      // Update form with DVLA data
+      // Update form with combined DVLA and MOT data
+      // MOT has VIN and model, DVLA has more details
       setFormData(prev => ({
         ...prev,
-        make: data.make || prev.make,
-        model: data.model || prev.model,
-        year: data.yearOfManufacture || data.year || prev.year,
-        colour: data.colour || prev.colour,
-        fuelType: data.fuelType || prev.fuelType,
-        transmission: data.transmission || prev.transmission,
-        motExpiryDate: data.motExpiryDate || prev.motExpiryDate,
+        make: dvlaData.make || motData?.make || prev.make,
+        model: motData?.model || dvlaData.model || prev.model, // Prefer MOT for model
+        vin: motData?.vin || prev.vin, // VIN from MOT API
+        year: dvlaData.yearOfManufacture || dvlaData.year || motData?.manufactureYear || prev.year,
+        colour: dvlaData.colour || motData?.primaryColour || prev.colour,
+        fuelType: dvlaData.fuelType || motData?.fuelType || prev.fuelType,
+        transmission: dvlaData.transmission || prev.transmission,
+        motExpiryDate: dvlaData.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
         // Engine capacity from DVLA (in cc)
-        engineCapacity: data.engineCapacity || data.dvlaDetails?.engineCapacity || prev.engineCapacity,
+        engineCapacity: dvlaData.engineCapacity || dvlaData.dvlaDetails?.engineCapacity || motData?.engineSize || prev.engineCapacity,
         // Store full DVLA details for API persistence
-        dvlaDetails: data.dvlaDetails || null,
-        lastDvlaFetchAt: data.lastDvlaFetchAt || null,
+        dvlaDetails: dvlaData.dvlaDetails || null,
+        lastDvlaFetchAt: dvlaData.lastDvlaFetchAt || null,
       }));
 
-      toast.success(`Found: ${data.make} ${data.model || ""} (${data.yearOfManufacture || ""})`);
+      const make = dvlaData.make || motData?.make;
+      const model = motData?.model || dvlaData.model || "";
+      const year = dvlaData.yearOfManufacture || motData?.manufactureYear || "";
+
+      // Show success message with warning if VIN not available
+      if (!motData?.vin) {
+        toast.success(`Found: ${make} ${model} (${year})`, { icon: "⚠️" });
+        toast("VIN not available - enter manually or check MOT API config", { duration: 4000 });
+      } else {
+        toast.success(`Found: ${make} ${model} (${year})`);
+      }
     } catch (error) {
+      console.error("[Lookup] Error:", error);
       toast.error("Lookup failed - please try again");
     } finally {
       setIsLookingUp(false);
@@ -5700,6 +5867,18 @@ function AddVehicleModal({ onClose, onSuccess }) {
                 </div>
               </div>
             )}
+
+            {/* VIN Field */}
+            <div className="form-control mb-4">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">VIN (Chassis Number)</label>
+              <input
+                type="text"
+                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none font-mono uppercase"
+                value={formData.vin}
+                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
+                maxLength={17}
+              />
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="form-control">

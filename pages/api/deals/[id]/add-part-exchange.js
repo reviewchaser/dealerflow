@@ -38,6 +38,7 @@ async function handler(req, res, ctx) {
 
   const {
     vrm,
+    vin,
     make,
     model,
     derivative,
@@ -81,6 +82,7 @@ async function handler(req, res, ctx) {
     sourceType: sourceType || "MANUAL",
     sourceId: sourceId || undefined,
     vrm: vrm.toUpperCase().replace(/\s/g, ""),
+    vin: vin || undefined,
     make,
     model,
     derivative,
@@ -115,6 +117,7 @@ async function handler(req, res, ctx) {
     partExchange: {
       id: partExchange._id.toString(),
       vrm: partExchange.vrm,
+      vin: partExchange.vin,
       make: partExchange.make,
       model: partExchange.model,
       year: partExchange.year,

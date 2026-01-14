@@ -140,6 +140,8 @@ export default function DealDrawer({
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReasonInput, setCancelReasonInput] = useState("");
 
   // Add-on state
   const [showAddOnPicker, setShowAddOnPicker] = useState(false);
@@ -161,6 +163,7 @@ export default function DealDrawer({
   const [showPxModal, setShowPxModal] = useState(false);
   const [pxForm, setPxForm] = useState({
     vrm: "",
+    vin: "", // VIN from MOT API
     make: "",
     model: "",
     year: "",
@@ -197,16 +200,20 @@ export default function DealDrawer({
 
     setPxLookupLoading(true);
     try {
-      // DVLA API requires POST with registrationNumber in body
-      const res = await fetch("/api/dvla/vehicle-enquiry", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registrationNumber: cleanVrm }),
-      });
+      // Call both DVLA and MOT APIs in parallel (MOT has VIN and model data)
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch("/api/dvla/vehicle-enquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registrationNumber: cleanVrm }),
+        }),
+        fetch(`/api/mot?vrm=${encodeURIComponent(cleanVrm)}`).catch(() => null),
+      ]);
 
-      const result = await res.json();
+      const result = await dvlaRes.json();
+      const motData = motRes?.ok ? await motRes.json() : null;
 
-      if (!res.ok || !result.ok) {
+      if (!dvlaRes.ok || !result.ok) {
         throw new Error(result.message || "VRM lookup failed");
       }
 
@@ -218,16 +225,19 @@ export default function DealDrawer({
         year = String(data.yearOfManufacture);
       } else if (data.dvlaDetails?.monthOfFirstRegistration) {
         year = data.dvlaDetails.monthOfFirstRegistration.split("-")[0];
+      } else if (motData?.manufactureYear) {
+        year = String(motData.manufactureYear);
       }
 
       setPxForm((prev) => ({
         ...prev,
         vrm: cleanVrm,
-        make: data.make || prev.make,
-        model: data.model || prev.model,
+        vin: motData?.vin || prev.vin, // VIN from MOT API (not available from DVLA)
+        make: data.make || motData?.make || prev.make,
+        model: motData?.model || prev.model, // MOT API has better model data
         year: year || prev.year,
-        colour: data.colour || prev.colour,
-        fuelType: data.dvlaDetails?.fuelType || prev.fuelType,
+        colour: data.colour || motData?.primaryColour || prev.colour,
+        fuelType: data.dvlaDetails?.fuelType || motData?.fuelType || prev.fuelType,
       }));
 
       toast.success("Vehicle details loaded from DVLA");
@@ -265,6 +275,7 @@ export default function DealDrawer({
     setSelectedPxAppraisal(appraisal);
     setPxForm({
       vrm: appraisal.vehicleReg || "",
+      vin: appraisal.vin || "",
       make: appraisal.vehicleMake || "",
       model: appraisal.vehicleModel || "",
       year: appraisal.vehicleYear || "",
@@ -286,6 +297,7 @@ export default function DealDrawer({
     setSelectedPxAppraisal(null);
     setPxForm({
       vrm: "",
+      vin: "",
       make: "",
       model: "",
       year: "",
@@ -755,6 +767,7 @@ export default function DealDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           vrm: pxForm.vrm,
+          vin: pxForm.vin || undefined,
           make: pxForm.make,
           model: pxForm.model,
           year: pxForm.year ? parseInt(pxForm.year) : undefined,
@@ -784,6 +797,7 @@ export default function DealDrawer({
       setSelectedPxAppraisal(null);
       setPxForm({
         vrm: "",
+        vin: "",
         make: "",
         model: "",
         year: "",
@@ -875,15 +889,22 @@ export default function DealDrawer({
     }
   };
 
-  const handleCancelDeal = async () => {
-    if (!confirm("Are you sure you want to cancel this deal?")) return;
+  const handleCancelDeal = async (reason = null) => {
+    // For COMPLETED deals, we need a reason - show modal
+    if (deal.status === "COMPLETED" && !reason) {
+      setShowCancelModal(true);
+      return;
+    }
+
+    // For non-completed deals, confirm first
+    if (!reason && !confirm("Are you sure you want to cancel this deal?")) return;
 
     setActionLoading("cancel");
     try {
       const res = await fetch(`/api/deals/${dealId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cancelReason: "Cancelled by user" }),
+        body: JSON.stringify({ cancelReason: reason || "Cancelled by user" }),
       });
 
       if (!res.ok) {
@@ -891,7 +912,9 @@ export default function DealDrawer({
         throw new Error(err.error || "Failed to cancel deal");
       }
 
-      toast.success("Deal cancelled");
+      toast.success(deal.status === "COMPLETED" ? "Completed deal cancelled" : "Deal cancelled");
+      setShowCancelModal(false);
+      setCancelReasonInput("");
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -2055,7 +2078,7 @@ export default function DealDrawer({
                             </button>
                           ) : (
                             <button
-                              onClick={handleCancelDeal}
+                              onClick={() => handleCancelDeal()}
                               disabled={actionLoading}
                               className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50"
                             >
@@ -2063,6 +2086,38 @@ export default function DealDrawer({
                             </button>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cancel option for COMPLETED deals */}
+                  {deal.status === "COMPLETED" && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Deal Actions</h3>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <p className="text-xs text-slate-500 mb-3">
+                          This deal is completed. Cancelling will require a reason and will not release the vehicle.
+                        </p>
+                        <button
+                          onClick={() => handleCancelDeal()}
+                          disabled={actionLoading}
+                          className="btn btn-sm btn-ghost w-full text-red-500 hover:bg-red-50 border border-red-200"
+                        >
+                          {actionLoading === "cancel" ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            "Cancel Completed Deal"
+                          )}
+                        </button>
                       </div>
                     </div>
                   )}
@@ -2816,6 +2871,53 @@ export default function DealDrawer({
         </div>
       )}
 
+      {/* Cancel Deal Modal (for COMPLETED deals requiring reason) */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowCancelModal(false); setCancelReasonInput(""); }} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Cancel Completed Deal?</h3>
+            <p className="text-sm text-slate-500 text-center mb-4">
+              This deal is marked as completed. Cancelling requires a reason for your records. The vehicle will remain marked as sold.
+            </p>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Reason *</label>
+              <textarea
+                value={cancelReasonInput}
+                onChange={(e) => setCancelReasonInput(e.target.value)}
+                placeholder="e.g., Customer requested refund, Finance fell through..."
+                className="textarea textarea-bordered w-full h-24"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowCancelModal(false); setCancelReasonInput(""); }}
+                className="btn btn-ghost flex-1"
+              >
+                Keep Deal
+              </button>
+              <button
+                onClick={() => handleCancelDeal(cancelReasonInput)}
+                disabled={actionLoading === "cancel" || !cancelReasonInput.trim()}
+                className="btn bg-red-500 hover:bg-red-600 text-white border-none flex-1 disabled:bg-slate-300"
+              >
+                {actionLoading === "cancel" ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Cancel Deal"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Agreed Work Modal */}
       {showAgreedWorkModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -3058,6 +3160,19 @@ export default function DealDrawer({
                   </button>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">Enter VRM and click Lookup to auto-fill vehicle details</p>
+              </div>
+
+              {/* VIN Field */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">VIN (Vehicle Identification Number)</label>
+                <input
+                  type="text"
+                  value={pxForm.vin}
+                  onChange={(e) => setPxForm({ ...pxForm, vin: e.target.value.toUpperCase() })}
+                  className="input input-bordered w-full font-mono uppercase"
+                  placeholder="Auto-populated from lookup or enter manually"
+                  maxLength={17}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">

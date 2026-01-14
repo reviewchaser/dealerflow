@@ -138,6 +138,26 @@ async function handler(req, res, ctx) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
 
+    // Validate vehicle has complete purchase info before allowing sale
+    if (!vehicle.purchase?.purchasePriceNet && vehicle.purchase?.purchasePriceNet !== 0) {
+      return res.status(400).json({
+        error: "Vehicle purchase price (SIV) is required before creating a sale",
+        code: "MISSING_SIV",
+      });
+    }
+    if (!vehicle.vatScheme) {
+      return res.status(400).json({
+        error: "Vehicle VAT scheme is required before creating a sale",
+        code: "MISSING_VAT_SCHEME",
+      });
+    }
+    if (!vehicle.purchase?.purchasedFromContactId) {
+      return res.status(400).json({
+        error: "Vehicle supplier/seller is required before creating a sale",
+        code: "MISSING_SELLER",
+      });
+    }
+
     // Check vehicle isn't already in a deal
     if (vehicle.salesStatus === "IN_DEAL" || vehicle.salesStatus === "SOLD_IN_PROGRESS") {
       const existingDeal = await Deal.findOne({

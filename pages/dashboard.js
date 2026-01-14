@@ -214,6 +214,56 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   // KPI display mode: "net" (default) or "gross"
   const [kpiDisplayMode, setKpiDisplayMode] = useState("net");
+  // Activity feed filter
+  const [activityFilter, setActivityFilter] = useState("all");
+  // VRM search for activity feed
+  const [vrmSearch, setVrmSearch] = useState("");
+  const [vrmSuggestions, setVrmSuggestions] = useState([]);
+  const [showVrmSuggestions, setShowVrmSuggestions] = useState(false);
+
+  // Fetch VRM suggestions when user types
+  useEffect(() => {
+    if (!vrmSearch || vrmSearch.length < 2) {
+      setVrmSuggestions([]);
+      return;
+    }
+    const debounce = setTimeout(() => {
+      // Get unique VRMs from the activity feed
+      const uniqueVrms = [...new Set(
+        (stats?.activityFeed || [])
+          .filter(e => e.vehicleReg)
+          .map(e => e.vehicleReg.toUpperCase())
+      )].filter(vrm => vrm.includes(vrmSearch.toUpperCase()));
+      setVrmSuggestions(uniqueVrms.slice(0, 5));
+    }, 150);
+    return () => clearTimeout(debounce);
+  }, [vrmSearch, stats?.activityFeed]);
+
+  // Activity filter categories
+  const ACTIVITY_FILTERS = {
+    all: { label: "All", types: null },
+    sales: {
+      label: "Sales",
+      types: ["DEAL_CREATED", "DEPOSIT_TAKEN", "INVOICE_GENERATED", "DELIVERED", "COMPLETED", "VEHICLE_DELIVERED", "SALE_COMPLETED"],
+    },
+    stockPrep: {
+      label: "Stock & Prep",
+      types: [
+        "VEHICLE_ADDED", "VEHICLE_STATUS_CHANGED", "VEHICLE_LOCATION_CHANGED",
+        "TASK_COMPLETED", "TASK_CREATED", "TASK_PARTS_ORDERED", "TASK_PARTS_RECEIVED",
+        "ISSUE_CREATED", "ISSUE_RESOLVED", "ISSUE_UPDATED", "ISSUE_PARTS_ORDERED", "ISSUE_PARTS_RECEIVED",
+        "DOCUMENT_UPLOADED", "LABELS_UPDATED"
+      ],
+    },
+    aftersales: {
+      label: "Aftersales",
+      types: ["AFTERCARE_CASE_CREATED", "AFTERCARE_CASE_UPDATED", "AFTERCARE_CASE_CLOSED"],
+    },
+    forms: {
+      label: "Forms",
+      types: ["FORM_SUBMITTED"],
+    },
+  };
 
   const defaultStats = {
     appraisals: { total: 0, pending: 0 },
@@ -436,6 +486,242 @@ export default function Dashboard() {
               variant="gradient"
             />
           </div>
+
+          {/* Activity Feed */}
+          {stats?.activityFeed?.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Activity Feed</h2>
+                    <p className="text-xs text-slate-500">Latest updates across your dealership</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* VRM Search */}
+                  <div className="relative">
+                    <div className="relative">
+                      <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Search VRM..."
+                        value={vrmSearch}
+                        onChange={(e) => {
+                          setVrmSearch(e.target.value.toUpperCase());
+                          setShowVrmSuggestions(true);
+                        }}
+                        onFocus={() => setShowVrmSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowVrmSuggestions(false), 150)}
+                        className="w-32 md:w-40 pl-8 pr-8 py-1.5 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20 focus:border-[#0066CC]"
+                      />
+                      {vrmSearch && (
+                        <button
+                          onClick={() => {
+                            setVrmSearch("");
+                            setVrmSuggestions([]);
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    {/* Suggestions dropdown */}
+                    {showVrmSuggestions && vrmSuggestions.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                        {vrmSuggestions.map((vrm) => (
+                          <button
+                            key={vrm}
+                            onMouseDown={() => {
+                              setVrmSearch(vrm);
+                              setShowVrmSuggestions(false);
+                            }}
+                            className="w-full px-3 py-2 text-xs font-mono text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                          >
+                            {vrm}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {/* Filter Tabs */}
+                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                    {Object.entries(ACTIVITY_FILTERS).map(([key, { label }]) => (
+                      <button
+                        key={key}
+                        onClick={() => setActivityFilter(key)}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                          activityFilter === key
+                            ? "bg-white text-[#0066CC] shadow-sm"
+                            : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+                {stats.activityFeed
+                  .filter((event) => {
+                    // VRM filter
+                    if (vrmSearch && (!event.vehicleReg || !event.vehicleReg.toUpperCase().includes(vrmSearch.toUpperCase()))) {
+                      return false;
+                    }
+                    // Category filter
+                    if (activityFilter === "all") return true;
+                    const filterTypes = ACTIVITY_FILTERS[activityFilter]?.types;
+                    return filterTypes?.includes(event.type);
+                  })
+                  .map((event, idx) => {
+                    // Activity icons (filled SVG style)
+                    const icons = {
+                      document: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" /></svg>,
+                      pound: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 10.818v2.614A3.13 3.13 0 0111.888 13c.482-.315.612-.648.612-.875 0-.227-.13-.56-.612-.875a3.13 3.13 0 00-1.138-.432zM8.33 8.62c.053.055.115.11.184.164.208.16.46.284.736.363V6.603a2.45 2.45 0 00-.35.13c-.14.065-.27.143-.386.233-.377.292-.514.627-.514.909 0 .184.058.39.202.592.037.051.08.102.128.152zM10 18a8 8 0 100-16 8 8 0 000 16zm.75-13v.25A1.75 1.75 0 0112.5 7h.5c.281 0 .5.22.5.5V8a.5.5 0 01-.5.5H12a.75.75 0 00-.75.75v.3a3.63 3.63 0 011.538.432c.482.315.962.827.962 1.518 0 .69-.48 1.203-.962 1.518a3.63 3.63 0 01-1.538.432v.062a.75.75 0 01-.75.75h-1a.75.75 0 01-.75-.75v-.062a3.63 3.63 0 01-1.538-.432c-.482-.315-.962-.827-.962-1.518 0-.69.48-1.203.962-1.518a3.63 3.63 0 011.538-.432V9.25a.75.75 0 00-.75-.75h-.5a.5.5 0 01-.5-.5v-.5c0-.28.22-.5.5-.5h.5A1.75 1.75 0 019.25 5.25V5a.75.75 0 01.75-.75h.5c.414 0 .75.336.75.75v.25z" /></svg>,
+                      truck: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.5 3c-1.051 0-2.093.04-3.125.117A1.49 1.49 0 002 4.607V10.5h-.5a.5.5 0 00-.5.5v2a2 2 0 002 2h1a2 2 0 002-2h6a2 2 0 002 2h1a2 2 0 002-2v-.5h.026a1.5 1.5 0 001.41-.993l.588-1.568c.118-.316.276-.616.467-.895A9.342 9.342 0 0118 6.5a1 1 0 00-1-1h-1.532a1.49 1.49 0 00-1.093.483L13.5 7h-.25a.75.75 0 010-1.5h.25a.75.75 0 01.75.75V6H17a2 2 0 012 2v.5h-1V8a1 1 0 00-1-1h-2.5V6.25a.75.75 0 01.75-.75H16V4a1 1 0 00-1-1h-.5c-1.031-.077-2.074-.117-3.125-.117H6.5zm.25 7.25a.75.75 0 000 1.5.75.75 0 000-1.5zm7.5 0a.75.75 0 000 1.5.75.75 0 000-1.5z" /></svg>,
+                      check: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>,
+                      warning: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>,
+                      wrench: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M14.5 10a4.5 4.5 0 004.284-5.882c-.105-.324-.51-.391-.752-.15L15.34 6.66a.454.454 0 01-.493.11 3.01 3.01 0 01-1.618-1.616.455.455 0 01.11-.494l2.694-2.692c.24-.241.174-.647-.15-.752a4.5 4.5 0 00-5.873 4.575c.055.873-.128 1.808-.8 2.368l-7.23 6.024a2.724 2.724 0 103.837 3.837l6.024-7.23c.56-.672 1.495-.855 2.368-.8.096.007.193.01.291.01zM5 16a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" /></svg>,
+                      pencil: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" /></svg>,
+                      cube: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10.362 1.093a.75.75 0 00-.724 0L2.523 5.018 10 9.143l7.477-4.125-7.115-3.925zM18 6.443l-7.25 4v8.25l6.862-3.786A.75.75 0 0018 14.25V6.443zm-8.75 12.25v-8.25l-7.25-4v7.807a.75.75 0 00.388.657l6.862 3.786z" clipRule="evenodd" /></svg>,
+                      checkBadge: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.403 12.652a3 3 0 000-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-2.546-4.46a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.06l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>,
+                      clipboard: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M15.988 3.012A2.25 2.25 0 0118 5.25v6.5A2.25 2.25 0 0115.75 14H13.5V7A2.5 2.5 0 0011 4.5H8.128a2.252 2.252 0 011.884-1.488A2.25 2.25 0 0112.25 1h1.5a2.25 2.25 0 012.238 2.012zM11.5 3.25a.75.75 0 01.75-.75h1.5a.75.75 0 01.75.75v.25h-3v-.25z" clipRule="evenodd" /><path fillRule="evenodd" d="M2 7a1 1 0 011-1h8a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V7zm2 3.25a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75zm0 3.5a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5a.75.75 0 01-.75-.75z" clipRule="evenodd" /></svg>,
+                      plusCircle: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-11.25a.75.75 0 00-1.5 0v2.5h-2.5a.75.75 0 000 1.5h2.5v2.5a.75.75 0 001.5 0v-2.5h2.5a.75.75 0 000-1.5h-2.5v-2.5z" clipRule="evenodd" /></svg>,
+                      arrowPath: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" /></svg>,
+                      mapPin: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.096.446-.24.757-.433.62-.384 1.445-.966 2.274-1.765C15.302 14.988 17 12.493 17 9A7 7 0 103 9c0 3.492 1.698 5.988 3.355 7.584a13.731 13.731 0 002.273 1.765 11.842 11.842 0 00.976.544l.062.029.018.008.006.003zM10 11.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" /></svg>,
+                      shield: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 007.078 2.749.5.5 0 01.479.425c.069.52.104 1.05.104 1.59 0 5.162-3.26 9.563-7.834 11.256a.48.48 0 01-.332 0C5.26 16.564 2 12.163 2 7c0-.538.035-1.069.104-1.589a.5.5 0 01.48-.425 11.947 11.947 0 007.077-2.75z" clipRule="evenodd" /></svg>,
+                      shieldCheck: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 007.078 2.749.5.5 0 01.479.425A12.11 12.11 0 0118 7c0 5.162-3.26 9.563-7.834 11.256a.48.48 0 01-.332 0C5.26 16.564 2 12.163 2 7c0-.538.035-1.069.104-1.589a.5.5 0 01.48-.425 11.947 11.947 0 007.077-2.75zm4.196 5.954a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.06l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>,
+                      folder: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M3.75 3A1.75 1.75 0 002 4.75v3.26a3.235 3.235 0 011.75-.51h12.5c.644 0 1.245.188 1.75.51V6.75A1.75 1.75 0 0016.25 5h-4.836a.25.25 0 01-.177-.073L9.823 3.513A1.75 1.75 0 008.586 3H3.75zM3.75 9A1.75 1.75 0 002 10.75v4.5c0 .966.784 1.75 1.75 1.75h12.5A1.75 1.75 0 0018 15.25v-4.5A1.75 1.75 0 0016.25 9H3.75z" /></svg>,
+                      tag: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5.5 3A2.5 2.5 0 003 5.5v2.879a2.5 2.5 0 00.732 1.767l6.5 6.5a2.5 2.5 0 003.536 0l2.878-2.878a2.5 2.5 0 000-3.536l-6.5-6.5A2.5 2.5 0 008.38 3H5.5zM6 7a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>,
+                      pin: <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" /></svg>,
+                    };
+
+                    // Comprehensive activity type configuration with filled SVG icons
+                    const eventConfig = {
+                      DEAL_CREATED: { icon: icons.clipboard, color: "bg-blue-100 text-blue-600" },
+                      DEPOSIT_TAKEN: { icon: icons.pound, color: "bg-emerald-100 text-emerald-600" },
+                      INVOICE_GENERATED: { icon: icons.document, color: "bg-purple-100 text-purple-600" },
+                      DELIVERED: { icon: icons.truck, color: "bg-cyan-100 text-cyan-600" },
+                      VEHICLE_DELIVERED: { icon: icons.truck, color: "bg-cyan-100 text-cyan-600" },
+                      COMPLETED: { icon: icons.check, color: "bg-green-100 text-green-600" },
+                      SALE_COMPLETED: { icon: icons.check, color: "bg-green-100 text-green-600" },
+                      ISSUE_CREATED: { icon: icons.warning, color: "bg-red-100 text-red-600" },
+                      ISSUE_RESOLVED: { icon: icons.wrench, color: "bg-green-100 text-green-600" },
+                      ISSUE_UPDATED: { icon: icons.pencil, color: "bg-amber-100 text-amber-600" },
+                      ISSUE_PARTS_ORDERED: { icon: icons.cube, color: "bg-blue-100 text-blue-600" },
+                      ISSUE_PARTS_RECEIVED: { icon: icons.checkBadge, color: "bg-emerald-100 text-emerald-600" },
+                      TASK_COMPLETED: { icon: icons.check, color: "bg-green-100 text-green-600" },
+                      TASK_CREATED: { icon: icons.clipboard, color: "bg-blue-100 text-blue-600" },
+                      TASK_PARTS_ORDERED: { icon: icons.cube, color: "bg-blue-100 text-blue-600" },
+                      TASK_PARTS_RECEIVED: { icon: icons.checkBadge, color: "bg-emerald-100 text-emerald-600" },
+                      VEHICLE_ADDED: { icon: icons.plusCircle, color: "bg-blue-100 text-blue-600" },
+                      VEHICLE_STATUS_CHANGED: { icon: icons.arrowPath, color: "bg-purple-100 text-purple-600" },
+                      VEHICLE_LOCATION_CHANGED: { icon: icons.mapPin, color: "bg-cyan-100 text-cyan-600" },
+                      AFTERCARE_CASE_CREATED: { icon: icons.shield, color: "bg-orange-100 text-orange-600" },
+                      AFTERCARE_CASE_UPDATED: { icon: icons.shield, color: "bg-amber-100 text-amber-600" },
+                      AFTERCARE_CASE_CLOSED: { icon: icons.shieldCheck, color: "bg-green-100 text-green-600" },
+                      FORM_SUBMITTED: { icon: icons.document, color: "bg-blue-100 text-blue-600" },
+                      DOCUMENT_UPLOADED: { icon: icons.folder, color: "bg-cyan-100 text-cyan-600" },
+                      LABELS_UPDATED: { icon: icons.tag, color: "bg-purple-100 text-purple-600" },
+                    }[event.type] || { icon: icons.pin, color: "bg-slate-100 text-slate-600" };
+
+                    const timeAgo = (timestamp) => {
+                      const now = new Date();
+                      const then = new Date(timestamp);
+                      const diffMs = now - then;
+                      const diffMins = Math.floor(diffMs / 60000);
+                      const diffHours = Math.floor(diffMs / 3600000);
+                      const diffDays = Math.floor(diffMs / 86400000);
+                      if (diffMins < 1) return "Just now";
+                      if (diffMins < 60) return `${diffMins}m ago`;
+                      if (diffHours < 24) return `${diffHours}h ago`;
+                      if (diffDays === 1) return "Yesterday";
+                      if (diffDays < 7) return `${diffDays}d ago`;
+                      return then.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                    };
+
+                    const handleClick = () => {
+                      if (event.dealId) {
+                        router.push(getPath(`/deals?id=${event.dealId}`));
+                      } else if (event.vehicleId) {
+                        router.push(getPath(`/sales-prep?vehicle=${event.vehicleId}`));
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={`${event.type}-${event.timestamp}-${idx}`}
+                        onClick={handleClick}
+                        className="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
+                      >
+                        <div className={`w-9 h-9 rounded-lg ${eventConfig.color} flex items-center justify-center text-base flex-shrink-0`}>
+                          {eventConfig.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {/* VRM and Make/Model as header */}
+                          {(event.vehicleReg || event.vehicleMakeModel) && (
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              {event.vehicleReg && (
+                                <span className="text-sm font-mono font-semibold text-slate-900">{event.vehicleReg}</span>
+                              )}
+                              {event.vehicleMakeModel && (
+                                <span className="text-sm text-slate-500">{event.vehicleMakeModel}</span>
+                              )}
+                            </div>
+                          )}
+                          <p className="text-sm text-slate-600 leading-tight">{event.description}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {event.userName && event.userName !== "System" && (
+                              <span className="text-xs text-slate-400">{event.userName}</span>
+                            )}
+                            {event.customer && !event.vehicleReg && (
+                              <span className="text-xs text-slate-500">{event.customer}</span>
+                            )}
+                          </div>
+                        </div>
+                        {event.amount > 0 && (
+                          <span className="text-sm font-bold text-slate-700 flex-shrink-0">
+                            £{event.amount.toLocaleString("en-GB")}
+                          </span>
+                        )}
+                        <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
+                          {timeAgo(event.timestamp)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                {stats.activityFeed.filter((event) => {
+                  // VRM filter
+                  if (vrmSearch && (!event.vehicleReg || !event.vehicleReg.toUpperCase().includes(vrmSearch.toUpperCase()))) {
+                    return false;
+                  }
+                  // Category filter
+                  if (activityFilter === "all") return true;
+                  const filterTypes = ACTIVITY_FILTERS[activityFilter]?.types;
+                  return filterTypes?.includes(event.type);
+                }).length === 0 && (
+                  <div className="px-6 py-8 text-center text-slate-400">
+                    <p>
+                      {vrmSearch
+                        ? `No activity found for "${vrmSearch}"`
+                        : `No ${ACTIVITY_FILTERS[activityFilter]?.label.toLowerCase()} activity yet`
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Aftersales KPI Row */}
           <div className="space-y-2">
@@ -896,112 +1182,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Activity Feed */}
-          {stats?.activityFeed?.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-500 flex items-center justify-center text-white shadow-lg">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">Recent Activity</h2>
-                    <p className="text-xs text-slate-500">Latest updates across your dealership</p>
-                  </div>
-                </div>
-              </div>
-              <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-                {stats.activityFeed.map((event, idx) => {
-                  // Comprehensive activity type configuration
-                  const eventConfig = {
-                    // Deal events
-                    DEAL_CREATED: { icon: "📋", color: "bg-blue-100 text-blue-600" },
-                    DEPOSIT_TAKEN: { icon: "💰", color: "bg-emerald-100 text-emerald-600" },
-                    INVOICE_GENERATED: { icon: "📄", color: "bg-purple-100 text-purple-600" },
-                    DELIVERED: { icon: "🚗", color: "bg-cyan-100 text-cyan-600" },
-                    COMPLETED: { icon: "✅", color: "bg-green-100 text-green-600" },
-                    // Issue events
-                    ISSUE_CREATED: { icon: "⚠️", color: "bg-red-100 text-red-600" },
-                    ISSUE_RESOLVED: { icon: "🔧", color: "bg-green-100 text-green-600" },
-                    ISSUE_UPDATED: { icon: "📝", color: "bg-amber-100 text-amber-600" },
-                    // Task events
-                    TASK_COMPLETED: { icon: "✓", color: "bg-green-100 text-green-600" },
-                    TASK_CREATED: { icon: "📋", color: "bg-blue-100 text-blue-600" },
-                    // Vehicle events
-                    VEHICLE_ADDED: { icon: "🚙", color: "bg-blue-100 text-blue-600" },
-                    VEHICLE_STATUS_CHANGED: { icon: "🔄", color: "bg-purple-100 text-purple-600" },
-                    VEHICLE_LOCATION_CHANGED: { icon: "📍", color: "bg-cyan-100 text-cyan-600" },
-                    // Form events
-                    FORM_SUBMITTED: { icon: "📝", color: "bg-blue-100 text-blue-600" },
-                  }[event.type] || { icon: "📌", color: "bg-slate-100 text-slate-600" };
-
-                  const timeAgo = (timestamp) => {
-                    const now = new Date();
-                    const then = new Date(timestamp);
-                    const diffMs = now - then;
-                    const diffMins = Math.floor(diffMs / 60000);
-                    const diffHours = Math.floor(diffMs / 3600000);
-                    const diffDays = Math.floor(diffMs / 86400000);
-
-                    if (diffMins < 1) return "Just now";
-                    if (diffMins < 60) return `${diffMins}m ago`;
-                    if (diffHours < 24) return `${diffHours}h ago`;
-                    if (diffDays === 1) return "Yesterday";
-                    if (diffDays < 7) return `${diffDays}d ago`;
-                    return then.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-                  };
-
-                  // Determine click action based on event type
-                  const handleClick = () => {
-                    if (event.dealId) {
-                      router.push(getPath(`/deals?id=${event.dealId}`));
-                    } else if (event.vehicleId) {
-                      router.push(getPath(`/sales-prep?vehicle=${event.vehicleId}`));
-                    }
-                  };
-
-                  return (
-                    <div
-                      key={`${event.type}-${event.timestamp}-${idx}`}
-                      onClick={handleClick}
-                      className="flex items-center gap-4 px-6 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
-                    >
-                      <div className={`w-9 h-9 rounded-lg ${eventConfig.color} flex items-center justify-center text-base flex-shrink-0`}>
-                        {eventConfig.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-800 leading-tight">{event.description}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {event.userName && event.userName !== "System" && (
-                            <span className="text-xs text-slate-500 font-medium">{event.userName}</span>
-                          )}
-                          {event.userName && event.userName !== "System" && event.vehicleReg && (
-                            <span className="text-slate-300">•</span>
-                          )}
-                          {event.vehicleReg && (
-                            <span className="text-xs font-mono text-slate-400">{event.vehicleReg}</span>
-                          )}
-                          {event.customer && !event.vehicleReg && (
-                            <span className="text-xs text-slate-500">{event.customer}</span>
-                          )}
-                        </div>
-                      </div>
-                      {event.amount > 0 && (
-                        <span className="text-sm font-bold text-slate-700 flex-shrink-0">
-                          £{event.amount.toLocaleString("en-GB")}
-                        </span>
-                      )}
-                      <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0">
-                        {timeAgo(event.timestamp)}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </DashboardLayout>

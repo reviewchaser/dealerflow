@@ -18,6 +18,13 @@ export default function Contacts() {
     phone: "",
     type: "seller",
     notes: "",
+    address: {
+      line1: "",
+      line2: "",
+      town: "",
+      county: "",
+      postcode: "",
+    },
   });
 
   useEffect(() => {
@@ -50,22 +57,40 @@ export default function Contacts() {
 
   const handleCreateContact = async (e) => {
     e.preventDefault();
-    
+
+    // Validate required address fields
+    if (!newContact.address?.line1?.trim()) {
+      return toast.error("Address line 1 is required");
+    }
+    if (!newContact.address?.town?.trim()) {
+      return toast.error("Town/City is required");
+    }
+    if (!newContact.address?.postcode?.trim()) {
+      return toast.error("Postcode is required");
+    }
+
     try {
       const response = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newContact),
       });
-      
+
       if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error || "Failed to create contact");
       }
-      
+
       toast.success("Contact created!");
       setShowModal(false);
-      setNewContact({ name: "", email: "", phone: "", type: "seller", notes: "" });
+      setNewContact({
+        name: "",
+        email: "",
+        phone: "",
+        type: "seller",
+        notes: "",
+        address: { line1: "", line2: "", town: "", county: "", postcode: "" },
+      });
       fetchContacts();
     } catch (error) {
       toast.error(error.message);
@@ -220,6 +245,89 @@ export default function Contacts() {
                   className="input input-bordered"
                   value={newContact.phone}
                   onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
+                />
+              </div>
+
+              {/* Address Fields */}
+              <div className="form-control mb-4">
+                <label className="label">
+                  <span className="label-text">Address Line 1 *</span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  placeholder="Street address"
+                  value={newContact.address.line1}
+                  onChange={(e) => setNewContact({
+                    ...newContact,
+                    address: { ...newContact.address, line1: e.target.value }
+                  })}
+                  required
+                />
+              </div>
+
+              <div className="form-control mb-4">
+                <label className="label">
+                  <span className="label-text">Address Line 2</span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  placeholder="Apartment, suite, etc. (optional)"
+                  value={newContact.address.line2}
+                  onChange={(e) => setNewContact({
+                    ...newContact,
+                    address: { ...newContact.address, line2: e.target.value }
+                  })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Town/City *</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    value={newContact.address.town}
+                    onChange={(e) => setNewContact({
+                      ...newContact,
+                      address: { ...newContact.address, town: e.target.value }
+                    })}
+                    required
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">County</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    value={newContact.address.county}
+                    onChange={(e) => setNewContact({
+                      ...newContact,
+                      address: { ...newContact.address, county: e.target.value }
+                    })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-control mb-4">
+                <label className="label">
+                  <span className="label-text">Postcode *</span>
+                </label>
+                <input
+                  type="text"
+                  className="input input-bordered w-40"
+                  placeholder="AB12 3CD"
+                  value={newContact.address.postcode}
+                  onChange={(e) => setNewContact({
+                    ...newContact,
+                    address: { ...newContact.address, postcode: e.target.value.toUpperCase() }
+                  })}
+                  required
                 />
               </div>
 

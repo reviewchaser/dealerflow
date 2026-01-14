@@ -18,13 +18,20 @@ const salesDocumentSchema = new mongoose.Schema(
     dealId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Deal",
-      required: true,
+      // Required for DEPOSIT_RECEIPT and INVOICE, not for SELF_BILL_INVOICE
+    },
+
+    // Vehicle ID (for self-billing invoices which don't have a deal)
+    vehicleId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Vehicle",
+      // Required for SELF_BILL_INVOICE
     },
 
     // Document type and number
     type: {
       type: String,
-      enum: ["DEPOSIT_RECEIPT", "INVOICE"],
+      enum: ["DEPOSIT_RECEIPT", "INVOICE", "SELF_BILL_INVOICE", "PAYMENT_RECEIPT"],
       required: true,
     },
     documentNumber: { type: String, required: true },
@@ -100,6 +107,34 @@ const salesDocumentSchema = new mongoose.Schema(
       addOnsNetTotal: { type: Number },
       addOnsVatTotal: { type: Number },
 
+      // Delivery
+      delivery: {
+        amount: { type: Number },
+        isFree: { type: Boolean },
+        notes: { type: String },
+      },
+
+      // Finance selection (customer finance intention)
+      financeSelection: {
+        isFinanced: { type: Boolean },
+        financeCompanyName: { type: String },
+        toBeConfirmed: { type: Boolean },
+      },
+
+      // Sale classification
+      saleType: { type: String }, // RETAIL, TRADE, EXPORT
+      buyerUse: { type: String }, // PERSONAL, BUSINESS
+      saleChannel: { type: String }, // IN_PERSON, DISTANCE
+
+      // Finance details (when paymentType involves finance)
+      finance: {
+        provider: { type: String },
+        financeType: { type: String },
+        amountFinanced: { type: Number },
+        status: { type: String },
+        reference: { type: String },
+      },
+
       // Part exchange
       partExchange: {
         vrm: { type: String },
@@ -161,12 +196,48 @@ const salesDocumentSchema = new mongoose.Schema(
         logoUrl: { type: String },
       },
 
+      // Supplier details (for self-billing invoices - the seller we bought from)
+      supplier: {
+        name: { type: String },
+        companyName: { type: String },
+        email: { type: String },
+        phone: { type: String },
+        vatNumber: { type: String },
+        address: {
+          line1: { type: String },
+          line2: { type: String },
+          town: { type: String },
+          county: { type: String },
+          postcode: { type: String },
+        },
+      },
+
+      // Purchase details (for self-billing invoices)
+      purchase: {
+        purchaseDate: { type: Date },
+        purchasePriceNet: { type: Number },
+        purchaseVat: { type: Number },
+        purchasePriceGross: { type: Number },
+        purchaseInvoiceRef: { type: String },
+      },
+
       // Bank details (for invoice)
       bankDetails: {
         accountName: { type: String },
         sortCode: { type: String },
         accountNumber: { type: String },
         iban: { type: String },
+      },
+
+      // Payment receipt specific fields
+      paymentReceipt: {
+        paymentAmount: { type: Number },
+        paymentMethod: { type: String },
+        paymentReference: { type: String },
+        invoiceNumber: { type: String },
+        invoiceBalanceBefore: { type: Number },
+        invoiceBalanceAfter: { type: Number },
+        isFullPayment: { type: Boolean },
       },
     },
 
@@ -197,6 +268,7 @@ salesDocumentSchema.plugin(toJSON);
 // Indexes
 salesDocumentSchema.index({ dealerId: 1, type: 1, documentNumber: 1 }, { unique: true });
 salesDocumentSchema.index({ dealerId: 1, dealId: 1, type: 1 });
+salesDocumentSchema.index({ dealerId: 1, vehicleId: 1, type: 1 }); // For self-billing invoices
 salesDocumentSchema.index({ dealerId: 1, createdAt: -1 });
 salesDocumentSchema.index({ shareTokenHash: 1 }, { sparse: true });
 

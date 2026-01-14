@@ -94,7 +94,7 @@ export async function logIssueCreated({
   return ActivityLog.log({
     dealerId,
     type: ACTIVITY_TYPE.ISSUE_CREATED,
-    description: `Issue added: ${subcategory || category} on ${vehicleReg}`,
+    description: `Issue - ${subcategory || category} added`,
     userId,
     userName,
     vehicleId,
@@ -125,7 +125,70 @@ export async function logIssueResolved({
   return ActivityLog.log({
     dealerId,
     type: ACTIVITY_TYPE.ISSUE_RESOLVED,
-    description: `Issue resolved: ${subcategory || category} on ${vehicleReg}`,
+    description: `Issue - ${subcategory || category} resolved`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    issueId,
+    metadata: {
+      issueCategory: category,
+    },
+  });
+}
+
+/**
+ * Log parts ordered for an issue
+ */
+export async function logIssuePartsOrdered({
+  dealerId,
+  issueId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  category,
+  subcategory,
+  supplier,
+  userId,
+  userName,
+}) {
+  console.log("[DEBUG] logIssuePartsOrdered received:", { vehicleReg, vehicleMakeModel, category, subcategory });
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.ISSUE_PARTS_ORDERED,
+    description: `Issue - Parts ordered${supplier ? ` from ${supplier}` : ""} for ${subcategory || category}`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    issueId,
+    metadata: {
+      issueCategory: category,
+      supplier,
+    },
+  });
+}
+
+/**
+ * Log parts received for an issue
+ */
+export async function logIssuePartsReceived({
+  dealerId,
+  issueId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  category,
+  subcategory,
+  userId,
+  userName,
+}) {
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.ISSUE_PARTS_RECEIVED,
+    description: `Issue - Parts received for ${subcategory || category}`,
     userId,
     userName,
     vehicleId,
@@ -154,7 +217,67 @@ export async function logTaskCompleted({
   return ActivityLog.log({
     dealerId,
     type: ACTIVITY_TYPE.TASK_COMPLETED,
-    description: `${taskName} completed on ${vehicleReg}`,
+    description: `Task - ${taskName} completed`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    taskId,
+    metadata: {
+      taskName,
+    },
+  });
+}
+
+/**
+ * Log parts ordered for a task
+ */
+export async function logTaskPartsOrdered({
+  dealerId,
+  taskId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  taskName,
+  supplier,
+  userId,
+  userName,
+}) {
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.TASK_PARTS_ORDERED,
+    description: `Task - Parts ordered${supplier ? ` from ${supplier}` : ""} for ${taskName}`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    taskId,
+    metadata: {
+      taskName,
+      supplier,
+    },
+  });
+}
+
+/**
+ * Log parts received for a task
+ */
+export async function logTaskPartsReceived({
+  dealerId,
+  taskId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  taskName,
+  userId,
+  userName,
+}) {
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.TASK_PARTS_RECEIVED,
+    description: `Task - Parts received for ${taskName}`,
     userId,
     userName,
     vehicleId,
@@ -283,14 +406,82 @@ export async function logFormSubmitted({
   });
 }
 
+/**
+ * Log a document uploaded
+ */
+export async function logDocumentUploaded({
+  dealerId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  documentName,
+  documentType,
+  userId,
+  userName,
+}) {
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.DOCUMENT_UPLOADED,
+    description: vehicleReg
+      ? `${vehicleReg}: Document uploaded - ${documentName}`
+      : `Document uploaded: ${documentName}`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    metadata: {
+      documentName,
+      documentType,
+    },
+  });
+}
+
+/**
+ * Log labels updated on a vehicle
+ */
+export async function logLabelsUpdated({
+  dealerId,
+  vehicleId,
+  vehicleReg,
+  vehicleMakeModel,
+  action,
+  labelName,
+  userId,
+  userName,
+}) {
+  return ActivityLog.log({
+    dealerId,
+    type: ACTIVITY_TYPE.LABELS_UPDATED,
+    description: vehicleReg
+      ? `${vehicleReg}: Label ${action} - ${labelName}`
+      : `Label ${action}: ${labelName}`,
+    userId,
+    userName,
+    vehicleId,
+    vehicleReg,
+    vehicleMakeModel,
+    metadata: {
+      action,
+      labelName,
+    },
+  });
+}
+
 export default {
   logVehicleLocationChange,
   logVehicleStatusChange,
   logIssueCreated,
   logIssueResolved,
+  logIssuePartsOrdered,
+  logIssuePartsReceived,
   logTaskCompleted,
+  logTaskPartsOrdered,
+  logTaskPartsReceived,
   logVehicleAdded,
   logDealCreated,
   logDepositTaken,
   logFormSubmitted,
+  logDocumentUploaded,
+  logLabelsUpdated,
 };

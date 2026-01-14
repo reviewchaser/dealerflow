@@ -340,6 +340,36 @@ export default function VehicleDrawer({
     }).format(amount);
   };
 
+  // Parts supplier options (same as tasks)
+  const SUPPLIER_OPTIONS = [
+    { value: "EURO_CAR_PARTS", label: "Euro Car Parts" },
+    { value: "TPS", label: "TPS" },
+    { value: "MAIN_DEALER", label: "Main Dealer" },
+    { value: "LOCAL_FACTOR", label: "Local Factor" },
+    { value: "ONLINE", label: "Online" },
+    { value: "OTHER", label: "Other" },
+  ];
+
+  // Update issue parts status
+  const updateIssueParts = async (issueId, updates) => {
+    try {
+      const res = await fetch(`/api/issues/${issueId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update issue");
+      }
+      // Refresh vehicle data to get updated issue
+      await fetchVehicle();
+      toast.success(updates.partsReceived ? "Parts marked as received" : updates.partsOrdered ? "Parts marked as ordered" : "Issue updated");
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   // Deal status config
   const DEAL_STATUS_CONFIG = {
     DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
@@ -1294,18 +1324,110 @@ export default function VehicleDrawer({
                               </div>
                             )}
                             {issue.partsRequired && (
-                              <div className="flex items-start gap-2">
-                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide shrink-0 pt-0.5">
-                                  Parts Details
-                                </span>
-                                <div>
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC] mb-1">
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+                                    Parts
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#0066CC]/10 text-[#0066CC]">
                                     Required
                                   </span>
-                                  {issue.partsDetails && (
-                                    <p className="text-sm text-slate-600">{issue.partsDetails}</p>
-                                  )}
                                 </div>
+                                {issue.partsDetails && (
+                                  <p className="text-sm text-slate-500">{issue.partsDetails}</p>
+                                )}
+
+                                {/* Parts Ordered/Received Checkboxes */}
+                                {!readOnly && (
+                                  <div className="mt-2 p-3 bg-slate-50 rounded-lg space-y-3">
+                                    {/* Parts Ordered */}
+                                    <div className="space-y-2">
+                                      <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={issue.partsOrdered || false}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              updateIssueParts(issue.id, { partsOrdered: true });
+                                            }
+                                          }}
+                                          disabled={issue.partsOrdered}
+                                          className="checkbox checkbox-sm checkbox-primary"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700">Parts Ordered</span>
+                                        {issue.partsOrdered && issue.partsOrderedAt && (
+                                          <span className="text-xs text-slate-400">
+                                            ({formatDate(issue.partsOrderedAt)})
+                                          </span>
+                                        )}
+                                      </label>
+
+                                      {/* Supplier and Notes - shown when partsOrdered */}
+                                      {issue.partsOrdered && (
+                                        <div className="ml-6 space-y-2">
+                                          <div className="flex items-center gap-2">
+                                            <select
+                                              value={issue.partsSupplier || ""}
+                                              onChange={(e) => updateIssueParts(issue.id, { partsSupplier: e.target.value })}
+                                              className="select select-sm select-bordered w-40 text-sm"
+                                            >
+                                              <option value="">Select supplier</option>
+                                              {SUPPLIER_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                  {opt.label}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={issue.partsNotes || ""}
+                                            onChange={(e) => updateIssueParts(issue.id, { partsNotes: e.target.value })}
+                                            placeholder="Order ref, ETA, notes..."
+                                            className="input input-sm input-bordered w-full text-sm"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Parts Received - only show if parts ordered */}
+                                    {issue.partsOrdered && (
+                                      <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={issue.partsReceived || false}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              updateIssueParts(issue.id, { partsReceived: true });
+                                            }
+                                          }}
+                                          disabled={issue.partsReceived}
+                                          className="checkbox checkbox-sm checkbox-success"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700">Parts Received</span>
+                                        {issue.partsReceived && issue.partsReceivedAt && (
+                                          <span className="text-xs text-slate-400">
+                                            ({formatDate(issue.partsReceivedAt)})
+                                          </span>
+                                        )}
+                                      </label>
+                                    )}
+                                  </div>
+                                )}
+
+                                {/* Read-only parts status display */}
+                                {readOnly && (issue.partsOrdered || issue.partsReceived) && (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {issue.partsOrdered && (
+                                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                        issue.partsReceived ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                                      }`}>
+                                        {issue.partsReceived ? "Parts Received" : "Parts Ordered"}
+                                        {issue.partsSupplier && ` - ${SUPPLIER_OPTIONS.find(s => s.value === issue.partsSupplier)?.label || issue.partsSupplier}`}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                             {issue.notes && (

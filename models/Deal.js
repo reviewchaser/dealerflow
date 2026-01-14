@@ -205,6 +205,20 @@ const dealSchema = new mongoose.Schema(
     // === ADD-ONS ===
     addOns: [dealAddOnSchema],
 
+    // === DELIVERY ===
+    delivery: {
+      amount: { type: Number, default: 0 },
+      isFree: { type: Boolean, default: false },
+      notes: { type: String },
+    },
+
+    // === FINANCE SELECTION (for deposit stage) ===
+    financeSelection: {
+      isFinanced: { type: Boolean, default: false },
+      financeCompanyContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+      toBeConfirmed: { type: Boolean, default: false },
+    },
+
     // === SALES REQUESTS ===
     requests: [salesRequestSchema],
 
@@ -286,7 +300,8 @@ dealSchema.virtual("grandTotal").get(function () {
   const vehicleGross = this.vehiclePriceGross || 0;
   const addOnsNet = this.addOnsNetTotal || 0;
   const addOnsVat = this.addOnsVatTotal || 0;
-  return vehicleGross + addOnsNet + addOnsVat;
+  const deliveryAmount = (this.delivery?.isFree ? 0 : this.delivery?.amount) || 0;
+  return vehicleGross + addOnsNet + addOnsVat + deliveryAmount;
 });
 
 // Virtual: Calculate balance due

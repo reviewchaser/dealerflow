@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Head from "next/head";
 import { toast, Toaster } from "react-hot-toast";
 
 export default function WarrantyClaimForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLookingUp, setIsLookingUp] = useState(false);
+  const [vehicleMake, setVehicleMake] = useState("");
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
@@ -17,6 +19,39 @@ export default function WarrantyClaimForm() {
     issueDescription: "",
     urgency: "normal",
   });
+
+  // Look up vehicle make when regAtPurchase is entered (or vehicleReg if no regAtPurchase)
+  useEffect(() => {
+    const lookupReg = formData.regAtPurchase || formData.vehicleReg;
+    if (!lookupReg || lookupReg.length < 4) {
+      setVehicleMake("");
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsLookingUp(true);
+        const cleanReg = lookupReg.replace(/\s/g, "").toUpperCase();
+        const res = await fetch("/api/dvla/vehicle-enquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registrationNumber: cleanReg }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.make) {
+            setVehicleMake(data.make);
+          }
+        }
+      } catch (error) {
+        console.error("Vehicle lookup failed:", error);
+      } finally {
+        setIsLookingUp(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.regAtPurchase, formData.vehicleReg]);
 
   const problemCategories = [
     { value: "", label: "Select a category..." },
@@ -51,6 +86,7 @@ export default function WarrantyClaimForm() {
           customerPhone: formData.customerPhone,
           vehicleReg: formData.vehicleReg,
           regAtPurchase: formData.regAtPurchase || formData.vehicleReg,
+          vehicleMake: vehicleMake,
           summary: formData.issueDescription,
           source: "problem_report_form",
           category: formData.category,
@@ -60,6 +96,7 @@ export default function WarrantyClaimForm() {
             purchaseDate: formData.purchaseDate,
             urgency: formData.urgency,
             category: formData.category,
+            vehicleMake: vehicleMake,
           },
         }),
       });
@@ -75,14 +112,14 @@ export default function WarrantyClaimForm() {
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-base-200 flex items-center justify-center p-4">
-        <Head><title>Problem Reported</title></Head>
+        <Head><title>Issue Reported</title></Head>
         <Toaster position="top-center" />
         <div className="card bg-base-100 max-w-md w-full shadow-xl">
           <div className="card-body text-center">
             <div className="text-6xl mb-4">✅</div>
-            <h1 className="text-2xl font-bold">Problem Reported</h1>
+            <h1 className="text-2xl font-bold">Issue Reported</h1>
             <p className="text-base-content/60 mt-2">
-              Thank you for letting us know. We'll review your report and get back to you as soon as possible.
+              Thank you for letting us know. We'll review your report and get back to you within 48 hours.
             </p>
             <p className="text-sm mt-4">
               If your issue is urgent, please call us directly.
@@ -95,15 +132,14 @@ export default function WarrantyClaimForm() {
 
   return (
     <div className="min-h-screen bg-base-200 py-8 px-4">
-      <Head><title>Report a Problem</title></Head>
+      <Head><title>Report Aftersales Issue</title></Head>
       <Toaster position="top-center" />
 
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold">Report a Problem</h1>
+          <h1 className="text-3xl font-bold">Report Aftersales Issue</h1>
           <p className="text-base-content/60 mt-2 max-w-lg mx-auto">
-            Experiencing an issue with your vehicle? Use this form to let us know and we'll
-            review your case and get back to you as soon as possible.
+            Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.
           </p>
         </div>
 
@@ -161,6 +197,20 @@ export default function WarrantyClaimForm() {
                   className="input input-bordered uppercase font-mono" placeholder="Leave blank if same" />
               </div>
             </div>
+
+            {/* Vehicle Make - auto-populated from DVLA lookup */}
+            {(vehicleMake || isLookingUp) && (
+              <div className="form-control">
+                <label className="label"><span className="label-text">Vehicle Make</span></label>
+                <div className="input input-bordered bg-base-200 flex items-center text-base-content/70">
+                  {isLookingUp ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    vehicleMake
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="form-control">

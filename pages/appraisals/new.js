@@ -39,6 +39,18 @@ export default function NewAppraisal() {
   const [aiHints, setAiHints] = useState(null);
   const [isLoadingHints, setIsLoadingHints] = useState(false);
 
+  // Helper to build context-aware URLs (tenant or legacy)
+  const buildUrl = (path) => {
+    if (router.asPath.startsWith("/app/")) {
+      const parts = router.asPath.split("/");
+      const tenantSlug = parts[2];
+      if (tenantSlug) {
+        return `/app/${tenantSlug}${path}`;
+      }
+    }
+    return path;
+  };
+
   // Form data
   const [formData, setFormData] = useState({
     vehicleReg: "",
@@ -246,7 +258,7 @@ export default function NewAppraisal() {
       }
 
       toast.success("Appraisal created!");
-      router.push("/appraisals");
+      router.push(buildUrl("/appraisals"));
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -261,7 +273,7 @@ export default function NewAppraisal() {
       </Head>
 
       <div className="mb-8">
-        <Link href="/appraisals" className="btn btn-ghost btn-sm mb-4">
+        <Link href={buildUrl("/appraisals")} className="btn btn-ghost btn-sm mb-4">
           ← Back
         </Link>
         <h1 className="text-3xl font-bold">New Buying Appraisal</h1>
@@ -660,7 +672,7 @@ export default function NewAppraisal() {
 
             {/* Submit */}
             <div className="flex gap-4">
-              <Link href="/appraisals" className="btn btn-ghost">
+              <Link href={buildUrl("/appraisals")} className="btn btn-ghost">
                 Cancel
               </Link>
               <button

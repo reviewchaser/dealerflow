@@ -16,7 +16,7 @@ import { AttachmentField, isAttachmentValue, formatAttachmentHtml } from "@/comp
 const FORM_TYPE_LABELS = {
   PDI: "PDI",
   TEST_DRIVE: "Test Drive",
-  WARRANTY_CLAIM: "Warranty Claim",
+  WARRANTY_CLAIM: "Aftersales Issue",
   COURTESY_OUT: "Courtesy Car Out",
   COURTESY_IN: "Courtesy Car In",
   SERVICE_RECEIPT: "Service Receipt",
@@ -341,6 +341,13 @@ export default function Forms() {
       form.visibility === "SHARE_LINK";
 
     if (!isShareable || !form.publicSlug) return null;
+
+    // WARRANTY_CLAIM forms use the dedicated report-a-problem page
+    // which creates aftercare cases directly
+    if (form.type === "WARRANTY_CLAIM") {
+      return `${window.location.origin}/public/report-a-problem`;
+    }
+
     return `${window.location.origin}/public/forms/${form.publicSlug}`;
   };
 
@@ -802,7 +809,7 @@ export default function Forms() {
         <div className="flex items-center justify-between h-12 px-4">
           <div className="flex items-center gap-2">
             <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
-            <PageHint id="submissions">View all completed forms. Use Share Forms to send customers a link to fill out forms.</PageHint>
+            <PageHint id="submissions">View all completed forms. Use Share Forms to send customers a link to fill out forms. We recommend having a link direct from your website to the warranty form for customers to use.</PageHint>
           </div>
 
           {/* Right: Add Button + Share + Overflow Menu */}
@@ -818,7 +825,7 @@ export default function Forms() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </label>
-              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto">
+              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                 {forms.length === 0 ? (
                   <li><span className="text-base-content/60 text-sm">No forms available</span></li>
                 ) : (
@@ -857,7 +864,7 @@ export default function Forms() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </label>
-              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto">
+              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                 {forms.length === 0 ? (
                   <li><span className="text-base-content/60 text-sm">No forms available</span></li>
                 ) : (
@@ -1525,7 +1532,7 @@ export default function Forms() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </label>
-                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-40 border border-slate-200">
+                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-40 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                           <li>
                             <button onClick={async () => {
                               const subId = selectedSubmission.id || selectedSubmission._id;
@@ -1607,7 +1614,7 @@ export default function Forms() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </label>
-                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-44 border border-slate-200">
+                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-44 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                           <li><button onClick={handleStartEdit}>Edit</button></li>
                           <li><button onClick={handleExportPdf}>Export PDF</button></li>
                           <li className="divider my-1"></li>

@@ -35,7 +35,7 @@ export default async function handler(req, res) {
   // POST can be public (from form submissions) or authenticated
   if (req.method === "POST") {
     const {
-      vehicleReg, vehicleMake, vehicleModel, vehicleYear,
+      vehicleReg, vin, vehicleMake, vehicleModel, vehicleYear,
       mileage, colour, fuelType, motExpiryDate, conditionNotes, proposedPurchasePrice,
       outstandingFinanceAmount, aiHintText, v5Url, serviceHistoryUrl,
       otherDocuments, prepTemplateId, customerName, customerEmail, customerPhone,
@@ -85,6 +85,7 @@ export default async function handler(req, res) {
     };
 
     // Add optional fields only if they have values
+    if (vin) appraisalData.vin = vin;
     if (vehicleMake) appraisalData.vehicleMake = vehicleMake;
     if (vehicleModel) appraisalData.vehicleModel = vehicleModel;
     if (vehicleYear) appraisalData.vehicleYear = vehicleYear;

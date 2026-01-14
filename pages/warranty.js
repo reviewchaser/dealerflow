@@ -1150,8 +1150,8 @@ export default function Warranty() {
               </div>
               <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Aftersales / Warranty</h1>
             </div>
-            <p className="text-slate-500 text-sm md:text-base">Manage warranty cases and aftercare</p>
-            <div className="mt-2"><PageHint id="warranty">Track warranty claims and service cases. Drag cards between stages to update their status.</PageHint></div>
+            <p className="text-slate-500 text-sm md:text-base">Manage warranty cases and aftercare. Customer submissions via the public form automatically appear here.</p>
+            <div className="mt-2 relative z-50"><PageHint id="warranty">Track warranty claims and service cases. Drag cards between stages to update their status.</PageHint></div>
           </div>
           <button
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white font-medium rounded-xl shadow-md shadow-[#0066CC]/25 hover:shadow-lg transition-all"

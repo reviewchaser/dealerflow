@@ -6,6 +6,7 @@ const appraisalSchema = new mongoose.Schema(
     dealerId: { type: mongoose.Schema.Types.ObjectId, ref: "Dealer", required: false, default: null },
     contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: false, default: null }, // seller (optional)
     vehicleReg: { type: String, required: true, uppercase: true },
+    vin: { type: String, uppercase: true }, // VIN from MOT API lookup
     vehicleMake: { type: String },
     vehicleModel: { type: String },
     vehicleYear: { type: Number },

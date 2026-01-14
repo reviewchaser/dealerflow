@@ -4,6 +4,7 @@ import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
+import { logIssueCreated } from "@/libs/activityLogger";
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -75,7 +76,7 @@ async function handler(req, res, ctx) {
         partsDetails: partsDetails || null,
       });
 
-      // Log activity
+      // Log activity to VehicleActivity (legacy)
       const actor = await User.findById(userId).lean();
       const actorName = actor?.name || user?.name || user?.email || "System";
       await VehicleActivity.log({
@@ -86,6 +87,20 @@ async function handler(req, res, ctx) {
         type: "ISSUE_ADDED",
         message: `Added ${mappedCategory} issue: ${description.substring(0, 50)}${description.length > 50 ? '...' : ''}`,
         meta: { issueId: issue._id, category: mappedCategory, subcategory },
+      });
+
+      // Log to ActivityLog (for dashboard feed)
+      await logIssueCreated({
+        dealerId,
+        issueId: issue._id,
+        vehicleId: id,
+        vehicleReg: vehicle.regCurrent,
+        vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+        category: mappedCategory,
+        subcategory,
+        priority: priority || "medium",
+        userId,
+        userName: actorName,
       });
 
       return res.status(201).json(issue.toJSON());

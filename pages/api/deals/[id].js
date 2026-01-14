@@ -141,6 +141,11 @@ async function handler(req, res, ctx) {
 
     const { hardDelete, cancelReason } = req.body || {};
 
+    // Already cancelled - nothing to do
+    if (deal.status === "CANCELLED") {
+      return res.status(400).json({ error: "Deal is already cancelled" });
+    }
+
     // Hard delete is only allowed for DRAFT deals
     if (hardDelete) {
       if (deal.status !== "DRAFT") {
@@ -162,7 +167,19 @@ async function handler(req, res, ctx) {
       });
     }
 
-    // Default: Cancel the deal instead of hard delete
+    // COMPLETED deals require a cancellation reason
+    if (deal.status === "COMPLETED") {
+      if (!cancelReason || cancelReason.trim().length === 0) {
+        return res.status(400).json({
+          error: "Cancellation reason is required for completed deals",
+          code: "REASON_REQUIRED"
+        });
+      }
+    }
+
+    const wasCompleted = deal.status === "COMPLETED";
+
+    // Cancel the deal
     deal.status = "CANCELLED";
     deal.cancelledAt = new Date();
     deal.cancelReason = cancelReason || "Cancelled by user";
@@ -200,15 +217,19 @@ async function handler(req, res, ctx) {
 
     await deal.save();
 
-    // Release the vehicle back to available
-    await Vehicle.findByIdAndUpdate(deal.vehicleId, {
-      salesStatus: "AVAILABLE",
-    });
+    // Only release the vehicle if the deal was NOT completed
+    // Completed deals mean the vehicle was already sold - it stays SOLD
+    if (!wasCompleted) {
+      await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+        salesStatus: "AVAILABLE",
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      message: "Deal cancelled",
+      message: wasCompleted ? "Completed deal cancelled" : "Deal cancelled",
       dealId: id,
+      vehicleReleased: !wasCompleted,
     });
   }
 

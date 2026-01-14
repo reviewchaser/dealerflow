@@ -27,6 +27,7 @@ export default function DealerBuyingForm() {
     submitterPhone: "",
     submitterCompany: "",
     vehicleReg: "",
+    vin: "",
     vehicleMake: "",
     vehicleModel: "",
     vehicleYear: "",
@@ -68,22 +69,52 @@ export default function DealerBuyingForm() {
 
     setIsLookingUp(true);
     try {
-      const res = await fetch(`/api/dvla-lookup?vrm=${vrm}`);
-      if (res.ok) {
-        const data = await res.json();
-        setDvlaData(data);
-        setFormData((prev) => ({
-          ...prev,
-          vehicleReg: vrm,
-          vehicleMake: data.make || prev.vehicleMake,
-          vehicleModel: data.model || prev.vehicleModel,
-          vehicleYear: data.yearOfManufacture || prev.vehicleYear,
-          colour: data.colour || prev.colour,
-          fuelType: data.fuelType || prev.fuelType,
-        }));
-        toast.success("Vehicle details found");
-      } else {
+      // Call both DVLA and MOT APIs in parallel for complete data
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch(`/api/dvla-lookup?vrm=${vrm}`),
+        fetch(`/api/mot?vrm=${vrm}`),
+      ]);
+
+      const dvlaOk = dvlaRes.ok;
+      const motOk = motRes.ok;
+
+      const dvlaDataResponse = dvlaOk ? await dvlaRes.json() : null;
+      const motData = motOk ? await motRes.json() : null;
+
+      if (!dvlaOk && !motOk) {
         toast.error("Vehicle not found - please enter details manually");
+        return;
+      }
+
+      // Merge data from both sources (MOT has VIN and model, DVLA has more details)
+      const mergedData = {
+        make: dvlaDataResponse?.make || motData?.make,
+        model: motData?.model || dvlaDataResponse?.model,
+        yearOfManufacture: dvlaDataResponse?.yearOfManufacture || motData?.yearOfManufacture,
+        colour: dvlaDataResponse?.colour || motData?.colour,
+        fuelType: dvlaDataResponse?.fuelType || motData?.fuelType,
+        vin: motData?.vin || null,
+      };
+
+      setDvlaData(mergedData);
+      setFormData((prev) => ({
+        ...prev,
+        vehicleReg: vrm,
+        vin: mergedData.vin || prev.vin,
+        vehicleMake: mergedData.make || prev.vehicleMake,
+        vehicleModel: mergedData.model || prev.vehicleModel,
+        vehicleYear: mergedData.yearOfManufacture || prev.vehicleYear,
+        colour: mergedData.colour || prev.colour,
+        fuelType: mergedData.fuelType || prev.fuelType,
+      }));
+
+      // Show appropriate message based on data completeness
+      if (mergedData.vin && mergedData.model) {
+        toast.success("Vehicle details found");
+      } else if (mergedData.make) {
+        toast.success("Basic vehicle details found - some fields may need manual entry");
+      } else {
+        toast.error("Limited data found - please verify and complete details manually");
       }
     } catch (error) {
       toast.error("Lookup failed - please enter details manually");
@@ -280,6 +311,19 @@ export default function DealerBuyingForm() {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* VIN - auto-populated from MOT lookup */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">VIN (Vehicle Identification Number)</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
+                value={formData.vin}
+                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
+                placeholder="Auto-populated from lookup or enter manually"
+                maxLength={17}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

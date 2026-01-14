@@ -11,7 +11,7 @@ import { Portal } from "@/components/ui/Portal";
 const FORM_TYPE_LABELS = {
   PDI: "PDI",
   TEST_DRIVE: "Test Drive",
-  WARRANTY_CLAIM: "Problem Report",
+  WARRANTY_CLAIM: "Aftersales Issue",
   COURTESY_OUT: "Courtesy Out",
   COURTESY_IN: "Courtesy In",
   SERVICE_RECEIPT: "Service",
@@ -158,10 +158,18 @@ const ChevronDownIcon = ({ className }) => (
 // Navigation structure with permission requirements:
 // - section: "main" | "management" | "hr" | "system"
 // - requiresPermission: "sales" | "workshop" | "admin" | null (null = everyone)
+// Book icon for Stock Book
+const BookOpenIcon = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+  </svg>
+);
+
 const navigation = [
   // Main Section
   { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon, section: "main" },
   { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon, section: "main" },
+  { name: "Stock Book", href: "/stock-book", Icon: BookOpenIcon, requiresPermission: "sales", section: "main" },
   { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon, requiresPermission: "sales", section: "main" },
   { name: "Aftersales", href: "/warranty", Icon: WrenchIcon, section: "main" },
   // Management Section
@@ -191,6 +199,28 @@ const CLIENT_ROLE_PERMISSIONS = {
 // Check if role has permission
 const hasClientPermission = (role, permission) => {
   return CLIENT_ROLE_PERMISSIONS[role]?.[permission] ?? false;
+};
+
+// Check if a nav item is active (exact match or path segment match)
+// This prevents /sales from matching /sales-prep
+const isNavItemActive = (pathname, asPath, href) => {
+  // Extract the page part from pathname for tenant-aware routes
+  // /app/[slug]/sales-prep -> /sales-prep
+  // /sales-prep -> /sales-prep
+  const normalizedPath = pathname.replace(/^\/app\/[^/]+/, '');
+  const normalizedAsPath = asPath.replace(/^\/app\/[^/]+/, '');
+
+  // Exact match
+  if (normalizedPath === href) return true;
+
+  // Path starts with href followed by "/" (sub-route)
+  if (normalizedPath.startsWith(href + '/')) return true;
+
+  // Also check asPath for dynamic routes
+  if (normalizedAsPath === href) return true;
+  if (normalizedAsPath.startsWith(href + '/')) return true;
+
+  return false;
 };
 
 // Cache key for logo URL in localStorage
@@ -485,7 +515,7 @@ export default function DashboardLayout({ children }) {
             {filteredNavigation.filter(item => item.section === "main").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
-              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+              const isActive = isNavItemActive(router.pathname, router.asPath, item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
@@ -544,7 +574,7 @@ export default function DashboardLayout({ children }) {
 
               if (item.children) {
                 const isExpanded = expandedMenus[item.name];
-                const isActive = router.pathname.startsWith(item.href);
+                const isActive = isNavItemActive(router.pathname, router.asPath, item.href);
 
                 return (
                   <li key={item.name}>
@@ -583,7 +613,7 @@ export default function DashboardLayout({ children }) {
                       <ul className="mt-1.5 ml-11 space-y-0.5 border-l-2 border-[#0066CC]/20 pl-3">
                         {item.children.map((child) => {
                           const childPath = getPath(child.href);
-                          const isChildActive = router.pathname === child.href || router.asPath === child.href || router.asPath.includes(child.href);
+                          const isChildActive = isNavItemActive(router.pathname, router.asPath, child.href);
                           return (
                             <li key={child.name}>
                               <Link
@@ -607,7 +637,7 @@ export default function DashboardLayout({ children }) {
               }
 
               const itemPath = getPath(item.href);
-              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+              const isActive = isNavItemActive(router.pathname, router.asPath, item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
@@ -664,7 +694,7 @@ export default function DashboardLayout({ children }) {
             {filteredNavigation.filter(item => item.section === "hr").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
-              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+              const isActive = isNavItemActive(router.pathname, router.asPath, item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
@@ -718,7 +748,7 @@ export default function DashboardLayout({ children }) {
             {filteredNavigation.filter(item => item.section === "system").map((item) => {
               const { Icon } = item;
               const itemPath = getPath(item.href);
-              const isActive = router.pathname.startsWith(item.href) || router.asPath.includes(item.href);
+              const isActive = isNavItemActive(router.pathname, router.asPath, item.href);
               return (
                 <li key={item.name} className="relative group">
                   <Link
@@ -853,7 +883,7 @@ export default function DashboardLayout({ children }) {
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {
             const itemPath = item.href ? getPath(item.href) : null;
-            const isActive = item.href && (router.pathname.startsWith(item.href) || router.asPath.includes(item.href));
+            const isActive = item.href && isNavItemActive(router.pathname, router.asPath, item.href);
 
             if (item.isMore) {
               return (

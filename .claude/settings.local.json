@@ -35,7 +35,18 @@
       "Bash(git push:*)",
       "Bash(git commit:*)",
       "Bash(timeout 15 npm run dev:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "WebFetch(domain:documentation.history.mot.api.gov.uk)",
+      "WebFetch(domain:dvsa.github.io)",
+      "WebSearch",
+      "WebFetch(domain:developer-portal.driver-vehicle-licensing.api.gov.uk)",
+      "WebFetch(domain:ukvehicledata.co.uk)",
+      "WebFetch(domain:vehiclesmart.com)",
+      "WebFetch(domain:www.checkcardetails.co.uk)",
+      "WebFetch(domain:www.carcheckfree.co.uk)",
+      "WebFetch(domain:cdlvis.com)",
+      "WebFetch(domain:vehicle-search.co.uk)",
+      "WebFetch(domain:www.regcheck.org.uk)"
     ],
     "deny": [],
     "ask": []
