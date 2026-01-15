@@ -109,18 +109,28 @@ export default async function handler(req, res) {
         type: "WARRANTY",
         vehicle: {
           vrm: aftercareCase.currentReg || aftercareCase.vehicleId?.regCurrent || aftercareCase.regAtPurchase,
+          regAtPurchase: aftercareCase.regAtPurchase,
           make: aftercareCase.vehicleId?.make,
           model: aftercareCase.vehicleId?.model,
           year: aftercareCase.vehicleId?.yearManufacture,
+          colour: aftercareCase.vehicleId?.colour,
+          fuelType: aftercareCase.vehicleId?.fuelType,
+          mileage: aftercareCase.vehicleId?.mileageCurrent,
         },
         warrantyType: aftercareCase.warrantyType,
+        priority: aftercareCase.priority,
         repairLocationType: aftercareCase.repairLocationType,
         repairLocationName: aftercareCase.repairLocationName,
+        repairLocationNotes: aftercareCase.repairLocationNotes,
         summary: aftercareCase.summary,
+        description: aftercareCase.details?.description,
+        faultCodes: aftercareCase.details?.faultCodes,
         partsRequired: aftercareCase.partsRequired,
         partsNotes: aftercareCase.partsNotes,
         bookingDate: aftercareCase.bookedInAt,
         customerName: aftercareCase.contactId?.name,
+        customerPhone: aftercareCase.contactId?.phone,
+        customerEmail: aftercareCase.contactId?.email,
       };
     }
 

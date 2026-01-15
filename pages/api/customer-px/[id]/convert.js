@@ -80,6 +80,11 @@ export default async function handler(req, res) {
       // Transfer document URLs directly to vehicle fields
       v5Url: appraisal.v5Url || null,
       serviceHistoryUrl: appraisal.serviceHistoryUrl || null,
+      // Transfer seller contact info for Stock Book
+      purchase: {
+        purchasedFromContactId: appraisal.contactId || null,
+        purchaseDate: new Date(),
+      },
     });
 
     // Transfer service history URL to VehicleDocument collection

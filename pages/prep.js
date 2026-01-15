@@ -62,7 +62,6 @@ export default function SalesPrep() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [draggedCard, setDraggedCard] = useState(null);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [newTaskName, setNewTaskName] = useState("");
@@ -84,6 +83,9 @@ export default function SalesPrep() {
 
   // Column sorting state
   const [columnSortOptions, setColumnSortOptions] = useState({});
+
+  // Archive toggle for delivered column - when false, hides vehicles delivered >90 days ago
+  const [showAllDelivered, setShowAllDelivered] = useState(false);
 
   // Job sheet share state
   const [showJobSheetModal, setShowJobSheetModal] = useState(false);
@@ -214,8 +216,11 @@ export default function SalesPrep() {
   const [showVrmDropdown, setShowVrmDropdown] = useState(false);
   const [vrmSelectedIndex, setVrmSelectedIndex] = useState(-1);
   const [vrmFilter, setVrmFilter] = useState(""); // Persisted filter applied to board
+  const [vrmSearchResults, setVrmSearchResults] = useState([]); // API search results
+  const [isSearchingVrm, setIsSearchingVrm] = useState(false);
   const vrmSearchInputRef = useRef(null);
   const vrmDropdownRef = useRef(null);
+  const vrmSearchDebounceRef = useRef(null);
 
   // VRM dropdown position state - calculated once and updated on changes
   const [vrmDropdownPos, setVrmDropdownPos] = useState({ top: 0, left: 0, width: 320 });
@@ -259,30 +264,42 @@ export default function SalesPrep() {
     setVrmDropdownPos({ top, left, width });
   }, []);
 
-  // Compute VRM search results reactively based on vrmSearch and vehicles
-  const vrmSearchResults = useMemo(() => {
-    if (vrmSearch.length < 2) return [];
-    if (!vehicles.length) return [];
+  // Fetch VRM search results from API (searches ALL vehicles including archived)
+  useEffect(() => {
+    // Clear previous debounce
+    if (vrmSearchDebounceRef.current) {
+      clearTimeout(vrmSearchDebounceRef.current);
+    }
 
-    const query = vrmSearch.toUpperCase().replace(/\s/g, "");
+    if (vrmSearch.length < 2) {
+      setVrmSearchResults([]);
+      setIsSearchingVrm(false);
+      return;
+    }
 
-    // Filter vehicles matching the query (VRM, make, or model)
-    const matches = vehicles.filter((v) => {
-      const vrm = (v.regCurrent || "").toUpperCase().replace(/\s/g, "");
-      const make = (v.make || "").toUpperCase();
-      const model = (v.model || "").toUpperCase();
-      return vrm.includes(query) || make.includes(query) || model.includes(query);
-    });
+    setIsSearchingVrm(true);
 
-    // Sort by createdAt (most recently added to stock first)
-    const sorted = [...matches].sort((a, b) => {
-      const aDate = new Date(a.createdAt || 0);
-      const bDate = new Date(b.createdAt || 0);
-      return bDate - aDate;
-    });
+    // Debounce API calls
+    vrmSearchDebounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/vehicles/search?q=${encodeURIComponent(vrmSearch)}&limit=10`);
+        if (res.ok) {
+          const data = await res.json();
+          setVrmSearchResults(data);
+        }
+      } catch (error) {
+        console.error("VRM search error:", error);
+      } finally {
+        setIsSearchingVrm(false);
+      }
+    }, 200);
 
-    return sorted.slice(0, 10);
-  }, [vrmSearch, vehicles]);
+    return () => {
+      if (vrmSearchDebounceRef.current) {
+        clearTimeout(vrmSearchDebounceRef.current);
+      }
+    };
+  }, [vrmSearch]);
 
   // Reset selection when dropdown opens
   useEffect(() => {
@@ -349,23 +366,32 @@ export default function SalesPrep() {
   const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
 
   useEffect(() => {
-    fetchVehicles();
+    fetchVehicles(showAllDelivered);
     fetchLocations();
     fetchLabels();
   }, []);
 
-  // Handle addVehicle query param (from Quick Add menu)
+  // Refetch when showAllDelivered toggle changes
+  useEffect(() => {
+    fetchVehicles(showAllDelivered);
+  }, [showAllDelivered]);
+
+  // Handle addVehicle query param (from Quick Add menu) - redirect to Stock Book
   useEffect(() => {
     if (router.query.addVehicle === "1") {
-      setShowAddModal(true);
-      // Remove the query param from URL without reload
-      router.replace("/sales-prep", undefined, { shallow: true });
+      router.replace("/stock-book?addVehicle=1");
     }
   }, [router.query.addVehicle]);
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (includeAllDelivered = false) => {
     try {
-      const res = await fetch("/api/vehicles");
+      // Use excludeOldDelivered filter unless showing all
+      const params = new URLSearchParams();
+      if (!includeAllDelivered) {
+        params.append("excludeOldDelivered", "true");
+      }
+      const url = `/api/vehicles${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error(`API error: ${res.status}`);
       }
@@ -1383,7 +1409,9 @@ export default function SalesPrep() {
   };
 
   const getVehiclesByStatus = (status) => {
-    let statusVehicles = vehicles.filter(v => v.status === status);
+    // Only show vehicles that are on the prep board (showOnPrepBoard !== false)
+    // This allows vehicles to be "removed" from prep without deleting them from stock book
+    let statusVehicles = vehicles.filter(v => v.status === status && v.showOnPrepBoard !== false);
 
     // Apply VRM filter if set
     if (vrmFilter) {
@@ -1932,17 +1960,20 @@ export default function SalesPrep() {
 
   return (
     <DashboardLayout>
-      <Head><title>Stock & Prep | DealerHQ</title></Head>
+      <Head><title>Vehicle Prep | DealerHQ</title></Head>
 
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Stock & Prep Board</h1>
+          <h1 className="text-3xl font-bold">Vehicle Prep</h1>
           <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; {isTouchDevice ? "Tap a card, then use Move to change stage" : "Drag cards to move between stages"}</p>
           <div className="mt-2"><PageHint id="sales-prep">{isTouchDevice ? "Tap a vehicle card to view details. Use the Move button to change stages." : "Drag vehicles between columns to track their progress. Click a card to view details and manage tasks."}</PageHint></div>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
-          + Add Vehicle
-        </button>
+        <Link href="/stock-book" className="btn btn-outline btn-sm text-slate-600">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add via Stock Book
+        </Link>
       </div>
 
       {/* Consolidated Filters */}
@@ -2578,6 +2609,19 @@ export default function SalesPrep() {
                   </li>
                 </ul>
               </div>
+              {/* Mobile Archive toggle - only for delivered column */}
+              {mobileActiveColumn === "delivered" && (
+                <button
+                  onClick={() => setShowAllDelivered(!showAllDelivered)}
+                  className={`btn btn-sm gap-1.5 rounded-xl h-10 px-3 ${showAllDelivered ? "btn-primary" : "bg-white border-slate-200 hover:bg-slate-50 text-slate-600"}`}
+                  title={showAllDelivered ? "Showing all" : "Last 90 days"}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                  </svg>
+                  <span className="text-xs font-medium">{showAllDelivered ? "All" : "90d"}</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -2795,15 +2839,15 @@ export default function SalesPrep() {
             })}
           </div>
 
-          {/* Mobile Floating Action Button */}
-          <button
-            onClick={() => setShowAddModal(true)}
+          {/* Mobile Floating Action Button - Link to Stock Book */}
+          <Link
+            href="/stock-book?addVehicle=1"
             className="md:hidden fixed fab-safe right-4 z-40 w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg flex items-center justify-center transition-all active:scale-95"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-          </button>
+          </Link>
 
           {/* Desktop Multi-Column View */}
           <div className="hidden md:flex gap-4 overflow-x-auto pb-6">
@@ -2864,6 +2908,19 @@ export default function SalesPrep() {
                       </li>
                     </ul>
                   </div>
+                  {/* Archive toggle - only for delivered column */}
+                  {col.key === "delivered" && (
+                    <button
+                      onClick={() => setShowAllDelivered(!showAllDelivered)}
+                      className={`btn btn-xs gap-1 rounded-full ${showAllDelivered ? "btn-primary" : "bg-white/30 backdrop-blur-sm hover:bg-white/50 text-slate-600"}`}
+                      title={showAllDelivered ? "Showing all delivered vehicles" : "Showing last 90 days only"}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                      <span className="text-xs">{showAllDelivered ? "All" : "90d"}</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Cards Container */}
@@ -3116,24 +3173,75 @@ export default function SalesPrep() {
             }}
           >
             {/* Sticky Header */}
-            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 flex justify-between items-center z-10">
-              <div className="flex items-center gap-3">
-                {/* Back button on mobile */}
-                <button className="md:hidden btn btn-ghost btn-sm btn-circle" onClick={() => setSelectedVehicle(null)}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <div>
-                  <h2 className="text-lg md:text-xl font-bold text-slate-900">
-                    {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
-                  </h2>
-                  <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 z-10">
+              {/* Top row: back, title, close/delete */}
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  {/* Back button on mobile */}
+                  <button className="md:hidden btn btn-ghost btn-sm btn-circle shrink-0" onClick={() => setSelectedVehicle(null)}>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <div className="min-w-0">
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
+                      {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
+                    </h2>
+                    <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Create/Open Sale button - always visible */}
+                  <button
+                    onClick={handleSaleAction}
+                    disabled={creatingDeal || dealLoading}
+                    className={`btn btn-sm ${
+                      vehicleDeal
+                        ? "bg-amber-500 hover:bg-amber-600 text-white border-none"
+                        : "bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+                    }`}
+                    title={vehicleDeal ? "Open existing sale" : "Create new sale"}
+                  >
+                    {creatingDeal || dealLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 md:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="hidden md:inline">{vehicleDeal ? "Open Sale" : "Create Sale"}</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm text-warning"
+                    onClick={async () => {
+                      if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book.")) {
+                        await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ showOnPrepBoard: false }),
+                        });
+                        setSelectedVehicle(null);
+                        fetchVehicles();
+                        toast.success("Vehicle removed from Prep Board");
+                      }
+                    }}
+                    title="Remove from Prep Board"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </button>
+                  <button className="hidden md:flex btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>
+                    ✕
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-1 md:gap-2">
+              {/* Action buttons row - visible on all screens */}
+              <div className="flex items-center gap-2 mt-3">
                 <button
-                  className="hidden md:flex btn btn-outline btn-sm"
+                  className="btn btn-outline btn-sm flex-1 md:flex-none"
                   onClick={handleGenerateJobSheet}
                   disabled={isGeneratingJobSheet}
                   title="Share job sheet with mechanic"
@@ -3144,7 +3252,7 @@ export default function SalesPrep() {
                   {isGeneratingJobSheet ? "..." : "Share"}
                 </button>
                 <button
-                  className="hidden md:flex btn btn-outline btn-sm"
+                  className="btn btn-outline btn-sm flex-1 md:flex-none"
                   onClick={handleGeneratePrepSummary}
                   disabled={isGeneratingPrepSummary}
                   title="Export prep summary PDF"
@@ -3154,52 +3262,11 @@ export default function SalesPrep() {
                   </svg>
                   {isGeneratingPrepSummary ? "..." : "Prep PDF"}
                 </button>
-                {/* Create/Open Sale button */}
-                <button
-                  onClick={handleSaleAction}
-                  disabled={creatingDeal || dealLoading}
-                  className={`btn btn-sm ${
-                    vehicleDeal
-                      ? "bg-amber-500 hover:bg-amber-600 text-white border-none"
-                      : "bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
-                  }`}
-                  title={vehicleDeal ? "Open existing sale" : "Create new sale"}
-                >
-                  {creatingDeal || dealLoading ? (
-                    <span className="loading loading-spinner loading-xs"></span>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="hidden sm:inline">{vehicleDeal ? "Open Sale" : "Create Sale"}</span>
-                    </>
-                  )}
-                </button>
                 <button className="hidden md:flex btn btn-outline btn-sm" onClick={handlePrintVehicle} title="Print vehicle details">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
                   Print
-                </button>
-                <button
-                  className="btn btn-ghost btn-sm text-error"
-                  onClick={async () => {
-                    if (confirm("Delete this vehicle?")) {
-                      await fetch(`/api/vehicles/${selectedVehicle.id}`, { method: "DELETE" });
-                      setSelectedVehicle(null);
-                      fetchVehicles();
-                      toast.success("Vehicle deleted");
-                    }
-                  }}
-                  title="Delete vehicle"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-                <button className="hidden md:flex btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>
-                  ✕
                 </button>
               </div>
             </div>
@@ -3282,7 +3349,7 @@ export default function SalesPrep() {
                   {/* Identity Section */}
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-4">Identity</h3>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="form-control">
                         <label className="text-xs font-medium text-slate-600 mb-1 block">Registration</label>
                         <div className="flex gap-2">
@@ -3302,7 +3369,7 @@ export default function SalesPrep() {
                           />
                           <button
                             type="button"
-                            className="btn btn-sm btn-primary"
+                            className="btn btn-sm btn-primary shrink-0"
                             onClick={lookupVehicleDVLA}
                             disabled={isLookingUpDrawer}
                             title="Lookup DVLA data for this registration"
@@ -3322,7 +3389,7 @@ export default function SalesPrep() {
                         <label className="text-xs font-medium text-slate-600 mb-1 block">VIN</label>
                         <input
                           type="text"
-                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900"
+                          className="input input-sm bg-slate-50 border-slate-200 text-slate-900 w-full font-mono"
                           value={selectedVehicle.vin || ""}
                           onChange={(e) => setSelectedVehicle({ ...selectedVehicle, vin: e.target.value })}
                           onBlur={async () => {
@@ -4720,10 +4787,6 @@ export default function SalesPrep() {
         </div>
       )}
 
-      {showAddModal && (
-        <AddVehicleModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); fetchVehicles(); }} />
-      )}
-
       {showAddIssueModal && (
         <AddIssueModal
           issueForm={issueForm}
@@ -5289,7 +5352,12 @@ export default function SalesPrep() {
               zIndex: 99999,
             }}
           >
-            {vrmSearchResults.length > 0 ? (
+            {isSearchingVrm ? (
+              <div className="px-4 py-6 text-center">
+                <span className="loading loading-spinner loading-sm text-slate-400"></span>
+                <p className="text-sm text-slate-500 mt-2">Searching...</p>
+              </div>
+            ) : vrmSearchResults.length > 0 ? (
               <>
                 <ul className="py-1 max-h-60 sm:max-h-64 overflow-y-auto overscroll-contain">
                   {vrmSearchResults.map((vehicle, idx) => {
@@ -5297,6 +5365,10 @@ export default function SalesPrep() {
                     const duplicateCount = vrmSearchResults.filter(v => (v.regCurrent || "").toUpperCase() === vrm).length;
                     const isFirstOfDuplicate = idx === vrmSearchResults.findIndex(v => (v.regCurrent || "").toUpperCase() === vrm);
                     const isSelected = idx === vrmSelectedIndex;
+
+                    // Check if vehicle is archived (delivered > 90 days ago)
+                    const isArchived = vehicle.status === "delivered" && vehicle.soldAt &&
+                      (Date.now() - new Date(vehicle.soldAt).getTime()) > (90 * 24 * 60 * 60 * 1000);
 
                     return (
                       <li key={vehicle.id || vehicle._id}>
@@ -5315,9 +5387,13 @@ export default function SalesPrep() {
                                 </span>
                               )}
                             </div>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">
-                              {getStatusLabel(vehicle.status)}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                isArchived ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                              }`}>
+                                {getStatusLabel(vehicle.status)}{isArchived ? " (Archived)" : ""}
+                              </span>
+                            </div>
                           </div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-600">{vehicle.make} {vehicle.model} {vehicle.year || ""}</span>
@@ -5354,898 +5430,6 @@ export default function SalesPrep() {
   );
 }
 
-function AddVehicleModal({ onClose, onSuccess }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [locations, setLocations] = useState([]);
-  const [prepTemplates, setPrepTemplates] = useState([]);
-  const [formData, setFormData] = useState({
-    regCurrent: "", vin: "", make: "", model: "", year: "", mileageCurrent: "",
-    fuelType: "", transmission: "", colour: "", notes: "", locationId: "",
-    motExpiryDate: "", // MOT expiry date (autofilled from lookup or manual entry)
-    engineCapacity: "", // Engine capacity in cc (autofilled from lookup or manual entry)
-    type: "STOCK", // STOCK, COURTESY, FLEET_OTHER
-    saleType: "RETAIL", // RETAIL, TRADE - only used when type is STOCK
-    dvlaDetails: null, // DVLA VES extended details
-    lastDvlaFetchAt: null, // When DVLA lookup was performed
-  });
-
-  // Appraisal lookup state
-  const [matchedAppraisal, setMatchedAppraisal] = useState(null);
-  const [isCheckingAppraisal, setIsCheckingAppraisal] = useState(false);
-  const [appraisalDismissed, setAppraisalDismissed] = useState(false);
-
-  // VRM appraisal suggestions
-  const [appraisalSuggestions, setAppraisalSuggestions] = useState([]);
-  const [showAppraisalDropdown, setShowAppraisalDropdown] = useState(false);
-  const [isSearchingAppraisals, setIsSearchingAppraisals] = useState(false);
-
-  // Document uploads
-  const [v5File, setV5File] = useState(null);
-  const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
-  const [faultCodesFile, setFaultCodesFile] = useState(null);
-  const [otherDocuments, setOtherDocuments] = useState([]);
-
-  // Initial issues (array of issues to create with the vehicle)
-  const [initialIssues, setInitialIssues] = useState([]);
-  const [showAddIssueInVehicleModal, setShowAddIssueInVehicleModal] = useState(false);
-  const [newIssueForm, setNewIssueForm] = useState({
-    category: "",
-    subcategory: "",
-    description: "",
-    actionNeeded: "",
-    status: "Outstanding",
-    notes: "",
-    photos: [],
-  });
-
-  // Prep checklist template
-  const [selectedTemplate, setSelectedTemplate] = useState("default");
-
-  useEffect(() => {
-    fetchLocations();
-    fetchPrepTemplates();
-  }, []);
-
-  const fetchLocations = async () => {
-    try {
-      const res = await fetch("/api/locations");
-      const data = await res.json();
-      setLocations(data);
-    } catch (error) {
-      console.error("Failed to fetch locations");
-    }
-  };
-
-  const fetchPrepTemplates = async () => {
-    try {
-      const res = await fetch("/api/prep-tasks");
-      const data = await res.json();
-      setPrepTemplates(data);
-      // Auto-select first template if available
-      if (data.length > 0) setSelectedTemplate("default");
-    } catch (error) {
-      console.error("Failed to fetch prep templates");
-    }
-  };
-
-  // Search unconverted appraisals as user types VRM
-  const searchAppraisals = async (vrm) => {
-    if (!vrm || vrm.length < 2) {
-      setAppraisalSuggestions([]);
-      setShowAppraisalDropdown(false);
-      return;
-    }
-    setIsSearchingAppraisals(true);
-    try {
-      const res = await fetch(`/api/appraisals/search-unconverted?q=${encodeURIComponent(vrm)}`);
-      if (res.ok) {
-        const results = await res.json();
-        setAppraisalSuggestions(results);
-        setShowAppraisalDropdown(results.length > 0);
-      } else {
-        setAppraisalSuggestions([]);
-        setShowAppraisalDropdown(false);
-      }
-    } catch (error) {
-      setAppraisalSuggestions([]);
-      setShowAppraisalDropdown(false);
-    } finally {
-      setIsSearchingAppraisals(false);
-    }
-  };
-
-  // Handle selecting an appraisal from suggestions
-  const handleSelectAppraisalSuggestion = (appraisal) => {
-    setFormData(prev => ({
-      ...prev,
-      regCurrent: appraisal.vehicleReg || prev.regCurrent,
-      make: appraisal.vehicleMake || prev.make,
-      model: appraisal.vehicleModel || prev.model,
-      year: appraisal.vehicleYear || prev.year,
-      mileageCurrent: appraisal.mileage || prev.mileageCurrent,
-    }));
-    setMatchedAppraisal(appraisal);
-    setAppraisalDismissed(false);
-    setShowAppraisalDropdown(false);
-    setAppraisalSuggestions([]);
-    toast.success(`Loaded appraisal for ${appraisal.vehicleReg}`);
-  };
-
-  // Check for existing appraisal when VRM changes
-  const checkForAppraisal = async (vrm) => {
-    if (!vrm || vrm.length < 2) {
-      setMatchedAppraisal(null);
-      return;
-    }
-    setIsCheckingAppraisal(true);
-    try {
-      const res = await fetch(`/api/appraisals/by-vrm?vrm=${encodeURIComponent(vrm)}`);
-      if (res.ok) {
-        const appraisal = await res.json();
-        setMatchedAppraisal(appraisal);
-        setAppraisalDismissed(false);
-      } else {
-        setMatchedAppraisal(null);
-      }
-    } catch (error) {
-      setMatchedAppraisal(null);
-    } finally {
-      setIsCheckingAppraisal(false);
-    }
-  };
-
-  // Import data from matched appraisal
-  const importFromAppraisal = () => {
-    if (!matchedAppraisal) return;
-    setFormData(prev => ({
-      ...prev,
-      regCurrent: matchedAppraisal.vehicleReg || prev.regCurrent,
-      make: matchedAppraisal.vehicleMake || prev.make,
-      model: matchedAppraisal.vehicleModel || prev.model,
-      year: matchedAppraisal.vehicleYear || prev.year,
-      mileageCurrent: matchedAppraisal.mileage || prev.mileageCurrent,
-      notes: matchedAppraisal.conditionNotes || prev.notes,
-    }));
-    setAppraisalDismissed(true);
-    toast.success("Imported data from appraisal");
-  };
-
-  // Convert appraisal directly to stock (uses the convert API)
-  const convertAppraisalToStock = async () => {
-    if (!matchedAppraisal) return;
-    setIsLoading(true);
-    try {
-      // Determine the API endpoint based on appraisal type
-      const endpoint = matchedAppraisal.type === "customer_px"
-        ? `/api/customer-px/${matchedAppraisal.id}/convert`
-        : `/api/appraisals/${matchedAppraisal.id}/convert`;
-
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initialStatus: "in_stock" }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        if (res.status === 409) {
-          throw new Error(error.message || "Vehicle already in stock");
-        }
-        throw new Error(error.error || "Failed to convert appraisal");
-      }
-
-      toast.success("Appraisal converted to stock!");
-      onSuccess();
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLookup = async () => {
-    if (!formData.regCurrent) return toast.error("Enter registration first");
-    setIsLookingUp(true);
-    try {
-      const vrm = formData.regCurrent.replace(/\s/g, "").toUpperCase();
-
-      // Call both DVLA and MOT APIs in parallel for complete data
-      const [dvlaRes, motRes] = await Promise.all([
-        fetch("/api/dvla-lookup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ vehicleReg: vrm }),
-        }),
-        fetch(`/api/mot?vrm=${vrm}`),
-      ]);
-
-      const dvlaData = await dvlaRes.json();
-      let motData = null;
-
-      // Parse MOT response and log any errors
-      if (motRes.ok) {
-        motData = await motRes.json();
-        console.log("[Lookup] MOT data received:", motData);
-      } else {
-        const motError = await motRes.json().catch(() => ({}));
-        console.warn("[Lookup] MOT API failed:", motRes.status, motError);
-      }
-
-      // Check for error response - need at least one successful lookup
-      if ((!dvlaRes.ok || dvlaData.error) && !motData) {
-        toast.error(dvlaData.message || dvlaData.error || "Vehicle not found");
-        return;
-      }
-
-      if (dvlaData.isDummy) showDummyNotification("DVLA API");
-
-      // Update form with combined DVLA and MOT data
-      // MOT has VIN and model, DVLA has more details
-      setFormData(prev => ({
-        ...prev,
-        make: dvlaData.make || motData?.make || prev.make,
-        model: motData?.model || dvlaData.model || prev.model, // Prefer MOT for model
-        vin: motData?.vin || prev.vin, // VIN from MOT API
-        year: dvlaData.yearOfManufacture || dvlaData.year || motData?.manufactureYear || prev.year,
-        colour: dvlaData.colour || motData?.primaryColour || prev.colour,
-        fuelType: dvlaData.fuelType || motData?.fuelType || prev.fuelType,
-        transmission: dvlaData.transmission || prev.transmission,
-        motExpiryDate: dvlaData.motExpiryDate || motData?.motExpiry || prev.motExpiryDate,
-        // Engine capacity from DVLA (in cc)
-        engineCapacity: dvlaData.engineCapacity || dvlaData.dvlaDetails?.engineCapacity || motData?.engineSize || prev.engineCapacity,
-        // Store full DVLA details for API persistence
-        dvlaDetails: dvlaData.dvlaDetails || null,
-        lastDvlaFetchAt: dvlaData.lastDvlaFetchAt || null,
-      }));
-
-      const make = dvlaData.make || motData?.make;
-      const model = motData?.model || dvlaData.model || "";
-      const year = dvlaData.yearOfManufacture || motData?.manufactureYear || "";
-
-      // Show success message with warning if VIN not available
-      if (!motData?.vin) {
-        toast.success(`Found: ${make} ${model} (${year})`, { icon: "⚠️" });
-        toast("VIN not available - enter manually or check MOT API config", { duration: 4000 });
-      } else {
-        toast.success(`Found: ${make} ${model} (${year})`);
-      }
-    } catch (error) {
-      console.error("[Lookup] Error:", error);
-      toast.error("Lookup failed - please try again");
-    } finally {
-      setIsLookingUp(false);
-    }
-  };
-
-  const uploadFile = async (file) => {
-    if (!file) return null;
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch("/api/vehicles/upload", {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) throw new Error("Upload failed");
-    const data = await res.json();
-    // Store S3 key (permanent) if available, otherwise use URL (for local dev)
-    return data.key || data.url;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.regCurrent || !formData.make || !formData.model) {
-      return toast.error("Reg, make and model are required");
-    }
-    setIsLoading(true);
-    try {
-      // Create vehicle first
-      // If "None" is selected, skip default tasks
-      // If "default" is selected, create default tasks (don't skip)
-      const skipDefault = selectedTemplate === "";
-      const vehicleRes = await fetch("/api/vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, skipDefaultTasks: skipDefault }),
-      });
-      if (!vehicleRes.ok) {
-        const errorData = await vehicleRes.json();
-        throw new Error(errorData.error || "Failed to create vehicle");
-      }
-      const vehicle = await vehicleRes.json();
-
-      // Upload documents
-      if (v5File) {
-        const v5Url = await uploadFile(v5File);
-        await fetch(`/api/vehicles/${vehicle.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ v5Url }),
-        });
-      }
-
-      if (serviceHistoryFile) {
-        const url = await uploadFile(serviceHistoryFile);
-        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Service History", type: "service_history", url }),
-        });
-      }
-
-      if (faultCodesFile) {
-        const url = await uploadFile(faultCodesFile);
-        await fetch(`/api/vehicles/${vehicle.id}/documents`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "Fault Codes", type: "fault_codes", url }),
-        });
-      }
-
-      // Upload other documents
-      for (const doc of otherDocuments) {
-        if (doc.file) {
-          const url = await uploadFile(doc.file);
-          await fetch(`/api/vehicles/${vehicle.id}/documents`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: doc.name || "Document", type: "other", url }),
-          });
-        }
-      }
-
-      // Create initial issues from the array
-      for (const issue of initialIssues) {
-        await fetch(`/api/vehicles/${vehicle.id}/issues`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            category: issue.category,
-            subcategory: issue.subcategory,
-            description: issue.description,
-            actionNeeded: issue.actionNeeded,
-            status: issue.status || "Outstanding",
-            notes: issue.notes,
-          }),
-        });
-      }
-
-      // Create prep tasks based on template
-      // Only create from prepTemplates if a custom template is selected (not "default" which is handled by API)
-      if (selectedTemplate && selectedTemplate !== "default" && prepTemplates.length > 0) {
-        for (const template of prepTemplates) {
-          await fetch(`/api/vehicles/${vehicle.id}/tasks`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: template.name }),
-          });
-        }
-      }
-
-      // Link appraisal to vehicle if one was matched
-      if (matchedAppraisal && matchedAppraisal.id) {
-        await fetch(`/api/appraisals/${matchedAppraisal.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            decision: "converted",
-            vehicleId: vehicle.id,
-            decidedAt: new Date(),
-          }),
-        });
-      }
-
-      toast.success("Vehicle added!");
-      onSuccess();
-    } catch (error) {
-      console.error("Error:", error);
-      toast.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal modal-open">
-      <div
-        className="modal-box max-w-4xl flex flex-col h-[100dvh] md:h-auto md:max-h-[90vh] bg-white p-0 rounded-none md:rounded-xl"
-      >
-        {/* Sticky Header */}
-        <div
-          className="shrink-0 flex items-center justify-between px-4 md:px-6 py-4 border-b border-slate-200 bg-white"
-          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-        >
-          <h3 className="text-xl font-bold text-slate-900">Add Vehicle</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all duration-200"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Scrollable Content */}
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 py-4">
-          {/* Vehicle Details Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Details</h4>
-            <div className="relative flex gap-2 mb-4">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Registration"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg uppercase font-mono text-slate-900 placeholder-slate-400 focus:bg-white focus:border-transparent focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
-                  value={formData.regCurrent}
-                  onChange={(e) => {
-                    const newValue = e.target.value.toUpperCase();
-                    setFormData({ ...formData, regCurrent: newValue });
-                    searchAppraisals(newValue);
-                  }}
-                  onFocus={() => {
-                    if (appraisalSuggestions.length > 0) setShowAppraisalDropdown(true);
-                  }}
-                  onBlur={(e) => {
-                    // Delay hiding dropdown so click on suggestion can register
-                    setTimeout(() => setShowAppraisalDropdown(false), 200);
-                    checkForAppraisal(e.target.value);
-                  }}
-                />
-                {isSearchingAppraisals && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 loading loading-spinner loading-sm"></span>
-                )}
-                {/* Appraisal Suggestions Dropdown */}
-                {showAppraisalDropdown && appraisalSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-xl max-h-64 overflow-y-auto">
-                    <div className="px-3 py-2 text-xs text-base-content/60 border-b border-base-200 bg-base-200/50">
-                      Unconverted Appraisals
-                    </div>
-                    {appraisalSuggestions.map((appraisal) => (
-                      <button
-                        key={appraisal.id}
-                        type="button"
-                        className="w-full px-3 py-2 text-left hover:bg-base-200 border-b border-base-200 last:border-b-0 flex items-center gap-3"
-                        onClick={() => handleSelectAppraisalSuggestion(appraisal)}
-                      >
-                        <div className="flex-1">
-                          <div className="font-mono font-bold">{appraisal.vehicleReg}</div>
-                          <div className="text-sm text-base-content/70">
-                            {appraisal.vehicleMake} {appraisal.vehicleModel} {appraisal.vehicleYear ? `(${appraisal.vehicleYear})` : ""}
-                          </div>
-                        </div>
-                        <span className={`badge badge-sm ${appraisal.type === "dealer" ? "badge-primary" : "badge-secondary"}`}>
-                          {appraisal.type === "dealer" ? "Dealer" : "Customer PX"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                className="px-5 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center gap-2"
-                onClick={handleLookup}
-                disabled={isLookingUp}
-              >
-                {isLookingUp ? <span className="loading loading-spinner loading-sm"></span> : <><span>🔍</span><span>Lookup</span></>}
-              </button>
-            </div>
-
-            {/* Appraisal Match Alert */}
-            {isCheckingAppraisal && (
-              <div className="alert mb-4">
-                <span className="loading loading-spinner loading-sm"></span>
-                <span>Checking for existing appraisals...</span>
-              </div>
-            )}
-            {matchedAppraisal && !appraisalDismissed && (
-              <div className="alert alert-success mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="flex-1">
-                  <p className="font-semibold">
-                    {matchedAppraisal.type === "customer_px" ? "Customer PX" : "Dealer"} Appraisal Found: {matchedAppraisal.vehicleReg}
-                  </p>
-                  <p className="text-sm opacity-80">
-                    {matchedAppraisal.vehicleMake} {matchedAppraisal.vehicleModel} {matchedAppraisal.vehicleYear ? `(${matchedAppraisal.vehicleYear})` : ""}
-                    {matchedAppraisal.mileage ? ` • ${matchedAppraisal.mileage.toLocaleString()} miles` : ""}
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <button type="button" className="btn btn-sm btn-primary" onClick={convertAppraisalToStock} disabled={isLoading}>
-                    {isLoading ? <span className="loading loading-spinner loading-sm"></span> : "Convert to Stock"}
-                  </button>
-                  <button type="button" className="btn btn-sm btn-ghost" onClick={importFromAppraisal}>
-                    Import Data Only
-                  </button>
-                  <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAppraisalDismissed(true)}>
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* VIN Field */}
-            <div className="form-control mb-4">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">VIN (Chassis Number)</label>
-              <input
-                type="text"
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none font-mono uppercase"
-                value={formData.vin}
-                onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
-                maxLength={17}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Make *</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.make}
-                  onChange={(e) => setFormData({ ...formData, make: e.target.value })} required />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Model *</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })} required />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Year</label>
-                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.year}
-                  onChange={(e) => setFormData({ ...formData, year: e.target.value })} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Mileage</label>
-                <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.mileageCurrent}
-                  onChange={(e) => setFormData({ ...formData, mileageCurrent: e.target.value })} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Colour</label>
-                <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" value={formData.colour}
-                  onChange={(e) => setFormData({ ...formData, colour: e.target.value })} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fuel Type</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.fuelType?.toUpperCase() || ""}
-                  onChange={(e) => setFormData({ ...formData, fuelType: e.target.value })}>
-                  <option value="">Select...</option>
-                  <option value="PETROL">Petrol</option>
-                  <option value="DIESEL">Diesel</option>
-                  <option value="HYBRID">Hybrid</option>
-                  <option value="ELECTRIC">Electric</option>
-                  <option value="LPG">LPG</option>
-                  <option value="CNG">CNG</option>
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">MOT Expiry Date</label>
-                <input
-                  type="date"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
-                  value={formData.motExpiryDate ? formData.motExpiryDate.split("T")[0] : ""}
-                  onChange={(e) => setFormData({ ...formData, motExpiryDate: e.target.value })}
-                />
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {formData.motExpiryDate ? "" : "Auto-filled by VRM lookup or enter manually"}
-                </p>
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Transmission</label>
-                <select className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer" value={formData.transmission?.toUpperCase() || ""}
-                  onChange={(e) => setFormData({ ...formData, transmission: e.target.value })}>
-                  <option value="">Select...</option>
-                  <option value="MANUAL">Manual</option>
-                  <option value="AUTOMATIC">Automatic</option>
-                  <option value="SEMI-AUTO">Semi-Auto</option>
-                  <option value="CVT">CVT</option>
-                </select>
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Engine Capacity (cc)</label>
-                <input
-                  type="number"
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
-                  placeholder="e.g., 1500"
-                  value={formData.engineCapacity || ""}
-                  onChange={(e) => setFormData({ ...formData, engineCapacity: e.target.value })}
-                />
-                <p className="text-xs text-slate-400 mt-1.5">
-                  {formData.engineCapacity ? "" : "Auto-filled by VRM lookup"}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Vehicle Type Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Vehicle Type</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Vehicle Type</label>
-                <select
-                  className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
-                  value={formData.type}
-                  onChange={(e) => {
-                    const newType = e.target.value;
-                    setFormData({
-                      ...formData,
-                      type: newType,
-                      // Clear saleType if not Stock
-                      saleType: newType === "STOCK" ? (formData.saleType || "RETAIL") : undefined
-                    });
-                  }}
-                >
-                  <option value="STOCK">Stock - For sale</option>
-                  <option value="COURTESY">Courtesy - Loan vehicle</option>
-                  <option value="FLEET_OTHER">Fleet/Other - Company vehicle</option>
-                </select>
-              </div>
-              {/* Sale Type - Only show for Stock vehicles */}
-              {formData.type === "STOCK" && (
-                <div className="form-control">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Sale Type</label>
-                  <select
-                    className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
-                    value={formData.saleType || "RETAIL"}
-                    onChange={(e) => setFormData({ ...formData, saleType: e.target.value })}
-                  >
-                    <option value="RETAIL">Retail - Customer sale</option>
-                    <option value="TRADE">Trade - Dealer sale</option>
-                  </select>
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-slate-400 mt-3">
-              {formData.type === "COURTESY" && "This vehicle will be available in courtesy car forms"}
-              {formData.type === "FLEET_OTHER" && "This vehicle will not appear in sales board"}
-              {formData.type === "STOCK" && formData.saleType === "TRADE" && "Trade vehicles are marked separately and can be filtered"}
-              {formData.type === "STOCK" && formData.saleType !== "TRADE" && "This vehicle will go through the normal sales prep flow"}
-            </p>
-          </div>
-
-          {/* Location Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Location</h4>
-            <div className="form-control">
-              <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
-                value={formData.locationId}
-                onChange={(e) => setFormData({ ...formData, locationId: e.target.value })}
-              >
-                <option value="">On Site</option>
-                {locations.map(loc => (
-                  <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Document Uploads Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Document Uploads (Optional)</h4>
-            <div className="space-y-4">
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">V5 Document</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
-                  onChange={(e) => setV5File(e.target.files[0])} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Service History</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
-                  onChange={(e) => setServiceHistoryFile(e.target.files[0])} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Fault Codes</label>
-                <input type="file" className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none" accept="image/*,.pdf"
-                  onChange={(e) => setFaultCodesFile(e.target.files[0])} />
-              </div>
-              <div className="form-control">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Other Documents</label>
-                <button
-                  type="button"
-                  className="px-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200"
-                  onClick={() => setOtherDocuments([...otherDocuments, { name: "", file: null }])}
-                >
-                  + Add Document/Image
-                </button>
-                {otherDocuments.map((doc, idx) => (
-                  <div key={idx} className="flex gap-2 mt-3">
-                    <input
-                      type="text"
-                      placeholder="Document name"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
-                      value={doc.name}
-                      onChange={(e) => {
-                        const updated = [...otherDocuments];
-                        updated[idx].name = e.target.value;
-                        setOtherDocuments(updated);
-                      }}
-                    />
-                    <input
-                      type="file"
-                      className="flex-1 px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 text-sm file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium file:text-xs hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] transition-all duration-200 outline-none"
-                      onChange={(e) => {
-                        const updated = [...otherDocuments];
-                        updated[idx].file = e.target.files[0];
-                        setOtherDocuments(updated);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all duration-200"
-                      onClick={() => setOtherDocuments(otherDocuments.filter((_, i) => i !== idx))}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Initial Issues Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Initial Issues (Optional)</h4>
-
-            {/* Add Issue Button */}
-            <button
-              type="button"
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-lg transition-all duration-200 mb-3"
-              onClick={() => setShowAddIssueInVehicleModal(true)}
-            >
-              + Add Issue
-            </button>
-
-            {/* Issue Summary Cards */}
-            {initialIssues.length > 0 && (
-              <div className="space-y-2">
-                {initialIssues.map((issue, index) => (
-                  <div key={index} className="card bg-base-200">
-                    <div className="card-body p-3">
-                      <div className="flex justify-between items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="badge badge-sm">{issue.category}</span>
-                            {issue.subcategory && (
-                              <span className="badge badge-sm badge-ghost">{issue.subcategory}</span>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium truncate">{issue.description}</p>
-                          {issue.actionNeeded && (
-                            <p className="text-xs text-base-content/60 mt-1">Action: {issue.actionNeeded}</p>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-xs text-error"
-                          onClick={() => {
-                            setInitialIssues(initialIssues.filter((_, i) => i !== index));
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Prep Checklist Template Section */}
-          <div className="mb-6 pb-6 border-b border-slate-100">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Prep Checklist Template</h4>
-            <div className="form-control">
-              <select
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none appearance-none cursor-pointer"
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-              >
-                <option value="">None - add tasks manually</option>
-                <option value="default">Standard Prep (5 tasks)</option>
-              </select>
-            </div>
-
-            {/* Task Preview for Standard Prep */}
-            {selectedTemplate === "default" && (
-              <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Tasks included:</p>
-                <div className="text-sm text-slate-600 space-y-2">
-                  {["PDI", "Valet", "Photos", "MOT Check", "Advert"].map((task, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-[#0066CC]">✓</span>
-                      <span>{task}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Notes Section */}
-          <div className="mb-4">
-            <div className="form-control">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Additional Notes</label>
-              <textarea
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none resize-none"
-                rows={4}
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              ></textarea>
-            </div>
-          </div>
-          </div>{/* End scrollable content */}
-
-          {/* Sticky Footer */}
-          <div
-            className="shrink-0 flex items-center justify-end gap-3 px-4 md:px-6 py-4 border-t border-slate-200 bg-white"
-            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
-          >
-            <button
-              type="button"
-              className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:text-slate-800 hover:border-slate-300 hover:bg-slate-50 font-medium rounded-lg transition-all duration-200"
-              onClick={onClose}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg shadow-sm hover:shadow transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              disabled={isLoading}
-            >
-              {isLoading ? <><span className="loading loading-spinner loading-sm"></span><span>Saving...</span></> : "Add Vehicle"}
-            </button>
-          </div>
-        </form>
-      </div>
-      <div className="modal-backdrop" onClick={onClose}></div>
-
-      {/* Nested Add Issue Modal */}
-      {showAddIssueInVehicleModal && (
-        <AddIssueModal
-          issueForm={newIssueForm}
-          setIssueForm={setNewIssueForm}
-          onClose={() => {
-            setShowAddIssueInVehicleModal(false);
-            setNewIssueForm({
-              category: "",
-              subcategory: "",
-              description: "",
-              actionNeeded: "",
-              status: "Outstanding",
-              notes: "",
-              photos: [],
-            });
-          }}
-          onSubmit={() => {
-            // Validate required fields
-            if (!newIssueForm.category || !newIssueForm.subcategory || !newIssueForm.description) {
-              return toast.error("Category, subcategory, and description are required");
-            }
-
-            // Add issue to the array
-            setInitialIssues([...initialIssues, { ...newIssueForm }]);
-
-            // Close modal and reset form
-            setShowAddIssueInVehicleModal(false);
-            setNewIssueForm({
-              category: "",
-              subcategory: "",
-              description: "",
-              actionNeeded: "",
-              status: "Outstanding",
-              notes: "",
-              photos: [],
-            });
-            toast.success("Issue added");
-          }}
-        />
-      )}
-    </div>
-  );
-}
 
 function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
   const [isLoading, setIsLoading] = useState(false);

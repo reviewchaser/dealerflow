@@ -156,65 +156,99 @@ export default function PublicJobSheet() {
               <p className="text-sm text-slate-500">Year</p>
               <p className="font-medium text-slate-900">{jobSheet?.vehicle?.year || "—"}</p>
             </div>
-            {!isWarranty && (
-              <>
-                <div>
-                  <p className="text-sm text-slate-500">Colour</p>
-                  <p className="font-medium text-slate-900">{jobSheet?.vehicle?.colour || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Fuel Type</p>
-                  <p className="font-medium text-slate-900">{jobSheet?.vehicle?.fuelType || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Mileage</p>
-                  <p className="font-medium text-slate-900">
-                    {jobSheet?.vehicle?.mileage ? `${jobSheet.vehicle.mileage.toLocaleString()} mi` : "—"}
-                  </p>
-                </div>
-              </>
-            )}
+            <div>
+              <p className="text-sm text-slate-500">Colour</p>
+              <p className="font-medium text-slate-900">{jobSheet?.vehicle?.colour || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Fuel Type</p>
+              <p className="font-medium text-slate-900">{jobSheet?.vehicle?.fuelType || "—"}</p>
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Mileage</p>
+              <p className="font-medium text-slate-900">
+                {jobSheet?.vehicle?.mileage ? `${jobSheet.vehicle.mileage.toLocaleString()} mi` : "—"}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Warranty-specific info */}
         {isWarranty && (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 print:shadow-none print:border print:rounded-none">
-            <h2 className="text-lg font-semibold text-slate-900 mb-4">Warranty Details</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-slate-500">Warranty Type</p>
-                <p className="font-medium text-slate-900">{jobSheet?.warrantyType || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-slate-500">Repair Location</p>
-                <p className="font-medium text-slate-900">
-                  {LOCATION_LABELS[jobSheet?.repairLocationType] || jobSheet?.repairLocationType || "—"}
-                  {jobSheet?.repairLocationName && ` (${jobSheet.repairLocationName})`}
-                </p>
-              </div>
-              {jobSheet?.customerName && (
+          <>
+            {/* Customer Info */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 print:shadow-none print:border print:rounded-none">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Customer Details</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-slate-500">Customer</p>
-                  <p className="font-medium text-slate-900">{jobSheet.customerName}</p>
+                  <p className="text-sm text-slate-500">Name</p>
+                  <p className="font-medium text-slate-900">{jobSheet?.customerName || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Phone</p>
+                  <p className="font-medium text-slate-900">{jobSheet?.customerPhone || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Email</p>
+                  <p className="font-medium text-slate-900">{jobSheet?.customerEmail || "—"}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Warranty Details */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-6 print:shadow-none print:border print:rounded-none">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Warranty Details</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-slate-500">Warranty Type</p>
+                  <p className="font-medium text-slate-900">{jobSheet?.warrantyType || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Priority</p>
+                  <p className="font-medium text-slate-900 capitalize">{jobSheet?.priority || "Normal"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">Repair Location</p>
+                  <p className="font-medium text-slate-900">
+                    {LOCATION_LABELS[jobSheet?.repairLocationType] || jobSheet?.repairLocationType || "—"}
+                    {jobSheet?.repairLocationName && ` (${jobSheet.repairLocationName})`}
+                  </p>
+                </div>
+                {jobSheet?.repairLocationNotes && (
+                  <div>
+                    <p className="text-sm text-slate-500">Location Notes</p>
+                    <p className="font-medium text-slate-900">{jobSheet.repairLocationNotes}</p>
+                  </div>
+                )}
+              </div>
+              {jobSheet?.summary && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-500">Issue Summary</p>
+                  <p className="font-medium text-slate-900">{jobSheet.summary}</p>
+                </div>
+              )}
+              {jobSheet?.description && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-500">Description</p>
+                  <p className="font-medium text-slate-900 whitespace-pre-wrap">{jobSheet.description}</p>
+                </div>
+              )}
+              {jobSheet?.faultCodes && (
+                <div className="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm font-medium text-red-800">Fault Codes</p>
+                  <p className="text-sm text-red-700 mt-1 font-mono">{jobSheet.faultCodes}</p>
+                </div>
+              )}
+              {jobSheet?.partsRequired && (
+                <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <p className="text-sm font-medium text-amber-800">Parts Required</p>
+                  {jobSheet?.partsNotes && (
+                    <p className="text-sm text-amber-700 mt-1">{jobSheet.partsNotes}</p>
+                  )}
                 </div>
               )}
             </div>
-            {jobSheet?.summary && (
-              <div className="mt-4">
-                <p className="text-sm text-slate-500">Issue Summary</p>
-                <p className="font-medium text-slate-900">{jobSheet.summary}</p>
-              </div>
-            )}
-            {jobSheet?.partsRequired && (
-              <div className="mt-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                <p className="text-sm font-medium text-amber-800">Parts Required</p>
-                {jobSheet?.partsNotes && (
-                  <p className="text-sm text-amber-700 mt-1">{jobSheet.partsNotes}</p>
-                )}
-              </div>
-            )}
-          </div>
+          </>
         )}
 
         {/* Booking Date */}

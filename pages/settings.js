@@ -18,8 +18,8 @@ export default function Settings() {
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
-  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", category: "OTHER" });
-  const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "" });
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", category: "OTHER", vatTreatment: "STANDARD" });
+  const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
 
   // Dealer branding state
   const [dealer, setDealer] = useState(null);
@@ -207,10 +207,11 @@ export default function Settings() {
           name: newAddOn.name,
           defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
           category: newAddOn.category,
+          vatTreatment: newAddOn.vatTreatment,
         }),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewAddOn({ name: "", defaultPriceNet: "", category: "OTHER" });
+      setNewAddOn({ name: "", defaultPriceNet: "", category: "OTHER", vatTreatment: "STANDARD" });
       fetchAddOns();
       toast.success("Add-on product created");
     } catch (error) {
@@ -243,6 +244,8 @@ export default function Settings() {
   const addFinanceCompany = async (e) => {
     e.preventDefault();
     if (!newFinanceCompany.name) return toast.error("Company name required");
+    if (!newFinanceCompany.address?.trim()) return toast.error("Address is required");
+    if (!newFinanceCompany.contactPhone?.trim()) return toast.error("Phone number is required");
     try {
       const res = await fetch("/api/contacts", {
         method: "POST",
@@ -254,11 +257,12 @@ export default function Settings() {
             contactPerson: newFinanceCompany.contactPerson,
             contactEmail: newFinanceCompany.contactEmail,
             contactPhone: newFinanceCompany.contactPhone,
+            address: newFinanceCompany.address,
           },
         }),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewFinanceCompany({ name: "", contactPerson: "", contactEmail: "", contactPhone: "" });
+      setNewFinanceCompany({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
       fetchFinanceCompanies();
       toast.success("Finance company added");
     } catch (error) {
@@ -1177,6 +1181,17 @@ export default function Settings() {
                   <option value="SERVICE">Service</option>
                   <option value="OTHER">Other</option>
                 </select>
+                <select
+                  className="select select-bordered select-sm"
+                  value={newAddOn.vatTreatment}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, vatTreatment: e.target.value })}
+                >
+                  <option value="STANDARD">Standard VAT (20%)</option>
+                  <option value="NO_VAT">No VAT</option>
+                  <option value="ZERO">Zero-rated</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
                 <button type="submit" className="btn btn-primary btn-sm">Add Product</button>
               </div>
             </form>
@@ -1216,9 +1231,16 @@ export default function Settings() {
               <input
                 type="text"
                 className="input input-bordered input-sm w-full"
-                placeholder="Company name (e.g. Santander, Black Horse)"
+                placeholder="Company name (e.g. Santander, Black Horse) *"
                 value={newFinanceCompany.name}
                 onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, name: e.target.value })}
+              />
+              <input
+                type="text"
+                className="input input-bordered input-sm w-full"
+                placeholder="Address *"
+                value={newFinanceCompany.address}
+                onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, address: e.target.value })}
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -1240,7 +1262,7 @@ export default function Settings() {
                 <input
                   type="tel"
                   className="input input-bordered input-sm flex-1"
-                  placeholder="Contact phone"
+                  placeholder="Contact phone *"
                   value={newFinanceCompany.contactPhone}
                   onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactPhone: e.target.value })}
                 />
@@ -1254,7 +1276,7 @@ export default function Settings() {
         <div className="card bg-base-200">
           <div className="card-body">
             <h2 className="card-title">Custom Vehicle Labels</h2>
-            <p className="text-sm text-base-content/60">Create labels to tag vehicle cards (e.g. "MOT Expired", "High Priority", "Manager Special")</p>
+            <p className="text-sm text-base-content/60">Create labels to tag vehicle cards (e.g. "Failed MOT", "High Priority", "Manager Special")</p>
 
             <div className="space-y-2 mt-4">
               {labels.length === 0 ? (

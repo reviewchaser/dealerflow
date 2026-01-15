@@ -139,7 +139,10 @@ export default function WarrantyClaimForm() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">Report Aftersales Issue</h1>
           <p className="text-base-content/60 mt-2 max-w-lg mx-auto">
-            Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.
+            Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your warranty documentation.
+          </p>
+          <p className="text-base-content/60 mt-2 max-w-lg mx-auto">
+            Please allow up to 48 hours for a response.
           </p>
         </div>
 

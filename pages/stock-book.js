@@ -98,6 +98,11 @@ export default function StockBook() {
     mileageCurrent: "",
     fuelType: "",
     transmission: "",
+    // MOT data from DVSA API
+    motExpiryDate: null,
+    motHistory: null,
+    // DVLA data
+    dvlaDetails: null,
     // Purchase details
     vatScheme: "MARGIN",
     purchasePriceNet: "",
@@ -106,6 +111,8 @@ export default function StockBook() {
     purchaseDate: "",
     purchaseInvoiceRef: "",
     purchaseNotes: "",
+    // Vehicle Prep option
+    addToVehiclePrep: false,
   });
 
   // Load vehicles
@@ -147,6 +154,15 @@ export default function StockBook() {
       fetchContacts();
     }
   }, [isRedirecting, fetchVehicles, fetchContacts]);
+
+  // Handle addVehicle query param (from Vehicle Prep or Quick Add menu)
+  useEffect(() => {
+    if (router.query.addVehicle === "1") {
+      setShowAddVehicleModal(true);
+      // Remove the query param from URL without reload
+      router.replace("/stock-book", undefined, { shallow: true });
+    }
+  }, [router.query.addVehicle, router]);
 
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
@@ -407,6 +423,51 @@ export default function StockBook() {
     }
   };
 
+  // Add vehicle to Prep Board
+  const handleAddToPrepBoard = async (vehicle) => {
+    const vehicleId = vehicle.id || vehicle._id;
+
+    if (vehicle.showOnPrepBoard === true) {
+      toast.error("Vehicle is already on the Prep Board");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showOnPrepBoard: true }),
+      });
+
+      if (!res.ok) throw new Error("Failed to add to Prep Board");
+
+      fetchVehicles();
+      toast.success("Vehicle added to Prep Board");
+    } catch (error) {
+      toast.error(error.message || "Failed to add to Prep Board");
+    }
+  };
+
+  // Delete vehicle permanently
+  const handleDeleteVehicle = async (vehicle) => {
+    const vehicleId = vehicle.id || vehicle._id;
+
+    if (!confirm("Delete this vehicle permanently?\n\nThis cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) throw new Error("Failed to delete vehicle");
+
+      fetchVehicles();
+      toast.success("Vehicle deleted");
+    } catch (error) {
+      toast.error(error.message || "Failed to delete vehicle");
+    }
+  };
+
   // Get unique sellers from vehicles for filter dropdown
   const uniqueSellers = useMemo(() => {
     const sellerMap = new Map();
@@ -455,7 +516,7 @@ export default function StockBook() {
         return;
       }
 
-      // Update form with combined data
+      // Update form with combined data including MOT history and DVLA details
       setAddVehicleForm(prev => ({
         ...prev,
         regCurrent: vrm,
@@ -466,6 +527,11 @@ export default function StockBook() {
         colour: dvlaData.colour || motData?.primaryColour || prev.colour,
         fuelType: dvlaData.fuelType || motData?.fuelType || prev.fuelType,
         transmission: dvlaData.transmission || prev.transmission,
+        // Store MOT data from DVSA API
+        motExpiryDate: motData?.motExpiry || dvlaData.dvlaDetails?.motExpiryDate || null,
+        motHistory: motData?.motHistory || null,
+        // Store DVLA details
+        dvlaDetails: dvlaData.dvlaDetails || null,
       }));
 
       const make = dvlaData.make || motData?.make;
@@ -490,7 +556,7 @@ export default function StockBook() {
 
     setIsAddingVehicle(true);
     try {
-      // Create vehicle with purchase info
+      // Create vehicle with purchase info and MOT/DVLA data
       const response = await fetch("/api/vehicles", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -506,7 +572,17 @@ export default function StockBook() {
           transmission: addVehicleForm.transmission || undefined,
           type: "STOCK",
           status: "in_stock",
-          skipDefaultTasks: true, // Stock Book doesn't need prep tasks
+          // Set showOnPrepBoard if adding to Vehicle Prep
+          showOnPrepBoard: addVehicleForm.addToVehiclePrep,
+          // Only skip default tasks if NOT adding to Vehicle Prep
+          skipDefaultTasks: !addVehicleForm.addToVehiclePrep,
+          // MOT data from DVSA API
+          motExpiryDate: addVehicleForm.motExpiryDate || undefined,
+          motHistory: addVehicleForm.motHistory || undefined,
+          motHistoryFetchedAt: addVehicleForm.motHistory ? new Date().toISOString() : undefined,
+          // DVLA data
+          dvlaDetails: addVehicleForm.dvlaDetails || undefined,
+          lastDvlaFetchAt: addVehicleForm.dvlaDetails ? new Date().toISOString() : undefined,
         }),
       });
 
@@ -544,15 +620,23 @@ export default function StockBook() {
         });
       }
 
-      toast.success("Vehicle added to stock book");
+      const shouldRedirectToPrep = addVehicleForm.addToVehiclePrep;
+      toast.success(shouldRedirectToPrep ? "Vehicle added - redirecting to Vehicle Prep" : "Vehicle added to stock book");
       setShowAddVehicleModal(false);
       setAddVehicleForm({
         regCurrent: "", vin: "", make: "", model: "", year: "", colour: "",
         mileageCurrent: "", fuelType: "", transmission: "",
+        motExpiryDate: null, motHistory: null, dvlaDetails: null,
         vatScheme: "MARGIN", purchasePriceNet: "", purchaseVat: "",
         purchasedFromContactId: "", purchaseDate: "", purchaseInvoiceRef: "", purchaseNotes: "",
+        addToVehiclePrep: false,
       });
       fetchVehicles();
+
+      // Redirect to Vehicle Prep if checkbox was checked
+      if (shouldRedirectToPrep) {
+        router.push("/prep");
+      }
     } catch (error) {
       toast.error(error.message || "Failed to add vehicle");
     } finally {
@@ -940,6 +1024,51 @@ export default function StockBook() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </button>
+                        {/* Quick Actions Dropdown */}
+                        <div className="dropdown dropdown-end">
+                          <button
+                            tabIndex={0}
+                            onClick={(e) => e.stopPropagation()}
+                            className="btn btn-xs btn-ghost"
+                            title="More actions"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
+                          <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-48 z-50">
+                            {vehicle.showOnPrepBoard !== true && (
+                              <li>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddToPrepBoard(vehicle);
+                                  }}
+                                  className="text-sm"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                  </svg>
+                                  Add to Prep Board
+                                </button>
+                              </li>
+                            )}
+                            <li>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteVehicle(vehicle);
+                                }}
+                                className="text-sm text-error"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Delete Vehicle
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
                     </div>
                   );
@@ -1494,6 +1623,22 @@ export default function StockBook() {
                     </div>
                   </div>
 
+                  {/* Vehicle Prep Option */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={addVehicleForm.addToVehiclePrep}
+                        onChange={(e) => setAddVehicleForm({ ...addVehicleForm, addToVehiclePrep: e.target.checked })}
+                        className="checkbox checkbox-primary mt-0.5"
+                      />
+                      <div>
+                        <span className="font-medium text-slate-900">Add to Vehicle Prep board</span>
+                        <p className="text-sm text-slate-600 mt-0.5">Create prep tasks (PDI, Valet, Photos, etc.) and track this vehicle through preparation</p>
+                      </div>
+                    </label>
+                  </div>
+
                   {/* Actions */}
                   <div className="flex gap-3 pt-4 border-t border-slate-200">
                     <button
@@ -1511,7 +1656,7 @@ export default function StockBook() {
                       {isAddingVehicle ? (
                         <span className="loading loading-spinner loading-sm"></span>
                       ) : (
-                        "Add Vehicle"
+                        addVehicleForm.addToVehiclePrep ? "Add & Go to Prep" : "Add Vehicle"
                       )}
                     </button>
                   </div>

@@ -2,7 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import Form from "@/models/Form";
 import FormField from "@/models/FormField";
 import { withDealerContext } from "@/libs/authContext";
-import { DEPRECATED_FORM_TYPES } from "@/libs/formTemplates";
+import { DEPRECATED_FORM_TYPES, FORM_TEMPLATES } from "@/libs/formTemplates";
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -15,6 +15,48 @@ async function handler(req, res, ctx) {
       for (const form of deprecatedForms) {
         await FormField.deleteMany({ formId: form._id });
         await Form.findByIdAndDelete(form._id);
+      }
+    }
+
+    // Auto-create missing forms from templates
+    const existingTypes = await Form.distinct("type", { dealerId });
+    for (const template of FORM_TEMPLATES) {
+      if (!existingTypes.includes(template.type) && !DEPRECATED_FORM_TYPES.includes(template.type)) {
+        try {
+          const newForm = await Form.create({
+            dealerId,
+            name: template.name,
+            type: template.type,
+            visibility: template.visibility || "INTERNAL",
+            isPublic: template.isPublic || false,
+            publicSlug: template.publicSlug || null,
+            introText: template.introText || null,
+            createdByUserId: userId,
+          });
+
+          // Create fields from template
+          if (template.fields && template.fields.length > 0) {
+            const fieldPromises = template.fields.map((field) =>
+              FormField.create({
+                formId: newForm._id,
+                label: field.label,
+                fieldName: field.fieldName,
+                type: field.type,
+                required: field.required || false,
+                order: field.order || 0,
+                visible: field.visible !== false,
+                options: field.options || null,
+                placeholder: field.placeholder || null,
+                helpText: field.helpText || null,
+                gridGroup: field.gridGroup || null,
+                autoFillFromLicence: field.autoFillFromLicence || null,
+              })
+            );
+            await Promise.all(fieldPromises);
+          }
+        } catch (err) {
+          console.error(`Failed to create form from template ${template.type}:`, err.message);
+        }
       }
     }
 

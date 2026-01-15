@@ -42,6 +42,11 @@ const vehicleSchema = new mongoose.Schema(
       enum: ["appraised", "in_stock", "in_prep", "live", "reserved", "sold", "delivered", "archived"],
       default: "in_stock"
     },
+    // Whether vehicle appears on the Prep Board (can be removed without deleting from Stock Book)
+    showOnPrepBoard: {
+      type: Boolean,
+      default: false,
+    },
     locationId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleLocation" },
     motExpiryDate: { type: Date },
     motStatus: {

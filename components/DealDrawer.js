@@ -143,6 +143,14 @@ export default function DealDrawer({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReasonInput, setCancelReasonInput] = useState("");
 
+  // Delivery confirmation modal state
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryForm, setDeliveryForm] = useState({
+    deliveryMileage: "",
+    customerConfirmed: false,
+    notes: "",
+  });
+
   // Add-on state
   const [showAddOnPicker, setShowAddOnPicker] = useState(false);
   const [availableAddOns, setAvailableAddOns] = useState([]);
@@ -844,11 +852,20 @@ export default function DealDrawer({
   };
 
   const handleMarkDelivered = async () => {
+    if (!deliveryForm.customerConfirmed) {
+      toast.error("Please confirm customer has received the vehicle");
+      return;
+    }
+
     setActionLoading("delivered");
     try {
       const res = await fetch(`/api/deals/${dealId}/mark-delivered`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deliveryMileage: deliveryForm.deliveryMileage ? parseInt(deliveryForm.deliveryMileage, 10) : undefined,
+          deliveryNotes: deliveryForm.notes || undefined,
+        }),
       });
 
       if (!res.ok) {
@@ -857,6 +874,8 @@ export default function DealDrawer({
       }
 
       toast.success("Deal marked as delivered");
+      setShowDeliveryModal(false);
+      setDeliveryForm({ deliveryMileage: "", customerConfirmed: false, notes: "" });
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -2029,20 +2048,14 @@ export default function DealDrawer({
                         {/* Mark Delivered */}
                         {deal.status === "INVOICED" && (
                           <button
-                            onClick={handleMarkDelivered}
+                            onClick={() => setShowDeliveryModal(true)}
                             disabled={actionLoading}
                             className="btn btn-sm w-full bg-purple-500 hover:bg-purple-600 text-white border-none"
                           >
-                            {actionLoading === "delivered" ? (
-                              <span className="loading loading-spinner loading-xs"></span>
-                            ) : (
-                              <>
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Mark Delivered
-                              </>
-                            )}
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            Mark Delivered
                           </button>
                         )}
 
@@ -2864,6 +2877,88 @@ export default function DealDrawer({
                   <span className="loading loading-spinner loading-sm"></span>
                 ) : (
                   "Delete"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Confirmation Modal */}
+      {showDeliveryModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowDeliveryModal(false); setDeliveryForm({ deliveryMileage: "", customerConfirmed: false, notes: "" }); }} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Confirm Vehicle Delivery</h3>
+            <p className="text-sm text-slate-500 text-center mb-4">
+              Please confirm the delivery details before marking this vehicle as delivered.
+            </p>
+
+            <div className="space-y-4">
+              {/* Delivery Mileage */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Delivery Mileage</label>
+                <input
+                  type="number"
+                  value={deliveryForm.deliveryMileage}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryMileage: e.target.value })}
+                  placeholder="e.g., 45000"
+                  className="input input-bordered w-full"
+                />
+                <p className="text-xs text-slate-400 mt-1">Optional - record odometer reading at handover</p>
+              </div>
+
+              {/* Delivery Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  value={deliveryForm.notes}
+                  onChange={(e) => setDeliveryForm({ ...deliveryForm, notes: e.target.value })}
+                  placeholder="Any notes about the delivery..."
+                  className="textarea textarea-bordered w-full h-20"
+                />
+              </div>
+
+              {/* Customer Confirmation Checkbox */}
+              <div className="bg-slate-50 rounded-xl p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={deliveryForm.customerConfirmed}
+                    onChange={(e) => setDeliveryForm({ ...deliveryForm, customerConfirmed: e.target.checked })}
+                    className="checkbox checkbox-primary mt-0.5"
+                  />
+                  <div>
+                    <span className="font-medium text-slate-700">Customer has received the vehicle</span>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      I confirm the customer has taken physical possession of the vehicle
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => { setShowDeliveryModal(false); setDeliveryForm({ deliveryMileage: "", customerConfirmed: false, notes: "" }); }}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkDelivered}
+                disabled={actionLoading === "delivered" || !deliveryForm.customerConfirmed}
+                className="btn bg-purple-500 hover:bg-purple-600 text-white border-none flex-1 disabled:bg-slate-300"
+              >
+                {actionLoading === "delivered" ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Mark Delivered"
                 )}
               </button>
             </div>

@@ -138,6 +138,14 @@ export default function VehicleDrawer({
   const [dealLoading, setDealLoading] = useState(false);
   const [dealActionLoading, setDealActionLoading] = useState(null);
 
+  // Share/Prep PDF state
+  const [showJobSheetModal, setShowJobSheetModal] = useState(false);
+  const [jobSheetLink, setJobSheetLink] = useState(null);
+  const [isGeneratingJobSheet, setIsGeneratingJobSheet] = useState(false);
+  const [showPrepSummaryModal, setShowPrepSummaryModal] = useState(false);
+  const [prepSummaryLink, setPrepSummaryLink] = useState(null);
+  const [isGeneratingPrepSummary, setIsGeneratingPrepSummary] = useState(false);
+
   // Lock body scroll and prevent horizontal pan when drawer is open
   useEffect(() => {
     if (isOpen) {
@@ -370,6 +378,57 @@ export default function VehicleDrawer({
     }
   };
 
+  // Share/Prep PDF handlers
+  const handleGenerateJobSheet = async () => {
+    if (!vehicle) return;
+    setIsGeneratingJobSheet(true);
+    setShowJobSheetModal(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.id}/job-sheet`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays: 60 }),
+      });
+      if (!res.ok) throw new Error("Failed to generate share link");
+      const data = await res.json();
+      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+      setJobSheetLink({
+        url: fullUrl,
+        expiresAt: data.expiresAt,
+      });
+    } catch (error) {
+      toast.error("Failed to generate job sheet link");
+      setShowJobSheetModal(false);
+    } finally {
+      setIsGeneratingJobSheet(false);
+    }
+  };
+
+  const handleGeneratePrepSummary = async () => {
+    if (!vehicle) return;
+    setIsGeneratingPrepSummary(true);
+    setShowPrepSummaryModal(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicle.id}/prep-summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays: 60 }),
+      });
+      if (!res.ok) throw new Error("Failed to generate share link");
+      const data = await res.json();
+      const fullUrl = `${window.location.origin}${data.shareUrl}`;
+      setPrepSummaryLink({
+        url: fullUrl,
+        expiresAt: data.expiresAt,
+      });
+    } catch (error) {
+      toast.error("Failed to generate prep summary link");
+      setShowPrepSummaryModal(false);
+    } finally {
+      setIsGeneratingPrepSummary(false);
+    }
+  };
+
   // Deal status config
   const DEAL_STATUS_CONFIG = {
     DRAFT: { label: "Draft", color: "bg-slate-100 text-slate-600" },
@@ -428,10 +487,11 @@ export default function VehicleDrawer({
           <>
             {/* Header - Modern gradient design */}
             <div className="sticky top-0 bg-white border-b border-slate-100 px-4 md:px-6 py-4 md:py-5 z-10 shrink-0 shadow-sm">
+              {/* Top row: Back button, title, close button */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   <button
-                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all"
+                    className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-[#0066CC]/10 text-slate-500 hover:text-[#0066CC] transition-all shrink-0"
                     onClick={onClose}
                     title="Close"
                   >
@@ -439,8 +499,8 @@ export default function VehicleDrawer({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <div>
-                    <h2 className="text-lg md:text-xl font-bold text-slate-900">
+                  <div className="min-w-0">
+                    <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
                       {vehicle.year || ""} {vehicle.make} {vehicle.model}
                     </h2>
                     <div className="flex items-center gap-2 mt-1">
@@ -459,13 +519,41 @@ export default function VehicleDrawer({
                     </div>
                   </div>
                 </div>
+                {/* Close button - always visible */}
                 <button
-                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+                  className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all shrink-0 ml-2"
                   onClick={onClose}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
+                </button>
+              </div>
+              {/* Action buttons row - always visible */}
+              <div className="flex items-center gap-2 mt-3">
+                {/* Share button */}
+                <button
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors"
+                  onClick={handleGenerateJobSheet}
+                  disabled={isGeneratingJobSheet}
+                  title="Share job sheet"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  {isGeneratingJobSheet ? "..." : "Share"}
+                </button>
+                {/* Prep PDF button */}
+                <button
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors"
+                  onClick={handleGeneratePrepSummary}
+                  disabled={isGeneratingPrepSummary}
+                  title="Prep summary PDF"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {isGeneratingPrepSummary ? "..." : "Prep PDF"}
                 </button>
               </div>
             </div>
@@ -484,7 +572,6 @@ export default function VehicleDrawer({
                     { id: "sales", label: `Sales${deal ? ` (${DEAL_STATUS_CONFIG[deal.status]?.label || deal.status})` : ""}` },
                     { id: "checklist", label: `Checklist${vehicle.tasks?.length ? ` (${vehicle.tasks.length})` : ""}` },
                     { id: "issues", label: `Issues${vehicle.issues?.length ? ` (${vehicle.issues.length})` : ""}` },
-                    { id: "documents", label: `Documents${vehicle.documents?.length ? ` (${vehicle.documents.length})` : ""}` },
                     { id: "images", label: `Images${vehicle.images?.length ? ` (${vehicle.images.length})` : ""}` },
                   ].map((tab) => (
                     <option key={tab.id} value={tab.id}>
@@ -515,11 +602,6 @@ export default function VehicleDrawer({
                   { id: "issues", label: "Issues", count: vehicle.issues?.length, icon: (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  )},
-                  { id: "documents", label: "Documents", count: vehicle.documents?.length, icon: (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                     </svg>
                   )},
                   { id: "images", label: "Images", count: vehicle.images?.length, icon: (
@@ -1571,71 +1653,6 @@ export default function VehicleDrawer({
                 </div>
               )}
 
-              {/* Documents Tab */}
-              {activeTab === "documents" && (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#0066CC]/10 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-800">Documents</h3>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    {vehicle.documents?.length > 0 ? (
-                      <div className="space-y-2">
-                        {vehicle.documents.map((doc) => (
-                          <button
-                            key={doc.id}
-                            onClick={(e) => openFileWithFallback(doc.key || doc.url, e)}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-[#0066CC]/30 hover:bg-[#0066CC]/5 transition-all group text-left cursor-pointer"
-                          >
-                            {/* Document Icon */}
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 group-hover:bg-[#0066CC]/10 flex items-center justify-center shrink-0 transition-colors">
-                              <svg className="w-5 h-5 text-slate-400 group-hover:text-[#0066CC] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            {/* Document Info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-slate-800 truncate">{doc.name}</p>
-                              <span className={`inline-flex items-center px-2 py-0.5 mt-1 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                                doc.type === "v5" ? "bg-amber-100 text-amber-700" :
-                                doc.type === "service_history" ? "bg-[#14B8A6]/10 text-[#14B8A6]" :
-                                doc.type === "fault_codes" ? "bg-red-100 text-red-600" :
-                                "bg-slate-100 text-slate-600"
-                              }`}>
-                                {doc.type === "v5" && "V5"}
-                                {doc.type === "service_history" && "Service History"}
-                                {doc.type === "fault_codes" && "Fault Codes"}
-                                {doc.type === "other" && "Other"}
-                              </span>
-                            </div>
-                            {/* View Arrow */}
-                            <svg className="w-5 h-5 text-slate-300 group-hover:text-[#0066CC] transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                          <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <p className="text-sm font-medium text-slate-600">No documents</p>
-                        <p className="text-xs text-slate-400 mt-1">No documents have been uploaded</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Images Tab */}
               {activeTab === "images" && (
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -1672,6 +1689,124 @@ export default function VehicleDrawer({
           </>
         )}
       </div>
+
+      {/* Job Sheet Share Modal */}
+      {showJobSheetModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Share Job Sheet</h3>
+              <button
+                onClick={() => {
+                  setShowJobSheetModal(false);
+                  setJobSheetLink(null);
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              {isGeneratingJobSheet ? (
+                <div className="flex flex-col items-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <p className="text-slate-600">Generating share link...</p>
+                </div>
+              ) : jobSheetLink ? (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Shareable Link</p>
+                    <p className="text-sm font-mono text-slate-900 break-all">{jobSheetLink.url}</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    This link expires in 60 days. Anyone with this link can view the job sheet.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      className="btn btn-outline"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(jobSheetLink.url);
+                          toast.success("Link copied!");
+                        } catch {
+                          toast.error("Failed to copy");
+                        }
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => window.open(jobSheetLink.url, "_blank")}
+                    >
+                      Open Link
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prep Summary Modal */}
+      {showPrepSummaryModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Prep Summary PDF</h3>
+              <button
+                onClick={() => {
+                  setShowPrepSummaryModal(false);
+                  setPrepSummaryLink(null);
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              {isGeneratingPrepSummary ? (
+                <div className="flex flex-col items-center py-8">
+                  <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+                  <p className="text-slate-600">Generating prep summary...</p>
+                </div>
+              ) : prepSummaryLink ? (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 rounded-lg p-3">
+                    <p className="text-xs text-slate-500 mb-1">Shareable Link</p>
+                    <p className="text-sm font-mono text-slate-900 break-all">{prepSummaryLink.url}</p>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    This link expires in 60 days. Click Print/PDF to save a PDF of the prep summary.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      className="btn btn-outline"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(prepSummaryLink.url);
+                          toast.success("Link copied!");
+                        } catch {
+                          toast.error("Failed to copy");
+                        }
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => window.open(prepSummaryLink.url, "_blank")}
+                    >
+                      Print / PDF
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

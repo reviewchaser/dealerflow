@@ -29,8 +29,24 @@ async function handler(req, res, ctx) {
   const { dealerId } = ctx;
 
   if (req.method === "GET") {
-    const { status, forSale, type, salesStatus } = req.query;
+    const { status, forSale, type, salesStatus, excludeOldDelivered } = req.query;
     let query = { dealerId };
+
+    // Performance optimization: exclude delivered vehicles older than 90 days by default
+    // This prevents the prep board from loading thousands of old delivered vehicles
+    if (excludeOldDelivered === "true") {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      // Exclude vehicles that are delivered AND were sold more than 90 days ago
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { status: { $ne: "delivered" } },
+          { soldAt: { $gte: ninetyDaysAgo } },
+          { soldAt: { $exists: false } } // Include delivered vehicles without soldAt
+        ]
+      });
+    }
 
     // Filter by vehicle type (STOCK, COURTESY, FLEET_OTHER)
     if (type && type !== "all") {
@@ -181,6 +197,9 @@ async function handler(req, res, ctx) {
         locationId: locationData,
         motExpiryDate: vehicle.motExpiryDate,
         motStatus: vehicle.motStatus,
+        motHistory: vehicle.motHistory || [],
+        motHistoryFetchedAt: vehicle.motHistoryFetchedAt,
+        dvlaDetails: vehicle.dvlaDetails || null,
         taxExpiryDate: vehicle.taxExpiryDate,
         serviceDueDate: vehicle.serviceDueDate,
         v5Url: vehicle.v5Url,
@@ -214,8 +233,11 @@ async function handler(req, res, ctx) {
       type = "STOCK", // STOCK, COURTESY, FLEET_OTHER
       saleType = "RETAIL", // RETAIL, TRADE - only for STOCK vehicles
       motExpiryDate,
+      motHistory, // MOT history from DVSA API
+      motHistoryFetchedAt,
       dvlaDetails, // DVLA VES data
       lastDvlaFetchAt,
+      showOnPrepBoard, // Whether to show on prep board
     } = req.body;
 
     if (!regCurrent || !make || !model) {
@@ -248,9 +270,14 @@ async function handler(req, res, ctx) {
       ...(type === "STOCK" && { saleType }),
       // MOT expiry from DVSA lookup
       ...(motExpiryDate && { motExpiryDate: new Date(motExpiryDate) }),
+      // MOT history from DVSA API
+      ...(motHistory && { motHistory }),
+      ...(motHistoryFetchedAt && { motHistoryFetchedAt: new Date(motHistoryFetchedAt) }),
       // DVLA VES details
       ...(dvlaDetails && { dvlaDetails }),
       ...(lastDvlaFetchAt && { lastDvlaFetchAt: new Date(lastDvlaFetchAt) }),
+      // Prep board visibility
+      ...(showOnPrepBoard !== undefined && { showOnPrepBoard }),
     };
 
     // Only add locationId if it's not empty

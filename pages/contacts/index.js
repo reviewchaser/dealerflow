@@ -13,7 +13,9 @@ export default function Contacts() {
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [newContact, setNewContact] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
+    companyName: "",
     email: "",
     phone: "",
     type: "seller",
@@ -58,6 +60,13 @@ export default function Contacts() {
   const handleCreateContact = async (e) => {
     e.preventDefault();
 
+    // Validate name: either (firstName + lastName) OR companyName required
+    const hasName = newContact.firstName?.trim() && newContact.lastName?.trim();
+    const hasCompany = newContact.companyName?.trim();
+    if (!hasName && !hasCompany) {
+      return toast.error("Either a name (first & last) or company name is required");
+    }
+
     // Validate required address fields
     if (!newContact.address?.line1?.trim()) {
       return toast.error("Address line 1 is required");
@@ -69,11 +78,19 @@ export default function Contacts() {
       return toast.error("Postcode is required");
     }
 
+    // Build display name from firstName + lastName or companyName
+    const displayName = hasName
+      ? `${newContact.firstName.trim()} ${newContact.lastName.trim()}`
+      : newContact.companyName.trim();
+
     try {
       const response = await fetch("/api/contacts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newContact),
+        body: JSON.stringify({
+          ...newContact,
+          name: displayName,
+        }),
       });
 
       if (!response.ok) {
@@ -84,7 +101,9 @@ export default function Contacts() {
       toast.success("Contact created!");
       setShowModal(false);
       setNewContact({
-        name: "",
+        firstName: "",
+        lastName: "",
+        companyName: "",
         email: "",
         phone: "",
         type: "seller",
@@ -211,16 +230,45 @@ export default function Contacts() {
             <h3 className="font-bold text-lg mb-4">Add New Contact</h3>
             
             <form onSubmit={handleCreateContact}>
+              <p className="text-sm text-base-content/60 mb-4">
+                Either a name (first & last) or company name is required.
+              </p>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">First Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    value={newContact.firstName}
+                    onChange={(e) => setNewContact({...newContact, firstName: e.target.value})}
+                  />
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Last Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input input-bordered"
+                    value={newContact.lastName}
+                    onChange={(e) => setNewContact({...newContact, lastName: e.target.value})}
+                  />
+                </div>
+              </div>
+
               <div className="form-control mb-4">
                 <label className="label">
-                  <span className="label-text">Name *</span>
+                  <span className="label-text">Company Name</span>
                 </label>
                 <input
                   type="text"
                   className="input input-bordered"
-                  value={newContact.name}
-                  onChange={(e) => setNewContact({...newContact, name: e.target.value})}
-                  required
+                  placeholder="Required if no individual name"
+                  value={newContact.companyName}
+                  onChange={(e) => setNewContact({...newContact, companyName: e.target.value})}
                 />
               </div>
 

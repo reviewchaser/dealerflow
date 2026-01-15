@@ -104,6 +104,7 @@ export default async function handler(req, res) {
       type: v.type,
       updatedAt: v.updatedAt,
       createdAt: v.createdAt,
+      soldAt: v.soldAt, // Include for archive detection
       displayName: `${v.regCurrent} - ${v.make} ${v.model}${v.year ? ` (${v.year})` : ""}`,
     }));
 

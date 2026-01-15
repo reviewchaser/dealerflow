@@ -120,7 +120,7 @@ export default function AppraisalDetail() {
         throw new Error(error.error || "Failed to convert");
       }
       toast.success("Vehicle created!");
-      router.push("/sales-prep");
+      router.push("/prep");
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -630,10 +630,10 @@ export default function AppraisalDetail() {
                     Vehicle added to stock
                   </div>
                   <Link
-                    href="/sales-prep"
+                    href="/prep"
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
                   >
-                    View in Stock & Prep
+                    View in Vehicle Prep
                   </Link>
                 </div>
               ) : null}

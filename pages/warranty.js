@@ -437,6 +437,9 @@ export default function Warranty() {
   // Column sorting state
   const [columnSortOptions, setColumnSortOptions] = useState({});
 
+  // Archive toggle for "Closed" column - when false, hides cases closed >90 days ago
+  const [showAllClosed, setShowAllClosed] = useState(false);
+
   // Search filter state
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -472,7 +475,12 @@ export default function Warranty() {
   // KPI display mode: "net" (default) or "gross"
   const [kpiDisplayMode, setKpiDisplayMode] = useState("net");
 
-  useEffect(() => { fetchCases(); fetchCostKpis(); }, []);
+  useEffect(() => { fetchCases(showAllClosed); fetchCostKpis(); }, []);
+
+  // Refetch when showAllClosed toggle changes
+  useEffect(() => {
+    fetchCases(showAllClosed);
+  }, [showAllClosed]);
 
   // Auto-open case from query param (e.g., /warranty?caseId=123)
   useEffect(() => {
@@ -490,9 +498,15 @@ export default function Warranty() {
     }
   }, [router.query.addCase]);
 
-  const fetchCases = async () => {
+  const fetchCases = async (includeAllClosed = false) => {
     try {
-      const res = await fetch("/api/aftercare");
+      // Use excludeOldClosed filter unless showing all
+      const params = new URLSearchParams();
+      if (!includeAllClosed) {
+        params.append("excludeOldClosed", "true");
+      }
+      const url = `/api/aftercare${params.toString() ? `?${params.toString()}` : ""}`;
+      const res = await fetch(url);
       // Check for JSON response
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
@@ -1139,7 +1153,7 @@ export default function Warranty() {
       <Head><title>Aftersales/Warranty | DealerHQ</title></Head>
 
       {/* Hero Header - Modern gradient design */}
-      <div className="relative rounded-2xl overflow-hidden mb-6 bg-gradient-to-br from-[#0066CC]/[0.06] via-[#14B8A6]/[0.04] to-[#0EA5E9]/[0.03] border border-slate-100/50">
+      <div className="relative rounded-2xl mb-6 bg-gradient-to-br from-[#0066CC]/[0.06] via-[#14B8A6]/[0.04] to-[#0EA5E9]/[0.03] border border-slate-100/50">
         <div className="relative px-6 py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -1799,42 +1813,57 @@ export default function Warranty() {
                         {columnCases.length}
                       </span>
                     </div>
-                    <div className="dropdown dropdown-end">
-                      <label tabIndex={0} className="btn btn-ghost btn-xs gap-1 bg-white/30 backdrop-blur-sm hover:bg-white/50 rounded-full">
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-                        </svg>
-                        <span className="text-xs">
-                          {columnSortOptions[col.key] === "newest_first" ? "Newest" :
-                           columnSortOptions[col.key] === "alphabetical" ? "A-Z" : "Oldest"}
-                        </span>
-                      </label>
-                      <ul tabIndex={0} className="dropdown-content z-30 menu p-2 shadow-lg bg-white rounded-xl w-44 mt-2">
-                        <li>
-                          <button
-                            className={`rounded-lg ${columnSortOptions[col.key] === "oldest_first" || !columnSortOptions[col.key] ? "active bg-slate-100" : ""}`}
-                            onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "oldest_first" }))}
-                          >
-                            Oldest First
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            className={`rounded-lg ${columnSortOptions[col.key] === "newest_first" ? "active bg-slate-100" : ""}`}
-                            onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "newest_first" }))}
-                          >
-                            Newest First
-                          </button>
-                        </li>
-                        <li>
-                          <button
-                            className={`rounded-lg ${columnSortOptions[col.key] === "alphabetical" ? "active bg-slate-100" : ""}`}
-                            onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "alphabetical" }))}
-                          >
-                            Alphabetical (Name)
-                          </button>
-                        </li>
-                      </ul>
+                    <div className="flex items-center gap-1">
+                      {/* Archive Toggle for Closed column */}
+                      {col.key === "collected" && (
+                        <button
+                          onClick={() => setShowAllClosed(!showAllClosed)}
+                          className={`btn btn-xs gap-1 rounded-full ${showAllClosed ? "btn-primary" : "bg-white/30 backdrop-blur-sm hover:bg-white/50 text-slate-600"}`}
+                          title={showAllClosed ? "Showing all closed cases" : "Showing last 90 days only"}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                          </svg>
+                          <span className="text-xs">{showAllClosed ? "All" : "90d"}</span>
+                        </button>
+                      )}
+                      <div className="dropdown dropdown-end">
+                        <label tabIndex={0} className="btn btn-ghost btn-xs gap-1 bg-white/30 backdrop-blur-sm hover:bg-white/50 rounded-full">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                          </svg>
+                          <span className="text-xs">
+                            {columnSortOptions[col.key] === "newest_first" ? "Newest" :
+                             columnSortOptions[col.key] === "alphabetical" ? "A-Z" : "Oldest"}
+                          </span>
+                        </label>
+                        <ul tabIndex={0} className="dropdown-content z-30 menu p-2 shadow-lg bg-white rounded-xl w-44 mt-2">
+                          <li>
+                            <button
+                              className={`rounded-lg ${columnSortOptions[col.key] === "oldest_first" || !columnSortOptions[col.key] ? "active bg-slate-100" : ""}`}
+                              onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "oldest_first" }))}
+                            >
+                              Oldest First
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              className={`rounded-lg ${columnSortOptions[col.key] === "newest_first" ? "active bg-slate-100" : ""}`}
+                              onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "newest_first" }))}
+                            >
+                              Newest First
+                            </button>
+                          </li>
+                          <li>
+                            <button
+                              className={`rounded-lg ${columnSortOptions[col.key] === "alphabetical" ? "active bg-slate-100" : ""}`}
+                              onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "alphabetical" }))}
+                            >
+                              Alphabetical (Name)
+                            </button>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
 
@@ -2109,6 +2138,35 @@ export default function Warranty() {
                   ))}
                 </div>
               </div>
+
+              {/* Reopen Case Banner - shown when case is closed */}
+              {selectedCase.boardStatus === "collected" && (
+                <div className="mt-3 px-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-amber-800">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>This case is closed</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        await updateCase(
+                          { boardStatus: "not_booked_in" },
+                          "Case reopened"
+                        );
+                        toast.success("Case reopened and moved to 'Not Booked In'");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg transition-colors"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Reopen Case
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="px-5 py-4 space-y-4" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>

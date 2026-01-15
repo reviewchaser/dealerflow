@@ -101,7 +101,7 @@ export default function CustomerPXForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ vehicleReg: vrm }),
         }),
-        fetch(`/api/mot?vrm=${vrm}`),
+        fetch(`/api/public/mot-lookup?vrm=${vrm}`),
       ]);
 
       const dvlaOk = dvlaRes.ok;

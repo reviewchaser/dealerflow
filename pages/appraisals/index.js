@@ -180,8 +180,8 @@ export default function Appraisals() {
       if (type === "px") fetchPxAppraisals();
       else fetchAppraisals();
 
-      if (confirm("Vehicle created. View it on Stock & Prep board?")) {
-        router.push("/sales-prep");
+      if (confirm("Vehicle created. View it on Vehicle Prep board?")) {
+        router.push("/prep");
       }
     } catch (error) {
       console.error("Convert error:", error);
@@ -602,7 +602,7 @@ export default function Appraisals() {
                   {/* In Stock Badge */}
                   {a.vehicleId && (
                     <Link
-                      href="/sales-prep"
+                      href="/prep"
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100 hover:bg-emerald-100 transition-colors"
                     >
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">

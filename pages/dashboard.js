@@ -95,7 +95,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "soldInProgress",
     label: "Sold in progress",
-    href: "/sales-prep",
+    href: "/prep",
     color: "warning",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +143,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "motExpiringSoon",
     label: "MOT expiring soon",
-    href: "/sales-prep",
+    href: "/prep",
     color: "danger",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -654,7 +654,7 @@ export default function Dashboard() {
                       if (event.dealId) {
                         router.push(getPath(`/deals?id=${event.dealId}`));
                       } else if (event.vehicleId) {
-                        router.push(getPath(`/sales-prep?vehicle=${event.vehicleId}`));
+                        router.push(getPath(`/prep?vehicle=${event.vehicleId}`));
                       }
                     };
 
@@ -960,7 +960,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="space-y-3">
-                <Link href={getPath("/sales-prep")} className="action-card">
+                <Link href={getPath("/prep")} className="action-card">
                   <div className="w-10 h-10 rounded-xl bg-[#0066CC]/10 text-[#0066CC] flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -1085,7 +1085,7 @@ export default function Dashboard() {
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">Prep Priorities</h3>
                 </div>
-                <Link href={getPath("/sales-prep")} className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
+                <Link href={getPath("/prep")} className="text-xs font-bold text-[#0066CC] uppercase tracking-wide hover:underline flex items-center gap-1">
                   View Board
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -1098,7 +1098,7 @@ export default function Dashboard() {
                   {stats.prepPriorities.map((v, idx) => (
                     <div
                       key={v.id}
-                      onClick={() => router.push(getPath("/sales-prep"))}
+                      onClick={() => router.push(getPath("/prep"))}
                       className="px-6 py-3 hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       {/* Top row - Priority indicator, VRM, Make/Model */}

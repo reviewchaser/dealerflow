@@ -11,10 +11,21 @@ async function handler(req, res, ctx) {
   const { dealerId } = ctx;
 
   if (req.method === "GET") {
-    const { boardStatus, status } = req.query;
+    const { boardStatus, status, excludeOldClosed } = req.query;
     let query = { dealerId };
     if (boardStatus && boardStatus !== "all") query.boardStatus = boardStatus;
     if (status && status !== "all") query.status = status;
+
+    // Auto-archive: exclude cases in "collected" status older than 90 days
+    if (excludeOldClosed === "true") {
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      // Either not in "collected" status, OR in "collected" but updated within 90 days
+      query.$or = [
+        { boardStatus: { $ne: "collected" } },
+        { boardStatus: "collected", updatedAt: { $gte: ninetyDaysAgo } }
+      ];
+    }
 
     const cases = await AftercareCase.find(query)
       .populate("contactId")

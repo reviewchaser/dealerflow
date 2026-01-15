@@ -72,7 +72,7 @@ export default function DealerBuyingForm() {
       // Call both DVLA and MOT APIs in parallel for complete data
       const [dvlaRes, motRes] = await Promise.all([
         fetch(`/api/dvla-lookup?vrm=${vrm}`),
-        fetch(`/api/mot?vrm=${vrm}`),
+        fetch(`/api/public/mot-lookup?vrm=${vrm}`),
       ]);
 
       const dvlaOk = dvlaRes.ok;

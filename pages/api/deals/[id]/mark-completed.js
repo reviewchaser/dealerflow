@@ -2,7 +2,11 @@ import connectMongo from "@/libs/mongoose";
 import Deal from "@/models/Deal";
 import Vehicle from "@/models/Vehicle";
 import PartExchange from "@/models/PartExchange";
+import VehicleTask from "@/models/VehicleTask";
+import Contact from "@/models/Contact";
 import { withDealerContext } from "@/libs/authContext";
+
+const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
 
 /**
  * Mark Completed API
@@ -128,6 +132,80 @@ async function handler(req, res, ctx) {
     status: "SOLD", // Update main vehicle status too
   });
 
+  // Auto-create vehicle from part exchange if applicable
+  let pxVehicleCreated = null;
+  if (px && !px.convertedToVehicleId) {
+    // Only create vehicle if not trade sale or auction (those are sold elsewhere)
+    const shouldCreateVehicle = !["TRADE_SALE", "AUCTION"].includes(px.disposition);
+
+    if (shouldCreateVehicle) {
+      try {
+        // Check for duplicate VRM
+        const normalizedReg = px.vrm?.toUpperCase().replace(/\s/g, "");
+        const existingVehicle = await Vehicle.findOne({
+          dealerId,
+          regCurrent: normalizedReg,
+        }).lean();
+
+        if (!existingVehicle) {
+          // Create vehicle from PX details
+          const pxVehicle = await Vehicle.create({
+            dealerId,
+            regCurrent: normalizedReg,
+            vin: px.vin || undefined,
+            make: px.make || "Unknown",
+            model: px.model || "Unknown",
+            derivative: px.derivative || undefined,
+            year: px.year,
+            mileageCurrent: px.mileage,
+            colour: px.colour,
+            fuelType: px.fuelType,
+            transmission: px.transmission,
+            motExpiryDate: px.motExpiry || undefined,
+            type: "STOCK",
+            saleType: "RETAIL",
+            status: "in_stock",
+            vatScheme: px.vatQualifying ? "VAT_QUALIFYING" : "MARGIN",
+            notes: px.conditionSummary || px.notes,
+            // Purchase info - the PX allowance is what we "paid" for it
+            purchase: {
+              purchasedFromContactId: deal.soldToContactId?._id, // Buyer of main vehicle is seller of PX
+              purchaseDate: new Date(),
+              purchasePriceNet: px.allowance || 0,
+              purchaseNotes: `Part exchange from deal ${deal._id}`,
+            },
+          });
+
+          // If disposition is RETAIL_STOCK, create prep tasks
+          if (px.disposition === "RETAIL_STOCK") {
+            for (const taskName of DEFAULT_TASKS) {
+              await VehicleTask.create({
+                vehicleId: pxVehicle._id,
+                name: taskName,
+                status: "pending",
+                source: "system_default",
+              });
+            }
+          }
+
+          // Link PX to the new vehicle
+          await PartExchange.findByIdAndUpdate(px._id, {
+            convertedToVehicleId: pxVehicle._id,
+          });
+
+          pxVehicleCreated = {
+            id: pxVehicle._id.toString(),
+            vrm: pxVehicle.regCurrent,
+            addedToPrep: px.disposition === "RETAIL_STOCK",
+          };
+        }
+      } catch (pxErr) {
+        console.error("[mark-completed] Failed to create PX vehicle:", pxErr.message);
+        // Don't fail the whole operation, just log the error
+      }
+    }
+  }
+
   // TODO: If sendReviewRequest is true and customer has email, queue review request email
   // This would integrate with an email service like SendGrid or Resend
 
@@ -138,6 +216,7 @@ async function handler(req, res, ctx) {
     completedAt: deal.completedAt,
     isFullyPaid,
     balanceDue: isFullyPaid ? 0 : balanceDue,
+    pxVehicleCreated,
     message: isFullyPaid
       ? "Deal completed successfully"
       : `Deal completed with outstanding balance of £${balanceDue.toFixed(2)}`,

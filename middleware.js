@@ -20,7 +20,8 @@ import { getToken } from 'next-auth/jwt';
 // Routes that require authentication and tenant context
 const TENANT_ROUTES = [
   '/dashboard',
-  '/sales-prep',
+  '/prep',
+  '/stock-book',
   '/warranty',
   '/appraisals',
   '/forms',

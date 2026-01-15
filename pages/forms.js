@@ -348,6 +348,12 @@ export default function Forms() {
       return `${window.location.origin}/public/report-a-problem`;
     }
 
+    // Use dealer-scoped URL to avoid server-side redirect
+    const dealerSlug = session?.user?.dealerSlug;
+    if (dealerSlug) {
+      return `${window.location.origin}/public/forms/d/${dealerSlug}/${form.publicSlug}`;
+    }
+
     return `${window.location.origin}/public/forms/${form.publicSlug}`;
   };
 

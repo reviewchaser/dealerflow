@@ -168,8 +168,8 @@ const BookOpenIcon = ({ className }) => (
 const navigation = [
   // Main Section
   { name: "Dashboard", href: "/dashboard", Icon: ChartBarIcon, section: "main" },
-  { name: "Stock & Prep", href: "/sales-prep", Icon: TruckIcon, section: "main" },
   { name: "Stock Book", href: "/stock-book", Icon: BookOpenIcon, requiresPermission: "sales", section: "main" },
+  { name: "Vehicle Prep", href: "/prep", Icon: TruckIcon, section: "main" },
   { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon, requiresPermission: "sales", section: "main" },
   { name: "Aftersales", href: "/warranty", Icon: WrenchIcon, section: "main" },
   // Management Section
@@ -202,11 +202,11 @@ const hasClientPermission = (role, permission) => {
 };
 
 // Check if a nav item is active (exact match or path segment match)
-// This prevents /sales from matching /sales-prep
+// This prevents /sales from matching /prep
 const isNavItemActive = (pathname, asPath, href) => {
   // Extract the page part from pathname for tenant-aware routes
-  // /app/[slug]/sales-prep -> /sales-prep
-  // /sales-prep -> /sales-prep
+  // /app/[slug]/prep -> /prep
+  // /prep -> /prep
   const normalizedPath = pathname.replace(/^\/app\/[^/]+/, '');
   const normalizedAsPath = asPath.replace(/^\/app\/[^/]+/, '');
 
@@ -877,7 +877,7 @@ export default function DashboardLayout({ children }) {
         <div className="flex items-center justify-around h-16">
           {[
             { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
-            { name: "Stock", href: "/sales-prep", Icon: TruckIcon },
+            { name: "Prep", href: "/prep", Icon: TruckIcon },
             { name: "Aftersales", href: "/warranty", Icon: WrenchIcon },
             { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
@@ -1024,7 +1024,7 @@ export default function DashboardLayout({ children }) {
               <span className="font-medium text-slate-900">New Appraisal</span>
             </Link>
             <Link
-              href={getPath("/sales-prep?addVehicle=1")}
+              href={getPath("/prep?addVehicle=1")}
               onClick={() => setShowMobileQuickAdd(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
             >
@@ -1112,7 +1112,7 @@ export default function DashboardLayout({ children }) {
                   <span className="text-sm font-medium text-slate-900">New Appraisal</span>
                 </Link>
                 <Link
-                  href={getPath("/sales-prep?addVehicle=1")}
+                  href={getPath("/prep?addVehicle=1")}
                   onClick={() => setShowDesktopQuickAdd(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                 >

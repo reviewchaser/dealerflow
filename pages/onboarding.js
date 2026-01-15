@@ -1036,7 +1036,7 @@ export default function Onboarding() {
       await fetch("/api/onboarding/complete", { method: "POST" });
 
       if (vehicleId) {
-        router.push(`/sales-prep?vehicle=${vehicleId}&drawer=open`);
+        router.push(`/prep?vehicle=${vehicleId}&drawer=open`);
       } else {
         router.push("/dashboard");
       }
