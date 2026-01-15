@@ -3,6 +3,7 @@ import Deal from "@/models/Deal";
 import Vehicle from "@/models/Vehicle";
 import Contact from "@/models/Contact";
 import Dealer from "@/models/Dealer";
+import PartExchange from "@/models/PartExchange";
 import { withDealerContext } from "@/libs/authContext";
 
 /**

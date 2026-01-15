@@ -2,6 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import Deal from "@/models/Deal";
 import Vehicle from "@/models/Vehicle";
 import VehicleIssue from "@/models/VehicleIssue";
+import PartExchange from "@/models/PartExchange";
 import { withDealerContext } from "@/libs/authContext";
 
 /**

@@ -4,6 +4,7 @@ import Vehicle from "@/models/Vehicle";
 import Dealer from "@/models/Dealer";
 import Contact from "@/models/Contact";
 import SalesDocument from "@/models/SalesDocument";
+import PartExchange from "@/models/PartExchange";
 import DocumentCounter from "@/models/DocumentCounter";
 import crypto from "crypto";
 import { withDealerContext } from "@/libs/authContext";

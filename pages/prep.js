@@ -66,6 +66,7 @@ export default function SalesPrep() {
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [newTaskName, setNewTaskName] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [showMotDetails, setShowMotDetails] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
 
@@ -183,14 +184,6 @@ export default function SalesPrep() {
       console.warn("Failed to save filters:", e);
     }
   }, [activeFilters]);
-
-  // Documents state
-  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
-  const [documentForm, setDocumentForm] = useState({
-    name: "",
-    type: "other",
-    file: null,
-  });
 
   // Location state
   const [locations, setLocations] = useState([]);
@@ -518,6 +511,7 @@ export default function SalesPrep() {
     setSelectedVehicle({ ...vehicle, id: vehicleId });
     setActiveTab("overview");
     setShowLabelsDropdown(false); // Close labels dropdown when opening new vehicle
+    setShowMotDetails(false); // Reset MOT details when opening new vehicle
     setActivityData({ activities: [], total: 0, hasMore: false }); // Reset activity when opening new vehicle
     setVehicleDeal(null); // Reset deal state
     // Fetch any existing deal for this vehicle
@@ -1130,54 +1124,6 @@ export default function SalesPrep() {
     }
   };
 
-  // Document functions
-  const uploadDocument = async (file, name, type) => {
-    if (!file) return;
-
-    try {
-      // First upload the file
-      const uploadFormData = new FormData();
-      uploadFormData.append("file", file);
-
-      const uploadRes = await fetch("/api/vehicles/upload", {
-        method: "POST",
-        body: uploadFormData,
-      });
-      if (!uploadRes.ok) throw new Error("File upload failed");
-      const uploadData = await uploadRes.json();
-
-      // Then create the document record with the URL
-      const docRes = await fetch(`/api/vehicles/${selectedVehicle.id}/documents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, type, url: uploadData.url }),
-      });
-      if (!docRes.ok) throw new Error("Document creation failed");
-
-      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
-      setSelectedVehicle(updatedVehicle);
-      fetchVehicles();
-      setShowAddDocumentModal(false);
-      setDocumentForm({ name: "", type: "other", file: null });
-      toast.success("Document uploaded");
-    } catch (error) {
-      console.error("Upload error:", error);
-      toast.error("Failed to upload document");
-    }
-  };
-
-  const deleteDocument = async (documentId) => {
-    try {
-      await fetch(`/api/documents/${documentId}`, { method: "DELETE" });
-      const updatedVehicle = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
-      setSelectedVehicle(updatedVehicle);
-      fetchVehicles();
-      toast.success("Document removed");
-    } catch (error) {
-      toast.error("Failed to delete document");
-    }
-  };
-
   // Robust drag cleanup - ensures drag state is always reset
   const cleanupDrag = useCallback(() => {
     setDraggedCard(null);
@@ -1291,49 +1237,37 @@ export default function SalesPrep() {
     await updateVehicleStatus(vehicleId, newStatus);
   };
 
-  const uploadV5 = async (file) => {
-    if (!file) return;
-
-    try {
-      // First upload the file
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const uploadRes = await fetch("/api/vehicles/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!uploadRes.ok) throw new Error("Upload failed");
-      const uploadData = await uploadRes.json();
-
-      // Then update the vehicle with the V5 URL
-      await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ v5Url: uploadData.url }),
-      });
-
-      const updated = await fetch(`/api/vehicles/${selectedVehicle.id}`).then(r => r.json());
-      setSelectedVehicle(updated);
-      fetchVehicles();
-      toast.success("V5 uploaded");
-    } catch (error) {
-      console.error("V5 upload error:", error);
-      toast.error("Failed to upload V5");
-    }
-  };
-
   const formatDate = (date) => {
     if (!date) return "—";
     return new Date(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   };
 
   const toggleFilter = (filter) => {
-    setActiveFilters(prev =>
-      prev.includes(filter)
+    setActiveFilters(prev => {
+      const isRemoving = prev.includes(filter);
+      const newFilters = isRemoving
         ? prev.filter(f => f !== filter)
-        : [...prev, filter]
-    );
+        : [...prev, filter];
+
+      // Auto-select "all" on mobile when first filter is applied
+      if (prev.length === 0 && newFilters.length > 0) {
+        setMobileActiveColumn("all");
+      }
+      // Reset to default column when all filters are cleared
+      if (newFilters.length === 0 && mobileActiveColumn === "all") {
+        setMobileActiveColumn("in_stock");
+      }
+
+      return newFilters;
+    });
+  };
+
+  const clearFilters = () => {
+    setActiveFilters([]);
+    // Reset mobile column when clearing filters if viewing "all"
+    if (mobileActiveColumn === "all") {
+      setMobileActiveColumn("in_stock");
+    }
   };
 
   const getFilteredVehicles = (vehicleList) => {
@@ -2017,7 +1951,7 @@ export default function SalesPrep() {
             {/* All Vehicles Button */}
             <button
               className={`btn btn-sm shrink-0 ${activeFilters.length === 0 ? "btn-primary" : "btn-outline"}`}
-              onClick={() => setActiveFilters([])}
+              onClick={clearFilters}
             >
               <span className="hidden sm:inline">All Vehicles</span>
               <span className="sm:hidden">All</span>
@@ -2301,7 +2235,7 @@ export default function SalesPrep() {
                       {/* Sticky Footer */}
                       <div className="border-t border-slate-200 p-3 bg-white flex gap-2 shrink-0">
                         <button
-                          onClick={() => setActiveFilters([])}
+                          onClick={clearFilters}
                           className="flex-1 px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
                         >
                           Clear
@@ -2330,7 +2264,7 @@ export default function SalesPrep() {
                     footer={
                       <div className="flex gap-3">
                         <button
-                          onClick={() => setActiveFilters([])}
+                          onClick={clearFilters}
                           className="flex-1 px-4 py-3 text-base font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                         >
                           Clear
@@ -2549,11 +2483,20 @@ export default function SalesPrep() {
             <div className="flex items-center gap-2">
               <div className="flex-1">
                 <MobileStageSelector
-                  stages={COLUMNS.map((col) => ({
-                    value: col.key,
-                    label: col.label,
-                    count: getVehiclesByStatus(col.key).length,
-                  }))}
+                  stages={[
+                    // Add "All Matching" option when filters are active
+                    ...(activeFilters.length > 0 ? [{
+                      value: "all",
+                      label: "All Matching",
+                      count: getFilteredVehicles(vehicles.filter(v => v.showOnPrepBoard !== false)).length,
+                    }] : []),
+                    // Normal columns
+                    ...COLUMNS.map((col) => ({
+                      value: col.key,
+                      label: col.label,
+                      count: getVehiclesByStatus(col.key).length,
+                    })),
+                  ]}
                   activeStage={mobileActiveColumn}
                   onStageChange={setMobileActiveColumn}
                 />
@@ -2627,8 +2570,13 @@ export default function SalesPrep() {
 
           {/* Mobile Single Column View */}
           <div className="md:hidden">
-            {COLUMNS.filter(col => col.key === mobileActiveColumn).map((col) => {
-              const columnVehicles = getVehiclesByStatus(col.key);
+            {(() => {
+              // Get vehicles based on selected mode
+              const isAllMode = mobileActiveColumn === "all";
+              const columnVehicles = isAllMode
+                ? getFilteredVehicles(vehicles.filter(v => v.showOnPrepBoard !== false))
+                : getVehiclesByStatus(mobileActiveColumn);
+              const currentCol = isAllMode ? null : COLUMNS.find(col => col.key === mobileActiveColumn);
 
               // Issue category styling with icons (mobile)
               const issueCategoryStyles = {
@@ -2656,7 +2604,7 @@ export default function SalesPrep() {
               };
 
               return (
-                <div key={col.key} className="space-y-3">
+                <div key={isAllMode ? "all" : currentCol?.key} className="space-y-3">
                   {columnVehicles.map((vehicle) => {
                     const tasks = vehicle.tasks || [];
                     const completedTasks = tasks.filter(t => t.status === "done").length;
@@ -2681,6 +2629,15 @@ export default function SalesPrep() {
                                 <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
                                   {vehicle.regCurrent}
                                 </span>
+                                {/* Status badge in All mode */}
+                                {isAllMode && (() => {
+                                  const statusCol = COLUMNS.find(c => c.key === vehicle.status);
+                                  return statusCol && (
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold text-white ${statusCol.accentBg}`}>
+                                      {statusCol.label}
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </div>
                             {/* Duration badge - Sold or In Stock */}
@@ -2816,7 +2773,7 @@ export default function SalesPrep() {
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setMoveVehicle(vehicle);
-                                setMoveCurrentColumn(col.key);
+                                setMoveCurrentColumn(vehicle.status);
                               }}
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2831,12 +2788,14 @@ export default function SalesPrep() {
                   })}
                   {columnVehicles.length === 0 && (
                     <div className="text-center py-12 text-slate-400">
-                      <p className="text-sm">No vehicles in {col.label}</p>
+                      <p className="text-sm">
+                        {isAllMode ? "No vehicles match the current filters" : `No vehicles in ${currentCol?.label || "this column"}`}
+                      </p>
                     </div>
                   )}
                 </div>
               );
-            })}
+            })()}
           </div>
 
           {/* Mobile Floating Action Button - Link to Stock Book */}
@@ -3296,9 +3255,6 @@ export default function SalesPrep() {
                   <option value="issues">
                     Issues {selectedVehicle.issues?.length > 0 ? `(${selectedVehicle.issues.length})` : ""}
                   </option>
-                  <option value="documents">
-                    Documents {selectedVehicle.documents?.length > 0 ? `(${selectedVehicle.documents.length})` : ""}
-                  </option>
                   <option value="activity">Activity</option>
                 </select>
               </div>
@@ -3310,7 +3266,6 @@ export default function SalesPrep() {
                     { key: "overview", label: "Overview" },
                     { key: "checklist", label: "Checklist", count: selectedVehicle.tasks?.length },
                     { key: "issues", label: "Issues", count: selectedVehicle.issues?.length },
-                    { key: "documents", label: "Documents", count: selectedVehicle.documents?.length },
                     { key: "activity", label: "Activity" },
                   ].map((tab) => (
                     <button
@@ -3766,6 +3721,114 @@ export default function SalesPrep() {
                             }}
                           />
                         </div>
+
+                        {/* MOT History Details Toggle */}
+                        {selectedVehicle.motHistory && selectedVehicle.motHistory.length > 0 && (
+                          <div className="col-span-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setShowMotDetails(!showMotDetails)}
+                              className="text-xs text-[#0066CC] hover:underline flex items-center gap-1"
+                            >
+                              <svg className={`w-3 h-3 transition-transform ${showMotDetails ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              {showMotDetails ? "Hide MOT Details" : "View MOT Details"}
+                            </button>
+
+                            {showMotDetails && (() => {
+                              const latestMot = selectedVehicle.motHistory[0];
+                              const defects = latestMot?.defects || [];
+                              const dangerous = defects.filter(d => d.type === "DANGEROUS" || d.dangerous);
+                              const major = defects.filter(d => d.type === "MAJOR" && !d.dangerous);
+                              const minor = defects.filter(d => d.type === "MINOR");
+                              const advisory = defects.filter(d => d.type === "ADVISORY");
+
+                              return (
+                                <div className="mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                                  {/* Test Result Header */}
+                                  <div className="flex items-center justify-between mb-2">
+                                    <span className="text-slate-600">
+                                      {latestMot.completedDate ? new Date(latestMot.completedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "Unknown date"}
+                                    </span>
+                                    <span className={`px-2 py-0.5 rounded font-semibold ${latestMot.testResult === "PASSED" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+                                      {latestMot.testResult || "Unknown"}
+                                    </span>
+                                  </div>
+
+                                  {/* Mileage */}
+                                  {latestMot.odometerValue && (
+                                    <p className="text-slate-500 mb-2">
+                                      Mileage: {latestMot.odometerValue.toLocaleString()} {latestMot.odometerUnit?.toLowerCase() || "miles"}
+                                    </p>
+                                  )}
+
+                                  {/* Defects */}
+                                  {defects.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {/* Dangerous */}
+                                      {dangerous.length > 0 && (
+                                        <div>
+                                          <p className="font-semibold text-red-700 flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            Dangerous ({dangerous.length})
+                                          </p>
+                                          <ul className="ml-4 text-red-600">
+                                            {dangerous.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Major */}
+                                      {major.length > 0 && (
+                                        <div>
+                                          <p className="font-semibold text-red-600">Major ({major.length})</p>
+                                          <ul className="ml-4 text-red-500">
+                                            {major.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Minor */}
+                                      {minor.length > 0 && (
+                                        <div>
+                                          <p className="font-semibold text-amber-600">Minor ({minor.length})</p>
+                                          <ul className="ml-4 text-amber-600">
+                                            {minor.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      {/* Advisory */}
+                                      {advisory.length > 0 && (
+                                        <div>
+                                          <p className="font-semibold text-slate-600 flex items-center gap-1">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            Advisories ({advisory.length})
+                                          </p>
+                                          <ul className="ml-4 text-slate-500">
+                                            {advisory.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
+                                          </ul>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-emerald-600 flex items-center gap-1">
+                                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                      </svg>
+                                      No defects or advisories
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -4004,28 +4067,6 @@ export default function SalesPrep() {
                       </div>
                     </div>
                   )}
-
-                  <div className="card bg-base-200">
-                    <div className="card-body p-4">
-                      <h3 className="font-semibold mb-2">V5 Document</h3>
-                      {selectedVehicle.v5Url ? (
-                        <div>
-                          <a href={selectedVehicle.v5Url} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline w-full mb-2">
-                            View V5 Document
-                          </a>
-                          <label className="btn btn-sm btn-ghost w-full">
-                            Replace V5
-                            <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadV5(e.target.files[0])} />
-                          </label>
-                        </div>
-                      ) : (
-                        <label className="btn btn-primary btn-sm w-full">
-                          Upload V5
-                          <input type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => uploadV5(e.target.files[0])} />
-                        </label>
-                      )}
-                    </div>
-                  </div>
 
                   {selectedVehicle.notes && (
                     <div className="card bg-base-200">
@@ -4528,63 +4569,6 @@ export default function SalesPrep() {
                 </div>
               )}
 
-              {/* Documents Tab */}
-              {activeTab === "documents" && (
-                <div className="space-y-4">
-                  <button
-                    className="btn btn-primary btn-sm w-full"
-                    onClick={() => setShowAddDocumentModal(true)}
-                  >
-                    + Add Document/Image
-                  </button>
-
-                  {selectedVehicle.documents && selectedVehicle.documents.length > 0 ? (
-                    <div className="space-y-3">
-                      {selectedVehicle.documents.map((doc) => (
-                        <div key={doc.id} className="card bg-base-200">
-                          <div className="card-body p-4">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">{doc.name}</p>
-                                <span className="badge badge-sm mt-1">
-                                  {doc.type === "v5" && "V5"}
-                                  {doc.type === "service_history" && "Service History"}
-                                  {doc.type === "fault_codes" && "Fault Codes"}
-                                  {doc.type === "other" && "Other"}
-                                </span>
-                              </div>
-                              <div className="flex gap-1">
-                                <a
-                                  href={doc.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="btn btn-ghost btn-xs"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View
-                                </a>
-                                <button
-                                  className="btn btn-ghost btn-xs text-error"
-                                  onClick={() => {
-                                    if (confirm("Delete this document?")) deleteDocument(doc.id);
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-base-content/60">
-                      No documents uploaded
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* Activity Tab */}
               {activeTab === "activity" && (
                 <div className="space-y-4">
@@ -4810,30 +4794,6 @@ export default function SalesPrep() {
             });
           }}
           onSubmit={editingIssue ? saveEditedIssue : addIssue}
-        />
-      )}
-
-      {showAddDocumentModal && (
-        <AddDocumentModal
-          documentForm={documentForm}
-          setDocumentForm={setDocumentForm}
-          onClose={() => {
-            setShowAddDocumentModal(false);
-            setDocumentForm({ name: "", type: "other", file: null });
-          }}
-          onSubmit={() => {
-            if (!documentForm.file) {
-              return toast.error("File is required");
-            }
-            if (documentForm.type === "other" && !documentForm.name) {
-              return toast.error("Document name is required for 'Other' type");
-            }
-            // Generate default name based on type if not "other"
-            const docName = documentForm.type === "other"
-              ? documentForm.name
-              : documentForm.type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-            uploadDocument(documentForm.file, docName, documentForm.type);
-          }}
         />
       )}
 
@@ -5115,13 +5075,16 @@ export default function SalesPrep() {
                       Email
                     </button>
                     <button
-                      onClick={() => window.open(jobSheetLink.url, '_blank')}
+                      onClick={() => {
+                        const printWindow = window.open(jobSheetLink.url, '_blank');
+                        printWindow.onload = () => printWindow.print();
+                      }}
                       className="btn btn-outline btn-sm gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Print / PDF
+                      Download PDF
                     </button>
                   </div>
                 </div>
@@ -5210,13 +5173,16 @@ export default function SalesPrep() {
                       Email
                     </button>
                     <button
-                      onClick={() => window.open(prepSummaryLink.url, '_blank')}
+                      onClick={() => {
+                        const printWindow = window.open(prepSummaryLink.url, '_blank');
+                        printWindow.onload = () => printWindow.print();
+                      }}
                       className="btn btn-primary btn-sm gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      Print / PDF
+                      Download PDF
                     </button>
                   </div>
                 </div>
@@ -5729,79 +5695,6 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
                   <span>{isUploadingPhotos ? "Uploading photos..." : "Saving..."}</span>
                 </>
               ) : "Add Issue"}
-            </button>
-          </div>
-        </form>
-      </div>
-      <div className="modal-backdrop" onClick={onClose}></div>
-    </div>
-  );
-}
-
-function AddDocumentModal({ documentForm, setDocumentForm, onClose, onSubmit }) {
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      await onSubmit();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <div className="modal modal-open">
-      <div className="modal-box">
-        <h3 className="font-bold text-lg mb-4">Add Document/Image</h3>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <div className="form-control">
-              <label className="label"><span className="label-text">Document Type</span></label>
-              <select
-                className="select select-bordered"
-                value={documentForm.type}
-                onChange={(e) => setDocumentForm({ ...documentForm, type: e.target.value })}
-              >
-                <option value="v5">V5</option>
-                <option value="service_history">Service History</option>
-                <option value="fault_codes">Fault Codes</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-
-            {/* Only show Document Name field when "Other" is selected */}
-            {documentForm.type === "other" && (
-              <div className="form-control">
-                <label className="label"><span className="label-text">Document Name *</span></label>
-                <input
-                  type="text"
-                  className="input input-bordered"
-                  value={documentForm.name}
-                  onChange={(e) => setDocumentForm({ ...documentForm, name: e.target.value })}
-                  placeholder="e.g., MOT Certificate, Insurance"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="form-control">
-              <label className="label"><span className="label-text">File *</span></label>
-              <input
-                type="file"
-                className="file-input file-input-bordered w-full"
-                onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] })}
-                accept="image/*,.pdf,.doc,.docx"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="modal-action">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary" disabled={isLoading}>
-              {isLoading ? <span className="loading loading-spinner"></span> : "Upload Document/Image"}
             </button>
           </div>
         </form>

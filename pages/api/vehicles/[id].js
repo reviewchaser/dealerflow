@@ -10,6 +10,9 @@ import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
 import { logVehicleLocationChange, logVehicleStatusChange } from "@/libs/activityLogger";
 
+// Default prep tasks - same as in index.js
+const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+
 async function handler(req, res, ctx) {
   await connectMongo();
   const { dealerId } = ctx;
@@ -49,6 +52,12 @@ async function handler(req, res, ctx) {
 
     // Build update object
     const updateData = { ...req.body };
+
+    // Check if trying to add to prep board when already there
+    const isAddingToPrepBoard = updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard !== true;
+    if (updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard === true) {
+      return res.status(400).json({ error: "Vehicle is already on the Prep Board" });
+    }
 
     // If status is changing to "sold" or "live" (Sold In Progress), set soldAt timestamp
     if (updateData.status === "live" || updateData.status === "reserved" || updateData.status === "delivered") {
@@ -184,6 +193,33 @@ async function handler(req, res, ctx) {
         type: "DETAILS_UPDATED",
         message: `Updated ${changedDetails.join(", ")}`,
         meta: { fields: changedDetails },
+      });
+    }
+
+    // Create default prep tasks when adding to prep board
+    if (isAddingToPrepBoard) {
+      // Check if vehicle already has tasks (shouldn't create duplicates)
+      const existingTasks = await VehicleTask.countDocuments({ vehicleId: id });
+      if (existingTasks === 0) {
+        for (const taskName of DEFAULT_TASKS) {
+          await VehicleTask.create({
+            vehicleId: id,
+            name: taskName,
+            status: "pending",
+            source: "system_default",
+          });
+        }
+      }
+
+      // Log activity for adding to prep board
+      await VehicleActivity.log({
+        dealerId,
+        vehicleId: id,
+        actorId: userId,
+        actorName,
+        type: "ADDED_TO_PREP_BOARD",
+        message: `Added to Vehicle Prep board`,
+        meta: {},
       });
     }
 

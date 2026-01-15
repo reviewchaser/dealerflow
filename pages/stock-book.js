@@ -83,6 +83,14 @@ export default function StockBook() {
     purchaseNotes: "",
   });
 
+  // Document upload modal state
+  const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
+  const [documentForm, setDocumentForm] = useState({
+    name: "",
+    type: "other",
+    file: null,
+  });
+
   // Add Vehicle modal state
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
   const [isAddingVehicle, setIsAddingVehicle] = useState(false);
@@ -111,6 +119,9 @@ export default function StockBook() {
     purchaseDate: "",
     purchaseInvoiceRef: "",
     purchaseNotes: "",
+    // Document uploads
+    v5File: null,
+    serviceHistoryFile: null,
     // Vehicle Prep option
     addToVehiclePrep: false,
   });
@@ -439,7 +450,10 @@ export default function StockBook() {
         body: JSON.stringify({ showOnPrepBoard: true }),
       });
 
-      if (!res.ok) throw new Error("Failed to add to Prep Board");
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to add to Prep Board");
+      }
 
       fetchVehicles();
       toast.success("Vehicle added to Prep Board");
@@ -465,6 +479,123 @@ export default function StockBook() {
       toast.success("Vehicle deleted");
     } catch (error) {
       toast.error(error.message || "Failed to delete vehicle");
+    }
+  };
+
+  // Upload V5 document
+  const uploadV5 = async (file) => {
+    if (!file || !selectedVehicle) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/vehicles/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+
+      const vehicleId = selectedVehicle.id || selectedVehicle._id;
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ v5Url: uploadData.url }),
+      });
+
+      const updated = await fetch(`/api/vehicles/${vehicleId}`).then(r => r.json());
+      setSelectedVehicle(updated);
+      fetchVehicles();
+      toast.success("V5 uploaded");
+    } catch (error) {
+      console.error("V5 upload error:", error);
+      toast.error("Failed to upload V5");
+    }
+  };
+
+  // Upload Service History document
+  const uploadServiceHistory = async (file) => {
+    if (!file || !selectedVehicle) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/vehicles/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      const uploadData = await uploadRes.json();
+
+      const vehicleId = selectedVehicle.id || selectedVehicle._id;
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceHistoryUrl: uploadData.url }),
+      });
+
+      const updated = await fetch(`/api/vehicles/${vehicleId}`).then(r => r.json());
+      setSelectedVehicle(updated);
+      fetchVehicles();
+      toast.success("Service history uploaded");
+    } catch (error) {
+      console.error("Service history upload error:", error);
+      toast.error("Failed to upload service history");
+    }
+  };
+
+  // Upload generic document
+  const uploadDocument = async (file, name, type) => {
+    if (!file || !selectedVehicle) return;
+
+    try {
+      // First upload the file
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", file);
+
+      const uploadRes = await fetch("/api/vehicles/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+      if (!uploadRes.ok) throw new Error("File upload failed");
+      const uploadData = await uploadRes.json();
+
+      // Then create the document record with the URL
+      const vehicleId = selectedVehicle.id || selectedVehicle._id;
+      const docRes = await fetch(`/api/vehicles/${vehicleId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, type, url: uploadData.url }),
+      });
+      if (!docRes.ok) throw new Error("Document creation failed");
+
+      const updatedVehicle = await fetch(`/api/vehicles/${vehicleId}`).then(r => r.json());
+      setSelectedVehicle(updatedVehicle);
+      fetchVehicles();
+      setShowAddDocumentModal(false);
+      setDocumentForm({ name: "", type: "other", file: null });
+      toast.success("Document uploaded");
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload document");
+    }
+  };
+
+  // Delete document
+  const deleteDocument = async (documentId) => {
+    if (!selectedVehicle) return;
+
+    try {
+      await fetch(`/api/documents/${documentId}`, { method: "DELETE" });
+      const vehicleId = selectedVehicle.id || selectedVehicle._id;
+      const updatedVehicle = await fetch(`/api/vehicles/${vehicleId}`).then(r => r.json());
+      setSelectedVehicle(updatedVehicle);
+      fetchVehicles();
+      toast.success("Document removed");
+    } catch (error) {
+      toast.error("Failed to delete document");
     }
   };
 
@@ -620,6 +751,44 @@ export default function StockBook() {
         });
       }
 
+      // Upload V5 document if provided
+      if (addVehicleForm.v5File) {
+        try {
+          const formData = new FormData();
+          formData.append("file", addVehicleForm.v5File);
+          const uploadRes = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            await fetch(`/api/vehicles/${vehicleId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ v5Url: uploadData.url }),
+            });
+          }
+        } catch (e) {
+          console.error("V5 upload failed:", e);
+        }
+      }
+
+      // Upload Service History document if provided
+      if (addVehicleForm.serviceHistoryFile) {
+        try {
+          const formData = new FormData();
+          formData.append("file", addVehicleForm.serviceHistoryFile);
+          const uploadRes = await fetch("/api/vehicles/upload", { method: "POST", body: formData });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            await fetch(`/api/vehicles/${vehicleId}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ serviceHistoryUrl: uploadData.url }),
+            });
+          }
+        } catch (e) {
+          console.error("Service history upload failed:", e);
+        }
+      }
+
       const shouldRedirectToPrep = addVehicleForm.addToVehiclePrep;
       toast.success(shouldRedirectToPrep ? "Vehicle added - redirecting to Vehicle Prep" : "Vehicle added to stock book");
       setShowAddVehicleModal(false);
@@ -629,6 +798,7 @@ export default function StockBook() {
         motExpiryDate: null, motHistory: null, dvlaDetails: null,
         vatScheme: "MARGIN", purchasePriceNet: "", purchaseVat: "",
         purchasedFromContactId: "", purchaseDate: "", purchaseInvoiceRef: "", purchaseNotes: "",
+        v5File: null, serviceHistoryFile: null,
         addToVehiclePrep: false,
       });
       fetchVehicles();
@@ -721,8 +891,35 @@ export default function StockBook() {
               </div>
             </div>
 
-            {/* Status Tabs */}
-            <div className="mt-4 -mb-px flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+            {/* Status Tabs - Mobile Dropdown */}
+            <div className="mt-4 md:hidden">
+              <select
+                value={activeStatus}
+                onChange={(e) => setActiveStatus(e.target.value)}
+                className="select select-bordered w-full bg-white text-slate-900 font-medium"
+              >
+                {STATUS_TABS.map((tab) => {
+                  let count = 0;
+                  if (tab.key === "all") {
+                    count = vehicles.length;
+                  } else if (tab.key === "SOLD") {
+                    count = vehicles.filter(v => ["DELIVERED", "COMPLETED"].includes(v.salesStatus)).length;
+                  } else if (tab.key === "IN_DEAL") {
+                    count = vehicles.filter(v => ["IN_DEAL", "SOLD_IN_PROGRESS"].includes(v.salesStatus)).length;
+                  } else {
+                    count = vehicles.filter(v => v.salesStatus === tab.key).length;
+                  }
+                  return (
+                    <option key={tab.key} value={tab.key}>
+                      {tab.label} ({count})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Status Tabs - Desktop Horizontal */}
+            <div className="mt-4 -mb-px hidden md:flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
               {STATUS_TABS.map((tab) => {
                 let count = 0;
                 if (tab.key === "all") {
@@ -1086,7 +1283,7 @@ export default function StockBook() {
             className="fixed inset-0 bg-black/50 z-40"
             onClick={handleDrawerClose}
           />
-          <div className="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto">
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto">
             {/* Drawer Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
               <div>
@@ -1108,7 +1305,7 @@ export default function StockBook() {
             </div>
 
             {/* Drawer Content */}
-            <div className="p-6">
+            <div className="p-6 pb-12">
               {isDrawerLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
@@ -1253,6 +1450,155 @@ export default function StockBook() {
                       rows={3}
                       placeholder="Any notes about this purchase..."
                     />
+                  </div>
+
+                  {/* Documents Section */}
+                  <div className="border-t border-slate-200 pt-4 mt-4">
+                    <p className="text-sm font-medium text-slate-600 mb-3">Documents</p>
+
+                    {/* V5 Document */}
+                    <div className="mb-4">
+                      <label className="label">
+                        <span className="label-text font-medium">V5 Document</span>
+                      </label>
+                      {selectedVehicle?.v5Url ? (
+                        <div className="flex gap-2">
+                          <a
+                            href={selectedVehicle.v5Url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline flex-1"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View V5
+                          </a>
+                          <label className="btn btn-sm btn-ghost">
+                            Replace
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              className="hidden"
+                              onChange={(e) => uploadV5(e.target.files[0])}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="btn btn-sm btn-outline w-full">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Upload V5 Document
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => uploadV5(e.target.files[0])}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Service History */}
+                    <div>
+                      <label className="label">
+                        <span className="label-text font-medium">Service History</span>
+                      </label>
+                      {selectedVehicle?.serviceHistoryUrl ? (
+                        <div className="flex gap-2">
+                          <a
+                            href={selectedVehicle.serviceHistoryUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline flex-1"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View Service History
+                          </a>
+                          <label className="btn btn-sm btn-ghost">
+                            Replace
+                            <input
+                              type="file"
+                              accept="image/*,.pdf"
+                              className="hidden"
+                              onChange={(e) => uploadServiceHistory(e.target.files[0])}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="btn btn-sm btn-outline w-full">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                          </svg>
+                          Upload Service History
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="hidden"
+                            onChange={(e) => uploadServiceHistory(e.target.files[0])}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Other Documents */}
+                    <div className="pt-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="label py-0">
+                          <span className="label-text font-medium">Other Documents</span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddDocumentModal(true)}
+                          className="btn btn-xs btn-ghost text-[#0066CC]"
+                        >
+                          + Add
+                        </button>
+                      </div>
+                      {selectedVehicle?.documents && selectedVehicle.documents.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedVehicle.documents.map((doc) => (
+                            <div key={doc.id || doc._id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{doc.name}</p>
+                                <span className="text-xs text-slate-500">
+                                  {doc.type === "v5" && "V5"}
+                                  {doc.type === "service_history" && "Service History"}
+                                  {doc.type === "fault_codes" && "Fault Codes"}
+                                  {doc.type === "other" && "Other"}
+                                </span>
+                              </div>
+                              <div className="flex gap-1 ml-2">
+                                <a
+                                  href={doc.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn btn-ghost btn-xs"
+                                >
+                                  View
+                                </a>
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-xs text-error"
+                                  onClick={() => {
+                                    if (confirm("Delete this document?")) deleteDocument(doc.id || doc._id);
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-400 text-center py-2">No documents uploaded</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Actions */}
@@ -1623,6 +1969,35 @@ export default function StockBook() {
                     </div>
                   </div>
 
+                  {/* Document Uploads */}
+                  <div className="border-t border-slate-200 pt-4">
+                    <p className="text-sm font-medium text-slate-700 mb-3">Documents (Optional)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text text-sm">V5 Document</span>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="file-input file-input-bordered file-input-sm w-full"
+                          onChange={(e) => setAddVehicleForm({ ...addVehicleForm, v5File: e.target.files[0] || null })}
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text text-sm">Service History</span>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="file-input file-input-bordered file-input-sm w-full"
+                          onChange={(e) => setAddVehicleForm({ ...addVehicleForm, serviceHistoryFile: e.target.files[0] || null })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Vehicle Prep Option */}
                   <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
                     <label className="flex items-start gap-3 cursor-pointer">
@@ -1666,6 +2041,103 @@ export default function StockBook() {
           </div>
         </>
       )}
+
+      {/* Add Document Modal */}
+      {showAddDocumentModal && (
+        <AddDocumentModal
+          documentForm={documentForm}
+          setDocumentForm={setDocumentForm}
+          onClose={() => {
+            setShowAddDocumentModal(false);
+            setDocumentForm({ name: "", type: "other", file: null });
+          }}
+          onSubmit={() => {
+            if (!documentForm.file) {
+              return toast.error("File is required");
+            }
+            if (documentForm.type === "other" && !documentForm.name) {
+              return toast.error("Document name is required for 'Other' type");
+            }
+            const docName = documentForm.type === "other"
+              ? documentForm.name
+              : documentForm.type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+            uploadDocument(documentForm.file, docName, documentForm.type);
+          }}
+        />
+      )}
     </DashboardLayout>
+  );
+}
+
+// Add Document Modal Component
+function AddDocumentModal({ documentForm, setDocumentForm, onClose, onSubmit }) {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await onSubmit();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal modal-open">
+      <div className="modal-box">
+        <h3 className="font-bold text-lg mb-4">Add Document/Image</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div className="form-control">
+              <label className="label"><span className="label-text">Document Type</span></label>
+              <select
+                className="select select-bordered"
+                value={documentForm.type}
+                onChange={(e) => setDocumentForm({ ...documentForm, type: e.target.value })}
+              >
+                <option value="v5">V5</option>
+                <option value="service_history">Service History</option>
+                <option value="fault_codes">Fault Codes</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            {documentForm.type === "other" && (
+              <div className="form-control">
+                <label className="label"><span className="label-text">Document Name *</span></label>
+                <input
+                  type="text"
+                  className="input input-bordered"
+                  value={documentForm.name}
+                  onChange={(e) => setDocumentForm({ ...documentForm, name: e.target.value })}
+                  placeholder="e.g., MOT Certificate, Insurance"
+                  required
+                />
+              </div>
+            )}
+
+            <div className="form-control">
+              <label className="label"><span className="label-text">File *</span></label>
+              <input
+                type="file"
+                className="file-input file-input-bordered w-full"
+                onChange={(e) => setDocumentForm({ ...documentForm, file: e.target.files[0] })}
+                accept="image/*,.pdf,.doc,.docx"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="modal-action">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={isLoading}>
+              {isLoading ? <span className="loading loading-spinner"></span> : "Upload Document"}
+            </button>
+          </div>
+        </form>
+      </div>
+      <div className="modal-backdrop" onClick={onClose}></div>
+    </div>
   );
 }
