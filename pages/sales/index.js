@@ -673,7 +673,7 @@ export default function Sales() {
                   <div
                     key={deal.id}
                     onClick={() => handleDealClick(deal.id)}
-                    className="bg-white rounded-xl border border-slate-200 hover:border-[#0066CC]/30 hover:shadow-md transition-all cursor-pointer overflow-hidden"
+                    className="bg-white rounded-xl border border-slate-200 hover:border-[#0066CC]/30 hover:shadow-md transition-all cursor-pointer"
                   >
                     <div className="p-4 md:p-5">
                       <div className="flex flex-col md:flex-row md:items-center gap-4">
@@ -705,7 +705,7 @@ export default function Sales() {
 
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+                              <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                                 {deal.vehicle?.regCurrent || "—"}
                               </span>
                               <span
@@ -973,7 +973,7 @@ export default function Sales() {
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+                            <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                               {vehicle.regCurrent}
                             </span>
                             {vehicle.stockNumber && (

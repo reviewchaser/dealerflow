@@ -16,7 +16,7 @@ import toJSON from "./plugins/toJSON";
 const paymentSchema = new mongoose.Schema({
   type: {
     type: String,
-    enum: ["DEPOSIT", "BALANCE", "OTHER"],
+    enum: ["DEPOSIT", "BALANCE", "FINANCE_ADVANCE", "OTHER"],
     required: true,
   },
   amount: { type: Number, required: true },
@@ -143,6 +143,11 @@ const dealSchema = new mongoose.Schema(
       enum: ["IN_PERSON", "DISTANCE"],
       default: "IN_PERSON",
     },
+    // Payment method for balance (confirmed at invoice generation)
+    paymentMethod: {
+      type: String,
+      enum: ["CASH", "CARD", "BANK_TRANSFER", "FINANCE", "MIXED"],
+    },
     // Business details (for Trade/Business buyers)
     businessDetails: {
       companyName: { type: String },
@@ -195,9 +200,33 @@ const dealSchema = new mongoose.Schema(
     // vehiclePriceGross is used for both schemes
 
     // === PART EXCHANGE ===
+    // Legacy single PX field (for backwards compatibility)
     partExchangeId: { type: mongoose.Schema.Types.ObjectId, ref: "PartExchange" },
     partExchangeAllowance: { type: Number, default: 0 },
     partExchangeSettlement: { type: Number, default: 0 },
+    // Multiple part exchanges (max 2) - embedded for display
+    partExchanges: [{
+      partExchangeId: { type: mongoose.Schema.Types.ObjectId, ref: "PartExchange" },
+      // Vehicle details
+      vrm: { type: String },
+      make: { type: String },
+      model: { type: String },
+      year: { type: Number },
+      mileage: { type: Number },
+      colour: { type: String },
+      fuelType: { type: String },
+      // Values
+      allowance: { type: Number, default: 0 },
+      settlement: { type: Number, default: 0 },
+      // VAT & Finance
+      vatQualifying: { type: Boolean, default: false },
+      hasFinance: { type: Boolean, default: false },
+      financeCompanyContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+      financeCompanyName: { type: String },
+      hasSettlementInWriting: { type: Boolean, default: false },
+      // Notes
+      conditionNotes: { type: String },
+    }],
 
     // === PAYMENTS ===
     payments: [paymentSchema],
@@ -207,9 +236,21 @@ const dealSchema = new mongoose.Schema(
 
     // === DELIVERY ===
     delivery: {
-      amount: { type: Number, default: 0 },
+      amount: { type: Number, default: 0 }, // Legacy: gross amount
+      amountGross: { type: Number }, // Gross amount (inc VAT)
+      amountNet: { type: Number }, // Net amount (ex VAT)
+      vatAmount: { type: Number }, // VAT amount
       isFree: { type: Boolean, default: false },
       notes: { type: String },
+      // Delivery scheduling
+      scheduledDate: { type: Date },
+      scheduledCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
+    },
+
+    // === COLLECTION (for customer pickup) ===
+    collection: {
+      scheduledDate: { type: Date },
+      scheduledCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
     },
 
     // === FINANCE SELECTION (for deposit stage) ===
@@ -229,10 +270,40 @@ const dealSchema = new mongoose.Schema(
     // === DOCUMENT LINKS ===
     linkedSubmissionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" }],
 
+    // === E-SIGNATURES (Invoice) ===
+    signature: {
+      // Customer signature
+      customerSignedAt: { type: Date },
+      customerSignerName: { type: String },
+      customerSignatureImageKey: { type: String }, // R2 storage key
+      // Dealer signature
+      dealerSignedAt: { type: Date },
+      dealerSignerName: { type: String },
+      dealerSignatureImageKey: { type: String }, // R2 storage key
+      // Driver signing link (for third-party delivery)
+      driverLinkToken: { type: String },
+      driverLinkTokenHash: { type: String },
+      driverLinkExpiresAt: { type: Date },
+      driverLinkPinHash: { type: String }, // Optional 4-digit PIN (hashed)
+    },
+
+    // === E-SIGNATURES (Deposit Receipt) ===
+    depositSignature: {
+      customerSignedAt: { type: Date },
+      customerSignerName: { type: String },
+      customerSignatureImageKey: { type: String },
+      dealerSignedAt: { type: Date },
+      dealerSignerName: { type: String },
+      dealerSignatureImageKey: { type: String },
+    },
+
     // === TIMESTAMPS ===
     depositTakenAt: { type: Date },
     invoicedAt: { type: Date },
     deliveredAt: { type: Date },
+    deliveredByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    deliveryMileage: { type: Number },
+    deliveryNotes: { type: String },
     completedAt: { type: Date },
     cancelledAt: { type: Date },
     cancelReason: { type: String },
@@ -300,15 +371,29 @@ dealSchema.virtual("grandTotal").get(function () {
   const vehicleGross = this.vehiclePriceGross || 0;
   const addOnsNet = this.addOnsNetTotal || 0;
   const addOnsVat = this.addOnsVatTotal || 0;
-  const deliveryAmount = (this.delivery?.isFree ? 0 : this.delivery?.amount) || 0;
+  // Use new amountGross if available, otherwise fall back to legacy amount field
+  const deliveryAmount = this.delivery?.isFree ? 0 :
+    (this.delivery?.amountGross || this.delivery?.amount || 0);
   return vehicleGross + addOnsNet + addOnsVat + deliveryAmount;
+});
+
+// Virtual: Calculate total PX net value (allowance - settlement)
+dealSchema.virtual("totalPartExchangeNet").get(function () {
+  // Check new partExchanges array first
+  if (this.partExchanges && this.partExchanges.length > 0) {
+    return this.partExchanges.reduce((sum, px) => {
+      return sum + ((px.allowance || 0) - (px.settlement || 0));
+    }, 0);
+  }
+  // Fall back to legacy single PX fields
+  return (this.partExchangeAllowance || 0) - (this.partExchangeSettlement || 0);
 });
 
 // Virtual: Calculate balance due
 dealSchema.virtual("balanceDue").get(function () {
   const total = this.grandTotal || 0;
   const paid = this.totalPaid || 0;
-  const pxNet = (this.partExchangeAllowance || 0) - (this.partExchangeSettlement || 0);
+  const pxNet = this.totalPartExchangeNet || 0;
   return total - paid - pxNet;
 });
 

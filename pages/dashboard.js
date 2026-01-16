@@ -1115,7 +1115,7 @@ export default function Dashboard() {
                         }`}>
                           {idx + 1}
                         </span>
-                        <span className="font-mono font-bold text-slate-900 text-sm bg-slate-100 px-2 py-0.5 rounded">
+                        <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                           {v.regCurrent || "No VRM"}
                         </span>
                         <span className="text-sm text-slate-600 truncate">{v.make} {v.model}</span>

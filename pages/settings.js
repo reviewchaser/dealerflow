@@ -15,10 +15,12 @@ export default function Settings() {
   const [addOns, setAddOns] = useState([]);
   const [financeCompanies, setFinanceCompanies] = useState([]);
   const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
+  const [editingLabel, setEditingLabel] = useState(null);
+  const [editLabelForm, setEditLabelForm] = useState({ name: "", colour: "#6366f1" });
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
-  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", category: "OTHER", vatTreatment: "STANDARD" });
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD" });
   const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
 
   // Dealer branding state
@@ -56,6 +58,13 @@ export default function Settings() {
       consumerDistance: "",
       businessInPerson: "",
       businessDistance: "",
+    },
+    defaultWarranty: {
+      enabled: false,
+      type: "FREE",
+      priceNet: 0,
+      durationMonths: 3,
+      name: "Standard Warranty",
     },
   });
   const [isSavingSales, setIsSavingSales] = useState(false);
@@ -184,6 +193,33 @@ export default function Settings() {
     }
   };
 
+  const startEditLabel = (label) => {
+    setEditingLabel(label.id);
+    setEditLabelForm({ name: label.name, colour: label.colour });
+  };
+
+  const cancelEditLabel = () => {
+    setEditingLabel(null);
+    setEditLabelForm({ name: "", colour: "#6366f1" });
+  };
+
+  const saveEditLabel = async (labelId) => {
+    if (!editLabelForm.name) return toast.error("Label name required");
+    try {
+      await fetch(`/api/labels/${labelId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editLabelForm),
+      });
+      setEditingLabel(null);
+      setEditLabelForm({ name: "", colour: "#6366f1" });
+      fetchLabels();
+      toast.success("Label updated");
+    } catch (error) {
+      toast.error("Failed to update label");
+    }
+  };
+
   // Add-on products functions
   const fetchAddOns = async () => {
     try {
@@ -206,12 +242,13 @@ export default function Settings() {
         body: JSON.stringify({
           name: newAddOn.name,
           defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
+          costPrice: newAddOn.costPrice ? parseFloat(newAddOn.costPrice) : undefined,
           category: newAddOn.category,
           vatTreatment: newAddOn.vatTreatment,
         }),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewAddOn({ name: "", defaultPriceNet: "", category: "OTHER", vatTreatment: "STANDARD" });
+      setNewAddOn({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD" });
       fetchAddOns();
       toast.success("Add-on product created");
     } catch (error) {
@@ -369,6 +406,13 @@ export default function Settings() {
           businessInPerson: ss.terms?.businessInPerson || "",
           businessDistance: ss.terms?.businessDistance || "",
         },
+        defaultWarranty: {
+          enabled: ss.defaultWarranty?.enabled || false,
+          type: ss.defaultWarranty?.type || "FREE",
+          priceNet: ss.defaultWarranty?.priceNet || 0,
+          durationMonths: ss.defaultWarranty?.durationMonths || 3,
+          name: ss.defaultWarranty?.name || "Standard Warranty",
+        },
       });
     } catch (error) {
       console.error("Failed to load dealer");
@@ -493,6 +537,13 @@ export default function Settings() {
           companyNumber: salesSettings.companyNumber,
           bankDetails: salesSettings.bankDetails,
           terms: salesSettings.terms,
+          defaultWarranty: {
+            enabled: salesSettings.defaultWarranty?.enabled || false,
+            type: salesSettings.defaultWarranty?.type || "FREE",
+            priceNet: parseFloat(salesSettings.defaultWarranty?.priceNet) || 0,
+            durationMonths: parseInt(salesSettings.defaultWarranty?.durationMonths) || 3,
+            name: salesSettings.defaultWarranty?.name || "Standard Warranty",
+          },
         },
       };
 
@@ -1130,22 +1181,33 @@ export default function Settings() {
               {addOns.length === 0 ? (
                 <p className="text-sm text-base-content/50 text-center py-4">No add-on products created yet</p>
               ) : (
-                addOns.map((addon) => (
-                  <div key={addon.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
-                    <div>
-                      <p className="font-medium">{addon.name}</p>
-                      <p className="text-xs text-base-content/60">
-                        {addon.category} · £{(addon.defaultPriceNet || 0).toFixed(2)} net
-                      </p>
+                addOns.map((addon) => {
+                  const profitMargin = addon.costPrice && addon.defaultPriceNet
+                    ? ((addon.defaultPriceNet - addon.costPrice) / addon.defaultPriceNet * 100).toFixed(0)
+                    : null;
+                  return (
+                    <div key={addon.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
+                      <div>
+                        <p className="font-medium">{addon.name}</p>
+                        <p className="text-xs text-base-content/60">
+                          {addon.category} · £{(addon.defaultPriceNet || 0).toFixed(2)} net
+                          {addon.costPrice != null && (
+                            <span className="ml-2">
+                              · Cost: £{addon.costPrice.toFixed(2)}
+                              {profitMargin && <span className="text-emerald-600 ml-1">({profitMargin}% margin)</span>}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <button
+                        className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => deleteAddOn(addon.id)}
+                      >
+                        ✕
+                      </button>
                     </div>
-                    <button
-                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteAddOn(addon.id)}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
@@ -1166,6 +1228,15 @@ export default function Settings() {
                   placeholder="Price (net)"
                   value={newAddOn.defaultPriceNet}
                   onChange={(e) => setNewAddOn({ ...newAddOn, defaultPriceNet: e.target.value })}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="input input-bordered input-sm w-28"
+                  placeholder="Cost (optional)"
+                  value={newAddOn.costPrice}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, costPrice: e.target.value })}
                 />
               </div>
               <div className="flex gap-2 items-center">
@@ -1195,6 +1266,137 @@ export default function Settings() {
                 <button type="submit" className="btn btn-primary btn-sm">Add Product</button>
               </div>
             </form>
+          </div>
+        </div>
+
+        {/* Default Warranty */}
+        <div className="card bg-base-200">
+          <div className="card-body">
+            <h2 className="card-title">Default Warranty</h2>
+            <p className="text-sm text-base-content/60">Configure a default warranty that can be auto-added to new sales</p>
+
+            <div className="space-y-4 mt-4">
+              {/* Enable toggle */}
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  checked={salesSettings.defaultWarranty?.enabled || false}
+                  onChange={(e) => setSalesSettings({
+                    ...salesSettings,
+                    defaultWarranty: { ...salesSettings.defaultWarranty, enabled: e.target.checked }
+                  })}
+                />
+                <span className="text-sm font-medium">Include warranty by default in new sales</span>
+              </label>
+
+              {salesSettings.defaultWarranty?.enabled && (
+                <div className="bg-base-100 rounded-xl p-4 space-y-4">
+                  {/* Warranty name */}
+                  <div className="form-control">
+                    <label className="label"><span className="label-text">Warranty Name</span></label>
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm"
+                      value={salesSettings.defaultWarranty?.name || ""}
+                      onChange={(e) => setSalesSettings({
+                        ...salesSettings,
+                        defaultWarranty: { ...salesSettings.defaultWarranty, name: e.target.value }
+                      })}
+                      placeholder="e.g., Standard Warranty"
+                    />
+                  </div>
+
+                  {/* Warranty type */}
+                  <div className="form-control">
+                    <label className="label"><span className="label-text">Type</span></label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="warrantyType"
+                          className="radio radio-primary radio-sm"
+                          checked={salesSettings.defaultWarranty?.type === "FREE"}
+                          onChange={() => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "FREE", priceNet: 0 }
+                          })}
+                        />
+                        <span className="text-sm">Free (included)</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="warrantyType"
+                          className="radio radio-primary radio-sm"
+                          checked={salesSettings.defaultWarranty?.type === "PAID"}
+                          onChange={() => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "PAID" }
+                          })}
+                        />
+                        <span className="text-sm">Paid</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Price (if paid) */}
+                  {salesSettings.defaultWarranty?.type === "PAID" && (
+                    <div className="form-control">
+                      <label className="label"><span className="label-text">Price (Net)</span></label>
+                      <div className="relative w-40">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          className="input input-bordered input-sm w-full pl-7"
+                          value={salesSettings.defaultWarranty?.priceNet || ""}
+                          onChange={(e) => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, priceNet: e.target.value }
+                          })}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Duration */}
+                  <div className="form-control">
+                    <label className="label"><span className="label-text">Duration (months)</span></label>
+                    <select
+                      className="select select-bordered select-sm w-40"
+                      value={salesSettings.defaultWarranty?.durationMonths || 3}
+                      onChange={(e) => setSalesSettings({
+                        ...salesSettings,
+                        defaultWarranty: { ...salesSettings.defaultWarranty, durationMonths: parseInt(e.target.value) }
+                      })}
+                    >
+                      <option value={1}>1 month</option>
+                      <option value={3}>3 months</option>
+                      <option value={6}>6 months</option>
+                      <option value={12}>12 months</option>
+                      <option value={24}>24 months</option>
+                      <option value={36}>36 months</option>
+                    </select>
+                  </div>
+
+                  <p className="text-xs text-base-content/50">
+                    When enabled, this warranty will be automatically added to new sales in the wizard. It can be removed or modified before taking deposit.
+                  </p>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={saveSalesSettings}
+                className="btn btn-primary btn-sm"
+                disabled={isSavingSales}
+              >
+                {isSavingSales ? <span className="loading loading-spinner loading-sm"></span> : "Save Warranty Settings"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1284,14 +1486,42 @@ export default function Settings() {
               ) : (
                 labels.map((label) => (
                   <div key={label.id} className="flex items-center gap-2 p-2 bg-base-100 rounded group">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: label.colour }}></div>
-                    <span className="flex-1">{label.name}</span>
-                    <button
-                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteLabel(label.id)}
-                    >
-                      ✕
-                    </button>
+                    {editingLabel === label.id ? (
+                      <>
+                        <input
+                          type="text"
+                          className="input input-bordered input-sm flex-1"
+                          value={editLabelForm.name}
+                          onChange={(e) => setEditLabelForm({ ...editLabelForm, name: e.target.value })}
+                          autoFocus
+                        />
+                        <input
+                          type="color"
+                          className="w-8 h-8 rounded cursor-pointer"
+                          value={editLabelForm.colour}
+                          onChange={(e) => setEditLabelForm({ ...editLabelForm, colour: e.target.value })}
+                        />
+                        <button className="btn btn-xs btn-primary" onClick={() => saveEditLabel(label.id)}>Save</button>
+                        <button className="btn btn-xs btn-ghost" onClick={cancelEditLabel}>Cancel</button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: label.colour }}></div>
+                        <span className="flex-1">{label.name}</span>
+                        <button
+                          className="btn btn-xs btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => startEditLabel(label)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => deleteLabel(label.id)}
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))
               )}

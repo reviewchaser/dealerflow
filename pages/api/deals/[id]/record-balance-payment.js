@@ -142,7 +142,7 @@ async function handler(req, res, ctx) {
     let logoUrl = dealer.logoUrl;
     if (dealer.logoKey) {
       try {
-        logoUrl = await getSignedGetUrl(dealer.logoKey, 90 * 24 * 60 * 60);
+        logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60); // 7 days max for S3 signature v4
       } catch (logoError) {
         console.warn("[record-balance-payment] Failed to generate logo URL:", logoError.message);
       }

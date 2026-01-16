@@ -1599,7 +1599,7 @@ export default function Warranty() {
                         onClick={() => fetchCaseDetail(caseItem.id || caseItem._id)}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs bg-[#fcd34d] px-1.5 py-0.5 rounded font-bold">
+                          <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                             {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "?"}
                           </span>
                           <span className="text-sm text-slate-700 truncate max-w-[120px]">
@@ -2056,7 +2056,7 @@ export default function Warranty() {
                 <div className="flex-1 min-w-0">
                   {/* VRM + Status Pills Row */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center bg-amber-100 border border-amber-300 rounded-lg px-3 py-1.5 font-mono font-bold text-slate-900 text-base tracking-wider uppercase shadow-sm">
+                    <span className="inline-flex items-center bg-[#F7D117] border border-black/20 rounded px-3 py-1.5 font-mono font-bold text-black text-base tracking-wider uppercase shadow-sm">
                       {selectedCase.regAtPurchase || selectedCase.details?.vehicleReg || "NO REG"}
                     </span>
                     {selectedCase.warrantyType && (

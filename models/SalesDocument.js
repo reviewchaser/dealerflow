@@ -59,6 +59,7 @@ const salesDocumentSchema = new mongoose.Schema(
         year: { type: Number },
         mileage: { type: Number },
         colour: { type: String },
+        firstRegisteredDate: { type: Date },
       },
 
       // Customer (sold to)
@@ -92,6 +93,7 @@ const salesDocumentSchema = new mongoose.Schema(
 
       // Pricing
       vatScheme: { type: String },
+      isVatRegistered: { type: Boolean },
       vehiclePriceNet: { type: Number },
       vehicleVatAmount: { type: Number },
       vehiclePriceGross: { type: Number },
@@ -135,7 +137,7 @@ const salesDocumentSchema = new mongoose.Schema(
         reference: { type: String },
       },
 
-      // Part exchange
+      // Part exchange (legacy single PX)
       partExchange: {
         vrm: { type: String },
         make: { type: String },
@@ -149,6 +151,22 @@ const salesDocumentSchema = new mongoose.Schema(
         hasSettlementInWriting: { type: Boolean },
         financeSettled: { type: Boolean },
       },
+
+      // Multiple part exchanges (new)
+      partExchanges: [{
+        vrm: { type: String },
+        make: { type: String },
+        model: { type: String },
+        year: { type: Number },
+        mileage: { type: Number },
+        colour: { type: String },
+        allowance: { type: Number },
+        settlement: { type: Number },
+        vatQualifying: { type: Boolean },
+        hasFinance: { type: Boolean },
+        financeCompanyName: { type: String },
+        hasSettlementInWriting: { type: Boolean },
+      }],
 
       // Payments (for deposit receipt or invoice showing deposits paid)
       payments: [{
@@ -164,6 +182,10 @@ const salesDocumentSchema = new mongoose.Schema(
       totalVat: { type: Number },
       grandTotal: { type: Number },
       totalPaid: { type: Number },
+      depositPaid: { type: Number },
+      otherPayments: { type: Number },
+      financeAdvance: { type: Number },
+      financeCompanyName: { type: String },
       partExchangeNet: { type: Number },
       balanceDue: { type: Number },
 
@@ -227,6 +249,16 @@ const salesDocumentSchema = new mongoose.Schema(
         sortCode: { type: String },
         accountNumber: { type: String },
         iban: { type: String },
+      },
+
+      // Signature data (captured after signing)
+      signature: {
+        customerSignedAt: { type: Date },
+        customerSignerName: { type: String },
+        customerSignatureImageUrl: { type: String },
+        dealerSignedAt: { type: Date },
+        dealerSignerName: { type: String },
+        dealerSignatureImageUrl: { type: String },
       },
 
       // Payment receipt specific fields

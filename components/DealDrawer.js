@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import ContactPicker from "@/components/ContactPicker";
+import SignatureCapture from "@/components/SignatureCapture";
 
 // Format currency
 const formatCurrency = (amount) => {
@@ -197,6 +198,54 @@ export default function DealDrawer({
   const [pxAppraisalSuggestions, setPxAppraisalSuggestions] = useState([]);
   const [pxAppraisalSearching, setPxAppraisalSearching] = useState(false);
   const [selectedPxAppraisal, setSelectedPxAppraisal] = useState(null);
+
+  // Signature capture state (invoice)
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [driverLink, setDriverLink] = useState(null);
+  const [driverLinkLoading, setDriverLinkLoading] = useState(false);
+  const [showDriverLinkModal, setShowDriverLinkModal] = useState(false);
+  const [driverLinkPin, setDriverLinkPin] = useState("");
+
+  // Deposit signature capture state
+  const [showDepositSignatureModal, setShowDepositSignatureModal] = useState(false);
+
+  // Invoice confirmation modal state
+  const [showInvoiceConfirmModal, setShowInvoiceConfirmModal] = useState(false);
+  const [invoiceConfirmForm, setInvoiceConfirmForm] = useState({
+    paymentMethod: "CASH",
+    financeCompanyContactId: "",
+    financeCompanyName: "",
+    financeAdvance: "",
+    cancelFinance: false,
+    // PX confirmations will be populated from deal.partExchanges
+  });
+
+  // Schedule delivery state
+  const [showScheduleDeliveryModal, setShowScheduleDeliveryModal] = useState(false);
+  const [scheduleDeliveryForm, setScheduleDeliveryForm] = useState({
+    date: "",
+    time: "",
+    notes: "",
+  });
+  const [scheduleDeliveryLoading, setScheduleDeliveryLoading] = useState(false);
+
+  // Schedule collection state
+  const [showScheduleCollectionModal, setShowScheduleCollectionModal] = useState(false);
+  const [scheduleCollectionForm, setScheduleCollectionForm] = useState({
+    date: "",
+    time: "",
+    notes: "",
+  });
+  const [scheduleCollectionLoading, setScheduleCollectionLoading] = useState(false);
+
+  // Take Payment modal state
+  const [showTakePaymentModal, setShowTakePaymentModal] = useState(false);
+  const [takePaymentForm, setTakePaymentForm] = useState({
+    amount: "",
+    method: "BANK_TRANSFER",
+    reference: "",
+  });
+  const [takePaymentLoading, setTakePaymentLoading] = useState(false);
 
   // VRM Lookup for Part Exchange
   const handlePxVrmLookup = async () => {
@@ -634,15 +683,13 @@ export default function DealDrawer({
     }
   };
 
-  // Open handover modal
-  const handleOpenHandover = async () => {
-    await fetchLinkedSubmissions();
-    setHandoverDocs({
-      invoice: true,
-      pdi: !!linkedSubmissions.pdi,
-      serviceReceipt: !!linkedSubmissions.serviceReceipt,
-    });
-    setShowHandoverModal(true);
+  // Open handover - directly opens the invoice
+  const handleOpenHandover = () => {
+    if (documents.invoice?.shareUrl) {
+      window.open(documents.invoice.shareUrl, "_blank");
+    } else {
+      toast.error("Invoice not available");
+    }
   };
 
   // Generate handover pack
@@ -701,9 +748,15 @@ export default function DealDrawer({
       .filter((p) => !p.isRefunded)
       .reduce((sum, p) => sum + p.amount, 0);
 
-    const pxNetValue = deal.partExchange
-      ? (deal.partExchange.allowance || 0) - (deal.partExchange.settlement || 0)
-      : 0;
+    // Calculate PX net value from partExchanges array (new) or legacy single partExchange
+    let pxNetValue = 0;
+    if (deal.partExchanges && deal.partExchanges.length > 0) {
+      pxNetValue = deal.partExchanges.reduce((sum, px) => {
+        return sum + ((px.allowance || 0) - (px.settlement || 0));
+      }, 0);
+    } else if (deal.partExchange) {
+      pxNetValue = (deal.partExchange.allowance || 0) - (deal.partExchange.settlement || 0);
+    }
 
     const balanceDue = grandTotal - totalPaid - pxNetValue;
 
@@ -827,12 +880,58 @@ export default function DealDrawer({
     }
   };
 
-  const handleGenerateInvoice = async () => {
+  // Remove Part Exchange by index
+  const handleRemovePartExchange = async (index) => {
+    if (!confirm("Remove this part exchange from the deal?")) return;
+
+    try {
+      const res = await fetch(`/api/deals/${dealId}/remove-part-exchange`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to remove part exchange");
+      }
+
+      toast.success("Part exchange removed");
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  // Open invoice confirmation modal
+  const handleGenerateInvoice = () => {
+    // Pre-populate form with existing deal data
+    setInvoiceConfirmForm({
+      paymentMethod: deal.paymentType || "CASH",
+      financeCompanyContactId: deal.financeSelection?.financeCompanyContactId || "",
+      financeCompanyName: deal.financeSelection?.financeCompanyName || "",
+      financeAdvance: deal.financeSelection?.financeAdvance || "",
+      financeCompanyConfirmed: !deal.financeSelection?.toBeConfirmed,
+      cancelFinance: false,
+    });
+    setShowInvoiceConfirmModal(true);
+  };
+
+  // Actually generate the invoice with confirmed values
+  const handleConfirmAndGenerateInvoice = async () => {
     setActionLoading("invoice");
     try {
       const res = await fetch(`/api/deals/${dealId}/generate-invoice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentMethod: invoiceConfirmForm.paymentMethod,
+          financeCompanyContactId: invoiceConfirmForm.financeCompanyContactId || undefined,
+          financeCompanyName: invoiceConfirmForm.financeCompanyName || undefined,
+          financeAdvance: invoiceConfirmForm.financeAdvance ? parseFloat(invoiceConfirmForm.financeAdvance) : undefined,
+          cancelFinance: invoiceConfirmForm.cancelFinance || false,
+        }),
       });
 
       if (!res.ok) {
@@ -842,12 +941,309 @@ export default function DealDrawer({
 
       const result = await res.json();
       toast.success(`Invoice generated: ${result.documentNumber}`);
+      setShowInvoiceConfirmModal(false);
       fetchDeal();
       onUpdate?.();
     } catch (error) {
       toast.error(error.message);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // Handle invoice signature capture completion
+  const handleSignatureComplete = async (signatureData) => {
+    const res = await fetch(`/api/deals/${dealId}/sign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(signatureData),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to save signatures");
+    }
+
+    toast.success("Signatures saved successfully");
+    fetchDeal();
+    onUpdate?.();
+  };
+
+  // Handle deposit receipt signature capture completion
+  const handleDepositSignatureComplete = async (signatureData) => {
+    const res = await fetch(`/api/deals/${dealId}/sign-deposit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(signatureData),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to save signatures");
+    }
+
+    toast.success("Deposit receipt signed successfully");
+    setShowDepositSignatureModal(false);
+    fetchDeal();
+    onUpdate?.();
+  };
+
+  // Show driver link modal
+  const openDriverLinkModal = () => {
+    setDriverLinkPin("");
+    setShowDriverLinkModal(true);
+  };
+
+  // Generate driver signing link (with optional PIN)
+  const handleGenerateDriverLink = async () => {
+    // Validate PIN if provided (must be 4 digits or empty)
+    if (driverLinkPin && !/^\d{4}$/.test(driverLinkPin)) {
+      toast.error("PIN must be exactly 4 digits");
+      return;
+    }
+
+    setDriverLinkLoading(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/generate-driver-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pin: driverLinkPin || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to generate link");
+      }
+
+      const data = await res.json();
+      setDriverLink(data.link);
+      setShowDriverLinkModal(false);
+      toast.success(driverLinkPin ? "Driver link generated with PIN protection" : "Driver link generated");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setDriverLinkLoading(false);
+    }
+  };
+
+  // Copy driver link to clipboard
+  const copyDriverLink = () => {
+    if (driverLink) {
+      navigator.clipboard.writeText(driverLink);
+      toast.success("Link copied to clipboard");
+    }
+  };
+
+  // Schedule delivery to calendar
+  const handleScheduleDelivery = async () => {
+    if (!scheduleDeliveryForm.date || !scheduleDeliveryForm.time) {
+      toast.error("Please select date and time");
+      return;
+    }
+
+    setScheduleDeliveryLoading(true);
+    try {
+      // Combine date and time
+      const startDatetime = new Date(`${scheduleDeliveryForm.date}T${scheduleDeliveryForm.time}`);
+      const endDatetime = new Date(startDatetime.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+      // Build title
+      const vehicle = deal.vehicleId || {};
+      const customer = deal.soldToContactId || deal.soldToContact || {};
+      const title = `Delivery: ${vehicle.regCurrent || "Vehicle"} to ${customer.name || "Customer"}`;
+
+      // Build description with address if available
+      let description = `Vehicle: ${vehicle.make || ""} ${vehicle.model || ""} (${vehicle.regCurrent || ""})`;
+      if (deal.deliveryAddress?.isDifferent && deal.deliveryAddress?.line1) {
+        description += `\n\nDelivery Address:\n${deal.deliveryAddress.line1}`;
+        if (deal.deliveryAddress.line2) description += `\n${deal.deliveryAddress.line2}`;
+        if (deal.deliveryAddress.town) description += `\n${deal.deliveryAddress.town}`;
+        if (deal.deliveryAddress.postcode) description += ` ${deal.deliveryAddress.postcode}`;
+      }
+      if (scheduleDeliveryForm.notes) {
+        description += `\n\nNotes: ${scheduleDeliveryForm.notes}`;
+      }
+
+      // First, try to find a "Delivery" category
+      const catRes = await fetch("/api/calendar/categories");
+      let categoryId = null;
+      if (catRes.ok) {
+        const categories = await catRes.json();
+        const deliveryCategory = categories.find(c => c.name?.toLowerCase().includes("delivery"));
+        if (deliveryCategory) {
+          categoryId = deliveryCategory.id;
+        }
+      }
+
+      // Create calendar event
+      const eventRes = await fetch("/api/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          categoryId,
+          startDatetime: startDatetime.toISOString(),
+          endDatetime: endDatetime.toISOString(),
+          linkedVehicleId: vehicle.id || vehicle._id,
+          linkedContactId: customer.id || customer._id,
+        }),
+      });
+
+      if (!eventRes.ok) {
+        const err = await eventRes.json();
+        throw new Error(err.error || "Failed to create calendar event");
+      }
+
+      const event = await eventRes.json();
+
+      // Update deal with scheduled delivery date
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "delivery.scheduledDate": startDatetime.toISOString(),
+          "delivery.scheduledCalendarEventId": event.id,
+        }),
+      });
+
+      toast.success("Delivery scheduled");
+      setShowScheduleDeliveryModal(false);
+      setScheduleDeliveryForm({ date: "", time: "", notes: "" });
+      fetchDeal();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setScheduleDeliveryLoading(false);
+    }
+  };
+
+  // Schedule collection to calendar (customer picks up vehicle)
+  const handleScheduleCollection = async () => {
+    if (!scheduleCollectionForm.date || !scheduleCollectionForm.time) {
+      toast.error("Please select date and time");
+      return;
+    }
+
+    setScheduleCollectionLoading(true);
+    try {
+      // Combine date and time
+      const startDatetime = new Date(`${scheduleCollectionForm.date}T${scheduleCollectionForm.time}`);
+      const endDatetime = new Date(startDatetime.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+      // Build title
+      const vehicle = deal.vehicleId || {};
+      const customer = deal.soldToContactId || deal.soldToContact || {};
+      const customerName = customer.displayName || customer.name || "Customer";
+      const title = `Collection: ${vehicle.regCurrent || "Vehicle"} - ${customerName}`;
+
+      // Build description
+      let description = `Vehicle: ${vehicle.make || ""} ${vehicle.model || ""} (${vehicle.regCurrent || ""})`;
+      description += `\n\nCustomer: ${customerName}`;
+      if (customer.phone) description += `\nPhone: ${customer.phone}`;
+      if (scheduleCollectionForm.notes) {
+        description += `\n\nNotes: ${scheduleCollectionForm.notes}`;
+      }
+
+      // First, try to find a "Collection" or "Sales" category
+      const catRes = await fetch("/api/calendar/categories");
+      let categoryId = null;
+      if (catRes.ok) {
+        const categories = await catRes.json();
+        const collectionCategory = categories.find(c =>
+          c.name?.toLowerCase().includes("collection") || c.name?.toLowerCase().includes("sales")
+        );
+        if (collectionCategory) {
+          categoryId = collectionCategory.id;
+        }
+      }
+
+      // Create calendar event
+      const eventRes = await fetch("/api/calendar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          categoryId,
+          startDatetime: startDatetime.toISOString(),
+          endDatetime: endDatetime.toISOString(),
+          linkedVehicleId: vehicle.id || vehicle._id,
+          linkedContactId: customer.id || customer._id,
+        }),
+      });
+
+      if (!eventRes.ok) {
+        const err = await eventRes.json();
+        throw new Error(err.error || "Failed to create calendar event");
+      }
+
+      const event = await eventRes.json();
+
+      // Update deal with scheduled collection date
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "collection.scheduledDate": startDatetime.toISOString(),
+          "collection.scheduledCalendarEventId": event.id,
+        }),
+      });
+
+      toast.success("Collection scheduled");
+      setShowScheduleCollectionModal(false);
+      setScheduleCollectionForm({ date: "", time: "", notes: "" });
+      fetchDeal();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setScheduleCollectionLoading(false);
+    }
+  };
+
+  // Handle taking a balance payment
+  const handleTakePayment = async () => {
+    const amount = parseFloat(takePaymentForm.amount);
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid payment amount");
+      return;
+    }
+
+    if (!takePaymentForm.method) {
+      toast.error("Please select a payment method");
+      return;
+    }
+
+    setTakePaymentLoading(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/record-balance-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          method: takePaymentForm.method,
+          reference: takePaymentForm.reference || undefined,
+          generateReceipt: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to record payment");
+      }
+
+      const result = await res.json();
+      toast.success(result.message || "Payment recorded successfully");
+      setShowTakePaymentModal(false);
+      setTakePaymentForm({ amount: "", method: "BANK_TRANSFER", reference: "" });
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setTakePaymentLoading(false);
     }
   };
 
@@ -1248,7 +1644,7 @@ export default function DealDrawer({
                         {statusConfig.label}
                       </span>
                       {deal.vehicle && (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-yellow-400 text-black text-xs font-mono font-bold tracking-wider">
                           {deal.vehicle.regCurrent}
                         </span>
                       )}
@@ -1736,11 +2132,27 @@ export default function DealDrawer({
                         </div>
                       )}
 
-                      {/* Payments */}
+                      {/* Payments Summary */}
                       {totals.totalPaid > 0 && (
-                        <div className="flex justify-between items-center text-emerald-600">
-                          <span className="text-sm">Paid</span>
-                          <span className="font-semibold">-{formatCurrency(totals.totalPaid)}</span>
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-emerald-600">
+                            <span className="text-sm">Paid</span>
+                            <span className="font-semibold">-{formatCurrency(totals.totalPaid)}</span>
+                          </div>
+                          {/* Payment History */}
+                          {deal.payments?.filter(p => !p.isRefunded).length > 0 && (
+                            <div className="text-xs text-slate-500 space-y-0.5 pl-2 border-l-2 border-emerald-200 ml-1">
+                              {deal.payments.filter(p => !p.isRefunded).map((payment, idx) => (
+                                <div key={idx} className="flex justify-between items-center">
+                                  <span>
+                                    {formatDate(payment.paidAt)} - {payment.method?.replace(/_/g, " ") || "Payment"}
+                                    {payment.reference && ` (${payment.reference})`}
+                                  </span>
+                                  <span className="font-medium">{formatCurrency(payment.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -1768,9 +2180,15 @@ export default function DealDrawer({
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-800">Part Exchange</h3>
+                          <h3 className="text-sm font-bold text-slate-800">Part Exchange{(deal.partExchanges?.length || 0) > 1 ? "s" : ""}</h3>
+                          {(deal.partExchanges?.length || 0) > 0 && (
+                            <span className="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                              {deal.partExchanges.length}
+                            </span>
+                          )}
                         </div>
-                        {!deal.partExchange && deal.status === "DRAFT" && (
+                        {/* Allow adding PX in DRAFT and DEPOSIT_TAKEN, max 2 */}
+                        {(deal.partExchanges?.length || 0) < 2 && ["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
                           <button
                             onClick={() => setShowPxModal(true)}
                             className="btn btn-ghost btn-xs text-emerald-600"
@@ -1780,7 +2198,91 @@ export default function DealDrawer({
                         )}
                       </div>
                     </div>
-                    {deal.partExchange ? (
+                    {/* Display partExchanges array (new) or fall back to legacy partExchange */}
+                    {(deal.partExchanges?.length > 0) ? (
+                      <div className="p-4 space-y-4">
+                        {deal.partExchanges.map((px, idx) => (
+                          <div key={idx} className={idx > 0 ? "pt-4 border-t border-slate-100" : ""}>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Vehicle {deal.partExchanges.length > 1 ? `#${idx + 1}` : ""}</span>
+                                <p className="font-semibold text-slate-900 mt-0.5">
+                                  {px.vrm} - {px.make} {px.model}
+                                </p>
+                                {(px.year || px.colour || px.mileage) && (
+                                  <p className="text-sm text-slate-500 mt-0.5">
+                                    {px.year && `${px.year}`}
+                                    {px.colour && `${px.year ? ' • ' : ''}${px.colour}`}
+                                    {px.mileage && `${(px.year || px.colour) ? ' • ' : ''}${px.mileage.toLocaleString()} miles`}
+                                  </p>
+                                )}
+                              </div>
+                              {/* Remove button - only in DRAFT or DEPOSIT_TAKEN */}
+                              {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                                <button
+                                  onClick={() => handleRemovePartExchange(idx)}
+                                  className="btn btn-ghost btn-xs text-red-500 hover:bg-red-50"
+                                  title="Remove PX"
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-3 gap-3 mt-2">
+                              <div>
+                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Allowance</span>
+                                <p className="font-semibold text-slate-900 mt-0.5">
+                                  {formatCurrency(px.allowance)}
+                                </p>
+                              </div>
+                              {px.settlement > 0 && (
+                                <div>
+                                  <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Settlement</span>
+                                  <p className="font-semibold text-red-600 mt-0.5">
+                                    -{formatCurrency(px.settlement)}
+                                  </p>
+                                </div>
+                              )}
+                              <div>
+                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Net</span>
+                                <p className="font-bold text-emerald-600 mt-0.5">
+                                  {formatCurrency((px.allowance || 0) - (px.settlement || 0))}
+                                </p>
+                              </div>
+                            </div>
+                            {/* Finance settlement info */}
+                            {px.hasFinance && (
+                              <div className="mt-2 flex items-center gap-2 text-xs">
+                                <span className="text-blue-600">
+                                  Finance: {px.financeCompanyName || "TBC"}
+                                </span>
+                                {px.hasSettlementInWriting ? (
+                                  <span className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">
+                                    Settlement In Writing ✓
+                                  </span>
+                                ) : (
+                                  <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
+                                    Settlement TBC
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {/* Total if multiple PXs */}
+                        {deal.partExchanges.length > 1 && (
+                          <div className="pt-3 border-t border-slate-200">
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total PX Value</span>
+                            <p className="font-bold text-emerald-700 text-lg mt-0.5">
+                              {formatCurrency(totals.pxNetValue)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ) : deal.partExchange ? (
+                      /* Legacy single PX display for backwards compatibility */
                       <div className="p-4 space-y-3">
                         <div>
                           <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Vehicle</span>
@@ -1814,7 +2316,7 @@ export default function DealDrawer({
                     ) : (
                       <div className="p-4">
                         <p className="text-sm text-slate-400 text-center py-4">No part exchange on this deal</p>
-                        {deal.status === "DRAFT" && (
+                        {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
                           <button
                             onClick={() => setShowPxModal(true)}
                             className="btn btn-outline btn-sm w-full text-emerald-600 border-emerald-200 hover:bg-emerald-50"
@@ -1827,6 +2329,78 @@ export default function DealDrawer({
                         )}
                       </div>
                     )}
+                  </div>
+
+                  {/* Add-ons Section */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-violet-50 to-white border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14v6m-3-3h6M6 10h2a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zm10 0h2a2 2 0 002-2V6a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 002 2zM6 20h2a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Add-ons</h3>
+                          {deal.addOns?.length > 0 && (
+                            <span className="bg-violet-100 text-violet-700 text-xs px-2 py-0.5 rounded-full font-medium">
+                              {deal.addOns.length} item{deal.addOns.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                        {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                          <button
+                            onClick={() => setActiveTab("addons")}
+                            className="btn btn-ghost btn-xs text-violet-600"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      {deal.addOns?.length > 0 ? (
+                        <div className="space-y-2">
+                          {deal.addOns.map((addon, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 rounded-lg bg-violet-50 border border-violet-100"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-slate-900 text-sm">{addon.name}</p>
+                                {addon.qty > 1 && (
+                                  <p className="text-xs text-slate-500">Qty: {addon.qty}</p>
+                                )}
+                              </div>
+                              <p className="font-semibold text-violet-700 text-sm">
+                                {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
+                              </p>
+                            </div>
+                          ))}
+                          <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Total Add-ons</span>
+                            <p className="font-bold text-violet-700">
+                              {formatCurrency(deal.addOns.reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0))}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-slate-400">No add-ons on this deal</p>
+                          {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                            <button
+                              onClick={() => setActiveTab("addons")}
+                              className="btn btn-outline btn-sm mt-2 text-violet-600 border-violet-200 hover:bg-violet-50"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                              </svg>
+                              Add Add-ons
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Agreed Work Items Section */}
@@ -1846,7 +2420,7 @@ export default function DealDrawer({
                             </span>
                           )}
                         </div>
-                        {deal.status === "DRAFT" && (
+                        {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
                           <button
                             onClick={() => setShowAgreedWorkModal(true)}
                             className="btn btn-ghost btn-xs text-orange-600"
@@ -1995,6 +2569,43 @@ export default function DealDrawer({
                           );
                         })()}
 
+                        {/* Sign Deposit Receipt - only for DEPOSIT_TAKEN, non-distance sales, and if receipt exists */}
+                        {deal.status === "DEPOSIT_TAKEN" && deal.saleChannel !== "DISTANCE" && documents.depositReceipt && (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">Deposit Receipt Signature</span>
+                              {deal.depositSignature?.customerSignedAt && deal.depositSignature?.dealerSignedAt ? (
+                                <span className="text-xs text-emerald-600 font-medium">Complete</span>
+                              ) : deal.depositSignature?.customerSignedAt || deal.depositSignature?.dealerSignedAt ? (
+                                <span className="text-xs text-amber-600 font-medium">Partial</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">Not signed</span>
+                              )}
+                            </div>
+                            {deal.depositSignature?.customerSignedAt && deal.depositSignature?.dealerSignedAt ? (
+                              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1">
+                                <p className="text-xs text-emerald-700">
+                                  <span className="font-medium">Customer:</span> {deal.depositSignature.customerSignerName} ({formatDate(deal.depositSignature.customerSignedAt)})
+                                </p>
+                                <p className="text-xs text-emerald-700">
+                                  <span className="font-medium">Dealer:</span> {deal.depositSignature.dealerSignerName} ({formatDate(deal.depositSignature.dealerSignedAt)})
+                                </p>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowDepositSignatureModal(true)}
+                                disabled={actionLoading}
+                                className="btn btn-sm w-full bg-purple-500 hover:bg-purple-600 text-white border-none"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                                {deal.depositSignature?.customerSignedAt ? "Dealer Countersign Receipt" : "Sign Deposit Receipt"}
+                              </button>
+                            )}
+                          </div>
+                        )}
+
                         {/* Generate Invoice */}
                         {(deal.status === "DRAFT" || deal.status === "DEPOSIT_TAKEN") && (() => {
                           const { allowed, reasons } = canGenerateInvoice();
@@ -2045,6 +2656,92 @@ export default function DealDrawer({
                           );
                         })()}
 
+                        {/* Capture Signatures - for invoiced deals */}
+                        {["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status) && (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">E-Signatures</span>
+                              {deal.signature?.customerSignedAt && deal.signature?.dealerSignedAt ? (
+                                <span className="text-xs text-emerald-600 font-medium">Complete</span>
+                              ) : deal.signature?.customerSignedAt || deal.signature?.dealerSignedAt ? (
+                                <span className="text-xs text-amber-600 font-medium">Partial</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">Not signed</span>
+                              )}
+                            </div>
+                            {deal.signature?.customerSignedAt && deal.signature?.dealerSignedAt ? (
+                              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1">
+                                <p className="text-xs text-emerald-700">
+                                  <span className="font-medium">Customer:</span> {deal.signature.customerSignerName} ({formatDate(deal.signature.customerSignedAt)})
+                                </p>
+                                <p className="text-xs text-emerald-700">
+                                  <span className="font-medium">Dealer:</span> {deal.signature.dealerSignerName} ({formatDate(deal.signature.dealerSignedAt)})
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {/* Showroom signing */}
+                                <button
+                                  onClick={() => setShowSignatureModal(true)}
+                                  disabled={actionLoading}
+                                  className="btn btn-sm w-full bg-indigo-500 hover:bg-indigo-600 text-white border-none"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                  {deal.signature?.customerSignedAt ? "Dealer Countersign" : "Sign in Showroom"}
+                                </button>
+
+                                {/* Driver link - for third-party delivery */}
+                                {(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && !deal.signature?.customerSignedAt && (
+                                  <>
+                                    <div className="flex items-center gap-2 py-1">
+                                      <div className="flex-1 h-px bg-slate-200"></div>
+                                      <span className="text-xs text-slate-400">or</span>
+                                      <div className="flex-1 h-px bg-slate-200"></div>
+                                    </div>
+
+                                    {driverLink ? (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <input
+                                            type="text"
+                                            value={driverLink}
+                                            readOnly
+                                            className="input input-bordered input-sm flex-1 text-xs font-mono"
+                                          />
+                                          <button
+                                            onClick={copyDriverLink}
+                                            className="btn btn-sm btn-ghost"
+                                            title="Copy link"
+                                          >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                            </svg>
+                                          </button>
+                                        </div>
+                                        <p className="text-xs text-slate-500">
+                                          Share this link with your driver. Expires in 24 hours.
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={openDriverLinkModal}
+                                        className="btn btn-sm w-full btn-ghost border border-slate-200"
+                                      >
+                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                        </svg>
+                                        Generate Driver Link
+                                      </button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Mark Delivered */}
                         {deal.status === "INVOICED" && (
                           <button
@@ -2057,6 +2754,103 @@ export default function DealDrawer({
                             </svg>
                             Mark Delivered
                           </button>
+                        )}
+
+                        {/* Take Payment - when INVOICED and balance due > 0 */}
+                        {deal.status === "INVOICED" && totals.balanceDue > 0 && (
+                          <button
+                            onClick={() => {
+                              setTakePaymentForm({
+                                amount: totals.balanceDue.toFixed(2),
+                                method: "BANK_TRANSFER",
+                                reference: "",
+                              });
+                              setShowTakePaymentModal(true);
+                            }}
+                            disabled={actionLoading}
+                            className="btn btn-sm w-full bg-emerald-500 hover:bg-emerald-600 text-white border-none"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Take Payment ({formatCurrency(totals.balanceDue)} due)
+                          </button>
+                        )}
+
+                        {/* Schedule Delivery - when deal has delivery */}
+                        {(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && deal.status === "INVOICED" && (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">Delivery Schedule</span>
+                              {deal.delivery?.scheduledDate ? (
+                                <span className="text-xs text-emerald-600 font-medium">Scheduled</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">Not scheduled</span>
+                              )}
+                            </div>
+                            {deal.delivery?.scheduledDate ? (
+                              <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                                <p className="text-sm text-purple-700 font-medium">
+                                  {new Date(deal.delivery.scheduledDate).toLocaleDateString("en-GB", {
+                                    weekday: "short",
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowScheduleDeliveryModal(true)}
+                                disabled={actionLoading}
+                                className="btn btn-sm w-full btn-ghost border border-slate-200"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Schedule Delivery
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Schedule Collection - when deal does NOT have delivery (customer collects) */}
+                        {!(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && deal.status === "INVOICED" && (
+                          <div className="space-y-2 pt-2 border-t border-slate-100">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-slate-700">Collection Schedule</span>
+                              {deal.collection?.scheduledDate ? (
+                                <span className="text-xs text-emerald-600 font-medium">Scheduled</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">Not scheduled</span>
+                              )}
+                            </div>
+                            {deal.collection?.scheduledDate ? (
+                              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                                <p className="text-sm text-blue-700 font-medium">
+                                  {new Date(deal.collection.scheduledDate).toLocaleDateString("en-GB", {
+                                    weekday: "short",
+                                    day: "numeric",
+                                    month: "short",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </p>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setShowScheduleCollectionModal(true)}
+                                disabled={actionLoading}
+                                className="btn btn-sm w-full btn-ghost border border-slate-200"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Schedule Collection
+                              </button>
+                            )}
+                          </div>
                         )}
 
                         {/* Complete Deal */}
@@ -2493,7 +3287,7 @@ export default function DealDrawer({
                           <ContactPicker
                             value={deal.invoiceToContactId}
                             onChange={(contactId) => handleUpdateInvoiceTo(contactId)}
-                            filterTypeTags={["finance_company", "supplier"]}
+                            filterTypeTags={["FINANCE", "SUPPLIER"]}
                             placeholder="Search finance company or broker..."
                             allowCreate={true}
                           />
@@ -2740,6 +3534,7 @@ export default function DealDrawer({
                   <option value="CASH">Cash</option>
                   <option value="BANK_TRANSFER">Bank Transfer</option>
                   <option value="FINANCE">Finance</option>
+                  <option value="OTHER">Other</option>
                 </select>
               </div>
 
@@ -3415,7 +4210,7 @@ export default function DealDrawer({
                                 setFinanceCompanySearch(query);
                                 if (query.length >= 2) {
                                   try {
-                                    const res = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&typeTags=finance_company&limit=5`);
+                                    const res = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&typeTags=FINANCE&limit=5`);
                                     if (res.ok) {
                                       const data = await res.json();
                                       setFinanceCompanySuggestions(data.contacts || data || []);
@@ -3671,6 +4466,513 @@ export default function DealDrawer({
           </div>
         </div>
       )}
+
+      {/* Schedule Delivery Modal */}
+      {showScheduleDeliveryModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleDeliveryModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Schedule Delivery</h3>
+
+            <div className="space-y-4">
+              {/* Vehicle & Customer Info */}
+              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Vehicle</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {deal?.vehicleId?.regCurrent || "—"} ({deal?.vehicleId?.make} {deal?.vehicleId?.model})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Customer</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {deal?.soldToContactId?.name || deal?.soldToContact?.name || "—"}
+                  </span>
+                </div>
+                {deal?.deliveryAddress?.isDifferent && (
+                  <div className="pt-2 border-t border-slate-200">
+                    <span className="text-xs text-slate-500 block mb-1">Delivery Address</span>
+                    <span className="text-sm text-slate-700">
+                      {deal.deliveryAddress.line1}
+                      {deal.deliveryAddress.town && `, ${deal.deliveryAddress.town}`}
+                      {deal.deliveryAddress.postcode && ` ${deal.deliveryAddress.postcode}`}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={scheduleDeliveryForm.date}
+                  onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="input input-bordered w-full"
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  value={scheduleDeliveryForm.time}
+                  onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, time: e.target.value }))}
+                  className="input input-bordered w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={scheduleDeliveryForm.notes}
+                  onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="textarea textarea-bordered w-full"
+                  placeholder="Any special instructions..."
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowScheduleDeliveryModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleScheduleDelivery}
+                disabled={scheduleDeliveryLoading || !scheduleDeliveryForm.date || !scheduleDeliveryForm.time}
+                className="btn bg-purple-500 hover:bg-purple-600 text-white border-none flex-1"
+              >
+                {scheduleDeliveryLoading ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Schedule"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Collection Modal */}
+      {showScheduleCollectionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleCollectionModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Schedule Collection</h3>
+
+            <div className="space-y-4">
+              {/* Vehicle & Customer Info */}
+              <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Vehicle</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {deal?.vehicleId?.regCurrent || "—"} ({deal?.vehicleId?.make} {deal?.vehicleId?.model})
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">Customer</span>
+                  <span className="text-sm font-medium text-slate-900">
+                    {deal?.soldToContactId?.displayName || deal?.soldToContactId?.name || deal?.soldToContact?.name || "—"}
+                  </span>
+                </div>
+                {deal?.soldToContactId?.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-slate-500">Phone</span>
+                    <span className="text-sm text-slate-700">{deal.soldToContactId.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-sm text-slate-600">
+                Schedule when the customer will collect the vehicle from your premises.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={scheduleCollectionForm.date}
+                  onChange={(e) => setScheduleCollectionForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="input input-bordered w-full"
+                  min={new Date().toISOString().split("T")[0]}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Time
+                </label>
+                <input
+                  type="time"
+                  value={scheduleCollectionForm.time}
+                  onChange={(e) => setScheduleCollectionForm(prev => ({ ...prev, time: e.target.value }))}
+                  className="input input-bordered w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={scheduleCollectionForm.notes}
+                  onChange={(e) => setScheduleCollectionForm(prev => ({ ...prev, notes: e.target.value }))}
+                  className="textarea textarea-bordered w-full"
+                  placeholder="Any special instructions..."
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowScheduleCollectionModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleScheduleCollection}
+                disabled={scheduleCollectionLoading || !scheduleCollectionForm.date || !scheduleCollectionForm.time}
+                className="btn bg-blue-500 hover:bg-blue-600 text-white border-none flex-1"
+              >
+                {scheduleCollectionLoading ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Schedule"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Take Payment Modal */}
+      {showTakePaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowTakePaymentModal(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Take Payment</h3>
+
+            <div className="space-y-4">
+              {/* Balance Summary */}
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-emerald-700">Outstanding Balance</span>
+                  <span className="text-lg font-bold text-emerald-700">{formatCurrency(totals.balanceDue)}</span>
+                </div>
+                <div className="text-xs text-emerald-600">
+                  Total: {formatCurrency(totals.grandTotal)} | Paid: {formatCurrency(totals.totalPaid)}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Payment Amount (£)
+                </label>
+                <input
+                  type="number"
+                  value={takePaymentForm.amount}
+                  onChange={(e) => setTakePaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  className="input input-bordered w-full"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Payment Method
+                </label>
+                <select
+                  value={takePaymentForm.method}
+                  onChange={(e) => setTakePaymentForm(prev => ({ ...prev, method: e.target.value }))}
+                  className="select select-bordered w-full"
+                >
+                  <option value="BANK_TRANSFER">Bank Transfer</option>
+                  <option value="CASH">Cash</option>
+                  <option value="CARD">Card</option>
+                  <option value="FINANCE">Finance</option>
+                  <option value="OTHER">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Reference (optional)
+                </label>
+                <input
+                  type="text"
+                  value={takePaymentForm.reference}
+                  onChange={(e) => setTakePaymentForm(prev => ({ ...prev, reference: e.target.value }))}
+                  className="input input-bordered w-full"
+                  placeholder="e.g., Bank reference, card last 4 digits"
+                />
+              </div>
+
+              {/* Preview of remaining balance */}
+              {takePaymentForm.amount && parseFloat(takePaymentForm.amount) > 0 && (
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">Remaining balance after payment:</span>
+                    <span className={`font-bold ${(totals.balanceDue - parseFloat(takePaymentForm.amount)) <= 0 ? "text-emerald-600" : "text-slate-900"}`}>
+                      {formatCurrency(Math.max(0, totals.balanceDue - parseFloat(takePaymentForm.amount)))}
+                    </span>
+                  </div>
+                  {(totals.balanceDue - parseFloat(takePaymentForm.amount)) <= 0 && (
+                    <p className="text-xs text-emerald-600 mt-1">Balance will be paid in full</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowTakePaymentModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTakePayment}
+                disabled={takePaymentLoading || !takePaymentForm.amount || parseFloat(takePaymentForm.amount) <= 0}
+                className="btn bg-emerald-500 hover:bg-emerald-600 text-white border-none flex-1"
+              >
+                {takePaymentLoading ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Record Payment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Confirmation Modal */}
+      {showInvoiceConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Invoice Details</h3>
+              <p className="text-sm text-slate-500 mt-1">Please confirm the following details before generating the invoice</p>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Part Exchanges Summary */}
+              {(deal?.partExchanges?.length > 0 || deal?.partExchangeAllowance > 0) && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Part Exchange(s)</label>
+                  <div className="bg-purple-50 rounded-xl p-4 space-y-3">
+                    {deal?.partExchanges?.length > 0 ? (
+                      deal.partExchanges.map((px, idx) => (
+                        <div key={idx} className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium text-slate-900">{px.vrm || `PX ${idx + 1}`}</p>
+                            <p className="text-xs text-slate-500">
+                              Allowance: {formatCurrency(px.allowance)}
+                              {px.settlement > 0 && ` | Settlement: ${formatCurrency(px.settlement)}`}
+                            </p>
+                          </div>
+                          <p className="font-bold text-purple-700">Net: {formatCurrency((px.allowance || 0) - (px.settlement || 0))}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-medium text-slate-900">Part Exchange</p>
+                          <p className="text-xs text-slate-500">
+                            Allowance: {formatCurrency(deal?.partExchangeAllowance)}
+                            {deal?.partExchangeSettlement > 0 && ` | Settlement: ${formatCurrency(deal?.partExchangeSettlement)}`}
+                          </p>
+                        </div>
+                        <p className="font-bold text-purple-700">Net: {formatCurrency((deal?.partExchangeAllowance || 0) - (deal?.partExchangeSettlement || 0))}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Finance Details */}
+              {deal?.financeSelection?.isFinanced && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Finance Details</label>
+
+                  {/* Cancel Finance Option */}
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={invoiceConfirmForm.cancelFinance}
+                        onChange={(e) => setInvoiceConfirmForm(prev => ({
+                          ...prev,
+                          cancelFinance: e.target.checked,
+                          financeCompanyContactId: e.target.checked ? "" : prev.financeCompanyContactId,
+                          financeCompanyName: e.target.checked ? "" : prev.financeCompanyName,
+                          financeAdvance: e.target.checked ? "" : prev.financeAdvance,
+                        }))}
+                        className="checkbox checkbox-warning"
+                      />
+                      <div>
+                        <span className="font-medium text-amber-800">Customer no longer using finance</span>
+                        <p className="text-xs text-amber-600">Check this if the customer has changed payment method</p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {!invoiceConfirmForm.cancelFinance && (
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Finance Company</label>
+                        <ContactPicker
+                          value={invoiceConfirmForm.financeCompanyContactId}
+                          onChange={(contactId, contact) => setInvoiceConfirmForm(prev => ({
+                            ...prev,
+                            financeCompanyContactId: contactId || "",
+                            financeCompanyName: contact?.displayName || contact?.companyName || "",
+                          }))}
+                          filterTypeTags={["FINANCE"]}
+                          placeholder="Search finance companies..."
+                          allowCreate={true}
+                        />
+                        {deal.financeSelection?.toBeConfirmed && (
+                          <p className="text-xs text-amber-600 mt-1">Finance company was marked as "To Be Confirmed"</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-slate-500 mb-1">Finance Advance Amount (£)</label>
+                        <input
+                          type="number"
+                          value={invoiceConfirmForm.financeAdvance}
+                          onChange={(e) => setInvoiceConfirmForm(prev => ({ ...prev, financeAdvance: e.target.value }))}
+                          className="input input-bordered w-full"
+                          placeholder="Amount paid by finance company"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">This is the amount the finance company will pay directly to you</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            <div className="p-6 border-t border-slate-200 flex gap-3">
+              <button
+                onClick={() => setShowInvoiceConfirmModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmAndGenerateInvoice}
+                disabled={actionLoading === "invoice"}
+                className="btn bg-blue-500 hover:bg-blue-600 text-white border-none flex-1"
+              >
+                {actionLoading === "invoice" ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Generate Invoice
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Driver Link Modal */}
+      {showDriverLinkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold mb-4">Generate Driver Link</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Create a secure link for your driver to capture customer signature on delivery.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                PIN Protection (Optional)
+              </label>
+              <input
+                type="tel"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                value={driverLinkPin}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                  setDriverLinkPin(value);
+                }}
+                className="input input-bordered w-full text-center text-xl tracking-widest font-mono"
+                placeholder="Enter 4-digit PIN"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Leave empty for no PIN protection
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDriverLinkModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleGenerateDriverLink}
+                disabled={driverLinkLoading}
+                className="btn bg-blue-500 hover:bg-blue-600 text-white border-none flex-1"
+              >
+                {driverLinkLoading ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Generate Link"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Signature Capture Modal (Invoice) */}
+      <SignatureCapture
+        isOpen={showSignatureModal}
+        onClose={() => setShowSignatureModal(false)}
+        onComplete={handleSignatureComplete}
+        deal={deal}
+        existingSignatures={deal?.signature}
+      />
+
+      {/* Signature Capture Modal (Deposit Receipt) */}
+      <SignatureCapture
+        isOpen={showDepositSignatureModal}
+        onClose={() => setShowDepositSignatureModal(false)}
+        onComplete={handleDepositSignatureComplete}
+        deal={deal}
+        existingSignatures={deal?.depositSignature}
+      />
     </div>
   );
 }

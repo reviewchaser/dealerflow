@@ -93,7 +93,7 @@ async function handler(req, res, ctx) {
     const vehicleIds = vehicles.map(v => v._id);
 
     // Fetch all related data in parallel - scoped by dealerId
-    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals] = await Promise.all([
+    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery] = await Promise.all([
       VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
@@ -107,6 +107,17 @@ async function handler(req, res, ctx) {
             status: { $nin: ["CANCELLED", "COMPLETED"] },
           }).lean()
         : Promise.resolve([]),
+      // Fetch deals with delivery for prep board badge
+      Deal.find({
+        dealerId,
+        vehicleId: { $in: vehicleIds },
+        status: { $nin: ["CANCELLED"] },
+        $or: [
+          { "delivery.amount": { $gt: 0 } },
+          { "delivery.amountGross": { $gt: 0 } },
+          { "delivery.isFree": true },
+        ],
+      }).select("vehicleId delivery").lean(),
     ]);
 
     // Create lookup maps
@@ -142,6 +153,15 @@ async function handler(req, res, ctx) {
         status: deal.status,
         dealNumber: deal.dealNumber,
       };
+    }
+
+    // Build deals with delivery lookup (for prep board badge)
+    const deliveryByVehicle = {};
+    for (const deal of allDealsWithDelivery) {
+      const vid = deal.vehicleId.toString();
+      if (deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) {
+        deliveryByVehicle[vid] = true;
+      }
     }
 
     // Build tasks lookup
@@ -218,6 +238,8 @@ async function handler(req, res, ctx) {
         // Purchase info for SIV display
         purchase: vehicle.purchase || null,
         vatScheme: vehicle.vatScheme || null,
+        // Delivery badge for prep board
+        hasDelivery: deliveryByVehicle[vid] || false,
       };
     });
 
@@ -235,6 +257,7 @@ async function handler(req, res, ctx) {
       motExpiryDate,
       motHistory, // MOT history from DVSA API
       motHistoryFetchedAt,
+      firstRegisteredDate, // Date of first registration from DVSA
       dvlaDetails, // DVLA VES data
       lastDvlaFetchAt,
       showOnPrepBoard, // Whether to show on prep board
@@ -273,6 +296,8 @@ async function handler(req, res, ctx) {
       // MOT history from DVSA API
       ...(motHistory && { motHistory }),
       ...(motHistoryFetchedAt && { motHistoryFetchedAt: new Date(motHistoryFetchedAt) }),
+      // Date of first registration from DVSA
+      ...(firstRegisteredDate && { firstRegisteredDate: new Date(firstRegisteredDate) }),
       // DVLA VES details
       ...(dvlaDetails && { dvlaDetails }),
       ...(lastDvlaFetchAt && { lastDvlaFetchAt: new Date(lastDvlaFetchAt) }),

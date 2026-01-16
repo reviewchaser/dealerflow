@@ -520,7 +520,7 @@ export default function Calendar() {
           <div className="hidden lg:block lg:col-span-1 space-y-4">
             {/* Pending Holiday Approvals - Admin/Owner only */}
             {isAdmin && pendingHolidayCount > 0 && (
-              <Link href="/settings/holidays?filter=pending" className="block">
+              <Link href="/holidays?filter=pending" className="block">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 hover:bg-amber-100 transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-amber-100 rounded-lg">

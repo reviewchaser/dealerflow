@@ -25,6 +25,15 @@ async function handler(req, res, ctx) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Extract confirmed values from request body
+  const {
+    paymentMethod,
+    financeCompanyContactId: confirmedFinanceCompanyContactId,
+    financeCompanyName: confirmedFinanceCompanyName,
+    financeAdvance: confirmedFinanceAdvance,
+    cancelFinance,
+  } = req.body || {};
+
   // Validate ID format
   if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
     return res.status(400).json({ error: "Invalid deal ID" });
@@ -98,6 +107,19 @@ async function handler(req, res, ctx) {
     });
   }
 
+  // Part exchange settlement validation - must have settlement in writing if finance
+  const pxWithoutSettlement = (deal.partExchanges || []).filter(
+    px => px.hasFinance && !px.hasSettlementInWriting
+  );
+  if (pxWithoutSettlement.length > 0) {
+    return res.status(400).json({
+      error: "Finance settlement must be confirmed in writing for all part exchanges",
+      field: "partExchanges",
+      hint: `Part exchange ${pxWithoutSettlement[0].vrm || 'vehicle'} has outstanding finance but no written settlement confirmation`,
+      pxRequiringSettlement: pxWithoutSettlement.map(px => px.vrm),
+    });
+  }
+
   // Get dealer for settings
   const dealer = await Dealer.findById(dealerId);
 
@@ -111,14 +133,68 @@ async function handler(req, res, ctx) {
 
   // Calculate totals (vehicle already declared above for validation)
   const customer = deal.soldToContactId;
-  const invoiceTo = deal.invoiceToContactId;
+  let invoiceTo = deal.invoiceToContactId;
   const px = deal.partExchangeId;
+
+  // Handle cancel finance - customer changed their mind about finance
+  if (cancelFinance && deal.financeSelection?.isFinanced) {
+    deal.financeSelection = {
+      ...(deal.financeSelection || {}),
+      isFinanced: false,
+      financeCompanyContactId: null,
+      financeCompanyName: null,
+      advanceAmount: null,
+      toBeConfirmed: false,
+    };
+  }
+
+  // If a finance company contact was confirmed, update the deal
+  if (confirmedFinanceCompanyContactId && deal.financeSelection?.isFinanced && !cancelFinance) {
+    deal.financeSelection = {
+      ...(deal.financeSelection || {}),
+      financeCompanyContactId: confirmedFinanceCompanyContactId,
+      financeCompanyName: confirmedFinanceCompanyName || deal.financeSelection?.financeCompanyName,
+      toBeConfirmed: false,
+    };
+  }
+
+  // If financing through a company, fetch finance company contact to use as invoiceTo
+  let financeCompanyContact = null;
+  const financeContactId = confirmedFinanceCompanyContactId || deal.financeSelection?.financeCompanyContactId;
+  if (deal.financeSelection?.isFinanced && financeContactId && !cancelFinance) {
+    financeCompanyContact = await Contact.findById(financeContactId).lean();
+    if (financeCompanyContact && !invoiceTo) {
+      // Use finance company as invoiceTo if not explicitly set otherwise
+      invoiceTo = financeCompanyContact;
+    }
+  }
 
   // Get finance company name if PX has finance
   let pxFinanceCompanyName = null;
   if (px?.hasFinance && px?.financeCompanyContactId) {
     const financeCompany = await Contact.findById(px.financeCompanyContactId).select("displayName companyName").lean();
     pxFinanceCompanyName = financeCompany?.displayName || financeCompany?.companyName || null;
+  }
+
+  // If finance advance was confirmed, add it as a payment
+  if (confirmedFinanceAdvance && confirmedFinanceAdvance > 0) {
+    deal.payments.push({
+      type: "FINANCE_ADVANCE",
+      amount: confirmedFinanceAdvance,
+      method: "FINANCE",
+      paidAt: new Date(),
+      reference: confirmedFinanceCompanyName || "Finance Advance",
+      notes: confirmedFinanceCompanyName ? `Finance from ${confirmedFinanceCompanyName}` : null,
+      isRefunded: false,
+    });
+    // Also update financeSelection on deal
+    deal.financeSelection = {
+      ...(deal.financeSelection || {}),
+      isFinanced: true,
+      financeCompanyName: confirmedFinanceCompanyName || deal.financeSelection?.financeCompanyName,
+      advanceAmount: confirmedFinanceAdvance,
+      toBeConfirmed: false, // No longer TBC
+    };
   }
 
   // Add-ons calculations
@@ -167,11 +243,11 @@ async function handler(req, res, ctx) {
 
   const balanceDue = grandTotal - totalPaid - pxNetValue;
 
-  // Get fresh signed URL for logo (90 days expiry to match document share links)
+  // Get fresh signed URL for logo (7 days max for S3 signature v4)
   let logoUrl = dealer.logoUrl;
   if (dealer.logoKey) {
     try {
-      logoUrl = await getSignedGetUrl(dealer.logoKey, 90 * 24 * 60 * 60); // 90 days
+      logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60); // 7 days max for S3 signature v4
     } catch (logoError) {
       console.warn("[generate-invoice] Failed to generate logo URL:", logoError.message);
       // Fall back to stored logoUrl
@@ -189,6 +265,7 @@ async function handler(req, res, ctx) {
       year: vehicle.year,
       mileage: vehicle.mileageCurrent,
       colour: vehicle.colour,
+      firstRegisteredDate: vehicle.firstRegisteredDate || null,
     },
     customer: {
       name: customer.displayName,
@@ -243,6 +320,25 @@ async function handler(req, res, ctx) {
       hasSettlementInWriting: px.hasSettlementInWriting,
       financeSettled: px.financeSettled,
     } : null,
+    // Multiple part exchanges array (new format)
+    partExchanges: (deal.partExchanges && deal.partExchanges.length > 0)
+      ? deal.partExchanges.map(px => ({
+          vrm: px.vrm || null,
+          make: px.make || null,
+          model: px.model || null,
+          year: px.year || null,
+          colour: px.colour || null,
+          fuelType: px.fuelType || null,
+          mileage: px.mileage || null,
+          motExpiry: px.motExpiry || null,
+          dateOfRegistration: px.dateOfRegistration || null,
+          allowance: px.allowance || 0,
+          settlement: px.settlement || 0,
+          vatQualifying: px.vatQualifying || false,
+          hasFinance: px.hasFinance || false,
+          financeCompanyName: px.financeCompanyName || null,
+        }))
+      : [],
     payments: (deal.payments || []).map(p => ({
       type: p.type,
       amount: p.amount,
@@ -265,8 +361,10 @@ async function handler(req, res, ctx) {
     depositPaid,
     otherPayments,
     financeAdvance,
+    financeCompanyName: confirmedFinanceCompanyName || financeCompanyContact?.displayName || financeCompanyContact?.companyName || deal.financeSelection?.financeCompanyName || null,
     partExchangeNet: pxNetValue,
     balanceDue,
+    paymentMethod: paymentMethod || null,
     termsText: deal.termsSnapshotText || getTermsText(deal, dealer),
     dealer: {
       name: dealer.name,
@@ -311,6 +409,9 @@ async function handler(req, res, ctx) {
   deal.status = "INVOICED";
   deal.invoicedAt = new Date();
   deal.updatedByUserId = userId;
+  if (paymentMethod) {
+    deal.paymentMethod = paymentMethod;
+  }
   await deal.save();
 
   // Update vehicle status

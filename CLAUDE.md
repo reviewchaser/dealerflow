@@ -9,6 +9,73 @@ Rules:
 
 # DealerHQ - Development Notes
 
+## Completed Work (16 January 2026)
+
+### Sales/Invoicing Improvements - ALL PHASES COMPLETE
+
+**Stock Book Improvements:**
+
+1. **VAT Auto-Calculation** (`pages/stock-book.js`)
+   - When VAT Qualifying selected, enter Gross Price (inc VAT)
+   - Auto-calculates Net and VAT using dealer's VAT rate
+   - Uses `calculateVatFromGross()` helper
+
+2. **Purchase Date Column** (`pages/stock-book.js`)
+   - Shows `vehicle.purchase.purchaseDate` in table
+
+3. **Column Sorting** (`pages/stock-book.js`)
+   - Clickable headers with sort indicators (↑/↓)
+   - Sortable: Stock #, VRM, Vehicle, Days, SIV, Purchased
+   - Persists to localStorage
+
+**Deal Model Updates** (`models/Deal.js`):
+- `partExchanges[]` array for multiple PX (max 2)
+- `delivery.amountGross`, `delivery.amountNet`, `delivery.vatAmount`
+- `delivery.scheduledDate`, `delivery.scheduledCalendarEventId`
+- `signature` subdocument: timestamps, signer names, R2 image keys, driver link tokens
+- `totalPartExchangeNet` virtual for multiple PX calculation
+
+**Sales Wizard** (`components/SaleWizard.js`):
+- **New 5-step flow:**
+  1. Vehicle & Sale Type
+  2. Customer & PX (with duplicate check against stock)
+  3. Pricing & Options (finance toggle, delivery VAT)
+  4. Deposit (dedicated step with toggle + amount)
+  5. Review (with TBC items warning)
+- Multiple part exchanges UI (max 2, add/remove buttons)
+- PX duplicate check: warns if VRM already in stock
+- Delivery cost auto-calculates VAT if dealer is VAT registered
+- Finance toggle with "To Be Confirmed" option
+
+**Documents:**
+- `pages/public/invoice/[token].js` - Full breakdown with multiple PXs, delivery line, signature status block
+- `pages/public/deposit-receipt/[token].js` - Delivery charge line, signature status (distance sales: "no signature required")
+
+**E-Signature System:**
+- `components/SignatureCapture.js` - Modal with signature_pad for customer + dealer signatures
+- `pages/api/deals/[id]/sign.js` - Saves signatures to R2 storage, updates deal
+- `pages/api/deals/[id]/generate-driver-link.js` - Creates secure 24hr driver link
+- `pages/api/delivery-signing/[token].js` - API for driver signing submission
+- `pages/public/delivery-signing/[token].js` - Mobile-friendly public page for drivers
+- DealDrawer: "Sign in Showroom" button, "Generate Driver Link" button, signature status display
+
+**Delivery Features:**
+- `pages/api/vehicles/index.js` - Added `hasDelivery` flag lookup from Deal
+- `pages/prep.js` - Purple "Delivery" badge on vehicle cards
+- DealDrawer: "Schedule Delivery" modal creates calendar event, shows scheduled date
+
+### Testing Checklist (Recommended)
+1. **Stock Book**: Add vehicle with VAT Qualifying, verify auto-calc; test column sorting
+2. **Sales Wizard**: Complete full 5-step flow with deposit; try adding 2 PXs; test PX duplicate warning
+3. **Delivery VAT**: Toggle VAT registration in dealer settings, verify delivery input label changes
+4. **Invoice**: Generate invoice with multiple PXs, delivery, and add-ons - verify breakdown
+5. **E-Signature**: In DealDrawer, click "Sign in Showroom" for invoiced deal, capture both signatures
+6. **Driver Link**: Generate driver link, open in browser, complete signing flow
+7. **Prep Board**: Create deal with delivery set, check purple "Delivery" badge appears
+8. **Schedule Delivery**: Schedule from DealDrawer, verify calendar event created
+
+---
+
 ## Recent Work Completed (13 January 2026)
 
 ### Sales Module Amendments - 7 Fixes

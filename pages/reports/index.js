@@ -35,13 +35,21 @@ const AGE_BUCKETS = [
 // Report tabs configuration
 const REPORT_TABS = [
   { id: "sales", label: "Sales Summary", icon: "chart" },
+  { id: "profitloss", label: "Profit & Loss", icon: "trending" },
   { id: "vat", label: "VAT Report", icon: "receipt" },
-  { id: "vatdetail", label: "VAT Detail", icon: "document" },
   { id: "inventory", label: "Inventory", icon: "truck" },
   { id: "stockbook", label: "Stock Book", icon: "book" },
   { id: "profitable", label: "Profitable Models", icon: "trending" },
   { id: "payments", label: "Payments", icon: "cash" },
   { id: "warranty", label: "Warranty Costs", icon: "shield" },
+];
+
+// Profit & Loss filter options
+const PL_FILTERS = [
+  { id: "all", label: "All" },
+  { id: "vehicles", label: "Vehicles" },
+  { id: "addons", label: "Add-Ons" },
+  { id: "delivery", label: "Delivery" },
 ];
 
 export default function ReportsPage() {
@@ -58,6 +66,9 @@ export default function ReportsPage() {
   const [periodType, setPeriodType] = useState("this_month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  // Profit & Loss filter state
+  const [plFilter, setPlFilter] = useState("all");
 
   // Calculate period dates
   const getPeriodDates = useCallback(() => {
@@ -156,6 +167,104 @@ export default function ReportsPage() {
     const totalVat = completedDeals.reduce((sum, d) => sum + (d.vehicleVatAmount || 0), 0);
 
     return { deals: completedDeals, totalGross, totalNet, totalVat, dealCount: completedDeals.length };
+  }, [deals, from, to]);
+
+  // ==================== PROFIT & LOSS ====================
+  const calculateProfitLoss = useCallback(() => {
+    if (!from || !to) return {
+      vehicles: { tradeSales: 0, retailSales: 0, totalSales: 0, tradeProfit: 0, retailProfit: 0, totalProfit: 0, tradeCount: 0, retailCount: 0, avgMargin: 0 },
+      addons: { revenue: 0, cost: 0, profit: 0, count: 0 },
+      delivery: { total: 0, free: 0, paid: 0, revenue: 0 },
+      combined: { totalSales: 0, totalProfit: 0 },
+    };
+
+    // Filter invoiced deals in the period
+    const invoicedDeals = deals.filter((deal) => {
+      if (!["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) return false;
+      if (!deal.invoicedAt) return false;
+      const invoiceDate = new Date(deal.invoicedAt);
+      return invoiceDate >= from && invoiceDate <= to;
+    });
+
+    // === VEHICLE PROFIT ===
+    let tradeSales = 0, retailSales = 0, tradeProfit = 0, retailProfit = 0;
+    let tradeCount = 0, retailCount = 0;
+
+    invoicedDeals.forEach(deal => {
+      const salePrice = deal.vehiclePriceGross || 0;
+      const costPrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
+      const profit = salePrice - costPrice;
+
+      if (deal.saleType === "TRADE") {
+        tradeSales += salePrice;
+        tradeProfit += profit;
+        tradeCount++;
+      } else {
+        // RETAIL and EXPORT count as retail
+        retailSales += salePrice;
+        retailProfit += profit;
+        retailCount++;
+      }
+    });
+
+    const totalSales = tradeSales + retailSales;
+    const totalVehicleProfit = tradeProfit + retailProfit;
+    const avgMargin = totalSales > 0 ? (totalVehicleProfit / totalSales * 100) : 0;
+
+    // === ADD-ONS PROFIT ===
+    let addonsRevenue = 0, addonsCost = 0, addonsCount = 0;
+
+    invoicedDeals.forEach(deal => {
+      if (!deal.addOns || deal.addOns.length === 0) return;
+      deal.addOns.forEach(addon => {
+        const qty = addon.qty || 1;
+        const revenue = (addon.unitPriceNet || 0) * qty;
+        const cost = (addon.costPrice || 0) * qty;
+        addonsRevenue += revenue;
+        addonsCost += cost;
+        addonsCount += qty;
+      });
+    });
+
+    const addonsProfit = addonsRevenue - addonsCost;
+
+    // === DELIVERY PROFIT ===
+    let deliveryTotal = 0, deliveryFree = 0, deliveryPaid = 0, deliveryRevenue = 0;
+
+    invoicedDeals.forEach(deal => {
+      if (!deal.delivery) return;
+      const hasDelivery = deal.delivery.isFree || deal.delivery.amountGross > 0 || deal.delivery.amountNet > 0 || deal.delivery.amount > 0;
+      if (!hasDelivery) return;
+
+      deliveryTotal++;
+      if (deal.delivery.isFree) {
+        deliveryFree++;
+      } else {
+        deliveryPaid++;
+        deliveryRevenue += deal.delivery.amountNet || deal.delivery.amount || 0;
+      }
+    });
+
+    // === COMBINED ===
+    const combinedSales = totalSales + addonsRevenue + deliveryRevenue;
+    const combinedProfit = totalVehicleProfit + addonsProfit + deliveryRevenue; // Delivery has no cost
+
+    return {
+      vehicles: {
+        tradeSales, retailSales, totalSales,
+        tradeProfit, retailProfit, totalProfit: totalVehicleProfit,
+        tradeCount, retailCount, avgMargin,
+      },
+      addons: {
+        revenue: addonsRevenue, cost: addonsCost, profit: addonsProfit, count: addonsCount,
+      },
+      delivery: {
+        total: deliveryTotal, free: deliveryFree, paid: deliveryPaid, revenue: deliveryRevenue,
+      },
+      combined: {
+        totalSales: combinedSales, totalProfit: combinedProfit,
+      },
+    };
   }, [deals, from, to]);
 
   // ==================== VAT REPORT ====================
@@ -346,7 +455,8 @@ export default function ReportsPage() {
   const calculateVATDetail = useCallback(() => {
     if (!from || !to) return {
       box1: 0, box2: 0, box3: 0, box4: 0, box5: 0, box6: 0, box7: 0, box8: 0, box9: 0,
-      outputTransactions: [], inputTransactions: []
+      outputTransactions: [], inputTransactions: [],
+      purchasesNetTotal: 0, purchasesVatTotal: 0, salesNetTotal: 0, salesVatTotal: 0
     };
 
     // Filter deals for the period
@@ -369,32 +479,23 @@ export default function ReportsPage() {
     const outputTransactions = [];
 
     invoicedDeals.forEach(deal => {
-      if (deal.vatScheme === "VAT_QUALIFYING") {
-        const vatAmount = deal.vehicleVatAmount || 0;
-        box1 += vatAmount;
-        outputTransactions.push({
-          date: deal.invoicedAt,
-          type: "SALE",
-          description: `${deal.vehicle?.regCurrent || "N/A"} - ${deal.vehicle?.make || ""} ${deal.vehicle?.model || ""}`,
-          customer: deal.customer?.displayName || "Unknown",
-          net: deal.vehiclePriceNet || 0,
-          vat: vatAmount,
-          gross: deal.vehiclePriceGross || 0,
-          scheme: "VAT_QUALIFYING",
-        });
-      } else {
-        // Margin scheme - no VAT breakdown but still include in sales totals
-        outputTransactions.push({
-          date: deal.invoicedAt,
-          type: "SALE",
-          description: `${deal.vehicle?.regCurrent || "N/A"} - ${deal.vehicle?.make || ""} ${deal.vehicle?.model || ""}`,
-          customer: deal.customer?.displayName || "Unknown",
-          net: deal.vehiclePriceGross || 0, // For margin scheme, gross = net (no VAT)
-          vat: 0,
-          gross: deal.vehiclePriceGross || 0,
-          scheme: "MARGIN",
-        });
-      }
+      const isVatQualifying = deal.vatScheme === "VAT_QUALIFYING";
+      const vatAmount = isVatQualifying ? (deal.vehicleVatAmount || 0) : 0;
+      if (isVatQualifying) box1 += vatAmount;
+
+      outputTransactions.push({
+        date: deal.invoicedAt,
+        type: "SALE",
+        stockNo: deal.vehicle?.stockNumber || "—",
+        vrm: deal.vehicle?.regCurrent || "N/A",
+        description: `${deal.vehicle?.make || ""} ${deal.vehicle?.model || ""}`.trim(),
+        customer: deal.customer?.displayName || "Unknown",
+        vatRate: isVatQualifying ? 20 : 0,
+        net: isVatQualifying ? (deal.vehiclePriceNet || 0) : (deal.vehiclePriceGross || 0),
+        vat: vatAmount,
+        gross: deal.vehiclePriceGross || 0,
+        scheme: isVatQualifying ? "VAT_QUALIFYING" : "MARGIN",
+      });
     });
 
     // INPUT VAT (Purchases)
@@ -402,23 +503,28 @@ export default function ReportsPage() {
     const inputTransactions = [];
 
     purchasedVehicles.forEach(vehicle => {
-      const purchaseVat = vehicle.purchase?.purchaseVatAmount || 0;
+      const isVatQualifying = vehicle.vatScheme === "VAT_QUALIFYING";
+      const purchaseVat = vehicle.purchase?.purchaseVat || 0;
       const purchaseNet = vehicle.purchase?.purchasePriceNet || 0;
       const purchaseGross = vehicle.purchase?.purchasePriceGross || purchaseNet + purchaseVat;
 
-      if (vehicle.vatScheme === "VAT_QUALIFYING" && purchaseVat > 0) {
+      // Only reclaim VAT on VAT qualifying purchases
+      if (isVatQualifying && purchaseVat > 0) {
         box4 += purchaseVat;
       }
 
       inputTransactions.push({
         date: vehicle.purchase?.purchaseDate,
         type: "PURCHASE",
-        description: `${vehicle.regCurrent || "N/A"} - ${vehicle.make || ""} ${vehicle.model || ""}`,
+        stockNo: vehicle.stockNumber || "—",
+        vrm: vehicle.regCurrent || "N/A",
+        description: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
         supplier: vehicle.purchase?.supplierName || "Unknown",
+        vatRate: isVatQualifying ? 20 : 0,
         net: purchaseNet,
-        vat: purchaseVat,
+        vat: isVatQualifying ? purchaseVat : 0,
         gross: purchaseGross,
-        scheme: vehicle.vatScheme === "VAT_QUALIFYING" ? "VAT_QUALIFYING" : "MARGIN",
+        scheme: isVatQualifying ? "VAT_QUALIFYING" : "MARGIN",
       });
     });
 
@@ -436,10 +542,17 @@ export default function ReportsPage() {
     const box8 = 0;
     const box9 = 0;
 
+    // Totals for summary table
+    const purchasesNetTotal = inputTransactions.reduce((sum, t) => sum + t.net, 0);
+    const purchasesVatTotal = inputTransactions.reduce((sum, t) => sum + t.vat, 0);
+    const salesNetTotal = outputTransactions.reduce((sum, t) => sum + t.net, 0);
+    const salesVatTotal = outputTransactions.reduce((sum, t) => sum + t.vat, 0);
+
     return {
       box1, box2, box3, box4, box5, box6, box7, box8, box9,
       outputTransactions: outputTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)),
       inputTransactions: inputTransactions.sort((a, b) => new Date(a.date) - new Date(b.date)),
+      purchasesNetTotal, purchasesVatTotal, salesNetTotal, salesVatTotal,
     };
   }, [deals, vehicles, from, to]);
 
@@ -499,8 +612,141 @@ export default function ReportsPage() {
     };
   }, [deals, from, to]);
 
+  // ==================== ADD-ONS REPORT ====================
+  const calculateAddOns = useCallback(() => {
+    if (!from || !to) return { items: [], byProduct: {}, totalRevenue: 0, totalCost: 0, totalProfit: 0, totalQty: 0 };
+
+    // Filter invoiced deals in the period
+    const invoicedDeals = deals.filter((deal) => {
+      if (!["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) return false;
+      if (!deal.invoicedAt) return false;
+      const invoiceDate = new Date(deal.invoicedAt);
+      return invoiceDate >= from && invoiceDate <= to;
+    });
+
+    const byProduct = {};
+    let totalRevenue = 0;
+    let totalCost = 0;
+    let totalQty = 0;
+
+    invoicedDeals.forEach(deal => {
+      if (!deal.addOns || deal.addOns.length === 0) return;
+
+      deal.addOns.forEach(addon => {
+        const key = addon.name || "Unknown";
+        const qty = addon.qty || 1;
+        const revenue = (addon.unitPriceNet || 0) * qty;
+        const cost = (addon.costPrice || 0) * qty;
+
+        if (!byProduct[key]) {
+          byProduct[key] = {
+            name: addon.name,
+            category: addon.category || "OTHER",
+            qty: 0,
+            revenue: 0,
+            cost: 0,
+            profit: 0,
+          };
+        }
+
+        byProduct[key].qty += qty;
+        byProduct[key].revenue += revenue;
+        byProduct[key].cost += cost;
+        byProduct[key].profit += (revenue - cost);
+
+        totalRevenue += revenue;
+        totalCost += cost;
+        totalQty += qty;
+      });
+    });
+
+    const items = Object.values(byProduct).sort((a, b) => b.profit - a.profit);
+    const avgMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue * 100) : 0;
+
+    return {
+      items,
+      byProduct,
+      totalRevenue,
+      totalCost,
+      totalProfit: totalRevenue - totalCost,
+      totalQty,
+      avgMargin,
+    };
+  }, [deals, from, to]);
+
+  // ==================== DELIVERY REPORT ====================
+  const calculateDelivery = useCallback(() => {
+    if (!from || !to) return { deliveries: [], totalDeliveries: 0, freeDeliveries: 0, paidDeliveries: 0, totalRevenueNet: 0, totalVat: 0, totalRevenueGross: 0, avgCharge: 0 };
+
+    // Filter deals with delivery in the period
+    const dealsWithDelivery = deals.filter((deal) => {
+      if (!["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) return false;
+      // Use invoicedAt or deliveredAt for the date
+      const deliveryDate = deal.deliveredAt ? new Date(deal.deliveredAt) : (deal.invoicedAt ? new Date(deal.invoicedAt) : null);
+      if (!deliveryDate) return false;
+      return deliveryDate >= from && deliveryDate <= to && deal.delivery;
+    });
+
+    let totalDeliveries = 0;
+    let freeDeliveries = 0;
+    let paidDeliveries = 0;
+    let totalRevenueNet = 0;
+    let totalVat = 0;
+    let totalRevenueGross = 0;
+    const deliveries = [];
+
+    dealsWithDelivery.forEach(deal => {
+      const delivery = deal.delivery;
+      if (!delivery) return;
+
+      // Only count if there's a delivery amount or it's marked as free
+      const hasDelivery = delivery.isFree || delivery.amountGross > 0 || delivery.amountNet > 0 || delivery.amount > 0;
+      if (!hasDelivery) return;
+
+      totalDeliveries++;
+
+      if (delivery.isFree) {
+        freeDeliveries++;
+      } else {
+        paidDeliveries++;
+        const net = delivery.amountNet || delivery.amount || 0;
+        const vat = delivery.vatAmount || 0;
+        const gross = delivery.amountGross || (net + vat);
+
+        totalRevenueNet += net;
+        totalVat += vat;
+        totalRevenueGross += gross;
+      }
+
+      deliveries.push({
+        date: deal.deliveredAt || deal.invoicedAt,
+        dealNumber: deal.dealNumber,
+        vrm: deal.vehicle?.regCurrent || "N/A",
+        customer: deal.customer?.displayName || "Unknown",
+        isFree: delivery.isFree || false,
+        chargeNet: delivery.isFree ? 0 : (delivery.amountNet || delivery.amount || 0),
+        chargeGross: delivery.isFree ? 0 : (delivery.amountGross || delivery.amount || 0),
+        status: deal.status,
+      });
+    });
+
+    const avgCharge = paidDeliveries > 0 ? totalRevenueNet / paidDeliveries : 0;
+
+    return {
+      deliveries: deliveries.sort((a, b) => new Date(b.date) - new Date(a.date)),
+      totalDeliveries,
+      freeDeliveries,
+      paidDeliveries,
+      totalRevenueNet,
+      totalVat,
+      totalRevenueGross,
+      avgCharge,
+    };
+  }, [deals, from, to]);
+
   // Calculate all reports
   const salesData = calculateSales();
+  const profitLossData = calculateProfitLoss();
   const vatData = calculateVAT();
   const vatDetailData = calculateVATDetail();
   const inventoryData = calculateInventory();
@@ -611,6 +857,38 @@ export default function ReportsPage() {
           m.totalProfit.toFixed(2), m.avgProfit.toFixed(2), m.margin
         ]);
         filename = "profitable-models";
+        break;
+      case "profitloss":
+        if (plFilter === "vehicles" || plFilter === "all") {
+          headers = ["Category", "Sales (Inc VAT)", "Net Profit", "Units", "Avg Margin %"];
+          rows = [
+            ["Trade Sales", profitLossData.vehicles.tradeSales.toFixed(2), profitLossData.vehicles.tradeProfit.toFixed(2), profitLossData.vehicles.tradeCount, "—"],
+            ["Retail Sales", profitLossData.vehicles.retailSales.toFixed(2), profitLossData.vehicles.retailProfit.toFixed(2), profitLossData.vehicles.retailCount, profitLossData.vehicles.avgMargin.toFixed(1)],
+            ["Vehicle Total", profitLossData.vehicles.totalSales.toFixed(2), profitLossData.vehicles.totalProfit.toFixed(2), profitLossData.vehicles.tradeCount + profitLossData.vehicles.retailCount, profitLossData.vehicles.avgMargin.toFixed(1)],
+          ];
+          if (plFilter === "all") {
+            rows.push(["Add-Ons", profitLossData.addons.revenue.toFixed(2), profitLossData.addons.profit.toFixed(2), profitLossData.addons.count, profitLossData.addons.revenue > 0 ? ((profitLossData.addons.profit / profitLossData.addons.revenue) * 100).toFixed(1) : "0"]);
+            rows.push(["Delivery", profitLossData.delivery.revenue.toFixed(2), profitLossData.delivery.revenue.toFixed(2), profitLossData.delivery.paid, "100.0"]);
+            rows.push(["TOTAL", profitLossData.combined.totalSales.toFixed(2), profitLossData.combined.totalProfit.toFixed(2), "", ""]);
+          }
+        } else if (plFilter === "addons") {
+          headers = ["Metric", "Value"];
+          rows = [
+            ["Total Revenue (Net)", profitLossData.addons.revenue.toFixed(2)],
+            ["Total Cost", profitLossData.addons.cost.toFixed(2)],
+            ["Total Profit", profitLossData.addons.profit.toFixed(2)],
+            ["Items Sold", profitLossData.addons.count],
+          ];
+        } else if (plFilter === "delivery") {
+          headers = ["Metric", "Value"];
+          rows = [
+            ["Total Deliveries", profitLossData.delivery.total],
+            ["Free Deliveries", profitLossData.delivery.free],
+            ["Paid Deliveries", profitLossData.delivery.paid],
+            ["Revenue (Net)", profitLossData.delivery.revenue.toFixed(2)],
+          ];
+        }
+        filename = "profit-loss";
         break;
       default:
         toast.error("Export not available for this report");
@@ -821,246 +1099,335 @@ export default function ReportsPage() {
               {/* VAT Report Tab */}
               {activeTab === "vat" && (
                 <div className="space-y-6">
+                  {/* Legend */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                    <p className="text-sm text-blue-700">
+                      <span className="font-semibold">*</span> = VAT Qualifying (20% VAT applies). Unmarked items are Margin Scheme (0% VAT).
+                    </p>
+                  </div>
+
+                  {/* Summary Cards */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-white rounded-2xl border border-blue-200 p-5">
-                      <p className="text-sm text-blue-600 font-medium">Output VAT Due</p>
-                      <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(vatData.totalOutputVAT)}</p>
+                      <p className="text-sm text-blue-600 font-medium">Output VAT (Sales)</p>
+                      <p className="text-2xl font-bold text-blue-600 mt-1">{formatCurrency(vatDetailData.box1)}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-emerald-200 p-5">
+                      <p className="text-sm text-emerald-600 font-medium">Input VAT (Purchases)</p>
+                      <p className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(vatDetailData.box4)}</p>
+                    </div>
+                    <div className={`bg-white rounded-2xl border p-5 ${vatDetailData.box5 >= 0 ? "border-red-200" : "border-emerald-200"}`}>
+                      <p className={`text-sm font-medium ${vatDetailData.box5 >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+                        Net VAT {vatDetailData.box5 >= 0 ? "to Pay" : "to Reclaim"}
+                      </p>
+                      <p className={`text-2xl font-bold mt-1 ${vatDetailData.box5 >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+                        {formatCurrency(Math.abs(vatDetailData.box5))}
+                      </p>
                     </div>
                     <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                      <p className="text-sm text-slate-500 font-medium">Total Sales</p>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{formatCurrency(vatData.totalSalesGross)}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                      <p className="text-sm text-slate-500 font-medium">VAT Qualifying</p>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{vatData.vatQualifyingDeals.length}</p>
-                    </div>
-                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
-                      <p className="text-sm text-slate-500 font-medium">Margin Scheme</p>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{vatData.marginDeals.length}</p>
+                      <p className="text-sm text-slate-500 font-medium">Total Vehicles Sold</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">{vatDetailData.outputTransactions.length}</p>
                     </div>
                   </div>
 
-                  {vatData.vatQualifyingDeals.length > 0 && (
-                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                      <div className="px-5 py-4 border-b border-slate-100">
-                        <h2 className="text-lg font-bold text-slate-900">VAT Qualifying Sales</h2>
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-slate-50">
+                  {/* Vehicle Purchases */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h2 className="text-lg font-bold text-slate-900">Vehicle Purchases</h2>
+                      <p className="text-sm text-slate-500 mt-0.5">{vatDetailData.inputTransactions.length} vehicles purchased in period</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Tax Point</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Stock No.</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Description</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Scheme</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Net</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">VAT Input</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {vatDetailData.inputTransactions.length === 0 ? (
                             <tr>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Date</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Vehicle</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Net</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">VAT</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Gross</th>
+                              <td colSpan={6} className="px-5 py-6 text-center text-slate-500">No purchases in this period</td>
                             </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {vatData.vatQualifyingDeals.map((deal) => (
-                              <tr key={deal.id}>
-                                <td className="px-5 py-3 text-sm text-slate-600">{formatDate(deal.invoicedAt)}</td>
-                                <td className="px-5 py-3 text-sm text-slate-900">{deal.vehicle?.regCurrent} - {deal.vehicle?.make}</td>
-                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(deal.vehiclePriceNet)}</td>
-                                <td className="px-5 py-3 text-sm text-right text-blue-600 font-medium">{formatCurrency(deal.vehicleVatAmount)}</td>
-                                <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(deal.vehiclePriceGross)}</td>
+                          ) : (
+                            vatDetailData.inputTransactions.map((t, idx) => (
+                              <tr key={idx}>
+                                <td className="px-5 py-3 text-sm text-slate-600">{formatDate(t.date)}</td>
+                                <td className="px-5 py-3 text-sm font-mono">
+                                  {t.stockNo}{t.scheme === "VAT_QUALIFYING" && <span className="text-blue-600 font-bold">*</span>}
+                                </td>
+                                <td className="px-5 py-3 text-sm text-slate-900">{t.vrm} - {t.description}</td>
+                                <td className="px-5 py-3 text-sm">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.scheme === "VAT_QUALIFYING" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                                    {t.scheme === "VAT_QUALIFYING" ? "VAT Qual" : "Margin"}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(t.net)}</td>
+                                <td className="px-5 py-3 text-sm text-right font-medium text-emerald-600">
+                                  {t.scheme === "VAT_QUALIFYING" ? formatCurrency(t.vat) : "—"}
+                                </td>
                               </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-blue-50">
+                            ))
+                          )}
+                        </tbody>
+                        <tfoot className="bg-emerald-50">
+                          <tr>
+                            <td colSpan={4} className="px-5 py-3 font-semibold text-sm">Total Purchases</td>
+                            <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.purchasesNetTotal)}</td>
+                            <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(vatDetailData.purchasesVatTotal)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Vehicle Sales */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h2 className="text-lg font-bold text-slate-900">Vehicle Sales</h2>
+                      <p className="text-sm text-slate-500 mt-0.5">{vatDetailData.outputTransactions.length} vehicles sold in period</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Tax Point</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Stock No.</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Description</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Scheme</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Sales</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">VAT Output</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {vatDetailData.outputTransactions.length === 0 ? (
                             <tr>
-                              <td colSpan={2} className="px-5 py-3 font-semibold">Total</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatData.totalSalesNet)}</td>
-                              <td className="px-5 py-3 text-right font-bold text-blue-600">{formatCurrency(vatData.totalOutputVAT)}</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatData.vatQualifyingDeals.reduce((s, d) => s + (d.vehiclePriceGross || 0), 0))}</td>
+                              <td colSpan={6} className="px-5 py-6 text-center text-slate-500">No sales in this period</td>
                             </tr>
-                          </tfoot>
-                        </table>
+                          ) : (
+                            vatDetailData.outputTransactions.map((t, idx) => (
+                              <tr key={idx}>
+                                <td className="px-5 py-3 text-sm text-slate-600">{formatDate(t.date)}</td>
+                                <td className="px-5 py-3 text-sm font-mono">
+                                  {t.stockNo}{t.scheme === "VAT_QUALIFYING" && <span className="text-blue-600 font-bold">*</span>}
+                                </td>
+                                <td className="px-5 py-3 text-sm text-slate-900">{t.vrm} - {t.description}</td>
+                                <td className="px-5 py-3 text-sm">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.scheme === "VAT_QUALIFYING" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
+                                    {t.scheme === "VAT_QUALIFYING" ? "VAT Qual" : "Margin"}
+                                  </span>
+                                </td>
+                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(t.net)}</td>
+                                <td className="px-5 py-3 text-sm text-right font-medium text-blue-600">
+                                  {t.scheme === "VAT_QUALIFYING" ? formatCurrency(t.vat) : "—"}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        <tfoot className="bg-blue-50">
+                          <tr>
+                            <td colSpan={4} className="px-5 py-3 font-semibold text-sm">Total Sales</td>
+                            <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.salesNetTotal)}</td>
+                            <td className="px-5 py-3 text-right font-bold text-blue-600">{formatCurrency(vatDetailData.salesVatTotal)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* VAT Summary */}
+                  <div className={`rounded-2xl p-6 ${vatDetailData.box5 >= 0 ? "bg-red-600" : "bg-emerald-600"} text-white`}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-sm opacity-80">Output VAT (Due on Sales)</p>
+                        <p className="text-2xl font-bold">{formatCurrency(vatDetailData.box1)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-80">Input VAT (Reclaimed on Purchases)</p>
+                        <p className="text-2xl font-bold">- {formatCurrency(vatDetailData.box4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-80">Net VAT {vatDetailData.box5 >= 0 ? "to Pay to HMRC" : "to Reclaim from HMRC"}</p>
+                        <p className="text-3xl font-bold">{formatCurrency(Math.abs(vatDetailData.box5))}</p>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 
-              {/* VAT Detail Tab - HMRC Format */}
-              {activeTab === "vatdetail" && (
+              {/* Profit & Loss Tab */}
+              {activeTab === "profitloss" && (
                 <div className="space-y-6">
-                  {/* HMRC VAT Boxes */}
-                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                    <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                      <h2 className="text-lg font-bold text-slate-900">VAT Return Summary (HMRC Boxes)</h2>
-                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Ready for MTD</span>
+                  {/* Header with filter */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">Profit and Loss Summary</h2>
+                      <p className="text-sm text-slate-500">
+                        For the period {formatDate(from)} up to and including {formatDate(to)}
+                      </p>
                     </div>
-                    <div className="p-5 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* VAT Due Section */}
-                        <div className="bg-blue-50 rounded-xl p-4 space-y-3">
-                          <h3 className="text-sm font-semibold text-blue-700 uppercase tracking-wide">VAT Due</h3>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Box 1: VAT due on sales</span>
-                              <span className="font-semibold text-slate-900">{formatCurrency(vatDetailData.box1)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Box 2: VAT due on EU acquisitions</span>
-                              <span className="font-semibold text-slate-900">{formatCurrency(vatDetailData.box2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center border-t border-blue-200 pt-2">
-                              <span className="text-sm font-medium text-blue-700">Box 3: Total VAT due</span>
-                              <span className="font-bold text-blue-700">{formatCurrency(vatDetailData.box3)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* VAT Reclaimed Section */}
-                        <div className="bg-emerald-50 rounded-xl p-4 space-y-3">
-                          <h3 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide">VAT Reclaimed</h3>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-slate-600">Box 4: VAT on purchases</span>
-                              <span className="font-semibold text-slate-900">{formatCurrency(vatDetailData.box4)}</span>
-                            </div>
-                            <div className="flex justify-between items-center border-t border-emerald-200 pt-2">
-                              <span className="text-sm font-medium text-emerald-700">Box 5: Net VAT {vatDetailData.box5 >= 0 ? "to pay" : "to reclaim"}</span>
-                              <span className={`font-bold ${vatDetailData.box5 >= 0 ? "text-red-600" : "text-emerald-600"}`}>
-                                {formatCurrency(Math.abs(vatDetailData.box5))}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Sales & Purchases Totals */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-200">
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 uppercase">Box 6</p>
-                          <p className="text-sm font-medium">Sales ex VAT</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(vatDetailData.box6)}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 uppercase">Box 7</p>
-                          <p className="text-sm font-medium">Purchases ex VAT</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(vatDetailData.box7)}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 uppercase">Box 8</p>
-                          <p className="text-sm font-medium">EU Supplies</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(vatDetailData.box8)}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-xs text-slate-500 uppercase">Box 9</p>
-                          <p className="text-sm font-medium">EU Acquisitions</p>
-                          <p className="text-lg font-bold text-slate-900">{formatCurrency(vatDetailData.box9)}</p>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-500">Show:</span>
+                      <select
+                        value={plFilter}
+                        onChange={(e) => setPlFilter(e.target.value)}
+                        className="select select-bordered select-sm"
+                      >
+                        {PL_FILTERS.map((f) => (
+                          <option key={f.id} value={f.id}>{f.label}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
-                  {/* Output VAT Transactions */}
-                  {vatDetailData.outputTransactions.length > 0 && (
+                  {/* Vehicles Section */}
+                  {(plFilter === "all" || plFilter === "vehicles") && (
+                    <>
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100">
+                          <h3 className="text-lg font-bold text-slate-900">Vehicle Sales (Including VAT)</h3>
+                        </div>
+                        <div className="p-5 space-y-3">
+                          <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                            <span className="text-sm text-slate-600">Total Sales Trade:</span>
+                            <span className="font-semibold">{formatCurrency(profitLossData.vehicles.tradeSales)}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                            <span className="text-sm text-slate-600">Total Sales Retail:</span>
+                            <span className="font-semibold">{formatCurrency(profitLossData.vehicles.retailSales)}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 bg-slate-50 -mx-5 px-5">
+                            <span className="text-sm font-semibold text-slate-900">Total Sales:</span>
+                            <span className="font-bold text-slate-900">{formatCurrency(profitLossData.vehicles.totalSales)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100">
+                          <h3 className="text-lg font-bold text-slate-900">Net Vehicle Sales Profit (Net of VAT)</h3>
+                        </div>
+                        <div className="p-5 space-y-3">
+                          <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                            <div>
+                              <span className="text-sm text-slate-600">Trade Sales Net Profit:</span>
+                              {profitLossData.vehicles.tradeCount > 0 && (
+                                <span className="text-xs text-slate-400 ml-2">({profitLossData.vehicles.tradeCount} trade units sold)</span>
+                              )}
+                              {profitLossData.vehicles.tradeCount === 0 && (
+                                <span className="text-xs text-slate-400 ml-2">(No trade units sold)</span>
+                              )}
+                            </div>
+                            <span className={`font-semibold ${profitLossData.vehicles.tradeProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                              {formatCurrency(profitLossData.vehicles.tradeProfit)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                            <div>
+                              <span className="text-sm text-slate-600">Retail Sales Net Profit:</span>
+                              {profitLossData.vehicles.retailCount > 0 && (
+                                <span className="text-xs text-slate-400 ml-2">
+                                  ({profitLossData.vehicles.retailCount} units sold with an average net margin of {profitLossData.vehicles.avgMargin.toFixed(2)}%)
+                                </span>
+                              )}
+                            </div>
+                            <span className={`font-semibold ${profitLossData.vehicles.retailProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                              {formatCurrency(profitLossData.vehicles.retailProfit)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center py-2 bg-emerald-50 -mx-5 px-5">
+                            <span className="text-sm font-bold text-emerald-800">Vehicle Sales Total Net Profit:</span>
+                            <span className={`font-bold text-lg ${profitLossData.vehicles.totalProfit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                              {formatCurrency(profitLossData.vehicles.totalProfit)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Add-Ons Section */}
+                  {(plFilter === "all" || plFilter === "addons") && (
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                       <div className="px-5 py-4 border-b border-slate-100">
-                        <h2 className="text-lg font-bold text-slate-900">Output VAT - Sales</h2>
-                        <p className="text-sm text-slate-500 mt-0.5">{vatDetailData.outputTransactions.length} transactions</p>
+                        <h3 className="text-lg font-bold text-slate-900">Add-Ons Profit</h3>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-slate-50">
-                            <tr>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Date</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Vehicle</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Customer</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Scheme</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Net</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">VAT</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Gross</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {vatDetailData.outputTransactions.map((t, idx) => (
-                              <tr key={idx}>
-                                <td className="px-5 py-3 text-sm text-slate-600">{formatDate(t.date)}</td>
-                                <td className="px-5 py-3 text-sm text-slate-900">{t.description}</td>
-                                <td className="px-5 py-3 text-sm text-slate-600">{t.customer}</td>
-                                <td className="px-5 py-3 text-sm">
-                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.scheme === "VAT_QUALIFYING" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                                    {t.scheme === "VAT_QUALIFYING" ? "VAT Qual" : "Margin"}
-                                  </span>
-                                </td>
-                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(t.net)}</td>
-                                <td className="px-5 py-3 text-sm text-right text-blue-600 font-medium">{formatCurrency(t.vat)}</td>
-                                <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(t.gross)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-blue-50">
-                            <tr>
-                              <td colSpan={4} className="px-5 py-3 font-semibold">Total Output VAT</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.outputTransactions.reduce((s, t) => s + t.net, 0))}</td>
-                              <td className="px-5 py-3 text-right font-bold text-blue-600">{formatCurrency(vatDetailData.box1)}</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.outputTransactions.reduce((s, t) => s + t.gross, 0))}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
+                      <div className="p-5 space-y-3">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Total Add-Ons Revenue (Net):</span>
+                          <span className="font-semibold">{formatCurrency(profitLossData.addons.revenue)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Total Add-Ons Cost:</span>
+                          <span className="font-semibold">{formatCurrency(profitLossData.addons.cost)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Items Sold:</span>
+                          <span className="font-semibold">{profitLossData.addons.count}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 bg-emerald-50 -mx-5 px-5">
+                          <span className="text-sm font-bold text-emerald-800">Add-Ons Net Profit:</span>
+                          <span className={`font-bold ${profitLossData.addons.profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            {formatCurrency(profitLossData.addons.profit)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {/* Input VAT Transactions */}
-                  {vatDetailData.inputTransactions.length > 0 && (
+                  {/* Delivery Section */}
+                  {(plFilter === "all" || plFilter === "delivery") && (
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                       <div className="px-5 py-4 border-b border-slate-100">
-                        <h2 className="text-lg font-bold text-slate-900">Input VAT - Purchases</h2>
-                        <p className="text-sm text-slate-500 mt-0.5">{vatDetailData.inputTransactions.length} transactions</p>
+                        <h3 className="text-lg font-bold text-slate-900">Delivery Revenue</h3>
                       </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead className="bg-slate-50">
-                            <tr>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Date</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Vehicle</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Supplier</th>
-                              <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Scheme</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Net</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">VAT</th>
-                              <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Gross</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {vatDetailData.inputTransactions.map((t, idx) => (
-                              <tr key={idx}>
-                                <td className="px-5 py-3 text-sm text-slate-600">{formatDate(t.date)}</td>
-                                <td className="px-5 py-3 text-sm text-slate-900">{t.description}</td>
-                                <td className="px-5 py-3 text-sm text-slate-600">{t.supplier}</td>
-                                <td className="px-5 py-3 text-sm">
-                                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${t.scheme === "VAT_QUALIFYING" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                                    {t.scheme === "VAT_QUALIFYING" ? "VAT Qual" : "Margin"}
-                                  </span>
-                                </td>
-                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(t.net)}</td>
-                                <td className="px-5 py-3 text-sm text-right text-emerald-600 font-medium">{formatCurrency(t.vat)}</td>
-                                <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(t.gross)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot className="bg-emerald-50">
-                            <tr>
-                              <td colSpan={4} className="px-5 py-3 font-semibold">Total Input VAT</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.inputTransactions.reduce((s, t) => s + t.net, 0))}</td>
-                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(vatDetailData.box4)}</td>
-                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(vatDetailData.inputTransactions.reduce((s, t) => s + t.gross, 0))}</td>
-                            </tr>
-                          </tfoot>
-                        </table>
+                      <div className="p-5 space-y-3">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Total Deliveries:</span>
+                          <span className="font-semibold">{profitLossData.delivery.total}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Free Deliveries:</span>
+                          <span className="font-semibold">{profitLossData.delivery.free}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Paid Deliveries:</span>
+                          <span className="font-semibold">{profitLossData.delivery.paid}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 bg-emerald-50 -mx-5 px-5">
+                          <span className="text-sm font-bold text-emerald-800">Delivery Revenue (Net):</span>
+                          <span className="font-bold text-emerald-700">{formatCurrency(profitLossData.delivery.revenue)}</span>
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {vatDetailData.outputTransactions.length === 0 && vatDetailData.inputTransactions.length === 0 && (
-                    <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
-                      <p className="text-slate-500">No VAT transactions for this period</p>
+                  {/* Combined Total (only show when "All" filter) */}
+                  {plFilter === "all" && (
+                    <div className="bg-emerald-600 rounded-2xl p-6 text-white">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-emerald-100 text-sm">Combined Total Net Profit</p>
+                          <p className="text-xs text-emerald-200 mt-1">Vehicles + Add-Ons + Delivery</p>
+                        </div>
+                        <p className="text-3xl font-bold">{formatCurrency(profitLossData.combined.totalProfit)}</p>
+                      </div>
                     </div>
                   )}
+
+                  {/* Disclaimer */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                    <p className="text-sm text-amber-800">
+                      <span className="font-semibold">Note:</span> This is only a summary Profit and Loss report, produced for simplicity and ease of use.
+                      A full P&L accounting report would need to include such items as depreciation of fixed assets, etc., which are not included in this summary.
+                      Consult a certified accountant for a full P&L report.
+                    </p>
+                  </div>
                 </div>
               )}
 

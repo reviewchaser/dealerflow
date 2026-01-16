@@ -193,7 +193,7 @@ export default function Reviews() {
                         </td>
                         <td className="px-6 py-4">
                           {review.vehicleId?.regCurrent ? (
-                            <span className="font-mono text-sm bg-slate-100 px-2 py-1 rounded">{review.vehicleId.regCurrent}</span>
+                            <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">{review.vehicleId.regCurrent}</span>
                           ) : (
                             <span className="text-slate-400">—</span>
                           )}

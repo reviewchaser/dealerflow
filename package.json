@@ -17,6 +17,7 @@
     "dotenv": "^17.2.3",
     "form-data": "^4.0.5",
     "formidable": "^3.5.4",
+    "html2pdf.js": "^0.14.0",
     "mailgun.js": "^12.4.0",
     "micro": "^10.0.1",
     "mongodb": "^6.21.0",

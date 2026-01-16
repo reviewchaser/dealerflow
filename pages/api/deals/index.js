@@ -116,6 +116,7 @@ async function handler(req, res, ctx) {
       soldToContactId,
       invoiceToContactId,
       buyerType,
+      buyerUse,
       saleChannel,
       saleType,
       vatScheme,
@@ -126,6 +127,13 @@ async function handler(req, res, ctx) {
       internalNotes,
       warrantyMonths,
       deliveryAddress,
+      // Fields from SaleWizard that were previously missing
+      addOns,
+      financeSelection,
+      requests,
+      paymentType,
+      delivery,
+      partExchanges,
     } = req.body;
 
     // Validate required fields
@@ -213,6 +221,7 @@ async function handler(req, res, ctx) {
       soldToContactId,
       invoiceToContactId,
       buyerType: buyerType || "CONSUMER",
+      buyerUse: buyerUse || "PERSONAL",
       saleChannel: saleChannel || "IN_PERSON",
       saleType: saleType || "RETAIL",
       vatScheme: scheme,
@@ -226,6 +235,13 @@ async function handler(req, res, ctx) {
       deliveryAddress,
       salesPersonId: userId,
       createdByUserId: userId,
+      // Fields from SaleWizard
+      addOns: addOns || [],
+      financeSelection: financeSelection || {},
+      requests: requests || [],
+      paymentType: paymentType || "CASH",
+      delivery: delivery || {},
+      partExchanges: partExchanges || [],
     });
 
     // Update vehicle status

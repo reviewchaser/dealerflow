@@ -141,7 +141,7 @@ export default function DepositReceiptPage() {
           </div>
 
           {/* Details */}
-          <div className="p-8 print:p-6 space-y-8 print:space-y-6">
+          <div className="p-8 print:p-4 space-y-6 print:space-y-4">
             {/* Date and Receipt Info */}
             <div className="grid grid-cols-2 gap-8">
               <div>
@@ -191,6 +191,14 @@ export default function DepositReceiptPage() {
                         <td className="px-4 py-3 text-slate-900">{snap.vehicle.year}</td>
                       </tr>
                     )}
+                    {snap.vehicle?.firstRegisteredDate && (
+                      <tr>
+                        <td className="px-4 py-3 text-slate-500 bg-slate-50">First Registered</td>
+                        <td className="px-4 py-3 text-slate-900">
+                          {new Date(snap.vehicle.firstRegisteredDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                        </td>
+                      </tr>
+                    )}
                     {snap.vehicle?.colour && (
                       <tr>
                         <td className="px-4 py-3 text-slate-500 bg-slate-50">Colour</td>
@@ -220,53 +228,124 @@ export default function DepositReceiptPage() {
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Add-ons Included</p>
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full">
-                    <tbody className="divide-y divide-slate-100">
-                      {snap.addOns.map((addon, idx) => (
-                        <tr key={idx}>
-                          <td className="px-4 py-3 text-slate-900">
-                            {addon.name}
-                            {addon.qty > 1 && <span className="text-slate-500 text-sm ml-1">x{addon.qty}</span>}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                            {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
-                            {snap.isVatRegistered !== false && addon.vatTreatment === "STANDARD" && (
-                              <span className="text-slate-400 text-xs ml-1">+ VAT</span>
-                            )}
-                          </td>
+                    {snap.isVatRegistered !== false && (
+                      <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium">Item</th>
+                          <th className="px-4 py-2 text-right font-medium">Net</th>
+                          <th className="px-4 py-2 text-right font-medium">VAT</th>
+                          <th className="px-4 py-2 text-right font-medium">Total</th>
                         </tr>
-                      ))}
+                      </thead>
+                    )}
+                    <tbody className="divide-y divide-slate-100">
+                      {snap.addOns.map((addon, idx) => {
+                        const netAmount = addon.unitPriceNet * (addon.qty || 1);
+                        const vatAmount = addon.vatTreatment === "STANDARD" ? netAmount * (addon.vatRate || 0.2) : 0;
+                        const totalAmount = netAmount + vatAmount;
+                        return snap.isVatRegistered !== false ? (
+                          <tr key={idx}>
+                            <td className="px-4 py-3 text-slate-900">
+                              {addon.name}
+                              {addon.qty > 1 && <span className="text-slate-500 text-sm ml-1">x{addon.qty}</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(netAmount)}</td>
+                            <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(vatAmount)}</td>
+                            <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(totalAmount)}</td>
+                          </tr>
+                        ) : (
+                          <tr key={idx}>
+                            <td className="px-4 py-3 text-slate-900">
+                              {addon.name}
+                              {addon.qty > 1 && <span className="text-slate-500 text-sm ml-1">x{addon.qty}</span>}
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(netAmount)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
 
-            {/* Finance Selection (if applicable) */}
-            {snap.financeSelection?.isFinanced && (
-              <div className="bg-blue-50 rounded-xl p-5 print:bg-blue-50 border border-blue-200">
-                <p className="text-sm text-blue-700 uppercase tracking-wide font-medium mb-2">Finance</p>
-                <p className="text-lg font-semibold text-blue-800">
-                  {snap.financeSelection.toBeConfirmed
-                    ? "To Be Confirmed"
-                    : snap.financeSelection.financeCompanyName || "Finance Company"}
+            {/* Sale Options Summary - Compact Grid */}
+            <div className={`grid gap-2 print:gap-1 ${snap.financeSelection?.isFinanced ? 'grid-cols-3' : 'grid-cols-2'}`}>
+              {/* Delivery Required */}
+              <div className="bg-slate-50 rounded-lg p-2 print:p-1.5 border border-slate-200">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium print:text-[9px]">Delivery</p>
+                <p className="text-sm font-semibold text-slate-900 print:text-xs">
+                  {snap.delivery?.isFree || snap.delivery?.amountGross > 0 || snap.delivery?.amount > 0 ? "Yes" : "Collection"}
                 </p>
-                <p className="text-sm text-blue-600 mt-1">Customer has indicated they wish to use finance for this purchase</p>
+              </div>
+              {/* Finance Required */}
+              <div className="bg-slate-50 rounded-lg p-2 print:p-1.5 border border-slate-200">
+                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium print:text-[9px]">Finance</p>
+                <p className="text-sm font-semibold text-slate-900 print:text-xs">
+                  {snap.financeSelection?.isFinanced
+                    ? (snap.financeSelection.toBeConfirmed ? "Yes (TBC)" : "Yes")
+                    : "No"}
+                </p>
+              </div>
+              {/* Finance Company - inline if financed */}
+              {snap.financeSelection?.isFinanced && (
+                <div className="bg-blue-50 rounded-lg p-2 print:p-1.5 border border-blue-200">
+                  <p className="text-xs text-blue-600 uppercase tracking-wide font-medium print:text-[9px]">Finance Co.</p>
+                  <p className="text-sm font-semibold text-blue-800 print:text-xs truncate">
+                    {snap.financeSelection.toBeConfirmed
+                      ? "TBC"
+                      : snap.financeSelection.financeCompanyName || "TBC"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Part Exchange(s) */}
+            {snap.partExchanges?.length > 0 && (
+              <div className="bg-purple-50 rounded-lg p-3 print:p-2 print:bg-purple-50 border border-purple-200">
+                <p className="text-xs text-purple-700 uppercase tracking-wide font-medium mb-2 print:text-[9px]">
+                  Part Exchange{snap.partExchanges.length > 1 ? "s" : ""}
+                </p>
+                <div className="space-y-3 print:space-y-2">
+                  {snap.partExchanges.map((px, idx) => (
+                    <div key={idx} className="border-b border-purple-200 pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between text-sm print:text-xs">
+                        <span className="font-semibold text-slate-900">
+                          {px.vrm || `PX ${idx + 1}`}
+                        </span>
+                        <span className="font-semibold text-purple-700">{formatCurrency(px.allowance - (px.settlement || 0))}</span>
+                      </div>
+                      {(px.make || px.model || px.year || px.colour || px.mileage) && (
+                        <div className="text-xs text-slate-600 mt-1 print:text-[9px]">
+                          {px.make && px.model && <span>{px.make} {px.model}</span>}
+                          {px.year && <span> • {px.year}</span>}
+                          {px.colour && <span> • {px.colour}</span>}
+                          {px.mileage && <span> • {px.mileage.toLocaleString()} miles</span>}
+                          {px.fuelType && <span> • {px.fuelType}</span>}
+                        </div>
+                      )}
+                      {px.settlement > 0 && (
+                        <div className="text-xs text-purple-600 mt-1 print:text-[9px]">
+                          Allowance: {formatCurrency(px.allowance)} | Settlement: {formatCurrency(px.settlement)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            {/* Payment Details */}
-            <div className="bg-emerald-50 rounded-xl p-6 print:bg-emerald-50">
-              <p className="text-sm text-emerald-600 uppercase tracking-wide font-medium mb-4">Deposit Payment</p>
-              <div className="grid grid-cols-2 gap-6">
+            {/* Payment Details - Compact */}
+            <div className="bg-emerald-50 rounded-lg p-3 print:p-2 print:bg-emerald-50 border border-emerald-200">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-emerald-600">Amount</p>
-                  <p className="text-3xl font-bold text-emerald-700">{formatCurrency(deposit?.amount)}</p>
+                  <p className="text-xs text-emerald-600 uppercase tracking-wide font-medium print:text-[9px]">Deposit</p>
+                  <p className="text-xl font-bold text-emerald-700 print:text-lg">{formatCurrency(deposit?.amount)}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-emerald-600">Payment Method</p>
-                  <p className="text-lg font-semibold text-emerald-700">{deposit?.method}</p>
+                <div className="text-right">
+                  <p className="text-sm text-emerald-600 print:text-xs">{deposit?.method}</p>
                   {deposit?.reference && (
-                    <p className="text-sm text-emerald-600">Ref: {deposit.reference}</p>
+                    <p className="text-xs text-emerald-500 print:text-[9px]">Ref: {deposit.reference}</p>
                   )}
                 </div>
               </div>
@@ -288,100 +367,202 @@ export default function DepositReceiptPage() {
                       </td>
                     </tr>
                   )}
-                  {(snap.delivery?.amount > 0 || snap.delivery?.isFree) && (
+                  {(snap.delivery?.amountGross > 0 || snap.delivery?.amount > 0 || snap.delivery?.isFree) && (
                     <tr>
-                      <td className="px-4 py-3 text-slate-600">Delivery</td>
+                      <td className="px-4 py-3 text-slate-600">Delivery Charge</td>
                       <td className="px-4 py-3 text-right font-semibold text-slate-900">
                         {snap.delivery?.isFree ? (
                           <span className="text-emerald-600">FREE</span>
                         ) : (
-                          formatCurrency(snap.delivery.amount)
+                          formatCurrency(snap.delivery?.amountGross || snap.delivery?.amount)
                         )}
                       </td>
                     </tr>
                   )}
-                  <tr>
-                    <td className="px-4 py-3 text-slate-600">Total</td>
-                    <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.grandTotal)}</td>
+                  <tr className="bg-slate-800 text-white">
+                    <td className="px-4 py-3 font-semibold">Cash Price</td>
+                    <td className="px-4 py-3 text-right font-bold">{formatCurrency(snap.grandTotal)}</td>
                   </tr>
+                  {/* Part Exchange deductions */}
+                  {snap.partExchanges?.map((px, idx) => (
+                    <tr key={`px-sum-${idx}`}>
+                      <td className="px-4 py-3 text-slate-600">
+                        Part Exchange {snap.partExchanges.length > 1 ? `#${idx + 1}` : ""}
+                        {px.vrm && ` (${px.vrm})`}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-600">
+                        -{formatCurrency((px.allowance || 0) - (px.settlement || 0))}
+                      </td>
+                    </tr>
+                  ))}
                   <tr>
                     <td className="px-4 py-3 text-slate-600">Deposit Paid</td>
                     <td className="px-4 py-3 text-right font-semibold text-emerald-600">-{formatCurrency(snap.totalPaid)}</td>
                   </tr>
-                  <tr className="bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-900">Balance Due</td>
-                    <td className="px-4 py-3 text-right text-xl font-bold text-slate-900">{formatCurrency(snap.balanceDue)}</td>
+                  <tr className="bg-blue-50">
+                    <td className="px-4 py-3 font-semibold text-blue-900">Balance Due</td>
+                    <td className="px-4 py-3 text-right text-xl font-bold text-blue-900">{formatCurrency(snap.balanceDue)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* Agreed Work Items */}
+            {/* Agreed Work Items - Compact */}
             {snap.requests?.length > 0 && (
-              <div className="print:break-inside-avoid bg-orange-50 rounded-xl p-5 print:bg-orange-50 border border-orange-200">
-                <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-3">Agreed Work - Dealer Commitments</p>
-                <ul className="space-y-2">
+              <div className="print:break-inside-avoid bg-orange-50 rounded-lg p-3 print:p-2 print:bg-orange-50 border border-orange-200">
+                <p className="text-xs text-orange-700 uppercase tracking-wide font-medium mb-1 print:mb-0.5 print:text-[9px]">Agreed Work</p>
+                <ul className="space-y-0.5 print:space-y-0">
                   {snap.requests.map((req, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <svg className="w-4 h-4 text-orange-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <span className="text-slate-900 font-medium">{req.title}</span>
-                        {req.details && <span className="text-slate-500"> - {req.details}</span>}
-                      </div>
+                    <li key={idx} className="flex items-start gap-1 text-sm print:text-xs">
+                      <span className="text-orange-600 shrink-0">•</span>
+                      <span className="text-slate-900">{req.title}{req.details && ` - ${req.details}`}</span>
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-orange-600 mt-3 italic">
-                  The above items have been agreed between the dealer and customer as part of this sale.
-                </p>
               </div>
             )}
 
-            {/* Taken By */}
+            {/* Taken By - Compact */}
             {snap.takenBy && (
-              <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                <div className="flex-1">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Deposit Taken By</p>
-                  <p className="text-slate-900 font-medium mt-1">{snap.takenBy.name}</p>
+              <div className="flex items-center justify-between p-2 print:p-1.5 bg-slate-50 rounded-lg border border-slate-200">
+                <div>
+                  <span className="text-xs text-slate-400 print:text-[9px]">Taken by: </span>
+                  <span className="text-sm text-slate-900 font-medium print:text-xs">{snap.takenBy.name}</span>
                 </div>
-                <div className="text-right text-sm text-slate-500">
+                <span className="text-xs text-slate-500 print:text-[9px]">
                   {formatDate(document.issuedAt)}
-                </div>
+                </span>
               </div>
             )}
 
-            {/* Signature Section - for non-distance sales */}
-            {snap.saleChannel !== "DISTANCE" && (
-              <div className="print:break-inside-avoid border-t border-slate-200 pt-6">
-                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-4">Acknowledgement</p>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <p className="text-xs text-slate-600">I confirm receipt of this deposit receipt and agreement to the terms stated.</p>
-                    <div className="border-b-2 border-slate-300 pt-8 mt-2">
-                      <p className="text-xs text-slate-400 -mb-1">Customer Signature</p>
+            {/* Signature Block - for non-distance sales */}
+            {snap.saleChannel === "DISTANCE" ? (
+              <div className="print:break-inside-avoid border-t border-slate-200 pt-4 print:pt-2">
+                <p className="text-sm text-slate-400 text-center print:text-xs">Deposit receipt — no signature required for distance sales</p>
+              </div>
+            ) : (
+              <div className="print:break-inside-avoid print-keep-together border-t border-slate-200 pt-4 print:pt-2">
+                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3 print:mb-2 print:text-xs">Signatures</p>
+
+                {/* Signature Images */}
+                {(snap.signature?.customerSignatureImageUrl || snap.signature?.dealerSignatureImageUrl) && (
+                  <div className="grid grid-cols-2 gap-4 print:gap-2 mb-3 print:mb-2">
+                    {/* Customer Signature Image */}
+                    <div className="text-center">
+                      <p className="text-xs text-slate-500 mb-1">Customer</p>
+                      {snap.signature?.customerSignatureImageUrl ? (
+                        <div className="border border-slate-200 rounded bg-white p-2 print:p-1">
+                          <img
+                            src={snap.signature.customerSignatureImageUrl}
+                            alt="Customer signature"
+                            className="max-h-12 print:max-h-8 mx-auto signature-image"
+                          />
+                        </div>
+                      ) : (
+                        <div className="border border-dashed border-slate-300 rounded p-2 print:p-1 text-xs text-slate-400">
+                          Pending
+                        </div>
+                      )}
+                      {snap.signature?.customerSignerName && (
+                        <p className="text-xs text-slate-600 mt-1">{snap.signature.customerSignerName}</p>
+                      )}
                     </div>
-                    <div className="border-b border-slate-200 pt-4">
-                      <p className="text-xs text-slate-400 -mb-1">Print Name</p>
-                    </div>
-                    <div className="border-b border-slate-200 pt-4">
-                      <p className="text-xs text-slate-400 -mb-1">Date</p>
+
+                    {/* Dealer Signature Image */}
+                    <div className="text-center">
+                      <p className="text-xs text-slate-500 mb-1">Dealer</p>
+                      {snap.signature?.dealerSignatureImageUrl ? (
+                        <div className="border border-slate-200 rounded bg-white p-2 print:p-1">
+                          <img
+                            src={snap.signature.dealerSignatureImageUrl}
+                            alt="Dealer signature"
+                            className="max-h-12 print:max-h-8 mx-auto signature-image"
+                          />
+                        </div>
+                      ) : (
+                        <div className="border border-dashed border-slate-300 rounded p-2 print:p-1 text-xs text-slate-400">
+                          Pending
+                        </div>
+                      )}
+                      {snap.signature?.dealerSignerName && (
+                        <p className="text-xs text-slate-600 mt-1">{snap.signature.dealerSignerName}</p>
+                      )}
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-xs text-slate-600">Authorised on behalf of {snap.dealer?.companyName || snap.dealer?.name}</p>
-                    <div className="border-b-2 border-slate-300 pt-8 mt-2">
-                      <p className="text-xs text-slate-400 -mb-1">Dealer Signature</p>
-                    </div>
-                    <div className="border-b border-slate-200 pt-4">
-                      <p className="text-xs text-slate-400 -mb-1">Print Name</p>
-                    </div>
-                    <div className="border-b border-slate-200 pt-4">
-                      <p className="text-xs text-slate-400 -mb-1">Date</p>
+                )}
+
+                {/* Fallback status display if no images */}
+                {!snap.signature?.customerSignatureImageUrl && !snap.signature?.dealerSignatureImageUrl && (
+                  <div className="bg-slate-50 rounded-lg p-3 print:p-2">
+                    <div className="grid grid-cols-2 gap-4 print:gap-2">
+                      {/* Customer Status */}
+                      <div className="flex items-center gap-2">
+                        {snap.signature?.customerSignedAt ? (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                              <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-900">Customer signed</p>
+                              <p className="text-xs text-slate-500">
+                                {snap.signature.customerSignerName} - {new Date(snap.signature.customerSignedAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                              <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-900">Customer</p>
+                              <p className="text-xs text-amber-600">Pending</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {/* Dealer Status */}
+                      <div className="flex items-center gap-2">
+                        {snap.signature?.dealerSignedAt ? (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                              <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-900">Dealer signed</p>
+                              <p className="text-xs text-slate-500">
+                                {snap.signature.dealerSignerName} - {new Date(snap.signature.dealerSignedAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+                              <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-slate-900">Dealer</p>
+                              <p className="text-xs text-amber-600">Pending</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* Signed electronically note */}
+                {(snap.signature?.customerSignedAt || snap.signature?.dealerSignedAt) && (
+                  <p className="text-xs text-slate-400 mt-2 print:mt-1 text-center print:text-[8px]">Signed electronically via DealerHQ</p>
+                )}
               </div>
             )}
 
@@ -408,17 +589,105 @@ export default function DepositReceiptPage() {
         @media print {
           @page {
             size: A4;
-            margin: 15mm 10mm;
+            margin: 6mm;
           }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            font-size: 9px !important;
           }
           .print\\:break-inside-avoid {
             break-inside: avoid;
+            page-break-inside: avoid;
           }
           .print\\:break-before-page {
             break-before: page;
+          }
+          .print-keep-together {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          /* Aggressive spacing compression */
+          .print\\:p-6, .print\\:p-4 {
+            padding: 0.35rem !important;
+          }
+          .p-5, .p-6, .p-8 {
+            padding: 0.35rem !important;
+          }
+          .print\\:space-y-6 > * + *, .space-y-6 > * + * {
+            margin-top: 0.35rem !important;
+          }
+          .mb-2, .mb-3, .mb-4 {
+            margin-bottom: 0.15rem !important;
+          }
+          .mt-1, .mt-2, .mt-3 {
+            margin-top: 0.15rem !important;
+          }
+          .pt-4, .pt-5, .pt-6 {
+            padding-top: 0.2rem !important;
+          }
+          .pb-4, .pb-6 {
+            padding-bottom: 0.2rem !important;
+          }
+          .gap-3, .gap-4, .gap-6, .gap-8 {
+            gap: 0.2rem !important;
+          }
+          /* Compact headers */
+          h1, .text-2xl {
+            font-size: 14px !important;
+          }
+          h2, .text-xl {
+            font-size: 12px !important;
+          }
+          .text-lg {
+            font-size: 11px !important;
+          }
+          .text-3xl {
+            font-size: 16px !important;
+          }
+          .text-sm {
+            font-size: 9px !important;
+          }
+          .text-xs {
+            font-size: 8px !important;
+          }
+          /* Compact table cells */
+          td, th {
+            padding: 0.2rem 0.35rem !important;
+            font-size: 9px !important;
+          }
+          /* Ensure tables and sections stay together */
+          table {
+            break-inside: avoid;
+          }
+          /* Compact rounded boxes */
+          .rounded-xl {
+            padding: 0.25rem !important;
+            border-radius: 4px !important;
+          }
+          .rounded-lg {
+            padding: 0.2rem !important;
+            border-radius: 3px !important;
+          }
+          /* Keep colored sections compact */
+          .bg-slate-50, .bg-emerald-50, .bg-purple-50, .bg-blue-50, .bg-orange-50 {
+            padding: 0.25rem !important;
+          }
+          /* Signature images - ensure they print */
+          .signature-image {
+            max-height: 30px !important;
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+            display: block !important;
+            visibility: visible !important;
+          }
+          img {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+          /* Grid compaction */
+          .grid-cols-2 {
+            gap: 0.25rem !important;
           }
         }
       `}</style>

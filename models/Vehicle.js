@@ -47,8 +47,15 @@ const vehicleSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Whether vehicle is advertised online
+    isAdvertised: {
+      type: Boolean,
+      default: false,
+    },
     locationId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleLocation" },
     motExpiryDate: { type: Date },
+    // Date of first registration from DVSA (firstUsedDate)
+    firstRegisteredDate: { type: Date },
     motStatus: {
       type: String,
       enum: ["unknown", "valid", "expired", "due_soon", "not_required"],

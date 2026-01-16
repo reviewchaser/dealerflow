@@ -162,7 +162,16 @@ const dealerSchema = new mongoose.Schema(
         depositTerms: { type: String },
       },
 
-      // Default warranty
+      // Default warranty settings
+      defaultWarranty: {
+        enabled: { type: Boolean, default: false },
+        type: { type: String, enum: ["FREE", "PAID"], default: "FREE" },
+        priceNet: { type: Number, default: 0 },
+        durationMonths: { type: Number, default: 3 },
+        name: { type: String, default: "Standard Warranty" },
+        linkedProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
+      },
+      // Legacy field - to be deprecated
       defaultWarrantyMonths: { type: Number, default: 3 },
     },
   },

@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 import { toast } from "react-hot-toast";
+import ContactPicker from "@/components/ContactPicker";
 
 const STEPS = [
   { id: 1, title: "Vehicle & Sale Type" },
-  { id: 2, title: "Customer" },
-  { id: 3, title: "Pricing & Add-ons" },
-  { id: 4, title: "Review" },
+  { id: 2, title: "Customer & PX" },
+  { id: 3, title: "Pricing & Options" },
+  { id: 4, title: "Deposit" },
+  { id: 5, title: "Review" },
 ];
 
 const STORAGE_KEY = "dealerhq_sale_wizard";
@@ -34,7 +36,7 @@ const initialWizardData = {
   vehicleId: null,
   vehicle: null,
   saleType: "RETAIL",
-  buyerUse: "PRIVATE",
+  buyerUse: "PERSONAL",
   saleChannel: "IN_PERSON",
 
   // Step 2: Customer & Part Exchange
@@ -55,12 +57,17 @@ const initialWizardData = {
     },
   },
   hasPx: false,
+  // Legacy single PX (for backwards compat with saved wizard data)
   px: {
     vrm: "",
     make: "",
     model: "",
     year: "",
     mileage: "",
+    colour: "",
+    fuelType: "",
+    motExpiry: "",
+    dateOfRegistration: "",
     allowance: "",
     settlementAmount: "",
     vatQualifying: false,
@@ -71,18 +78,25 @@ const initialWizardData = {
     sourceType: "MANUAL",
     sourceId: null,
   },
+  // Multiple part exchanges array (max 2)
+  partExchanges: [],
 
   // Step 3: Pricing & Add-ons
   salePriceGross: "",
   vatScheme: "MARGIN",
   addOns: [],
-  paymentType: "CASH",
+
+  // Step 4: Deposit
+  wantsDeposit: false, // "Would customer like to leave a deposit?"
   depositAmount: "",
   depositMethod: "CARD",
 
   // Delivery
   delivery: {
-    amount: "",
+    amountGross: "", // Gross amount (inc VAT if VAT registered)
+    amountNet: "",   // Net amount (calculated if VAT registered)
+    vatAmount: "",   // VAT amount (calculated if VAT registered)
+    amount: "",      // Legacy field
     isFree: false,
   },
 
@@ -93,6 +107,9 @@ const initialWizardData = {
     financeCompanyName: "",
     toBeConfirmed: false,
   },
+
+  // Agreed work items (dealer commitments)
+  requests: [],
 };
 
 export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
@@ -123,6 +140,21 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
   // Finance companies
   const [financeCompanies, setFinanceCompanies] = useState([]);
 
+  // Dealer settings (for VAT rate)
+  const [dealer, setDealer] = useState(null);
+
+  // PX duplicate warning
+  const [pxDuplicateWarning, setPxDuplicateWarning] = useState(null);
+
+  // Custom add-on form
+  const [showCustomAddOnForm, setShowCustomAddOnForm] = useState(false);
+  const [customAddOn, setCustomAddOn] = useState({
+    name: "",
+    unitPriceGross: "",
+    category: "OTHER",
+    vatTreatment: "STANDARD",
+  });
+
   // Load saved state from localStorage
   useEffect(() => {
     if (isOpen) {
@@ -147,6 +179,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       fetchCustomers();
       fetchProducts();
       fetchFinanceCompanies();
+      fetchDealer();
     }
   }, [isOpen, preSelectedVehicleId]);
 
@@ -231,6 +264,39 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     }
   };
 
+  const fetchDealer = async () => {
+    try {
+      const res = await fetch("/api/dealer");
+      if (res.ok) {
+        const data = await res.json();
+        setDealer(data);
+
+        // Auto-add default warranty if enabled and this is a fresh wizard (no saved data)
+        const saved = localStorage.getItem(STORAGE_KEY);
+        const dw = data.salesSettings?.defaultWarranty;
+        if (!saved && dw?.enabled) {
+          const warrantyAddOn = {
+            productId: `warranty_default_${Date.now()}`,
+            name: dw.name || "Standard Warranty",
+            qty: 1,
+            unitPriceNet: dw.type === "PAID" ? (dw.priceNet || 0) : 0,
+            vatTreatment: "NO_VAT", // Warranties are typically VAT exempt
+            category: "WARRANTY",
+            isCustom: true,
+            isDefaultWarranty: true, // Flag to identify this is the default warranty
+            durationMonths: dw.durationMonths || 3,
+          };
+          setWizardData(prev => ({
+            ...prev,
+            addOns: [...prev.addOns, warrantyAddOn],
+          }));
+        }
+      }
+    } catch (e) {
+      console.error("[SaleWizard] Failed to fetch dealer:", e);
+    }
+  };
+
   // Search unconverted appraisals by VRM
   const searchAppraisals = async (query) => {
     if (!query || query.length < 2) {
@@ -272,6 +338,56 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     toast.success(`Selected appraisal for ${appraisal.vehicleMake || appraisal.make} ${appraisal.vehicleModel || appraisal.model}`);
   };
 
+  // Add current PX to the partExchanges array (max 2)
+  const addCurrentPxToList = () => {
+    const currentPx = wizardData.px;
+    if (!currentPx.vrm || !currentPx.allowance) {
+      toast.error("Enter VRM and allowance before adding");
+      return;
+    }
+    if ((wizardData.partExchanges?.length || 0) >= 2) {
+      toast.error("Maximum 2 part exchanges allowed");
+      return;
+    }
+    // Check for duplicate VRM in existing PXs
+    if (wizardData.partExchanges?.some(px => px.vrm === currentPx.vrm)) {
+      toast.error("This vehicle is already added as a part exchange");
+      return;
+    }
+
+    setWizardData(prev => ({
+      ...prev,
+      partExchanges: [...(prev.partExchanges || []), { ...currentPx }],
+      // Reset the current px form for next entry
+      px: {
+        vrm: "",
+        make: "",
+        model: "",
+        year: "",
+        mileage: "",
+        allowance: "",
+        settlementAmount: "",
+        vatQualifying: false,
+        hasFinance: false,
+        financeCompanyId: "",
+        financeCompanyName: "",
+        hasSettlementInWriting: false,
+        sourceType: "MANUAL",
+        sourceId: null,
+      },
+    }));
+    setPxDuplicateWarning(null);
+    toast.success(`Added ${currentPx.make} ${currentPx.model} as part exchange`);
+  };
+
+  // Remove a PX from the list
+  const removePxFromList = (index) => {
+    setWizardData(prev => ({
+      ...prev,
+      partExchanges: prev.partExchanges.filter((_, i) => i !== index),
+    }));
+  };
+
   // PX VRM Lookup
   const handlePxLookup = async () => {
     const vrm = wizardData.px.vrm?.replace(/\s/g, "").toUpperCase();
@@ -280,8 +396,32 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       return;
     }
 
+    // Clear any previous duplicate warning
+    setPxDuplicateWarning(null);
+
     setIsLookingUpPx(true);
     try {
+      // First check if this VRM already exists in stock
+      const stockCheckRes = await fetch(`/api/vehicles?regCurrent=${vrm}`);
+      if (stockCheckRes.ok) {
+        const stockData = await stockCheckRes.json();
+        const existingVehicle = Array.isArray(stockData)
+          ? stockData.find(v => v.regCurrent?.toUpperCase() === vrm)
+          : stockData.vehicles?.find(v => v.regCurrent?.toUpperCase() === vrm);
+
+        if (existingVehicle) {
+          // Vehicle exists in stock - show warning and block
+          setPxDuplicateWarning({
+            vrm,
+            stockNumber: existingVehicle.stockNumber,
+            make: existingVehicle.make,
+            model: existingVehicle.model,
+          });
+          setIsLookingUpPx(false);
+          toast.error("This vehicle is already in your stock book");
+          return;
+        }
+      }
       const [dvlaRes, motRes] = await Promise.all([
         fetch("/api/dvla-lookup", {
           method: "POST",
@@ -310,6 +450,10 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           make: dvlaData.make || motData?.make || prev.px.make,
           model: motData?.model || dvlaData.model || prev.px.model,
           year: dvlaData.yearOfManufacture || dvlaData.year || prev.px.year,
+          colour: dvlaData.colour || motData?.primaryColour || prev.px.colour,
+          fuelType: dvlaData.fuelType || motData?.fuelType || prev.px.fuelType,
+          motExpiry: motData?.motExpiryDate || prev.px.motExpiry,
+          dateOfRegistration: dvlaData.monthOfFirstRegistration || dvlaData.firstRegistration || prev.px.dateOfRegistration,
         },
       }));
 
@@ -425,7 +569,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         vehiclePriceNet,
         vehicleVatAmount,
         vehiclePriceGross: salePriceGross,
-        paymentType: wizardData.paymentType,
         addOns: wizardData.addOns.map(a => ({
           productId: a.productId,
           name: a.name,
@@ -434,9 +577,12 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           vatTreatment: a.vatTreatment || "STANDARD",
           vatRate: 0.2,
         })),
-        // Delivery
+        // Delivery with VAT breakdown
         delivery: {
-          amount: parseFloat(wizardData.delivery?.amount) || 0,
+          amount: parseFloat(wizardData.delivery?.amountGross || wizardData.delivery?.amount) || 0,
+          amountGross: parseFloat(wizardData.delivery?.amountGross) || 0,
+          amountNet: parseFloat(wizardData.delivery?.amountNet) || 0,
+          vatAmount: parseFloat(wizardData.delivery?.vatAmount) || 0,
           isFree: wizardData.delivery?.isFree || false,
         },
         // Finance selection
@@ -445,6 +591,37 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           financeCompanyContactId: wizardData.financeSelection.financeCompanyId || undefined,
           toBeConfirmed: wizardData.financeSelection.toBeConfirmed || false,
         } : undefined,
+        // Agreed work items
+        requests: (wizardData.requests || [])
+          .filter(r => r.title?.trim())
+          .map(r => ({
+            title: r.title.trim(),
+            details: r.details?.trim() || "",
+            type: r.type || "PREP",
+            status: "REQUESTED",
+          })),
+        // Part exchanges - embed in deal for display
+        partExchanges: [
+          ...(wizardData.partExchanges || []),
+          // Also include current px form if filled but not added to list
+          ...(wizardData.px?.vrm && wizardData.px?.allowance ? [wizardData.px] : []),
+        ].map(px => ({
+          vrm: px.vrm,
+          make: px.make || "",
+          model: px.model || "",
+          year: parseInt(px.year) || undefined,
+          mileage: parseInt(px.mileage) || undefined,
+          colour: px.colour || "",
+          fuelType: px.fuelType || "",
+          allowance: parseFloat(px.allowance) || 0,
+          settlement: parseFloat(px.settlementAmount || px.settlement) || 0,
+          vatQualifying: px.vatQualifying || false,
+          hasFinance: px.hasFinance || false,
+          financeCompanyContactId: px.financeCompanyId || undefined,
+          financeCompanyName: px.financeCompanyName || "",
+          hasSettlementInWriting: px.hasSettlementInWriting || false,
+          conditionNotes: px.conditionNotes || "",
+        })),
       };
 
       const dealRes = await fetch("/api/deals", {
@@ -459,9 +636,14 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         throw new Error(dealData.error || "Failed to create deal");
       }
 
-      // Handle part exchange if exists
-      if (wizardData.hasPx && wizardData.px.vrm) {
-        const pxData = wizardData.px;
+      // Handle part exchanges (multiple or single)
+      const allPxs = [
+        ...(wizardData.partExchanges || []),
+        // Also include current px form if filled but not added to list
+        ...(wizardData.px?.vrm && wizardData.px?.allowance ? [wizardData.px] : []),
+      ];
+
+      for (const pxData of allPxs) {
         await fetch("/api/part-exchanges", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -484,14 +666,14 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         });
       }
 
-      // Take deposit if provided
-      if (wizardData.depositAmount && parseFloat(wizardData.depositAmount) > 0) {
+      // Take deposit if customer wants one and amount is provided
+      if (wizardData.wantsDeposit && wizardData.depositAmount && parseFloat(wizardData.depositAmount) > 0) {
         await fetch(`/api/deals/${dealData.id}/take-deposit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amount: parseFloat(wizardData.depositAmount),
-            method: wizardData.depositMethod,
+            method: wizardData.depositMethod || "CARD",
           }),
         });
       }
@@ -531,8 +713,16 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         }
         return !!wizardData.customerId;
       case 3:
+        // Pricing - requires sale price
         return wizardData.salePriceGross && parseFloat(wizardData.salePriceGross) > 0;
       case 4:
+        // Deposit - if they want a deposit, amount is required
+        if (wizardData.wantsDeposit) {
+          return wizardData.depositAmount && parseFloat(wizardData.depositAmount) > 0;
+        }
+        return true; // No deposit is fine
+      case 5:
+        // Review - always can proceed
         return true;
       default:
         return false;
@@ -581,6 +771,62 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         }],
       }));
     }
+  };
+
+  // Add custom add-on
+  const handleAddCustomAddOn = () => {
+    if (!customAddOn.name?.trim()) {
+      toast.error("Please enter a name for the add-on");
+      return;
+    }
+    if (!customAddOn.unitPriceGross || parseFloat(customAddOn.unitPriceGross) < 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const grossPrice = parseFloat(customAddOn.unitPriceGross) || 0;
+    const vatTreatment = customAddOn.vatTreatment || "STANDARD";
+
+    // Calculate net from gross based on VAT treatment
+    let netPrice;
+    if (vatTreatment === "STANDARD") {
+      // Standard VAT at 20%: net = gross / 1.2
+      netPrice = grossPrice / 1.2;
+    } else {
+      // EXEMPT or ZERO_RATED: no VAT, so net = gross
+      netPrice = grossPrice;
+    }
+
+    const customId = `custom_${Date.now()}`;
+    setWizardData(prev => ({
+      ...prev,
+      addOns: [...prev.addOns, {
+        productId: customId,
+        name: customAddOn.name.trim(),
+        qty: 1,
+        unitPriceNet: netPrice,
+        vatTreatment: vatTreatment,
+        category: customAddOn.category || "OTHER",
+        isCustom: true,
+      }],
+    }));
+
+    // Reset form
+    setCustomAddOn({
+      name: "",
+      unitPriceGross: "",
+      category: "OTHER",
+      vatTreatment: "STANDARD",
+    });
+    setShowCustomAddOnForm(false);
+  };
+
+  // Remove add-on by productId
+  const removeAddOn = (productId) => {
+    setWizardData(prev => ({
+      ...prev,
+      addOns: prev.addOns.filter(a => a.productId !== productId),
+    }));
   };
 
   if (!isOpen) return null;
@@ -736,7 +982,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                           onChange={(e) => setWizardData(prev => ({ ...prev, buyerUse: e.target.value }))}
                           className="select select-bordered w-full"
                         >
-                          <option value="PRIVATE">Personal</option>
+                          <option value="PERSONAL">Personal</option>
                           <option value="BUSINESS">Business</option>
                         </select>
                       </div>
@@ -939,11 +1185,11 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                 {/* Part Exchange */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold">Part Exchange</h3>
+                    <h3 className="text-lg font-semibold">Part Exchange(s)</h3>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={wizardData.hasPx}
+                        checked={wizardData.hasPx || (wizardData.partExchanges?.length > 0)}
                         onChange={(e) => setWizardData(prev => ({ ...prev, hasPx: e.target.checked }))}
                         className="checkbox checkbox-sm checkbox-primary"
                       />
@@ -951,7 +1197,40 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                     </label>
                   </div>
 
-                  {wizardData.hasPx && (
+                  {/* List of Added Part Exchanges */}
+                  {wizardData.partExchanges?.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {wizardData.partExchanges.map((px, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-sm bg-emerald-100 px-2 py-0.5 rounded">{px.vrm}</span>
+                              <span className="font-medium text-emerald-800">{px.make} {px.model}</span>
+                              <span className="text-xs text-emerald-600">({px.year})</span>
+                            </div>
+                            <div className="text-sm text-emerald-700 mt-1">
+                              Allowance: £{parseFloat(px.allowance).toLocaleString()}
+                              {parseFloat(px.settlementAmount) > 0 && ` | Settlement: £${parseFloat(px.settlementAmount).toLocaleString()}`}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removePxFromList(idx)}
+                            className="btn btn-sm btn-ghost text-red-500 hover:bg-red-50"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                      {wizardData.partExchanges.length >= 2 && (
+                        <p className="text-xs text-slate-500 text-center">Maximum 2 part exchanges reached</p>
+                      )}
+                    </div>
+                  )}
+
+                  {(wizardData.hasPx || wizardData.partExchanges?.length > 0) && wizardData.partExchanges?.length < 2 && (
                     <div className="border border-slate-200 rounded-xl p-4 space-y-4">
                       {/* Search Mode Toggle */}
                       <div className="flex gap-2">
@@ -1020,23 +1299,51 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
 
                       {/* New VRM Lookup */}
                       {pxSearchMode === "new" && (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={wizardData.px.vrm}
-                            onChange={(e) => setWizardData(prev => ({ ...prev, px: { ...prev.px, vrm: e.target.value.toUpperCase() } }))}
-                            placeholder="VRM"
-                            className="input input-bordered flex-1 font-mono font-bold uppercase"
-                          />
-                          <button
-                            type="button"
-                            onClick={handlePxLookup}
-                            disabled={isLookingUpPx}
-                            className="btn bg-slate-700 text-white border-none"
-                          >
-                            {isLookingUpPx ? <span className="loading loading-spinner loading-sm"></span> : "Lookup"}
-                          </button>
-                        </div>
+                        <>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={wizardData.px.vrm}
+                              onChange={(e) => {
+                                setPxDuplicateWarning(null); // Clear warning on input change
+                                setWizardData(prev => ({ ...prev, px: { ...prev.px, vrm: e.target.value.toUpperCase() } }));
+                              }}
+                              placeholder="VRM"
+                              className="input input-bordered flex-1 font-mono font-bold uppercase"
+                            />
+                            <button
+                              type="button"
+                              onClick={handlePxLookup}
+                              disabled={isLookingUpPx}
+                              className="btn bg-slate-700 text-white border-none"
+                            >
+                              {isLookingUpPx ? <span className="loading loading-spinner loading-sm"></span> : "Lookup"}
+                            </button>
+                          </div>
+
+                          {/* Duplicate vehicle warning */}
+                          {pxDuplicateWarning && (
+                            <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <div>
+                                  <p className="text-sm font-medium text-red-800">
+                                    This vehicle is already in stock
+                                  </p>
+                                  <p className="text-xs text-red-600 mt-1">
+                                    {pxDuplicateWarning.make} {pxDuplicateWarning.model}
+                                    {pxDuplicateWarning.stockNumber && ` (Stock #${pxDuplicateWarning.stockNumber})`}
+                                  </p>
+                                  <p className="text-xs text-red-600 mt-1">
+                                    It cannot be added as a part exchange.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
 
                       {/* Vehicle Details (shown when VRM is set) */}
@@ -1083,7 +1390,17 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               type="number"
                               step="0.01"
                               value={wizardData.px.settlementAmount}
-                              onChange={(e) => setWizardData(prev => ({ ...prev, px: { ...prev.px, settlementAmount: e.target.value } }))}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setWizardData(prev => ({
+                                  ...prev,
+                                  px: {
+                                    ...prev.px,
+                                    settlementAmount: val,
+                                    hasFinance: parseFloat(val) > 0 ? true : prev.px.hasFinance
+                                  }
+                                }));
+                              }}
                               placeholder="Settlement"
                               className="input input-bordered input-sm"
                             />
@@ -1120,28 +1437,22 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               </div>
                               {wizardData.px.hasFinance && (
                                 <>
-                                  <select
+                                  <ContactPicker
                                     value={wizardData.px.financeCompanyId}
-                                    onChange={(e) => {
-                                      const fc = financeCompanies.find(c => (c.id || c._id) === e.target.value);
+                                    onChange={(contactId, contact) => {
                                       setWizardData(prev => ({
                                         ...prev,
                                         px: {
                                           ...prev.px,
-                                          financeCompanyId: e.target.value,
-                                          financeCompanyName: fc?.displayName || fc?.name || ""
+                                          financeCompanyId: contactId || "",
+                                          financeCompanyName: contact?.displayName || contact?.companyName || ""
                                         }
                                       }));
                                     }}
-                                    className="select select-bordered select-sm w-full"
-                                  >
-                                    <option value="">Select Finance Company</option>
-                                    {financeCompanies.map((fc) => (
-                                      <option key={fc.id || fc._id} value={fc.id || fc._id}>
-                                        {fc.displayName || fc.name}
-                                      </option>
-                                    ))}
-                                  </select>
+                                    filterTypeTags={["FINANCE"]}
+                                    placeholder="Search or add finance company..."
+                                    allowCreate={true}
+                                  />
                                   <label className="flex items-center gap-2 cursor-pointer">
                                     <input
                                       type="checkbox"
@@ -1163,6 +1474,20 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               )}
                             </div>
                           )}
+
+                          {/* Add to List button - shows when VRM is set and < 2 PXs */}
+                          <div className="flex justify-end pt-2 border-t border-slate-200 mt-4">
+                            <button
+                              type="button"
+                              onClick={addCurrentPxToList}
+                              className="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white border-none gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Add to Part Exchange List
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -1200,64 +1525,71 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                         <span className="text-xs ml-2 opacity-60">(from vehicle)</span>
                       </div>
                     </div>
-                    <div className="form-control">
-                      <label className="label"><span className="label-text font-medium">Payment Type</span></label>
-                      <select
-                        value={wizardData.paymentType}
-                        onChange={(e) => setWizardData(prev => ({ ...prev, paymentType: e.target.value }))}
-                        className="select select-bordered w-full"
-                      >
-                        <option value="CASH">Cash</option>
-                        <option value="CARD">Card</option>
-                        <option value="BANK_TRANSFER">Bank Transfer</option>
-                        <option value="FINANCE">Finance</option>
-                        <option value="MIXED">Mixed</option>
-                      </select>
-                    </div>
-                    <div className="form-control">
-                      <label className="label"><span className="label-text font-medium">Deposit Amount</span></label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={wizardData.depositAmount}
-                        onChange={(e) => setWizardData(prev => ({ ...prev, depositAmount: e.target.value }))}
-                        placeholder="0.00"
-                        className="input input-bordered w-full"
-                      />
-                    </div>
                   </div>
                 </div>
 
                 {/* Delivery */}
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Delivery</h3>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 flex-wrap">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={wizardData.delivery?.isFree || false}
                         onChange={(e) => setWizardData(prev => ({
                           ...prev,
-                          delivery: { ...prev.delivery, isFree: e.target.checked, amount: e.target.checked ? "" : prev.delivery?.amount }
+                          delivery: {
+                            ...prev.delivery,
+                            isFree: e.target.checked,
+                            amountGross: e.target.checked ? "" : prev.delivery?.amountGross,
+                            amountNet: "",
+                            vatAmount: "",
+                            amount: "",
+                          }
                         }))}
                         className="checkbox checkbox-sm checkbox-primary"
                       />
                       <span className="text-sm">Free Delivery</span>
                     </label>
                     {!wizardData.delivery?.isFree && (
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={wizardData.delivery?.amount || ""}
-                        onChange={(e) => setWizardData(prev => ({
-                          ...prev,
-                          delivery: { ...prev.delivery, amount: e.target.value }
-                        }))}
-                        placeholder="Delivery amount"
-                        className="input input-bordered input-sm w-40"
-                      />
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={wizardData.delivery?.amountGross || ""}
+                          onChange={(e) => {
+                            const gross = e.target.value;
+                            const isVatReg = dealer?.salesSettings?.vatRegistered !== false;
+                            const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+                            let net = "", vat = "";
+                            if (isVatReg && gross) {
+                              net = (parseFloat(gross) / (1 + vatRate)).toFixed(2);
+                              vat = (parseFloat(gross) - parseFloat(net)).toFixed(2);
+                            }
+                            setWizardData(prev => ({
+                              ...prev,
+                              delivery: {
+                                ...prev.delivery,
+                                amountGross: gross,
+                                amountNet: net,
+                                vatAmount: vat,
+                                amount: gross, // Legacy field
+                              }
+                            }));
+                          }}
+                          placeholder={dealer?.salesSettings?.vatRegistered !== false ? "Amount (inc VAT)" : "Amount"}
+                          className="input input-bordered input-sm w-40"
+                        />
+                        {/* Show VAT breakdown if dealer is VAT registered and amount entered */}
+                        {dealer?.salesSettings?.vatRegistered !== false && wizardData.delivery?.amountGross && (
+                          <span className="text-xs text-slate-500">
+                            (Net: £{wizardData.delivery?.amountNet || "0.00"} + VAT: £{wizardData.delivery?.vatAmount || "0.00"})
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
+                  <p className="text-xs text-slate-500 mt-2">Delivery can be added or modified later before invoicing</p>
                 </div>
 
                 {/* Customer Finance Selection */}
@@ -1298,28 +1630,22 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                         <span className="text-sm">To Be Confirmed</span>
                       </label>
                       {!wizardData.financeSelection?.toBeConfirmed && (
-                        <select
+                        <ContactPicker
                           value={wizardData.financeSelection?.financeCompanyId || ""}
-                          onChange={(e) => {
-                            const fc = financeCompanies.find(c => (c.id || c._id) === e.target.value);
+                          onChange={(contactId, contact) => {
                             setWizardData(prev => ({
                               ...prev,
                               financeSelection: {
                                 ...prev.financeSelection,
-                                financeCompanyId: e.target.value,
-                                financeCompanyName: fc?.displayName || fc?.name || ""
+                                financeCompanyId: contactId || "",
+                                financeCompanyName: contact?.displayName || contact?.companyName || ""
                               }
                             }));
                           }}
-                          className="select select-bordered select-sm w-full"
-                        >
-                          <option value="">Select Finance Company</option>
-                          {financeCompanies.map((fc) => (
-                            <option key={fc.id || fc._id} value={fc.id || fc._id}>
-                              {fc.displayName || fc.name}
-                            </option>
-                          ))}
-                        </select>
+                          filterTypeTags={["FINANCE"]}
+                          placeholder="Search or add finance company..."
+                          allowCreate={true}
+                        />
                       )}
                     </div>
                   )}
@@ -1329,23 +1655,145 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold">Add-ons</h3>
-                    {wizardData.addOns.length > 0 && (
-                      <span className="text-sm text-slate-500">
-                        {wizardData.addOns.length} selected ({formatCurrency(wizardData.addOns.reduce((sum, a) => sum + (parseFloat(a.unitPriceNet) || 0), 0))} net)
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomAddOnForm(true)}
+                      className="btn btn-sm btn-outline gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Custom Item
+                    </button>
                   </div>
+
+                  {/* Custom Add-on Form */}
+                  {showCustomAddOnForm && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="font-medium text-blue-900">New Custom Add-on</p>
+                        <button
+                          type="button"
+                          onClick={() => setShowCustomAddOnForm(false)}
+                          className="btn btn-ghost btn-xs"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="form-control">
+                          <label className="label py-0"><span className="label-text text-xs">Name *</span></label>
+                          <input
+                            type="text"
+                            value={customAddOn.name}
+                            onChange={(e) => setCustomAddOn(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="e.g., Custom Alloy Wheels"
+                            className="input input-bordered input-sm w-full"
+                          />
+                        </div>
+                        <div className="form-control">
+                          <label className="label py-0"><span className="label-text text-xs">Price (Inc. VAT) *</span></label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">£</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={customAddOn.unitPriceGross}
+                              onChange={(e) => setCustomAddOn(prev => ({ ...prev, unitPriceGross: e.target.value }))}
+                              placeholder="0.00"
+                              className="input input-bordered input-sm w-full pl-7"
+                            />
+                          </div>
+                        </div>
+                        <div className="form-control">
+                          <label className="label py-0"><span className="label-text text-xs">Category</span></label>
+                          <select
+                            value={customAddOn.category}
+                            onChange={(e) => setCustomAddOn(prev => ({ ...prev, category: e.target.value }))}
+                            className="select select-bordered select-sm w-full"
+                          >
+                            <option value="WARRANTY">Warranty</option>
+                            <option value="PROTECTION">Protection</option>
+                            <option value="ACCESSORY">Accessory</option>
+                            <option value="COSMETIC">Cosmetic</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
+                        <div className="form-control">
+                          <label className="label py-0"><span className="label-text text-xs">VAT</span></label>
+                          <select
+                            value={customAddOn.vatTreatment}
+                            onChange={(e) => setCustomAddOn(prev => ({ ...prev, vatTreatment: e.target.value }))}
+                            className="select select-bordered select-sm w-full"
+                          >
+                            <option value="STANDARD">Standard (20%)</option>
+                            <option value="ZERO">Zero Rated</option>
+                            <option value="NO_VAT">No VAT</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddCustomAddOn}
+                          className="btn btn-sm bg-blue-500 hover:bg-blue-600 text-white border-none"
+                        >
+                          Add to Deal
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Add-ons */}
+                  {wizardData.addOns.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-sm text-slate-500 mb-2">
+                        Selected ({wizardData.addOns.length}) - {formatCurrency(wizardData.addOns.reduce((sum, a) => sum + (parseFloat(a.unitPriceNet) || 0), 0))} net
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {wizardData.addOns.map((addon) => (
+                          <div
+                            key={addon.productId}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                              addon.isCustom
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-slate-100 text-slate-800"
+                            }`}
+                          >
+                            <span>{addon.name}</span>
+                            <span className="font-medium">{formatCurrency(addon.unitPriceNet)}</span>
+                            {addon.isCustom && (
+                              <span className="text-xs text-blue-600">(Custom)</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => removeAddOn(addon.productId)}
+                              className="ml-1 hover:text-red-600"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Catalog Add-ons Search & List */}
                   <input
                     type="text"
                     value={addOnSearch}
                     onChange={(e) => setAddOnSearch(e.target.value)}
-                    placeholder="Search add-ons..."
+                    placeholder="Search catalog add-ons..."
                     className="input input-bordered w-full mb-3"
                   />
                   <div className="border border-slate-200 rounded-xl max-h-48 overflow-y-auto">
                     {products.length === 0 ? (
                       <div className="text-center py-6 text-slate-500">
-                        No add-on products configured. Add them in Settings.
+                        <p className="text-sm">No catalog add-ons configured.</p>
+                        <p className="text-xs mt-1">Use "Add Custom Item" above or configure add-ons in Settings.</p>
                       </div>
                     ) : (
                       filteredAddOns.map((p) => {
@@ -1367,21 +1815,241 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               />
                               <div>
                                 <p className="font-medium">{p.name}</p>
-                                <p className="text-sm text-slate-500">{p.category}</p>
+                                <p className="text-sm text-slate-500">
+                                  {p.category}
+                                  {p.costPrice != null && (
+                                    <span className="ml-2 text-emerald-600">
+                                      ({((p.defaultPriceNet - p.costPrice) / p.defaultPriceNet * 100).toFixed(0)}% margin)
+                                    </span>
+                                  )}
+                                </p>
                               </div>
                             </div>
-                            <span className="font-semibold">{formatCurrency(p.defaultPriceNet)}</span>
+                            <div className="text-right">
+                              <span className="font-semibold">{formatCurrency(p.defaultPriceNet)}</span>
+                              {p.costPrice != null && (
+                                <p className="text-xs text-slate-400">Cost: {formatCurrency(p.costPrice)}</p>
+                              )}
+                            </div>
                           </div>
                         );
                       })
                     )}
                   </div>
                 </div>
+
+                {/* Agreed Work Items */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold">Agreed Work</h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWizardData(prev => ({
+                          ...prev,
+                          requests: [
+                            ...prev.requests,
+                            { title: "", details: "", type: "PREP", status: "REQUESTED" }
+                          ]
+                        }));
+                      }}
+                      className="btn btn-sm btn-outline gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Item
+                    </button>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-3">
+                    Record any work agreed with the customer (e.g., prep items, accessories to fit, cosmetic repairs).
+                  </p>
+
+                  {wizardData.requests.length === 0 ? (
+                    <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center text-slate-500">
+                      <p className="text-sm">No agreed work items added yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {wizardData.requests.map((req, idx) => (
+                        <div key={idx} className="border border-slate-200 rounded-xl p-4 bg-white">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="form-control">
+                                  <label className="label py-0"><span className="label-text text-xs">Title *</span></label>
+                                  <input
+                                    type="text"
+                                    value={req.title}
+                                    onChange={(e) => {
+                                      const newReqs = [...wizardData.requests];
+                                      newReqs[idx].title = e.target.value;
+                                      setWizardData(prev => ({ ...prev, requests: newReqs }));
+                                    }}
+                                    placeholder="e.g., Fit roof bars"
+                                    className="input input-bordered input-sm w-full"
+                                  />
+                                </div>
+                                <div className="form-control">
+                                  <label className="label py-0"><span className="label-text text-xs">Type</span></label>
+                                  <select
+                                    value={req.type}
+                                    onChange={(e) => {
+                                      const newReqs = [...wizardData.requests];
+                                      newReqs[idx].type = e.target.value;
+                                      setWizardData(prev => ({ ...prev, requests: newReqs }));
+                                    }}
+                                    className="select select-bordered select-sm w-full"
+                                  >
+                                    <option value="PREP">Prep</option>
+                                    <option value="ACCESSORY">Accessory</option>
+                                    <option value="COSMETIC">Cosmetic</option>
+                                    <option value="ADMIN">Admin</option>
+                                    <option value="OTHER">Other</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="form-control">
+                                <label className="label py-0"><span className="label-text text-xs">Details (optional)</span></label>
+                                <input
+                                  type="text"
+                                  value={req.details}
+                                  onChange={(e) => {
+                                    const newReqs = [...wizardData.requests];
+                                    newReqs[idx].details = e.target.value;
+                                    setWizardData(prev => ({ ...prev, requests: newReqs }));
+                                  }}
+                                  placeholder="Additional details..."
+                                  className="input input-bordered input-sm w-full"
+                                />
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newReqs = wizardData.requests.filter((_, i) => i !== idx);
+                                setWizardData(prev => ({ ...prev, requests: newReqs }));
+                              }}
+                              className="btn btn-ghost btn-sm btn-square text-slate-400 hover:text-red-500"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Step 4: Review */}
+            {/* Step 4: Deposit */}
             {currentStep === 4 && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold">Deposit</h3>
+
+                {/* Deposit Toggle */}
+                <div className="bg-slate-50 rounded-xl p-5">
+                  <label className="flex items-start gap-4 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={wizardData.wantsDeposit || false}
+                      onChange={(e) => setWizardData(prev => ({
+                        ...prev,
+                        wantsDeposit: e.target.checked,
+                        depositAmount: e.target.checked ? prev.depositAmount : "",
+                      }))}
+                      className="checkbox checkbox-primary mt-1"
+                    />
+                    <div>
+                      <span className="text-lg font-medium">Would customer like to leave a deposit?</span>
+                      <p className="text-sm text-slate-500 mt-1">
+                        A deposit secures the vehicle for the customer. You can take additional deposits or proceed directly to invoice later.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Deposit Details */}
+                {wizardData.wantsDeposit && (
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label"><span className="label-text font-medium">Deposit Amount *</span></label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">£</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={wizardData.depositAmount}
+                            onChange={(e) => setWizardData(prev => ({ ...prev, depositAmount: e.target.value }))}
+                            placeholder="0.00"
+                            className="input input-bordered w-full pl-8"
+                          />
+                        </div>
+                      </div>
+                      <div className="form-control">
+                        <label className="label"><span className="label-text font-medium">Payment Method</span></label>
+                        <select
+                          value={wizardData.depositMethod || "CARD"}
+                          onChange={(e) => setWizardData(prev => ({ ...prev, depositMethod: e.target.value }))}
+                          className="select select-bordered w-full"
+                        >
+                          <option value="CARD">Card</option>
+                          <option value="CASH">Cash</option>
+                          <option value="BANK_TRANSFER">Bank Transfer</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Quick amount buttons */}
+                    <div>
+                      <label className="label pb-1"><span className="label-text text-slate-500">Quick select</span></label>
+                      <div className="flex gap-2 flex-wrap">
+                        {[100, 250, 500, 1000].map((amount) => (
+                          <button
+                            key={amount}
+                            type="button"
+                            onClick={() => setWizardData(prev => ({ ...prev, depositAmount: amount.toString() }))}
+                            className={`btn btn-sm ${
+                              wizardData.depositAmount === amount.toString()
+                                ? "btn-primary"
+                                : "btn-outline"
+                            }`}
+                          >
+                            £{amount}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Info box */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex gap-3">
+                    <svg className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium">What happens next?</p>
+                      <p className="mt-1 text-blue-700">
+                        {wizardData.wantsDeposit
+                          ? "After creating the deal, a deposit receipt will be generated. You can then generate the full invoice when ready."
+                          : "You can proceed without a deposit. A deposit can be taken later from the deal page, or you can go straight to generating an invoice."
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Review */}
+            {currentStep === 5 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">Review & Confirm</h3>
 
@@ -1440,17 +2108,113 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                   </div>
                 </div>
 
-                {/* Part Exchange Summary */}
-                {wizardData.hasPx && wizardData.px.vrm && (
-                  <div className="bg-amber-50 rounded-xl p-4">
-                    <h4 className="text-sm font-semibold text-amber-700 mb-2">PART EXCHANGE</h4>
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border">{wizardData.px.vrm}</span>
-                      <span>{wizardData.px.make} {wizardData.px.model}</span>
+                {/* Part Exchange Summary - show all PXs */}
+                {(wizardData.partExchanges?.length > 0 || (wizardData.hasPx && wizardData.px.vrm)) && (
+                  <div className="bg-amber-50 rounded-xl p-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-amber-700 mb-2">
+                      PART EXCHANGE{(wizardData.partExchanges?.length || 0) + (wizardData.px?.vrm ? 1 : 0) > 1 ? "S" : ""}
+                    </h4>
+                    {/* Show PXs from list */}
+                    {wizardData.partExchanges?.map((px, idx) => (
+                      <div key={idx} className="border-b border-amber-200 pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border">{px.vrm}</span>
+                          <span>{px.make} {px.model}</span>
+                        </div>
+                        <div className="mt-1 flex gap-4 text-sm">
+                          <span>Allowance: {formatCurrency(px.allowance)}</span>
+                          {px.settlementAmount && parseFloat(px.settlementAmount) > 0 && (
+                            <span>Settlement: {formatCurrency(px.settlementAmount)}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {/* Show current PX form if filled */}
+                    {wizardData.px?.vrm && (
+                      <div className="border-b border-amber-200 pb-2 last:border-0 last:pb-0">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border">{wizardData.px.vrm}</span>
+                          <span>{wizardData.px.make} {wizardData.px.model}</span>
+                        </div>
+                        <div className="mt-1 flex gap-4 text-sm">
+                          <span>Allowance: {formatCurrency(wizardData.px.allowance)}</span>
+                          {wizardData.px.settlementAmount && parseFloat(wizardData.px.settlementAmount) > 0 && (
+                            <span>Settlement: {formatCurrency(wizardData.px.settlementAmount)}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Delivery Summary */}
+                {(wizardData.delivery?.isFree || wizardData.delivery?.amountGross) && (
+                  <div className="bg-purple-50 rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-purple-700 mb-2">DELIVERY</h4>
+                    <p className="font-medium text-purple-900">
+                      {wizardData.delivery?.isFree
+                        ? "Free Delivery"
+                        : formatCurrency(wizardData.delivery.amountGross)
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {/* Finance Summary */}
+                {wizardData.financeSelection?.isFinanced && (
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-blue-700 mb-2">FINANCE</h4>
+                    <p className="font-medium text-blue-900">
+                      {wizardData.financeSelection?.toBeConfirmed
+                        ? "Finance - To Be Confirmed"
+                        : wizardData.financeSelection?.financeCompanyName || "Finance company not specified"
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {/* Deposit Summary */}
+                {wizardData.wantsDeposit && wizardData.depositAmount && (
+                  <div className="bg-emerald-50 rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-emerald-700 mb-2">DEPOSIT</h4>
+                    <div className="flex justify-between items-center">
+                      <p className="font-medium text-emerald-900">{formatCurrency(wizardData.depositAmount)}</p>
+                      <span className="text-sm text-emerald-700">via {wizardData.depositMethod || "Card"}</span>
                     </div>
-                    <div className="mt-2 flex gap-4 text-sm">
-                      <span>Allowance: {formatCurrency(wizardData.px.allowance)}</span>
-                      {wizardData.px.settlementAmount && <span>Settlement: {formatCurrency(wizardData.px.settlementAmount)}</span>}
+                  </div>
+                )}
+
+                {/* Agreed Work Summary */}
+                {wizardData.requests?.filter(r => r.title?.trim()).length > 0 && (
+                  <div className="bg-orange-50 rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-orange-700 mb-2">AGREED WORK</h4>
+                    <ul className="space-y-1">
+                      {wizardData.requests.filter(r => r.title?.trim()).map((req, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-sm">
+                          <svg className="w-4 h-4 text-orange-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4" />
+                          </svg>
+                          <span className="font-medium text-orange-900">{req.title}</span>
+                          {req.details && <span className="text-orange-700">- {req.details}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* TBC Items Warning */}
+                {wizardData.financeSelection?.toBeConfirmed && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className="flex gap-3">
+                      <svg className="w-5 h-5 text-amber-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <div>
+                        <p className="font-medium text-amber-800">Items to be confirmed:</p>
+                        <ul className="text-sm text-amber-700 mt-1 list-disc list-inside">
+                          <li>Finance company details</li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
                 )}

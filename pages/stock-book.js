@@ -50,11 +50,24 @@ const getDaysInStock = (createdAt) => {
   return Math.floor(diff / (1000 * 60 * 60 * 24));
 };
 
+// Calculate VAT breakdown from gross price
+const calculateVatFromGross = (grossPrice, vatRate = 0.2) => {
+  if (!grossPrice || isNaN(grossPrice)) return { net: "", vat: "" };
+  const gross = parseFloat(grossPrice);
+  const net = gross / (1 + vatRate);
+  const vat = gross - net;
+  return {
+    net: net.toFixed(2),
+    vat: vat.toFixed(2),
+  };
+};
+
 export default function StockBook() {
   const router = useRouter();
   const { isRedirecting } = useDealerRedirect();
   const [vehicles, setVehicles] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [dealer, setDealer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState("AVAILABLE");
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,6 +76,20 @@ export default function StockBook() {
   const [vatFilter, setVatFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sorting state
+  const [sortField, setSortField] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("stockbook_sortField") || "days";
+    }
+    return "days";
+  });
+  const [sortDirection, setSortDirection] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("stockbook_sortDirection") || "desc";
+    }
+    return "desc";
+  });
 
   // Drawer state
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
@@ -75,6 +102,7 @@ export default function StockBook() {
   // Purchase info form state
   const [purchaseForm, setPurchaseForm] = useState({
     purchasePriceNet: "",
+    purchasePriceGross: "", // For VAT_QUALIFYING: user enters gross, we calculate net
     purchaseVat: "",
     vatScheme: "MARGIN",
     purchasedFromContactId: "",
@@ -109,11 +137,13 @@ export default function StockBook() {
     // MOT data from DVSA API
     motExpiryDate: null,
     motHistory: null,
+    firstRegisteredDate: null, // Date of first registration from DVSA
     // DVLA data
     dvlaDetails: null,
     // Purchase details
     vatScheme: "MARGIN",
     purchasePriceNet: "",
+    purchasePriceGross: "", // For VAT_QUALIFYING: user enters gross, we calculate net
     purchaseVat: "",
     purchasedFromContactId: "",
     purchaseDate: "",
@@ -159,12 +189,26 @@ export default function StockBook() {
     }
   }, []);
 
+  // Load dealer settings (for VAT rate)
+  const fetchDealer = useCallback(async () => {
+    try {
+      const response = await fetch("/api/dealer");
+      if (response.ok) {
+        const data = await response.json();
+        setDealer(data);
+      }
+    } catch (error) {
+      console.error("[StockBook] Dealer fetch error:", error);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isRedirecting) {
       fetchVehicles();
       fetchContacts();
+      fetchDealer();
     }
-  }, [isRedirecting, fetchVehicles, fetchContacts]);
+  }, [isRedirecting, fetchVehicles, fetchContacts, fetchDealer]);
 
   // Handle addVehicle query param (from Vehicle Prep or Quick Add menu)
   useEffect(() => {
@@ -240,7 +284,54 @@ export default function StockBook() {
 
       return true;
     });
-  }, [vehicles, activeStatus, searchQuery, daysFilter, hasSivFilter, vatFilter, sellerFilter]);
+
+    // Sort filtered results
+    const sorted = [...filtered].sort((a, b) => {
+      let aVal, bVal;
+
+      switch (sortField) {
+        case "vrm":
+          aVal = a.regCurrent || "";
+          bVal = b.regCurrent || "";
+          break;
+        case "vehicle":
+          aVal = `${a.make || ""} ${a.model || ""}`.trim();
+          bVal = `${b.make || ""} ${b.model || ""}`.trim();
+          break;
+        case "days":
+          aVal = getDaysInStock(a.createdAt);
+          bVal = getDaysInStock(b.createdAt);
+          break;
+        case "siv":
+          aVal = a.purchase?.purchasePriceNet || 0;
+          bVal = b.purchase?.purchasePriceNet || 0;
+          break;
+        case "purchased":
+          aVal = a.purchase?.purchaseDate ? new Date(a.purchase.purchaseDate).getTime() : 0;
+          bVal = b.purchase?.purchaseDate ? new Date(b.purchase.purchaseDate).getTime() : 0;
+          break;
+        case "stock":
+          aVal = a.stockNumber || "";
+          bVal = b.stockNumber || "";
+          break;
+        default:
+          aVal = getDaysInStock(a.createdAt);
+          bVal = getDaysInStock(b.createdAt);
+      }
+
+      // Handle string comparison
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return sortDirection === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      // Handle number comparison
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    });
+
+    return sorted;
+  }, [vehicles, activeStatus, searchQuery, daysFilter, hasSivFilter, vatFilter, sellerFilter, sortField, sortDirection]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -264,6 +355,35 @@ export default function StockBook() {
     };
   }, [vehicles]);
 
+  // Handle column sorting
+  const handleSort = (field) => {
+    let newDirection = "asc";
+    if (sortField === field) {
+      // Toggle direction if same field
+      newDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      // Default to descending for days/dates, ascending for text
+      newDirection = ["days", "siv", "purchased"].includes(field) ? "desc" : "asc";
+    }
+    setSortField(field);
+    setSortDirection(newDirection);
+    // Persist to localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("stockbook_sortField", field);
+      localStorage.setItem("stockbook_sortDirection", newDirection);
+    }
+  };
+
+  // Sort indicator component
+  const SortIndicator = ({ field }) => {
+    if (sortField !== field) return null;
+    return (
+      <span className="ml-1">
+        {sortDirection === "asc" ? "↑" : "↓"}
+      </span>
+    );
+  };
+
   // Check if vehicle has complete purchase info
   const hasPurchaseInfo = (vehicle) => {
     return (
@@ -285,10 +405,15 @@ export default function StockBook() {
       const data = await response.json();
       setSelectedVehicle(data);
 
-      // Populate form
+      // Populate form - calculate gross from net+vat for VAT_QUALIFYING
+      const net = data.purchase?.purchasePriceNet || "";
+      const vat = data.purchase?.purchaseVat || "";
+      const gross = net && vat ? (parseFloat(net) + parseFloat(vat)).toFixed(2) : net || "";
+
       setPurchaseForm({
-        purchasePriceNet: data.purchase?.purchasePriceNet || "",
-        purchaseVat: data.purchase?.purchaseVat || "",
+        purchasePriceNet: net,
+        purchasePriceGross: data.vatScheme === "VAT_QUALIFYING" ? gross : "",
+        purchaseVat: vat,
         vatScheme: data.vatScheme || "MARGIN",
         purchasedFromContactId: data.purchase?.purchasedFromContactId?._id || data.purchase?.purchasedFromContactId || "",
         purchaseDate: data.purchase?.purchaseDate ? new Date(data.purchase.purchaseDate).toISOString().split("T")[0] : "",
@@ -661,6 +786,8 @@ export default function StockBook() {
         // Store MOT data from DVSA API
         motExpiryDate: motData?.motExpiry || dvlaData.dvlaDetails?.motExpiryDate || null,
         motHistory: motData?.motHistory || null,
+        // Date of first registration from DVSA
+        firstRegisteredDate: motData?.firstUsedDate || null,
         // Store DVLA details
         dvlaDetails: dvlaData.dvlaDetails || null,
       }));
@@ -711,6 +838,8 @@ export default function StockBook() {
           motExpiryDate: addVehicleForm.motExpiryDate || undefined,
           motHistory: addVehicleForm.motHistory || undefined,
           motHistoryFetchedAt: addVehicleForm.motHistory ? new Date().toISOString() : undefined,
+          // Date of first registration from DVSA
+          firstRegisteredDate: addVehicleForm.firstRegisteredDate || undefined,
           // DVLA data
           dvlaDetails: addVehicleForm.dvlaDetails || undefined,
           lastDvlaFetchAt: addVehicleForm.dvlaDetails ? new Date().toISOString() : undefined,
@@ -796,7 +925,7 @@ export default function StockBook() {
         regCurrent: "", vin: "", make: "", model: "", year: "", colour: "",
         mileageCurrent: "", fuelType: "", transmission: "",
         motExpiryDate: null, motHistory: null, dvlaDetails: null,
-        vatScheme: "MARGIN", purchasePriceNet: "", purchaseVat: "",
+        vatScheme: "MARGIN", purchasePriceNet: "", purchasePriceGross: "", purchaseVat: "",
         purchasedFromContactId: "", purchaseDate: "", purchaseInvoiceRef: "", purchaseNotes: "",
         v5File: null, serviceHistoryFile: null,
         addToVehiclePrep: false,
@@ -1094,14 +1223,45 @@ export default function StockBook() {
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               {/* Table Header */}
               <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                <div className="col-span-1">Stock #</div>
-                <div className="col-span-1">VRM</div>
-                <div className="col-span-2">Vehicle</div>
+                <div
+                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("stock")}
+                >
+                  Stock #<SortIndicator field="stock" />
+                </div>
+                <div
+                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("vrm")}
+                >
+                  VRM<SortIndicator field="vrm" />
+                </div>
+                <div
+                  className="col-span-2 cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("vehicle")}
+                >
+                  Vehicle<SortIndicator field="vehicle" />
+                </div>
                 <div className="col-span-1">Year</div>
-                <div className="col-span-1 text-center">Days</div>
-                <div className="col-span-1 text-right">SIV</div>
+                <div
+                  className="col-span-1 text-center cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("days")}
+                >
+                  Days<SortIndicator field="days" />
+                </div>
+                <div
+                  className="col-span-1 text-right cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("siv")}
+                >
+                  SIV<SortIndicator field="siv" />
+                </div>
                 <div className="col-span-1 text-center">VAT</div>
-                <div className="col-span-2">Seller</div>
+                <div
+                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
+                  onClick={() => handleSort("purchased")}
+                >
+                  Purchased<SortIndicator field="purchased" />
+                </div>
+                <div className="col-span-1">Seller</div>
                 <div className="col-span-1 text-center">Status</div>
                 <div className="col-span-1 text-right">Actions</div>
               </div>
@@ -1131,7 +1291,7 @@ export default function StockBook() {
 
                       {/* VRM */}
                       <div className="col-span-6 md:col-span-1">
-                        <span className="font-mono text-sm font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded">
+                        <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-2 py-0.5 rounded border border-black/20 tracking-wide">
                           {vehicle.regCurrent}
                         </span>
                       </div>
@@ -1181,8 +1341,17 @@ export default function StockBook() {
                         )}
                       </div>
 
+                      {/* Purchased Date */}
+                      <div className="hidden md:block col-span-1">
+                        <span className="text-sm text-slate-600">
+                          {vehicle.purchase?.purchaseDate
+                            ? formatDate(vehicle.purchase.purchaseDate)
+                            : "—"}
+                        </span>
+                      </div>
+
                       {/* Seller */}
-                      <div className="hidden md:block col-span-2">
+                      <div className="hidden md:block col-span-1">
                         <span className="text-sm text-slate-600 truncate block">
                           {sellerName || "—"}
                         </span>
@@ -1330,12 +1499,66 @@ export default function StockBook() {
                   </div>
 
                   {/* Purchase Price */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {purchaseForm.vatScheme === "VAT_QUALIFYING" ? (
+                    <>
+                      {/* VAT Qualifying: Enter Gross, auto-calculate Net and VAT */}
+                      <div className="form-control">
+                        <label className="label">
+                          <span className="label-text font-medium">Purchase Price (Gross inc VAT) *</span>
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={purchaseForm.purchasePriceGross}
+                          onChange={(e) => {
+                            const gross = e.target.value;
+                            const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+                            const { net, vat } = calculateVatFromGross(gross, vatRate);
+                            setPurchaseForm({
+                              ...purchaseForm,
+                              purchasePriceGross: gross,
+                              purchasePriceNet: net,
+                              purchaseVat: vat,
+                            });
+                          }}
+                          className="input input-bordered w-full"
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                      {/* Show calculated Net and VAT as read-only */}
+                      {purchaseForm.purchasePriceGross && (
+                        <div className="grid grid-cols-2 gap-4 mt-2">
+                          <div className="form-control">
+                            <label className="label py-1">
+                              <span className="label-text text-sm text-slate-500">Net (calculated)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={formatCurrency(purchaseForm.purchasePriceNet)}
+                              className="input input-bordered w-full bg-slate-50 text-slate-600"
+                              disabled
+                            />
+                          </div>
+                          <div className="form-control">
+                            <label className="label py-1">
+                              <span className="label-text text-sm text-slate-500">VAT (calculated)</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={formatCurrency(purchaseForm.purchaseVat)}
+                              className="input input-bordered w-full bg-slate-50 text-slate-600"
+                              disabled
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Margin/No VAT: Just enter SIV price */
                     <div className="form-control">
                       <label className="label">
-                        <span className="label-text font-medium">
-                          {purchaseForm.vatScheme === "VAT_QUALIFYING" ? "Purchase Price (Net) *" : "Purchase Price (SIV) *"}
-                        </span>
+                        <span className="label-text font-medium">Purchase Price (SIV) *</span>
                       </label>
                       <input
                         type="number"
@@ -1347,23 +1570,7 @@ export default function StockBook() {
                         required
                       />
                     </div>
-
-                    {purchaseForm.vatScheme === "VAT_QUALIFYING" && (
-                      <div className="form-control">
-                        <label className="label">
-                          <span className="label-text font-medium">Purchase VAT</span>
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={purchaseForm.purchaseVat}
-                          onChange={(e) => setPurchaseForm({ ...purchaseForm, purchaseVat: e.target.value })}
-                          className="input input-bordered w-full"
-                          placeholder="0.00"
-                        />
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   {/* Seller */}
                   <div className="form-control">
@@ -1862,12 +2069,65 @@ export default function StockBook() {
                       </div>
 
                       {/* Purchase Price */}
-                      <div className="grid grid-cols-2 gap-4">
+                      {addVehicleForm.vatScheme === "VAT_QUALIFYING" ? (
+                        <>
+                          {/* VAT Qualifying: Enter Gross, auto-calculate Net and VAT */}
+                          <div className="form-control">
+                            <label className="label">
+                              <span className="label-text font-medium">Purchase Price (Gross inc VAT)</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={addVehicleForm.purchasePriceGross}
+                              onChange={(e) => {
+                                const gross = e.target.value;
+                                const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+                                const { net, vat } = calculateVatFromGross(gross, vatRate);
+                                setAddVehicleForm({
+                                  ...addVehicleForm,
+                                  purchasePriceGross: gross,
+                                  purchasePriceNet: net,
+                                  purchaseVat: vat,
+                                });
+                              }}
+                              className="input input-bordered w-full"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          {/* Show calculated Net and VAT as read-only */}
+                          {addVehicleForm.purchasePriceGross && (
+                            <div className="grid grid-cols-2 gap-4 mt-2">
+                              <div className="form-control">
+                                <label className="label py-1">
+                                  <span className="label-text text-sm text-slate-500">Net (calculated)</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formatCurrency(addVehicleForm.purchasePriceNet)}
+                                  className="input input-bordered w-full bg-slate-50 text-slate-600"
+                                  disabled
+                                />
+                              </div>
+                              <div className="form-control">
+                                <label className="label py-1">
+                                  <span className="label-text text-sm text-slate-500">VAT (calculated)</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formatCurrency(addVehicleForm.purchaseVat)}
+                                  className="input input-bordered w-full bg-slate-50 text-slate-600"
+                                  disabled
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        /* Margin/No VAT: Just enter SIV price */
                         <div className="form-control">
                           <label className="label">
-                            <span className="label-text font-medium">
-                              {addVehicleForm.vatScheme === "VAT_QUALIFYING" ? "Purchase Price (Net)" : "Purchase Price (SIV)"}
-                            </span>
+                            <span className="label-text font-medium">Purchase Price (SIV)</span>
                           </label>
                           <input
                             type="number"
@@ -1878,22 +2138,7 @@ export default function StockBook() {
                             placeholder="0.00"
                           />
                         </div>
-                        {addVehicleForm.vatScheme === "VAT_QUALIFYING" && (
-                          <div className="form-control">
-                            <label className="label">
-                              <span className="label-text font-medium">Purchase VAT</span>
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={addVehicleForm.purchaseVat}
-                              onChange={(e) => setAddVehicleForm({ ...addVehicleForm, purchaseVat: e.target.value })}
-                              className="input input-bordered w-full"
-                              placeholder="0.00"
-                            />
-                          </div>
-                        )}
-                      </div>
+                      )}
 
                       {/* Seller */}
                       <div className="form-control">

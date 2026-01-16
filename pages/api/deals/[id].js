@@ -142,30 +142,32 @@ async function handler(req, res, ctx) {
 
     const { hardDelete, cancelReason } = req.body || {};
 
-    // Already cancelled - nothing to do
-    if (deal.status === "CANCELLED") {
-      return res.status(400).json({ error: "Deal is already cancelled" });
-    }
-
-    // Hard delete is only allowed for DRAFT deals
+    // Hard delete - allowed for DRAFT and CANCELLED deals
     if (hardDelete) {
-      if (deal.status !== "DRAFT") {
-        return res.status(400).json({ error: "Only draft deals can be deleted. Use cancel for other deals." });
+      if (!["DRAFT", "CANCELLED"].includes(deal.status)) {
+        return res.status(400).json({ error: "Only draft or cancelled deals can be permanently deleted." });
       }
 
-      // Release the vehicle back to available
-      await Vehicle.findByIdAndUpdate(deal.vehicleId, {
-        salesStatus: "AVAILABLE",
-      });
+      // Release the vehicle back to available (only if not already cancelled - cancelled deals already released the vehicle)
+      if (deal.status === "DRAFT") {
+        await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+          salesStatus: "AVAILABLE",
+        });
+      }
 
       // Hard delete the deal
       await Deal.findByIdAndDelete(id);
 
       return res.status(200).json({
         success: true,
-        message: "Draft deleted",
+        message: deal.status === "DRAFT" ? "Draft deleted" : "Cancelled deal deleted",
         dealId: id,
       });
+    }
+
+    // Already cancelled - nothing to do (soft cancel only)
+    if (deal.status === "CANCELLED") {
+      return res.status(400).json({ error: "Deal is already cancelled" });
     }
 
     // COMPLETED deals require a cancellation reason
@@ -223,6 +225,8 @@ async function handler(req, res, ctx) {
     if (!wasCompleted) {
       await Vehicle.findByIdAndUpdate(deal.vehicleId, {
         salesStatus: "AVAILABLE",
+        status: "in_stock",
+        $unset: { soldAt: 1 },
       });
     }
 

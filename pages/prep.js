@@ -14,8 +14,7 @@ import VehicleImage from "@/components/VehicleImage";
 import ContactPicker from "@/components/ContactPicker";
 
 const COLUMNS = [
-  { key: "in_stock", label: "Not Advertised", gradient: "from-orange-100/60", accent: "border-l-orange-400", accentBg: "bg-orange-400" },
-  { key: "in_prep", label: "Advertised", gradient: "from-blue-100/60", accent: "border-l-blue-400", accentBg: "bg-blue-400" },
+  { key: "in_stock", label: "In Stock", gradient: "from-slate-100/60", accent: "border-l-slate-400", accentBg: "bg-slate-400" },
   { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
   { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
   { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
@@ -36,6 +35,18 @@ const ISSUE_SUBCATEGORIES = {
 // Sold statuses - these show "Sold X days" instead of "In stock X days"
 const SOLD_STATUSES = ["live", "reserved", "delivered"];
 
+// Helper to determine if text should be dark or light based on background color
+const getLabelTextColor = (hexColor) => {
+  if (!hexColor) return "#1e293b";
+  const hex = hexColor.replace("#", "");
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  // Calculate relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.5 ? "#1e293b" : "#ffffff";
+};
+
 // Helper to compute duration label based on status
 const getVehicleDuration = (vehicle) => {
   const isSold = SOLD_STATUSES.includes(vehicle.status);
@@ -43,16 +54,16 @@ const getVehicleDuration = (vehicle) => {
   if (isSold) {
     if (vehicle.soldAt) {
       const daysSold = Math.floor((Date.now() - new Date(vehicle.soldAt).getTime()) / (1000 * 60 * 60 * 24));
-      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true };
+      return { days: daysSold, label: `Sold ${daysSold}d`, isSold: true, soldDate: vehicle.soldAt };
     }
     // Legacy sold vehicle without soldAt - just show "Sold"
-    return { days: 0, label: "Sold", isSold: true };
+    return { days: 0, label: "Sold", isSold: true, soldDate: null };
   }
 
   const daysInStock = vehicle.createdAt
     ? Math.floor((Date.now() - new Date(vehicle.createdAt).getTime()) / (1000 * 60 * 60 * 24))
     : 0;
-  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false };
+  return { days: daysInStock, label: `${daysInStock}d in stock`, isSold: false, soldDate: null };
 };
 
 export default function SalesPrep() {
@@ -67,6 +78,7 @@ export default function SalesPrep() {
   const [newTaskName, setNewTaskName] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [showMotDetails, setShowMotDetails] = useState(false);
+  const [isRefreshingMot, setIsRefreshingMot] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
 
@@ -587,6 +599,64 @@ export default function SalesPrep() {
       toast.success(`Moved to ${newStatus.replace("_", " ")}`);
     } catch (error) {
       toast.error("Failed to update");
+    }
+  };
+
+  // Refresh MOT data from DVSA
+  const refreshMotData = async (vehicleId) => {
+    setIsRefreshingMot(true);
+    try {
+      const res = await fetch(`/api/vehicles/${vehicleId}/refresh-mot`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to refresh MOT data");
+        return;
+      }
+
+      // Refresh the vehicle data
+      const vehicleRes = await fetch(`/api/vehicles/${vehicleId}`);
+      const vehicleData = await vehicleRes.json();
+      setSelectedVehicle(vehicleData);
+      fetchVehicles();
+      toast.success(`MOT data refreshed - ${data.motHistoryCount} test(s) found`);
+    } catch (error) {
+      toast.error("Failed to refresh MOT data");
+    } finally {
+      setIsRefreshingMot(false);
+    }
+  };
+
+  // Add MOT defects to vehicle checklist
+  const addMotDefectsToChecklist = async (defects, defectType) => {
+    if (!selectedVehicle || !defects?.length) return;
+
+    try {
+      let addedCount = 0;
+      for (const defect of defects) {
+        const taskName = `[MOT ${defectType}] ${defect.text}`;
+        const res = await fetch(`/api/vehicles/${selectedVehicle.id}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: taskName,
+            notes: `Added from MOT defect - ${defectType}`,
+          }),
+        });
+        if (res.ok) addedCount++;
+      }
+      if (addedCount > 0) {
+        toast.success(`Added ${addedCount} task(s) to checklist`);
+        // Refresh vehicle data
+        const vehicleRes = await fetch(`/api/vehicles/${selectedVehicle.id}`);
+        const vehicleData = await vehicleRes.json();
+        setSelectedVehicle(vehicleData);
+        fetchVehicles();
+      }
+    } catch (error) {
+      toast.error("Failed to add tasks");
     }
   };
 
@@ -1329,6 +1399,28 @@ export default function SalesPrep() {
         if (filter === "type_courtesy") return vehicle.type === "COURTESY";
         if (filter === "type_fleet") return vehicle.type === "FLEET_OTHER";
 
+        // Advertised status filters
+        if (filter === "advertised") return vehicle.isAdvertised === true;
+        if (filter === "not_advertised") return vehicle.isAdvertised !== true;
+
+        // Has active issues filter
+        if (filter === "has_issues") return activeIssues.length > 0;
+
+        // Awaiting parts filter (checks both tasks and issues)
+        if (filter === "awaiting_parts") {
+          // Check tasks for pending parts orders
+          const hasPendingTaskParts = tasks.some(task => {
+            const orders = task.partsOrders || [];
+            return orders.some(o => o.status !== "RECEIVED" && o.status !== "received");
+          });
+          // Check issues for parts required
+          const hasIssueParts = issues.some(i =>
+            i.partsRequired &&
+            ["outstanding", "ordered", "in_progress"].includes((i.status || "").toLowerCase())
+          );
+          return hasPendingTaskParts || hasIssueParts;
+        }
+
         // Label filters (format: label_{labelId})
         if (filter.startsWith("label_")) {
           const labelId = filter.replace("label_", "");
@@ -1345,7 +1437,14 @@ export default function SalesPrep() {
   const getVehiclesByStatus = (status) => {
     // Only show vehicles that are on the prep board (showOnPrepBoard !== false)
     // This allows vehicles to be "removed" from prep without deleting them from stock book
-    let statusVehicles = vehicles.filter(v => v.status === status && v.showOnPrepBoard !== false);
+    // Note: "in_prep" vehicles are now included in "in_stock" column (columns merged)
+    let statusVehicles = vehicles.filter(v => {
+      if (v.showOnPrepBoard === false) return false;
+      if (status === "in_stock") {
+        return v.status === "in_stock" || v.status === "in_prep";
+      }
+      return v.status === status;
+    });
 
     // Apply VRM filter if set
     if (vrmFilter) {
@@ -1395,6 +1494,17 @@ export default function SalesPrep() {
       if (filter === "awaiting_valet") return !tasks.find(t => t.name.toLowerCase().includes("valet") && t.status === "done");
       if (filter === "awaiting_photos") return !tasks.find(t => t.name.toLowerCase().includes("photo") && t.status === "done");
       if (filter === "awaiting_mot") return !tasks.find(t => t.name.toLowerCase().includes("mot") && t.status === "done");
+      if (filter === "awaiting_parts") {
+        const hasPendingTaskParts = tasks.some(task => {
+          const orders = task.partsOrders || [];
+          return orders.some(o => o.status !== "RECEIVED" && o.status !== "received");
+        });
+        const hasIssueParts = issues.some(i =>
+          i.partsRequired &&
+          ["outstanding", "ordered", "in_progress"].includes((i.status || "").toLowerCase())
+        );
+        return hasPendingTaskParts || hasIssueParts;
+      }
       if (filter === "needs_paint") return activeIssues.some(i => {
         const cat = (i.category || "").toLowerCase();
         return cat === "bodywork" || cat === "cosmetic";
@@ -1896,11 +2006,11 @@ export default function SalesPrep() {
     <DashboardLayout>
       <Head><title>Vehicle Prep | DealerHQ</title></Head>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-3xl font-bold">Vehicle Prep</h1>
           <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; {isTouchDevice ? "Tap a card, then use Move to change stage" : "Drag cards to move between stages"}</p>
-          <div className="mt-2"><PageHint id="sales-prep">{isTouchDevice ? "Tap a vehicle card to view details. Use the Move button to change stages." : "Drag vehicles between columns to track their progress. Click a card to view details and manage tasks."}</PageHint></div>
+          <div className="mt-1"><PageHint id="sales-prep">{isTouchDevice ? "Tap a vehicle card to view details. Use the Move button to change stages." : "Drag vehicles between columns to track their progress. Click a card to view details and manage tasks."}</PageHint></div>
         </div>
         <Link href="/stock-book" className="btn btn-outline btn-sm text-slate-600">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1911,7 +2021,7 @@ export default function SalesPrep() {
       </div>
 
       {/* Consolidated Filters */}
-      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-4 -mx-6 px-6 py-3">
+      <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 mb-2 -mx-6 px-6 py-2">
         <div className="flex gap-2 items-center overflow-x-auto scrollbar-hide pb-1 -mb-1">
             {/* VRM Search */}
             <div className="relative shrink-0">
@@ -2024,6 +2134,7 @@ export default function SalesPrep() {
                               { key: "awaiting_valet", label: "Awaiting Valet" },
                               { key: "awaiting_photos", label: "Awaiting Photos" },
                               { key: "awaiting_mot", label: "Awaiting MOT" },
+                              { key: "awaiting_parts", label: "Awaiting Parts" },
                             ].map(filter => {
                               const isActive = activeFilters.includes(filter.key);
                               const count = getFilterCount(filter.key);
@@ -2285,6 +2396,7 @@ export default function SalesPrep() {
                       { key: "awaiting_valet", label: "Awaiting Valet" },
                       { key: "awaiting_photos", label: "Awaiting Photos" },
                       { key: "awaiting_mot", label: "Awaiting MOT" },
+                      { key: "awaiting_parts", label: "Awaiting Parts" },
                     ].map(filter => {
                       const isActive = activeFilters.includes(filter.key);
                       const count = getFilterCount(filter.key);
@@ -2472,6 +2584,80 @@ export default function SalesPrep() {
           </div>
       </div>
 
+      {/* KPI Bar - Quick Stats */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 items-center py-1.5 px-2 bg-slate-50/50 border-b border-slate-100 text-xs text-slate-500 -mx-6 px-6 mb-2">
+        {(() => {
+          const inStockVehicles = vehicles.filter(v =>
+            v.showOnPrepBoard !== false &&
+            (v.status === "in_stock" || v.status === "in_prep")
+          );
+          const advertised = inStockVehicles.filter(v => v.isAdvertised).length;
+          const notAdvertised = inStockVehicles.filter(v => !v.isAdvertised).length;
+          const offsite = vehicles.filter(v => v.showOnPrepBoard !== false && v.locationId).length;
+          const withIssues = vehicles.filter(v =>
+            v.showOnPrepBoard !== false &&
+            (v.issues || []).some(i => ["outstanding", "ordered", "in_progress"].includes((i.status || "").toLowerCase()))
+          ).length;
+
+          return (
+            <>
+              <button
+                onClick={() => {
+                  if (activeFilters.includes("advertised")) {
+                    setActiveFilters(activeFilters.filter(f => f !== "advertised"));
+                  } else {
+                    setActiveFilters([...activeFilters.filter(f => f !== "not_advertised"), "advertised"]);
+                  }
+                }}
+                className={`flex items-center gap-1.5 hover:text-slate-700 ${activeFilters.includes("advertised") ? "text-green-600 font-medium" : ""}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                Advertised: <strong>{advertised}</strong>
+              </button>
+              <button
+                onClick={() => {
+                  if (activeFilters.includes("not_advertised")) {
+                    setActiveFilters(activeFilters.filter(f => f !== "not_advertised"));
+                  } else {
+                    setActiveFilters([...activeFilters.filter(f => f !== "advertised"), "not_advertised"]);
+                  }
+                }}
+                className={`flex items-center gap-1.5 hover:text-slate-700 ${activeFilters.includes("not_advertised") ? "text-orange-600 font-medium" : ""}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                Not Advertised: <strong>{notAdvertised}</strong>
+              </button>
+              <button
+                onClick={() => {
+                  if (activeFilters.includes("offsite")) {
+                    setActiveFilters(activeFilters.filter(f => f !== "offsite"));
+                  } else {
+                    setActiveFilters([...activeFilters, "offsite"]);
+                  }
+                }}
+                className={`flex items-center gap-1.5 hover:text-slate-700 ${activeFilters.includes("offsite") ? "text-purple-600 font-medium" : ""}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                Offsite: <strong>{offsite}</strong>
+              </button>
+              <button
+                onClick={() => {
+                  if (activeFilters.includes("has_issues")) {
+                    setActiveFilters(activeFilters.filter(f => f !== "has_issues"));
+                  } else {
+                    setActiveFilters([...activeFilters, "has_issues"]);
+                  }
+                }}
+                className={`flex items-center gap-1.5 hover:text-slate-700 ${activeFilters.includes("has_issues") ? "text-red-600 font-medium" : ""}`}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                With Issues: <strong>{withIssues}</strong>
+              </button>
+            </>
+          );
+        })()}
+      </div>
+
       {isLoading ? (
         <div className="flex justify-center py-20">
           <span className="loading loading-spinner loading-lg"></span>
@@ -2626,7 +2812,7 @@ export default function SalesPrep() {
                                 <p className="font-bold text-slate-900 text-base">
                                   {vehicle.year || ""} {vehicle.make} {vehicle.model}
                                 </p>
-                                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                                <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                                   {vehicle.regCurrent}
                                 </span>
                                 {/* Status badge in All mode */}
@@ -2648,6 +2834,11 @@ export default function SalesPrep() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               {duration.label}
+                              {duration.soldDate && (
+                                <span className="text-slate-400 ml-0.5">
+                                  ({new Date(duration.soldDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})
+                                </span>
+                              )}
                             </span>
                           </div>
 
@@ -2660,6 +2851,15 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                                 {vehicle.locationId.name || "Offsite"}
+                              </span>
+                            )}
+                            {/* Advertised badge */}
+                            {vehicle.isAdvertised && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Advertised
                               </span>
                             )}
                             {vehicle.saleType === "TRADE" && (
@@ -2729,14 +2929,12 @@ export default function SalesPrep() {
                             {vehicle.labels?.map((label) => (
                               <span
                                 key={label.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border"
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                                 style={{
-                                  backgroundColor: `${label.colour}10`,
-                                  color: label.colour,
-                                  borderColor: `${label.colour}30`,
+                                  backgroundColor: label.colour,
+                                  color: getLabelTextColor(label.colour),
                                 }}
                               >
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.colour }}></span>
                                 {label.name}
                               </span>
                             ))}
@@ -2747,6 +2945,15 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 No SIV
+                              </span>
+                            )}
+                            {/* Delivery Badge - shows when deal has delivery set */}
+                            {vehicle.hasDelivery && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Delivery
                               </span>
                             )}
                           </div>
@@ -2951,7 +3158,7 @@ export default function SalesPrep() {
                                 <p className="font-bold text-slate-900 text-sm leading-tight">
                                   {vehicle.year || ""} {vehicle.make} {vehicle.model}
                                 </p>
-                                <span className="font-mono text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md">
+                                <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
                                   {vehicle.regCurrent}
                                 </span>
                               </div>
@@ -2960,6 +3167,15 @@ export default function SalesPrep() {
 
                           {/* Tags - Modern Pill Style */}
                           <div className="flex gap-1.5 flex-wrap mb-2">
+                            {/* Advertised badge */}
+                            {vehicle.isAdvertised && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                                Advertised
+                              </span>
+                            )}
                             {/* Trade badge */}
                             {vehicle.saleType === "TRADE" && (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 text-white uppercase">
@@ -3038,14 +3254,12 @@ export default function SalesPrep() {
                             {vehicle.labels?.map((label) => (
                               <span
                                 key={label.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold border"
+                                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
                                 style={{
-                                  backgroundColor: `${label.colour}10`,
-                                  color: label.colour,
-                                  borderColor: `${label.colour}30`,
+                                  backgroundColor: label.colour,
+                                  color: getLabelTextColor(label.colour),
                                 }}
                               >
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: label.colour }}></span>
                                 {label.name}
                               </span>
                             ))}
@@ -3056,6 +3270,15 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
                                 No SIV
+                              </span>
+                            )}
+                            {/* Delivery Badge - shows when deal has delivery set */}
+                            {vehicle.hasDelivery && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                </svg>
+                                Delivery
                               </span>
                             )}
                           </div>
@@ -3077,13 +3300,18 @@ export default function SalesPrep() {
 
                           {/* Footer - Duration (Sold or In Stock) */}
                           <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                            <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
+                            <span className={`inline-flex items-center gap-1 text-xs font-medium ${
                               duration.isSold ? "text-emerald-600" : duration.days > 30 ? "text-red-500" : "text-slate-400"
                             }`}>
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               {duration.label}
+                              {duration.soldDate && (
+                                <span className="text-slate-400 ml-0.5">
+                                  ({new Date(duration.soldDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})
+                                </span>
+                              )}
                             </span>
                             {!duration.isSold && duration.days > 30 && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-500 border border-red-100">
@@ -3214,18 +3442,12 @@ export default function SalesPrep() {
                   className="btn btn-outline btn-sm flex-1 md:flex-none"
                   onClick={handleGeneratePrepSummary}
                   disabled={isGeneratingPrepSummary}
-                  title="Export prep summary PDF"
+                  title="Download prep summary as PDF"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
-                  {isGeneratingPrepSummary ? "..." : "Prep PDF"}
-                </button>
-                <button className="hidden md:flex btn btn-outline btn-sm" onClick={handlePrintVehicle} title="Print vehicle details">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                  </svg>
-                  Print
+                  {isGeneratingPrepSummary ? "..." : "Download PDF"}
                 </button>
               </div>
             </div>
@@ -3301,6 +3523,38 @@ export default function SalesPrep() {
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-6">
+                  {/* Advertised Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      {selectedVehicle.isAdvertised ? (
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                      ) : (
+                        <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+                      )}
+                      <span className="text-sm font-medium text-slate-700">
+                        {selectedVehicle.isAdvertised ? "Advertised online" : "Not advertised"}
+                      </span>
+                    </div>
+                    <label className="cursor-pointer flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-sm toggle-success"
+                        checked={selectedVehicle.isAdvertised || false}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          setSelectedVehicle({ ...selectedVehicle, isAdvertised: newValue });
+                          await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ isAdvertised: newValue }),
+                          });
+                          fetchVehicles();
+                          toast.success(newValue ? "Marked as advertised" : "Marked as not advertised");
+                        }}
+                      />
+                    </label>
+                  </div>
+
                   {/* Identity Section */}
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-4">Identity</h3>
@@ -3372,11 +3626,10 @@ export default function SalesPrep() {
                             key={label.id}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
                             style={{
-                              backgroundColor: `${label.colour}20`,
-                              color: label.colour,
+                              backgroundColor: label.colour,
+                              color: getLabelTextColor(label.colour),
                             }}
                           >
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: label.colour }}></span>
                             {label.name}
                             <button
                               type="button"
@@ -3722,9 +3975,9 @@ export default function SalesPrep() {
                           />
                         </div>
 
-                        {/* MOT History Details Toggle */}
-                        {selectedVehicle.motHistory && selectedVehicle.motHistory.length > 0 && (
-                          <div className="col-span-2 mt-2">
+                        {/* MOT History Details Toggle + Refresh */}
+                        <div className="col-span-2 mt-2 flex items-center gap-3">
+                          {selectedVehicle.motHistory && selectedVehicle.motHistory.length > 0 ? (
                             <button
                               type="button"
                               onClick={() => setShowMotDetails(!showMotDetails)}
@@ -3735,6 +3988,24 @@ export default function SalesPrep() {
                               </svg>
                               {showMotDetails ? "Hide MOT Details" : "View MOT Details"}
                             </button>
+                          ) : (
+                            <span className="text-xs text-slate-400">No MOT history available</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => refreshMotData(selectedVehicle.id)}
+                            disabled={isRefreshingMot}
+                            className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1 disabled:opacity-50"
+                          >
+                            <svg className={`w-3 h-3 ${isRefreshingMot ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {isRefreshingMot ? "Refreshing..." : "Refresh MOT"}
+                          </button>
+                        </div>
+
+                        {selectedVehicle.motHistory && selectedVehicle.motHistory.length > 0 && (
+                          <div className="col-span-2">
 
                             {showMotDetails && (() => {
                               const latestMot = selectedVehicle.motHistory[0];
@@ -3769,12 +4040,21 @@ export default function SalesPrep() {
                                       {/* Dangerous */}
                                       {dangerous.length > 0 && (
                                         <div>
-                                          <p className="font-semibold text-red-700 flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                            </svg>
-                                            Dangerous ({dangerous.length})
-                                          </p>
+                                          <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-red-700 flex items-center gap-1">
+                                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                              </svg>
+                                              Dangerous ({dangerous.length})
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={() => addMotDefectsToChecklist(dangerous, "DANGEROUS")}
+                                              className="text-[10px] text-slate-500 hover:text-slate-700"
+                                            >
+                                              + Add to checklist
+                                            </button>
+                                          </div>
                                           <ul className="ml-4 text-red-600">
                                             {dangerous.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
                                           </ul>
@@ -3784,7 +4064,16 @@ export default function SalesPrep() {
                                       {/* Major */}
                                       {major.length > 0 && (
                                         <div>
-                                          <p className="font-semibold text-red-600">Major ({major.length})</p>
+                                          <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-red-600">Major ({major.length})</p>
+                                            <button
+                                              type="button"
+                                              onClick={() => addMotDefectsToChecklist(major, "MAJOR")}
+                                              className="text-[10px] text-slate-500 hover:text-slate-700"
+                                            >
+                                              + Add to checklist
+                                            </button>
+                                          </div>
                                           <ul className="ml-4 text-red-500">
                                             {major.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
                                           </ul>
@@ -3794,7 +4083,16 @@ export default function SalesPrep() {
                                       {/* Minor */}
                                       {minor.length > 0 && (
                                         <div>
-                                          <p className="font-semibold text-amber-600">Minor ({minor.length})</p>
+                                          <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-amber-600">Minor ({minor.length})</p>
+                                            <button
+                                              type="button"
+                                              onClick={() => addMotDefectsToChecklist(minor, "MINOR")}
+                                              className="text-[10px] text-slate-500 hover:text-slate-700"
+                                            >
+                                              + Add to checklist
+                                            </button>
+                                          </div>
                                           <ul className="ml-4 text-amber-600">
                                             {minor.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
                                           </ul>
@@ -3804,12 +4102,21 @@ export default function SalesPrep() {
                                       {/* Advisory */}
                                       {advisory.length > 0 && (
                                         <div>
-                                          <p className="font-semibold text-slate-600 flex items-center gap-1">
-                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                            </svg>
-                                            Advisories ({advisory.length})
-                                          </p>
+                                          <div className="flex items-center justify-between">
+                                            <p className="font-semibold text-slate-600 flex items-center gap-1">
+                                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                              </svg>
+                                              Advisories ({advisory.length})
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={() => addMotDefectsToChecklist(advisory, "ADVISORY")}
+                                              className="text-[10px] text-slate-500 hover:text-slate-700"
+                                            >
+                                              + Add to checklist
+                                            </button>
+                                          </div>
                                           <ul className="ml-4 text-slate-500">
                                             {advisory.map((d, i) => <li key={i} className="mt-0.5">• {d.text}</li>)}
                                           </ul>
@@ -3832,49 +4139,6 @@ export default function SalesPrep() {
                       </div>
                     </div>
 
-                  {/* Stock Number Section - Only for Stock vehicles */}
-                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
-                    <div className="bg-white border border-slate-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-slate-900">Stock Number</h3>
-                          {selectedVehicle.stockNumber ? (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-mono font-bold tracking-wider">
-                              {selectedVehicle.stockNumber}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-500">
-                              Not assigned
-                            </span>
-                          )}
-                        </div>
-                        {!selectedVehicle.stockNumber && (
-                          <button
-                            className="btn btn-xs bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
-                            onClick={async () => {
-                              try {
-                                const res = await fetch(`/api/vehicles/${selectedVehicle.id}/assign-stock-number`, {
-                                  method: "POST",
-                                });
-                                if (!res.ok) {
-                                  const err = await res.json();
-                                  throw new Error(err.error || "Failed to assign stock number");
-                                }
-                                const data = await res.json();
-                                setSelectedVehicle({ ...selectedVehicle, stockNumber: data.stockNumber });
-                                toast.success(`Stock number assigned: ${data.stockNumber}`);
-                                fetchVehicles();
-                              } catch (error) {
-                                toast.error(error.message);
-                              }
-                            }}
-                          >
-                            Assign Stock #
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Purchase Section - Only for Stock vehicles */}
                   {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
@@ -4977,13 +5241,12 @@ export default function SalesPrep() {
                     <span className="label-text font-medium">Preview</span>
                   </label>
                   <span
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                    className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold"
                     style={{
-                      backgroundColor: `${newLabelForm.colour}20`,
-                      color: newLabelForm.colour,
+                      backgroundColor: newLabelForm.colour,
+                      color: getLabelTextColor(newLabelForm.colour),
                     }}
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: newLabelForm.colour }}></span>
                     {newLabelForm.name}
                   </span>
                 </div>
@@ -5075,16 +5338,13 @@ export default function SalesPrep() {
                       Email
                     </button>
                     <button
-                      onClick={() => {
-                        const printWindow = window.open(jobSheetLink.url, '_blank');
-                        printWindow.onload = () => printWindow.print();
-                      }}
+                      onClick={() => window.open(jobSheetLink.url, '_blank')}
                       className="btn btn-outline btn-sm gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
-                      Download PDF
+                      Open & Download
                     </button>
                   </div>
                 </div>
@@ -5173,16 +5433,13 @@ export default function SalesPrep() {
                       Email
                     </button>
                     <button
-                      onClick={() => {
-                        const printWindow = window.open(prepSummaryLink.url, '_blank');
-                        printWindow.onload = () => printWindow.print();
-                      }}
+                      onClick={() => window.open(prepSummaryLink.url, '_blank')}
                       className="btn btn-primary btn-sm gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
-                      Download PDF
+                      Open & Download
                     </button>
                   </div>
                 </div>

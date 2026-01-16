@@ -103,9 +103,11 @@ async function handler(req, res, ctx) {
   deal.updatedByUserId = userId;
   await deal.save();
 
-  // Update vehicle status
+  // Update vehicle status - move to "Sold In Progress" on prep board
   await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
     salesStatus: "IN_DEAL",
+    status: "live",
+    soldAt: new Date(),
   });
 
   // Create snapshot data for the document
@@ -118,11 +120,11 @@ async function handler(req, res, ctx) {
     takenByUser = await User.findById(userId).select("name email").lean();
   }
 
-  // Get fresh signed URL for logo (90 days expiry to match document share links)
+  // Get fresh signed URL for logo (7 days max for S3 signature v4)
   let logoUrl = dealer.logoUrl;
   if (dealer.logoKey) {
     try {
-      logoUrl = await getSignedGetUrl(dealer.logoKey, 90 * 24 * 60 * 60); // 90 days
+      logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60); // 7 days max for S3 signature v4
     } catch (logoError) {
       console.warn("[take-deposit] Failed to generate logo URL:", logoError.message);
       // Fall back to stored logoUrl
@@ -166,6 +168,7 @@ async function handler(req, res, ctx) {
       year: vehicle.year,
       mileage: vehicle.mileageCurrent,
       colour: vehicle.colour,
+      firstRegisteredDate: vehicle.firstRegisteredDate || null,
     },
     customer: {
       name: customer.displayName,
@@ -198,6 +201,26 @@ async function handler(req, res, ctx) {
       financeCompanyName: financeCompanyName,
       toBeConfirmed: deal.financeSelection?.toBeConfirmed || false,
     } : null,
+    // Part Exchange(s) - multiple PX array takes precedence over legacy single PX
+    partExchanges: (deal.partExchanges && deal.partExchanges.length > 0)
+      ? deal.partExchanges.map(px => ({
+          vrm: px.vrm || null,
+          make: px.make || null,
+          model: px.model || null,
+          year: px.year || null,
+          colour: px.colour || null,
+          fuelType: px.fuelType || null,
+          mileage: px.mileage || null,
+          motExpiry: px.motExpiry || null,
+          dateOfRegistration: px.dateOfRegistration || null,
+          allowance: px.allowance || 0,
+          settlement: px.settlement || 0,
+        }))
+      : (deal.partExchangeAllowance > 0 ? [{
+          vrm: null, // Legacy doesn't store VRM inline
+          allowance: deal.partExchangeAllowance || 0,
+          settlement: deal.partExchangeSettlement || 0,
+        }] : []),
     // Sale classification
     saleType: deal.saleType,
     buyerUse: deal.buyerUse,
@@ -214,7 +237,7 @@ async function handler(req, res, ctx) {
     grandTotal,
     totalPaid: amount,
     balanceDue: grandTotal - amount,
-    termsText: deal.termsSnapshotText || dealer?.salesSettings?.terms?.depositTerms || "",
+    termsText: deal.termsSnapshotText || getTermsText(deal, dealer),
     // Include agreed work items (requests)
     requests: (deal.requests || []).map(req => ({
       title: req.title,
@@ -278,6 +301,20 @@ async function handler(req, res, ctx) {
       .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
       .reduce((sum, p) => sum + p.amount, 0),
   });
+}
+
+/**
+ * Get appropriate terms text based on buyer type and sale channel
+ */
+function getTermsText(deal, dealer) {
+  const terms = dealer?.salesSettings?.terms || {};
+  // Determine if business buyer using either buyerType or buyerUse field
+  const isBusiness = deal.buyerType === "BUSINESS" || deal.buyerUse === "BUSINESS";
+  const buyerType = isBusiness ? "business" : "consumer";
+  // Map sale channel: DISTANCE -> Distance, IN_PERSON -> InPerson
+  const channel = deal.saleChannel === "DISTANCE" ? "Distance" : "InPerson";
+  const key = `${buyerType}${channel}`;
+  return terms[key] || terms.consumerInPerson || "";
 }
 
 export default withDealerContext(handler);

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import dynamic from "next/dynamic";
 
 const STATUS_LABELS = {
   Outstanding: "Outstanding",
@@ -29,6 +30,8 @@ export default function PublicJobSheet() {
   const [data, setData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     if (token) {
@@ -55,6 +58,34 @@ export default function PublicJobSheet() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!contentRef.current || !data) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      const html2pdf = (await import("html2pdf.js")).default;
+
+      const element = contentRef.current;
+      const vehicle = data.jobSheet?.vehicle;
+      const filename = `Job-Sheet-${vehicle?.vrm || "Vehicle"}-${new Date().toISOString().split("T")[0]}.pdf`;
+
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
+
+      await html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error("PDF generation error:", err);
+      window.print();
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -105,19 +136,40 @@ export default function PublicJobSheet() {
       </Head>
 
       <div className="max-w-3xl mx-auto">
-        {/* Print Button - Hidden on print */}
-        <div className="flex justify-end mb-4 print:hidden">
+        {/* Action Buttons - Hidden on print */}
+        <div className="flex justify-end gap-2 mb-4 print:hidden">
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {isGeneratingPdf ? (
+              <>
+                <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Generating...
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download PDF
+              </>
+            )}
+          </button>
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-medium hover:bg-slate-200 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
-            Print / Save PDF
+            Print
           </button>
         </div>
 
+        {/* PDF Content Container */}
+        <div ref={contentRef}>
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6 mb-6 print:shadow-none print:border print:rounded-none">
           <div className="flex items-start justify-between">
@@ -320,8 +372,14 @@ export default function PublicJobSheet() {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer - included in PDF */}
         <div className="text-center mt-8 text-sm text-slate-500 print:mt-4">
+          <p>Generated from DealerHQ on {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+        </div>
+        </div>{/* End of PDF content container */}
+
+        {/* Non-PDF footer */}
+        <div className="text-center mt-4 text-xs text-slate-400 print:hidden">
           <p>This is a read-only job sheet. Contact the dealership for updates.</p>
         </div>
       </div>
