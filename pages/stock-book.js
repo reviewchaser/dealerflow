@@ -798,8 +798,8 @@ export default function StockBook() {
         // Store MOT data from DVSA API
         motExpiryDate: motData?.motExpiry || dvlaData.dvlaDetails?.motExpiryDate || null,
         motHistory: motData?.motHistory || null,
-        // Date of first registration from DVSA
-        firstRegisteredDate: motData?.firstUsedDate || null,
+        // Date of first registration from DVSA or DVLA
+        firstRegisteredDate: motData?.firstUsedDate || dvlaData.firstRegisteredDate || null,
         // Store DVLA details
         dvlaDetails: dvlaData.dvlaDetails || null,
       }));

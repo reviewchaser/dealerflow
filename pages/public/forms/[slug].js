@@ -48,6 +48,10 @@ export default function PublicForm({ form, fields, dealer }) {
   // Selected deal info for delivery forms
   const [selectedDealInfo, setSelectedDealInfo] = useState(null);
 
+  // Signature state for delivery forms (invoice signing)
+  const [deliverySignature, setDeliverySignature] = useState(null);
+  const [signerName, setSignerName] = useState("");
+
   // Search vehicles for VRM suggestions (PDI/Delivery)
   const searchVrmVehicles = async (query) => {
     if (!query || query.length < 2) {
@@ -120,22 +124,22 @@ export default function PublicForm({ form, fields, dealer }) {
   useEffect(() => {
     if ((form?.type === "TEST_DRIVE" || form?.type === "DELIVERY") && fields.length > 0) {
       const now = new Date();
-      const timeField = fields.find(f => f.fieldName === "time" && f.type === "TIME");
-      const dateField = fields.find(f => f.fieldName === "date" && f.type === "DATE");
+      const timeField = fields.find(f => f.type === "TIME");
+      const dateField = fields.find(f => f.type === "DATE");
 
       const updates = {};
 
       // Set default time to current time (rounded to nearest 15 min)
-      if (timeField && !formData.time) {
+      if (timeField && !formData[timeField.fieldName]) {
         const minutes = Math.round(now.getMinutes() / 15) * 15;
         const hours = now.getHours() + (minutes >= 60 ? 1 : 0);
         const adjustedMinutes = minutes >= 60 ? 0 : minutes;
-        updates.time = `${String(hours).padStart(2, "0")}:${String(adjustedMinutes).padStart(2, "0")}`;
+        updates[timeField.fieldName] = `${String(hours).padStart(2, "0")}:${String(adjustedMinutes).padStart(2, "0")}`;
       }
 
       // Set default date to today
-      if (dateField && !formData.date) {
-        updates.date = now.toISOString().split("T")[0];
+      if (dateField && !formData[dateField.fieldName]) {
+        updates[dateField.fieldName] = now.toISOString().split("T")[0];
       }
 
       if (Object.keys(updates).length > 0) {
@@ -360,17 +364,41 @@ export default function PublicForm({ form, fields, dealer }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate signature for delivery forms with unsigned invoices
+    if (form?.type === "DELIVERY" && selectedDealInfo && !selectedDealInfo.isInvoiceSigned) {
+      if (!deliverySignature) {
+        toast.error("Customer signature is required to confirm delivery and sign the invoice");
+        return;
+      }
+      if (!signerName.trim()) {
+        toast.error("Please enter the customer's full name");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
+      // Build submission data
+      const submissionData = {
+        formId: form._id,
+        rawAnswers: formData,
+        files: uploadedFiles,
+      };
+
+      // Include signature data for delivery forms
+      if (form?.type === "DELIVERY" && deliverySignature) {
+        submissionData.invoiceSignature = {
+          signatureData: deliverySignature,
+          signerName: signerName.trim(),
+        };
+      }
+
       const res = await fetch("/api/forms/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          formId: form._id,
-          rawAnswers: formData,
-          files: uploadedFiles, // Include uploaded files
-        }),
+        body: JSON.stringify(submissionData),
       });
 
       if (!res.ok) throw new Error("Submission failed");
@@ -595,7 +623,7 @@ export default function PublicForm({ form, fields, dealer }) {
             {/* Deal Info for Delivery Forms */}
             {form?.type === "DELIVERY" && selectedDealInfo && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
@@ -606,6 +634,12 @@ export default function PublicForm({ form, fields, dealer }) {
                   }`}>
                     {selectedDealInfo.dealStatus?.replace("_", " ")}
                   </span>
+                  {/* Invoice Signing Status Badge */}
+                  {selectedDealInfo.dealStatus === "INVOICED" && (
+                    <span className={`badge badge-sm ${selectedDealInfo.isInvoiceSigned ? "badge-success" : "badge-warning"}`}>
+                      {selectedDealInfo.isInvoiceSigned ? "Invoice Signed" : "Unsigned"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Customer Info */}
@@ -638,6 +672,59 @@ export default function PublicForm({ form, fields, dealer }) {
                       </svg>
                       View Invoice {selectedDealInfo.invoiceNumber && `(${selectedDealInfo.invoiceNumber})`}
                     </a>
+                  </div>
+                )}
+
+                {/* Invoice Signature Required */}
+                {selectedDealInfo.dealStatus === "INVOICED" && !selectedDealInfo.isInvoiceSigned && (
+                  <div className="pt-3 border-t border-blue-200 space-y-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <p className="text-sm text-amber-800 font-medium">
+                        Invoice requires customer signature
+                      </p>
+                      <p className="text-xs text-amber-700 mt-1">
+                        Customer signature below confirms delivery AND acceptance of invoice.
+                      </p>
+                    </div>
+
+                    {/* Customer Name Input */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Customer Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="input input-bordered w-full"
+                        value={signerName}
+                        onChange={(e) => setSignerName(e.target.value)}
+                        placeholder="Enter customer's full name"
+                        required
+                      />
+                    </div>
+
+                    {/* Signature Capture */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Customer Signature <span className="text-red-500">*</span>
+                      </label>
+                      <DrawableSignature
+                        value={deliverySignature}
+                        onChange={setDeliverySignature}
+                        label="Customer Signature (confirms delivery AND invoice)"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Already Signed Notice */}
+                {selectedDealInfo.dealStatus === "INVOICED" && selectedDealInfo.isInvoiceSigned && (
+                  <div className="pt-2 border-t border-blue-200">
+                    <p className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 flex items-center gap-1">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Invoice has been signed - delivery confirmation only
+                    </p>
                   </div>
                 )}
 

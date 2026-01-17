@@ -26,6 +26,11 @@ function formatDvlaResponse(data) {
     colour: data.colour || null,
     yearOfManufacture: data.yearOfManufacture || null,
 
+    // First registration date (convert YYYY-MM to YYYY-MM-01 for date storage)
+    firstRegisteredDate: data.monthOfFirstRegistration
+      ? `${data.monthOfFirstRegistration}-01`
+      : null,
+
     // Extended DVLA details to store
     dvlaDetails: {
       co2Emissions: data.co2Emissions || null,

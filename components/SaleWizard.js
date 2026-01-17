@@ -838,7 +838,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
 
       {/* Wizard Modal - Inline Popup */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] md:max-h-[85vh] flex flex-col">
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
             <div>

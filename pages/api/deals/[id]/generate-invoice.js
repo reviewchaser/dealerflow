@@ -213,7 +213,7 @@ async function handler(req, res, ctx) {
     .filter(p => p.type === "DEPOSIT")
     .reduce((sum, p) => sum + p.amount, 0);
   const otherPayments = validPayments
-    .filter(p => p.type !== "DEPOSIT")
+    .filter(p => p.type !== "DEPOSIT" && p.type !== "FINANCE_ADVANCE")
     .reduce((sum, p) => sum + p.amount, 0);
 
   // Finance advance (if customer is financing through a company)

@@ -1692,19 +1692,19 @@ export default function DealDrawer({
                   </div>
                 </div>
                 {/* Document buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                   {documents.depositReceipt && (
                     <a
                       href={documents.depositReceipt.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
+                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
                       title="View Deposit Receipt"
                     >
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span>Receipt</span>
+                      <span className="hidden md:inline">Receipt</span>
                     </a>
                   )}
                   {documents.invoice && (
@@ -1712,25 +1712,25 @@ export default function DealDrawer({
                       href={documents.invoice.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
+                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
                       title="View Invoice"
                     >
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span>Invoice</span>
+                      <span className="hidden md:inline">Invoice</span>
                     </a>
                   )}
                   {documents.invoice && (
                     <button
                       onClick={handleOpenHandover}
-                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
+                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
                       title="Generate Handover Pack"
                     >
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      <span>Handover</span>
+                      <span className="hidden md:inline">Handover</span>
                     </button>
                   )}
                   <button

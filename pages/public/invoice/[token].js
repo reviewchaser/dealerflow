@@ -397,23 +397,23 @@ export default function InvoicePage() {
                       {/* Deposit Paid */}
                       {snap.depositPaid > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-slate-600">Deposit Paid</td>
+                          <td className="px-4 py-2 text-slate-600">Less: Deposit Paid</td>
                           <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.depositPaid)}</td>
                         </tr>
                       )}
 
-                      {/* Other Payments (balance payments after deposit) */}
+                      {/* Other Payments (balance payments after deposit, excluding finance) */}
                       {snap.otherPayments > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-slate-600">Payments Received</td>
+                          <td className="px-4 py-2 text-slate-600">Less: Payments Received</td>
                           <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.otherPayments)}</td>
                         </tr>
                       )}
 
                       {/* Fallback: show totalPaid if individual breakdown not available */}
-                      {!snap.depositPaid && !snap.otherPayments && snap.totalPaid > 0 && (
+                      {!snap.depositPaid && !snap.otherPayments && !snap.financeAdvance && snap.totalPaid > 0 && (
                         <tr>
-                          <td className="px-4 py-2 text-slate-600">Payments Received</td>
+                          <td className="px-4 py-2 text-slate-600">Less: Payments Received</td>
                           <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(snap.totalPaid)}</td>
                         </tr>
                       )}

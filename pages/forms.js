@@ -880,7 +880,11 @@ export default function Forms() {
                         onClick={() => {
                           const canOpenPublic = (form.visibility === "PUBLIC" || form.visibility === "SHARE_LINK" || (!form.visibility && form.isPublic));
                           if (canOpenPublic && form.publicSlug) {
-                            window.open(`/public/forms/${form.publicSlug}`, '_blank');
+                            const dealerSlug = session?.user?.dealerSlug;
+                            const url = dealerSlug
+                              ? `/public/forms/d/${dealerSlug}/${form.publicSlug}`
+                              : `/public/forms/${form.publicSlug}`;
+                            window.open(url, '_blank');
                           } else {
                             router.push(`/forms/fill/${form.id || form._id}`);
                           }
@@ -1125,7 +1129,11 @@ export default function Forms() {
                             <button
                               className="flex-1 btn btn-sm btn-outline btn-primary"
                               onClick={() => {
-                                const url = `${window.location.origin}/public/forms/${form.publicSlug}`;
+                                const dealerSlug = session?.user?.dealerSlug;
+                                const path = dealerSlug
+                                  ? `/public/forms/d/${dealerSlug}/${form.publicSlug}`
+                                  : `/public/forms/${form.publicSlug}`;
+                                const url = `${window.location.origin}${path}`;
                                 navigator.clipboard.writeText(url);
                                 toast.success("Link copied!");
                               }}

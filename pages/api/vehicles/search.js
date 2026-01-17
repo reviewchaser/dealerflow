@@ -115,7 +115,7 @@ export default async function handler(req, res) {
         status: { $nin: ["CANCELLED", "COMPLETED"] },
       })
         .populate("soldToContactId", "displayName name phone email address")
-        .select("vehicleId status soldToContactId delivery invoiceUrl invoiceNumber")
+        .select("vehicleId status soldToContactId delivery invoiceUrl invoiceNumber signature")
         .lean();
 
       for (const deal of deals) {
@@ -130,6 +130,7 @@ export default async function handler(req, res) {
           deliveryAddress: deal.delivery?.address,
           invoiceUrl: deal.invoiceUrl,
           invoiceNumber: deal.invoiceNumber,
+          isInvoiceSigned: !!(deal.signature?.customerSignedAt),
         };
       }
     }

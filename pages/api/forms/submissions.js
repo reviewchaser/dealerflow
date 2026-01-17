@@ -69,7 +69,7 @@ export default async function handler(req, res) {
   // POST is public - form submissions from public forms
   if (req.method === "POST") {
     try {
-      const { formId, rawAnswers, submittedByContactId, files } = req.body;
+      const { formId, rawAnswers, submittedByContactId, files, invoiceSignature } = req.body;
 
       if (!formId || !rawAnswers) {
         return res.status(400).json({ error: "Missing required fields" });
@@ -400,6 +400,17 @@ export default async function handler(req, res) {
                   deal.delivery.formSubmissionId = submission._id;
                   deal.delivery.deliveryMileage = rawAnswers.mileage ? parseInt(rawAnswers.mileage) : undefined;
                   deal.delivery.deliveryNotes = rawAnswers.notes || undefined;
+
+                  // Save invoice signature if provided
+                  if (invoiceSignature && invoiceSignature.signatureData) {
+                    deal.signature = deal.signature || {};
+                    deal.signature.customerSignature = invoiceSignature.signatureData;
+                    deal.signature.customerSignerName = invoiceSignature.signerName;
+                    deal.signature.customerSignedAt = new Date();
+                    deal.signature.customerSignedVia = "delivery_form";
+                    console.log(`[Delivery Form] Invoice signed by ${invoiceSignature.signerName} via delivery form`);
+                  }
+
                   await deal.save();
                   console.log(`[Delivery Form] Updated deal ${deal._id} to DELIVERED status`);
                 }
