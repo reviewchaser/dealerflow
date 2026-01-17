@@ -7,6 +7,7 @@ import VehicleLocation from "@/models/VehicleLocation";
 import VehicleDocument from "@/models/VehicleDocument";
 import VehicleActivity from "@/models/VehicleActivity";
 import Deal from "@/models/Deal";
+import Dealer from "@/models/Dealer";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
 
@@ -311,6 +312,22 @@ async function handler(req, res, ctx) {
     }
 
     const vehicle = await Vehicle.create(vehicleData);
+
+    // Auto-assign stock number for STOCK vehicles
+    if (type === "STOCK") {
+      const dealer = await Dealer.findById(dealerId);
+      const nextNumber = dealer?.salesSettings?.nextStockNumber || 1;
+      const prefix = dealer?.salesSettings?.stockNumberPrefix || "";
+      const stockNumber = `${prefix}${String(nextNumber).padStart(4, "0")}`;
+
+      vehicle.stockNumber = stockNumber;
+      await vehicle.save();
+
+      // Increment dealer's next stock number
+      await Dealer.findByIdAndUpdate(dealerId, {
+        $inc: { "salesSettings.nextStockNumber": 1 },
+      });
+    }
 
     // Create default tasks only if not skipped (for backwards compatibility)
     if (!skipDefaultTasks) {

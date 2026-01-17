@@ -1599,7 +1599,7 @@ export default function Warranty() {
                         onClick={() => fetchCaseDetail(caseItem.id || caseItem._id)}
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
+                          <span className="font-mono text-sm md:text-xs font-bold bg-[#F7D117] text-black px-2.5 py-1 md:py-0.5 rounded border border-black/30 tracking-wider uppercase shadow-sm">
                             {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "?"}
                           </span>
                           <span className="text-sm text-slate-700 truncate max-w-[120px]">

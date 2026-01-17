@@ -454,19 +454,11 @@ export default function Dashboard() {
           {/* KPI Cards Row - Mixed Variants */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             <StatsCard
-              title="Pending Appraisals"
-              value={stats?.appraisals?.pending ?? 0}
-              trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
-              icon="📋"
-              color="primary"
-              variant="gradient"
-            />
-            <StatsCard
               title="Total Stock"
               value={(stats?.vehicles?.inStock ?? 0) + (stats?.vehicles?.inPrep ?? 0)}
               trend={stats?.vehicles?.inPrep > 0 ? `${stats.vehicles.inPrep} in prep` : null}
               icon="🚗"
-              color="secondary"
+              color="primary"
               variant="gradient"
             />
             <StatsCard
@@ -483,6 +475,14 @@ export default function Dashboard() {
               trend="Delivered to customers"
               icon="🏆"
               color="success"
+              variant="gradient"
+            />
+            <StatsCard
+              title="Pending Appraisals"
+              value={stats?.appraisals?.pending ?? 0}
+              trend={typeof stats?.oldestAppraisalDays === "number" ? `Oldest: ${stats.oldestAppraisalDays}d` : null}
+              icon="📋"
+              color="secondary"
               variant="gradient"
             />
           </div>
@@ -519,7 +519,7 @@ export default function Dashboard() {
                         }}
                         onFocus={() => setShowVrmSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowVrmSuggestions(false), 150)}
-                        className="w-32 md:w-40 pl-8 pr-8 py-1.5 text-xs font-mono border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20 focus:border-[#0066CC]"
+                        className="w-32 md:w-40 pl-8 pr-8 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20 focus:border-[#0066CC]"
                       />
                       {vrmSearch && (
                         <button

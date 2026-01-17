@@ -210,9 +210,28 @@ async function handler(req, res, ctx) {
 
     paymentReceiptUrl = `${process.env.NEXTAUTH_URL || ""}/public/payment-receipt/${shareToken}`;
 
-    // If full payment, mark the invoice as paid
-    if (isFullPayment && invoice) {
-      invoice.paidAt = new Date();
+    // Update the invoice snapshot with the new payment
+    if (invoice) {
+      // Get fresh payments from deal
+      const freshPayments = deal.payments.map(p => ({
+        type: p.type,
+        amount: p.amount,
+        method: p.method,
+        paidAt: p.paidAt,
+        reference: p.reference,
+      }));
+
+      // Update snapshot payments array and totals
+      invoice.snapshotData.payments = freshPayments;
+      invoice.snapshotData.totalPaid = totalPaidBefore + amount;
+      invoice.snapshotData.balanceDue = Math.max(0, balanceAfter);
+
+      // If full payment, mark the invoice as paid
+      if (isFullPayment) {
+        invoice.paidAt = new Date();
+      }
+
+      invoice.markModified("snapshotData");
       await invoice.save();
     }
   }

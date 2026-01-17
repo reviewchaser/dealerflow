@@ -960,7 +960,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                 )}
 
                 {/* Sale Type */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
                   <div className="form-control">
                     <label className="label"><span className="label-text font-medium">Sale Type</span></label>
                     <select

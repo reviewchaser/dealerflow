@@ -45,6 +45,8 @@ const vehicleIssueSchema = new mongoose.Schema(
     sourceSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
     // Field key for checklist-driven issues (e.g. "pdi:road_test:gear_change") - enables per-field deduplication
     sourceFieldKey: { type: String },
+    // Deal tracking - links issue to originating deal (for cancelled deal indicators)
+    dealId: { type: mongoose.Schema.Types.ObjectId, ref: "Deal" },
     // Parts tracking
     partsRequired: { type: Boolean, default: false },
     partsDetails: { type: String }, // supplier, part no, ordered by, ETA (legacy)

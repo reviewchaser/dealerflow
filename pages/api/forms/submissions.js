@@ -8,6 +8,7 @@ import VehicleIssue from "@/models/VehicleIssue";
 import Contact from "@/models/Contact";
 import AftercareCase from "@/models/AftercareCase";
 import CourtesyAllocation from "@/models/CourtesyAllocation";
+import Deal from "@/models/Deal";
 import { requireDealerContext } from "@/libs/authContext";
 
 export default async function handler(req, res) {
@@ -373,6 +374,37 @@ export default async function handler(req, res) {
                 }
               } catch (taskError) {
                 console.error("Error completing Delivery task:", taskError);
+              }
+
+              // Update associated deal to DELIVERED status
+              try {
+                // Check if dealId was passed in rawAnswers (from the form)
+                const dealId = rawAnswers._dealId;
+                let deal;
+                if (dealId) {
+                  deal = await Deal.findById(dealId);
+                } else {
+                  // Find deal by vehicleId
+                  deal = await Deal.findOne({
+                    dealerId,
+                    vehicleId: vehicle._id,
+                    status: { $in: ["DEPOSIT_TAKEN", "INVOICED"] }
+                  });
+                }
+
+                if (deal && deal.status !== "DELIVERED" && deal.status !== "COMPLETED") {
+                  deal.status = "DELIVERED";
+                  deal.deliveredAt = new Date();
+                  deal.delivery = deal.delivery || {};
+                  deal.delivery.actualDeliveryAt = new Date();
+                  deal.delivery.formSubmissionId = submission._id;
+                  deal.delivery.deliveryMileage = rawAnswers.mileage ? parseInt(rawAnswers.mileage) : undefined;
+                  deal.delivery.deliveryNotes = rawAnswers.notes || undefined;
+                  await deal.save();
+                  console.log(`[Delivery Form] Updated deal ${deal._id} to DELIVERED status`);
+                }
+              } catch (dealError) {
+                console.error("Error updating deal status:", dealError);
               }
               break;
 

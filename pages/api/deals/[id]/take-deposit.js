@@ -260,6 +260,7 @@ async function handler(req, res, ctx) {
       companyNumber: dealer.salesSettings?.companyNumber,
       logoUrl: logoUrl,
     },
+    bankDetails: dealer.salesSettings?.bankDetails || {},
   };
 
   // Generate share token

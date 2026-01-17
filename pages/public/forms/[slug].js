@@ -45,6 +45,9 @@ export default function PublicForm({ form, fields, dealer }) {
     }
   }, [form?.type]);
 
+  // Selected deal info for delivery forms
+  const [selectedDealInfo, setSelectedDealInfo] = useState(null);
+
   // Search vehicles for VRM suggestions (PDI/Delivery)
   const searchVrmVehicles = async (query) => {
     if (!query || query.length < 2) {
@@ -52,16 +55,13 @@ export default function PublicForm({ form, fields, dealer }) {
       return;
     }
     try {
-      // Get statuses based on form type
-      let statuses = [];
-      if (form?.type === "PDI") {
-        statuses = ["IN_PREP", "ADVERTISED"];
-      } else if (form?.type === "DELIVERY") {
-        statuses = ["SOLD", "ADVERTISED", "RESERVED"];
-      }
       const params = new URLSearchParams({ q: query });
-      if (statuses.length > 0) {
-        params.append("statuses", statuses.join(","));
+      if (form?.type === "PDI") {
+        params.append("statuses", "IN_PREP,ADVERTISED");
+      } else if (form?.type === "DELIVERY") {
+        // For delivery forms, only show vehicles with active deals that have delivery
+        params.append("hasDelivery", "true");
+        params.append("includeDealInfo", "true");
       }
       const res = await fetch(`/api/vehicles/search?${params.toString()}`);
       const data = await res.json();
@@ -81,7 +81,12 @@ export default function PublicForm({ form, fields, dealer }) {
       colour: vehicle.colour,
       mileage: vehicle.mileage,
       _selectedVehicleId: vehicle.id,
+      _dealId: vehicle.deal?.dealId,
     }));
+    // Store deal info for delivery forms
+    if (vehicle.deal) {
+      setSelectedDealInfo(vehicle.deal);
+    }
     setVrmSuggestions([]);
     setVrmSearchActive(false);
     setSelectedFromStock(true);
@@ -111,9 +116,9 @@ export default function PublicForm({ form, fields, dealer }) {
     }
   };
 
-  // Initialize default values for time fields (Test Drive form)
+  // Initialize default values for time fields (Test Drive and Delivery forms)
   useEffect(() => {
-    if (form?.type === "TEST_DRIVE" && fields.length > 0) {
+    if ((form?.type === "TEST_DRIVE" || form?.type === "DELIVERY") && fields.length > 0) {
       const now = new Date();
       const timeField = fields.find(f => f.fieldName === "time" && f.type === "TIME");
       const dateField = fields.find(f => f.fieldName === "date" && f.type === "DATE");
@@ -553,7 +558,7 @@ export default function PublicForm({ form, fields, dealer }) {
       // Show selected vehicle info if vehicle was selected from suggestions
       if (showVrmSuggestions && selectedFromStock && formData._selectedVehicleId) {
         return (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="bg-success/10 border border-success/30 rounded-lg p-4">
               <div className="flex items-center gap-2 text-success mb-2">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -570,6 +575,7 @@ export default function PublicForm({ form, fields, dealer }) {
                 className="btn btn-sm btn-ghost text-primary mt-2"
                 onClick={() => {
                   setSelectedFromStock(false);
+                  setSelectedDealInfo(null);
                   setFormData(prev => ({
                     ...prev,
                     vrm: "",
@@ -578,12 +584,73 @@ export default function PublicForm({ form, fields, dealer }) {
                     colour: "",
                     mileage: "",
                     _selectedVehicleId: "",
+                    _dealId: "",
                   }));
                 }}
               >
                 Change Vehicle
               </button>
             </div>
+
+            {/* Deal Info for Delivery Forms */}
+            {form?.type === "DELIVERY" && selectedDealInfo && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span className="font-semibold text-blue-800">Deal Information</span>
+                  <span className={`badge badge-sm ${
+                    selectedDealInfo.dealStatus === "INVOICED" ? "badge-success" :
+                    selectedDealInfo.dealStatus === "DEPOSIT_TAKEN" ? "badge-warning" : "badge-ghost"
+                  }`}>
+                    {selectedDealInfo.dealStatus?.replace("_", " ")}
+                  </span>
+                </div>
+
+                {/* Customer Info */}
+                <div className="text-sm">
+                  <p className="text-blue-700 font-medium">{selectedDealInfo.customerName}</p>
+                  {selectedDealInfo.customerPhone && (
+                    <p className="text-blue-600">{selectedDealInfo.customerPhone}</p>
+                  )}
+                  {selectedDealInfo.deliveryAddress && (
+                    <div className="mt-2 text-blue-600">
+                      <p className="text-xs font-medium text-blue-700">Delivery Address:</p>
+                      <p>{selectedDealInfo.deliveryAddress.line1}</p>
+                      {selectedDealInfo.deliveryAddress.line2 && <p>{selectedDealInfo.deliveryAddress.line2}</p>}
+                      <p>{selectedDealInfo.deliveryAddress.town} {selectedDealInfo.deliveryAddress.postcode}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Invoice Link if status is INVOICED */}
+                {selectedDealInfo.dealStatus === "INVOICED" && selectedDealInfo.invoiceUrl && (
+                  <div className="pt-2 border-t border-blue-200">
+                    <a
+                      href={selectedDealInfo.invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white border-none"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      View Invoice {selectedDealInfo.invoiceNumber && `(${selectedDealInfo.invoiceNumber})`}
+                    </a>
+                  </div>
+                )}
+
+                {/* Warning if not yet invoiced */}
+                {selectedDealInfo.dealStatus === "DEPOSIT_TAKEN" && (
+                  <div className="pt-2 border-t border-blue-200">
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
+                      ⚠️ Invoice not yet generated - please generate invoice before delivery
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       }
@@ -631,7 +698,7 @@ export default function PublicForm({ form, fields, dealer }) {
           {showVrmSuggestions && vrmSearchActive && vrmSuggestions.length > 0 && (
             <div className="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
               <div className="text-xs text-base-content/60 px-3 py-1 border-b border-base-200 bg-base-200/50">
-                Select from stock or use Lookup for external search
+                {form?.type === "DELIVERY" ? "Vehicles with scheduled delivery" : "Select from stock or use Lookup for external search"}
               </div>
               {vrmSuggestions.map((vehicle) => (
                 <button
@@ -640,10 +707,25 @@ export default function PublicForm({ form, fields, dealer }) {
                   className="w-full px-3 py-2 text-left hover:bg-primary/10 border-b border-base-200 last:border-0"
                   onClick={() => handleVrmVehicleSelect(vehicle)}
                 >
-                  <div className="font-mono font-bold">{vehicle.vrm || vehicle.regCurrent}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold">{vehicle.vrm || vehicle.regCurrent}</span>
+                    {vehicle.deal && (
+                      <span className={`badge badge-xs ${
+                        vehicle.deal.dealStatus === "INVOICED" ? "badge-success" :
+                        vehicle.deal.dealStatus === "DEPOSIT_TAKEN" ? "badge-warning" : "badge-ghost"
+                      }`}>
+                        {vehicle.deal.dealStatus?.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-sm text-base-content/70">
                     {vehicle.make} {vehicle.model} {vehicle.year ? `(${vehicle.year})` : ""} - {vehicle.colour || ""}
                   </div>
+                  {vehicle.deal?.customerName && (
+                    <div className="text-xs text-blue-600 mt-0.5">
+                      Customer: {vehicle.deal.customerName}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>

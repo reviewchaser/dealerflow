@@ -2812,7 +2812,7 @@ export default function SalesPrep() {
                                 <p className="font-bold text-slate-900 text-base">
                                   {vehicle.year || ""} {vehicle.make} {vehicle.model}
                                 </p>
-                                <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
+                                <span className="font-mono text-sm md:text-xs font-bold bg-[#F7D117] text-black px-2.5 py-1 md:py-0.5 rounded border border-black/30 tracking-wider uppercase shadow-sm">
                                   {vehicle.regCurrent}
                                 </span>
                                 {/* Status badge in All mode */}
@@ -3033,7 +3033,7 @@ export default function SalesPrep() {
                     <h3 className="font-semibold text-slate-700 text-sm">
                       {col.label}
                     </h3>
-                    <span className="bg-slate-900/10 text-slate-700 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center">
+                    <span className="bg-slate-900/10 text-slate-700 min-w-[24px] h-6 px-1.5 rounded-full text-xs font-bold flex items-center justify-center">
                       {columnVehicles.length}
                     </span>
                   </div>
@@ -3158,7 +3158,7 @@ export default function SalesPrep() {
                                 <p className="font-bold text-slate-900 text-sm leading-tight">
                                   {vehicle.year || ""} {vehicle.make} {vehicle.model}
                                 </p>
-                                <span className="font-mono text-xs font-bold bg-[#F7D117] text-black px-2 py-0.5 rounded border border-black/20 tracking-wide">
+                                <span className="font-mono text-sm md:text-xs font-bold bg-[#F7D117] text-black px-2.5 py-1 md:py-0.5 rounded border border-black/30 tracking-wider uppercase shadow-sm">
                                   {vehicle.regCurrent}
                                 </span>
                               </div>
@@ -3378,28 +3378,46 @@ export default function SalesPrep() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  {/* Create/Open Sale button - always visible */}
-                  <button
-                    onClick={handleSaleAction}
-                    disabled={creatingDeal || dealLoading}
-                    className={`btn btn-sm ${
-                      vehicleDeal
-                        ? "bg-amber-500 hover:bg-amber-600 text-white border-none"
-                        : "bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
-                    }`}
-                    title={vehicleDeal ? "Open existing sale" : "Create new sale"}
-                  >
-                    {creatingDeal || dealLoading ? (
-                      <span className="loading loading-spinner loading-xs"></span>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 md:mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="hidden md:inline">{vehicleDeal ? "Open Sale" : "Create Sale"}</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Create Sale button - only show if no active deal */}
+                  {(!vehicleDeal || vehicleDeal.status === "CANCELLED") && (
+                    <button
+                      onClick={handleSaleAction}
+                      disabled={creatingDeal || dealLoading}
+                      className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+                      title="Create new sale"
+                    >
+                      {creatingDeal || dealLoading ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-xs">Create Sale</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  {/* Open Sale button - only show if active deal exists (not cancelled) */}
+                  {vehicleDeal && vehicleDeal.status !== "CANCELLED" && (
+                    <button
+                      onClick={handleSaleAction}
+                      disabled={dealLoading}
+                      className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white border-none"
+                      title="Open existing sale"
+                    >
+                      {dealLoading ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span className="text-xs">Open Sale</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost btn-sm text-warning"
                     onClick={async () => {

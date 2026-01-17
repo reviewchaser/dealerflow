@@ -226,6 +226,11 @@ export default function DealDrawer({
     date: "",
     time: "",
     notes: "",
+    sameAsCustomer: true,
+    addressLine1: "",
+    addressLine2: "",
+    town: "",
+    postcode: "",
   });
   const [scheduleDeliveryLoading, setScheduleDeliveryLoading] = useState(false);
 
@@ -1043,6 +1048,12 @@ export default function DealDrawer({
       return;
     }
 
+    // Validate address if not same as customer
+    if (!scheduleDeliveryForm.sameAsCustomer && !scheduleDeliveryForm.addressLine1) {
+      toast.error("Please enter delivery address");
+      return;
+    }
+
     setScheduleDeliveryLoading(true);
     try {
       // Combine date and time
@@ -1052,15 +1063,34 @@ export default function DealDrawer({
       // Build title
       const vehicle = deal.vehicleId || {};
       const customer = deal.soldToContactId || deal.soldToContact || {};
-      const title = `Delivery: ${vehicle.regCurrent || "Vehicle"} to ${customer.name || "Customer"}`;
+      const title = `Delivery: ${vehicle.regCurrent || "Vehicle"} to ${customer.displayName || customer.name || "Customer"}`;
 
-      // Build description with address if available
+      // Determine delivery address
+      let deliveryAddress;
+      if (scheduleDeliveryForm.sameAsCustomer) {
+        deliveryAddress = customer.address;
+      } else {
+        deliveryAddress = {
+          line1: scheduleDeliveryForm.addressLine1,
+          line2: scheduleDeliveryForm.addressLine2,
+          town: scheduleDeliveryForm.town,
+          postcode: scheduleDeliveryForm.postcode,
+          isDifferent: true,
+        };
+      }
+
+      // Build description with customer details and address
       let description = `Vehicle: ${vehicle.make || ""} ${vehicle.model || ""} (${vehicle.regCurrent || ""})`;
-      if (deal.deliveryAddress?.isDifferent && deal.deliveryAddress?.line1) {
-        description += `\n\nDelivery Address:\n${deal.deliveryAddress.line1}`;
-        if (deal.deliveryAddress.line2) description += `\n${deal.deliveryAddress.line2}`;
-        if (deal.deliveryAddress.town) description += `\n${deal.deliveryAddress.town}`;
-        if (deal.deliveryAddress.postcode) description += ` ${deal.deliveryAddress.postcode}`;
+      description += `\n\nCustomer: ${customer.displayName || customer.name || ""}`;
+      if (customer.phone) description += `\nPhone: ${customer.phone}`;
+      if (customer.email) description += `\nEmail: ${customer.email}`;
+
+      if (deliveryAddress) {
+        description += `\n\nDelivery Address:`;
+        if (deliveryAddress.line1) description += `\n${deliveryAddress.line1}`;
+        if (deliveryAddress.line2) description += `\n${deliveryAddress.line2}`;
+        if (deliveryAddress.town) description += `\n${deliveryAddress.town}`;
+        if (deliveryAddress.postcode) description += ` ${deliveryAddress.postcode}`;
       }
       if (scheduleDeliveryForm.notes) {
         description += `\n\nNotes: ${scheduleDeliveryForm.notes}`;
@@ -1099,19 +1129,29 @@ export default function DealDrawer({
 
       const event = await eventRes.json();
 
-      // Update deal with scheduled delivery date
+      // Update deal with scheduled delivery date and address
+      const dealUpdate = {
+        "delivery.scheduledDate": startDatetime.toISOString(),
+        "delivery.scheduledCalendarEventId": event.id,
+      };
+
+      // Save delivery address if different from customer
+      if (!scheduleDeliveryForm.sameAsCustomer) {
+        dealUpdate.deliveryAddress = deliveryAddress;
+      }
+
       await fetch(`/api/deals/${dealId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          "delivery.scheduledDate": startDatetime.toISOString(),
-          "delivery.scheduledCalendarEventId": event.id,
-        }),
+        body: JSON.stringify(dealUpdate),
       });
 
       toast.success("Delivery scheduled");
       setShowScheduleDeliveryModal(false);
-      setScheduleDeliveryForm({ date: "", time: "", notes: "" });
+      setScheduleDeliveryForm({
+        date: "", time: "", notes: "",
+        sameAsCustomer: true, addressLine1: "", addressLine2: "", town: "", postcode: ""
+      });
       fetchDeal();
     } catch (error) {
       toast.error(error.message);
@@ -1658,13 +1698,13 @@ export default function DealDrawer({
                       href={documents.depositReceipt.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
                       title="View Deposit Receipt"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="hidden md:inline">Receipt</span>
+                      <span>Receipt</span>
                     </a>
                   )}
                   {documents.invoice && (
@@ -1672,25 +1712,25 @@ export default function DealDrawer({
                       href={documents.invoice.shareUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
                       title="View Invoice"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="hidden md:inline">Invoice</span>
+                      <span>Invoice</span>
                     </a>
                   )}
                   {documents.invoice && (
                     <button
                       onClick={handleOpenHandover}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium transition-colors min-w-[70px] justify-center"
                       title="Generate Handover Pack"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      <span className="hidden md:inline">Handover</span>
+                      <span>Handover</span>
                     </button>
                   )}
                   <button
@@ -4538,6 +4578,54 @@ export default function DealDrawer({
                   rows={2}
                 />
               </div>
+
+              {/* Delivery Address */}
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-2 cursor-pointer mb-3">
+                  <input
+                    type="checkbox"
+                    checked={scheduleDeliveryForm.sameAsCustomer}
+                    onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, sameAsCustomer: e.target.checked }))}
+                    className="checkbox checkbox-sm"
+                  />
+                  <span className="text-sm text-slate-700">Same as customer address</span>
+                </label>
+
+                {!scheduleDeliveryForm.sameAsCustomer && (
+                  <div className="space-y-3 bg-slate-50 rounded-lg p-3">
+                    <input
+                      type="text"
+                      value={scheduleDeliveryForm.addressLine1}
+                      onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, addressLine1: e.target.value }))}
+                      className="input input-bordered input-sm w-full"
+                      placeholder="Address line 1 *"
+                    />
+                    <input
+                      type="text"
+                      value={scheduleDeliveryForm.addressLine2}
+                      onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, addressLine2: e.target.value }))}
+                      className="input input-bordered input-sm w-full"
+                      placeholder="Address line 2"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={scheduleDeliveryForm.town}
+                        onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, town: e.target.value }))}
+                        className="input input-bordered input-sm w-full"
+                        placeholder="Town/City *"
+                      />
+                      <input
+                        type="text"
+                        value={scheduleDeliveryForm.postcode}
+                        onChange={(e) => setScheduleDeliveryForm(prev => ({ ...prev, postcode: e.target.value }))}
+                        className="input input-bordered input-sm w-full"
+                        placeholder="Postcode *"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -4549,7 +4637,7 @@ export default function DealDrawer({
               </button>
               <button
                 onClick={handleScheduleDelivery}
-                disabled={scheduleDeliveryLoading || !scheduleDeliveryForm.date || !scheduleDeliveryForm.time}
+                disabled={scheduleDeliveryLoading || !scheduleDeliveryForm.date || !scheduleDeliveryForm.time || (!scheduleDeliveryForm.sameAsCustomer && (!scheduleDeliveryForm.addressLine1 || !scheduleDeliveryForm.town || !scheduleDeliveryForm.postcode))}
                 className="btn bg-purple-500 hover:bg-purple-600 text-white border-none flex-1"
               >
                 {scheduleDeliveryLoading ? (

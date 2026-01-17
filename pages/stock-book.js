@@ -75,6 +75,9 @@ export default function StockBook() {
   const [hasSivFilter, setHasSivFilter] = useState("all");
   const [vatFilter, setVatFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("all");
+  const [sellerSearch, setSellerSearch] = useState("");
+  const [sellerFilterName, setSellerFilterName] = useState(""); // Display name of selected seller
+  const [showSellerSuggestions, setShowSellerSuggestions] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   // Sorting state
@@ -333,9 +336,9 @@ export default function StockBook() {
     return sorted;
   }, [vehicles, activeStatus, searchQuery, daysFilter, hasSivFilter, vatFilter, sellerFilter, sortField, sortDirection]);
 
-  // Calculate stats
+  // Calculate stats (treat undefined/null salesStatus as AVAILABLE)
   const stats = useMemo(() => {
-    const inStock = vehicles.filter(v => v.salesStatus === "AVAILABLE");
+    const inStock = vehicles.filter(v => !v.salesStatus || v.salesStatus === "AVAILABLE");
     const totalStockValue = inStock.reduce((sum, v) => sum + (v.purchase?.purchasePriceNet || 0), 0);
     const vatQualifying = inStock.filter(v => v.vatScheme === "VAT_QUALIFYING");
     const vatQualifyingValue = vatQualifying.reduce((sum, v) => sum + (v.purchase?.purchasePriceNet || 0), 0);
@@ -740,6 +743,15 @@ export default function StockBook() {
     return Array.from(sellerMap.entries());
   }, [vehicles]);
 
+  // Filter sellers based on search input (for autocomplete)
+  const filteredSellers = useMemo(() => {
+    if (!sellerSearch.trim()) return uniqueSellers.slice(0, 10); // Show first 10 when no search
+    const search = sellerSearch.toLowerCase();
+    return uniqueSellers
+      .filter(([, name]) => name.toLowerCase().includes(search))
+      .slice(0, 10); // Limit to 10 suggestions
+  }, [uniqueSellers, sellerSearch]);
+
   // VRM Lookup for Add Vehicle form
   const handleAddVehicleVrmLookup = async () => {
     const vrm = addVehicleForm.regCurrent?.replace(/\s/g, "").toUpperCase();
@@ -1133,18 +1145,58 @@ export default function StockBook() {
                 </div>
 
                 {uniqueSellers.length > 0 && (
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-1 relative">
                     <label className="text-xs font-medium text-slate-500">Seller</label>
-                    <select
-                      value={sellerFilter}
-                      onChange={(e) => setSellerFilter(e.target.value)}
-                      className="select select-sm select-bordered bg-white"
-                    >
-                      <option value="all">All Sellers</option>
-                      {uniqueSellers.map(([id, name]) => (
-                        <option key={id} value={id}>{name}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search sellers..."
+                        value={sellerFilter === "all" ? sellerSearch : sellerFilterName}
+                        onChange={(e) => {
+                          setSellerSearch(e.target.value);
+                          setSellerFilter("all");
+                          setSellerFilterName("");
+                          setShowSellerSuggestions(true);
+                        }}
+                        onFocus={() => setShowSellerSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSellerSuggestions(false), 150)}
+                        className="input input-sm input-bordered bg-white w-full pr-8"
+                      />
+                      {(sellerFilter !== "all" || sellerSearch) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSellerFilter("all");
+                            setSellerSearch("");
+                            setSellerFilterName("");
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                      {showSellerSuggestions && filteredSellers.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                          {filteredSellers.map(([id, name]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onMouseDown={() => {
+                                setSellerFilter(id);
+                                setSellerFilterName(name);
+                                setSellerSearch("");
+                                setShowSellerSuggestions(false);
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                            >
+                              {name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1154,6 +1206,8 @@ export default function StockBook() {
                     setHasSivFilter("all");
                     setVatFilter("all");
                     setSellerFilter("all");
+                    setSellerSearch("");
+                    setSellerFilterName("");
                   }}
                   className="btn btn-sm btn-ghost self-end"
                 >

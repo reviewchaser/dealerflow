@@ -1,5 +1,6 @@
 import connectMongo from "@/libs/mongoose";
 import Vehicle from "@/models/Vehicle";
+import Deal from "@/models/Deal";
 import { requireDealerContext } from "@/libs/authContext";
 
 // Map form-friendly status names to database status values
@@ -26,10 +27,26 @@ export default async function handler(req, res) {
     const ctx = await requireDealerContext(req, res);
     const { dealerId } = ctx;
 
-    const { q, statuses, excludeStatuses, vehicleType, limit = 10 } = req.query;
+    const { q, statuses, excludeStatuses, vehicleType, limit = 10, hasDelivery, includeDealInfo } = req.query;
 
     // Build query with tenant scoping
     const query = { dealerId };
+
+    // Filter to only vehicles with active deals that have delivery
+    let deliveryVehicleIds = null;
+    if (hasDelivery === "true") {
+      const deliveryDeals = await Deal.find({
+        dealerId,
+        status: { $in: ["DEPOSIT_TAKEN", "INVOICED"] },
+        "delivery.hasDelivery": true,
+      }).select("vehicleId").lean();
+      deliveryVehicleIds = deliveryDeals.map(d => d.vehicleId);
+      if (deliveryVehicleIds.length === 0) {
+        // No vehicles with delivery - return empty
+        return res.status(200).json([]);
+      }
+      query._id = { $in: deliveryVehicleIds };
+    }
 
     // Filter by vehicle type (STOCK, COURTESY, etc.)
     if (vehicleType) {
@@ -88,25 +105,61 @@ export default async function handler(req, res) {
       .limit(parseInt(limit))
       .lean();
 
+    // Get deal info if requested (for delivery forms)
+    let dealInfoMap = {};
+    if (includeDealInfo === "true" && vehicles.length > 0) {
+      const vehicleIds = vehicles.map(v => v._id);
+      const deals = await Deal.find({
+        dealerId,
+        vehicleId: { $in: vehicleIds },
+        status: { $nin: ["CANCELLED", "COMPLETED"] },
+      })
+        .populate("soldToContactId", "displayName name phone email address")
+        .select("vehicleId status soldToContactId delivery invoiceUrl invoiceNumber")
+        .lean();
+
+      for (const deal of deals) {
+        dealInfoMap[deal.vehicleId.toString()] = {
+          dealId: deal._id.toString(),
+          dealStatus: deal.status,
+          customerName: deal.soldToContactId?.displayName || deal.soldToContactId?.name,
+          customerPhone: deal.soldToContactId?.phone,
+          customerEmail: deal.soldToContactId?.email,
+          customerAddress: deal.soldToContactId?.address,
+          deliveryDate: deal.delivery?.scheduledDate,
+          deliveryAddress: deal.delivery?.address,
+          invoiceUrl: deal.invoiceUrl,
+          invoiceNumber: deal.invoiceNumber,
+        };
+      }
+    }
+
     // Transform for form use
-    const results = vehicles.map((v) => ({
-      id: v._id.toString(),
-      vrm: v.regCurrent,
-      regCurrent: v.regCurrent,
-      make: v.make,
-      model: v.model,
-      year: v.year,
-      colour: v.colour,
-      fuelType: v.fuelType,
-      transmission: v.transmission,
-      mileage: v.mileageCurrent,
-      status: v.status,
-      type: v.type,
-      updatedAt: v.updatedAt,
-      createdAt: v.createdAt,
-      soldAt: v.soldAt, // Include for archive detection
-      displayName: `${v.regCurrent} - ${v.make} ${v.model}${v.year ? ` (${v.year})` : ""}`,
-    }));
+    const results = vehicles.map((v) => {
+      const result = {
+        id: v._id.toString(),
+        vrm: v.regCurrent,
+        regCurrent: v.regCurrent,
+        make: v.make,
+        model: v.model,
+        year: v.year,
+        colour: v.colour,
+        fuelType: v.fuelType,
+        transmission: v.transmission,
+        mileage: v.mileageCurrent,
+        status: v.status,
+        type: v.type,
+        updatedAt: v.updatedAt,
+        createdAt: v.createdAt,
+        soldAt: v.soldAt, // Include for archive detection
+        displayName: `${v.regCurrent} - ${v.make} ${v.model}${v.year ? ` (${v.year})` : ""}`,
+      };
+      // Include deal info if available
+      if (dealInfoMap[v._id.toString()]) {
+        result.deal = dealInfoMap[v._id.toString()];
+      }
+      return result;
+    });
 
     return res.status(200).json(results);
   } catch (error) {

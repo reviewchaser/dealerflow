@@ -75,7 +75,7 @@ export default function ContactPicker({
   // Debounced search query
   const debouncedSearch = useDebounce(searchQuery, 200);
 
-  // Create form state
+  // Create form state - matches Contact page form
   const [createForm, setCreateForm] = useState({
     contactType: "individual",
     firstName: "",
@@ -83,6 +83,13 @@ export default function ContactPicker({
     companyName: "",
     email: "",
     phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    town: "",
+    postcode: "",
+    vatNumber: "",
+    notes: "",
+    typeTags: filterTypeTags.length > 0 ? filterTypeTags.map(t => t.toUpperCase()) : ["CUSTOMER"],
   });
   const [isCreating, setIsCreating] = useState(false);
 
@@ -176,14 +183,21 @@ export default function ContactPicker({
       }
 
       // Normalize typeTags to uppercase
-      const normalizedTypeTags = (filterTypeTags.length > 0 ? filterTypeTags : ["CUSTOMER"])
-        .map(t => t.toUpperCase());
+      const normalizedTypeTags = createForm.typeTags.map(t => t.toUpperCase());
 
       const payload = {
         displayName,
         companyName: createForm.companyName,
         email: createForm.email,
         phone: createForm.phone,
+        address: {
+          line1: createForm.addressLine1,
+          line2: createForm.addressLine2,
+          town: createForm.town,
+          postcode: createForm.postcode,
+        },
+        vatNumber: createForm.vatNumber,
+        notes: createForm.notes,
         typeTags: normalizedTypeTags,
       };
 
@@ -209,6 +223,13 @@ export default function ContactPicker({
         companyName: "",
         email: "",
         phone: "",
+        addressLine1: "",
+        addressLine2: "",
+        town: "",
+        postcode: "",
+        vatNumber: "",
+        notes: "",
+        typeTags: filterTypeTags.length > 0 ? filterTypeTags.map(t => t.toUpperCase()) : ["CUSTOMER"],
       });
     } catch (error) {
       toast.error(error.message);
@@ -314,6 +335,7 @@ export default function ContactPicker({
 
               {/* Scrollable content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Contact Type */}
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -331,11 +353,38 @@ export default function ContactPicker({
                   </button>
                 </div>
 
+                {/* Categories / Type Tags */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Categories</label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { key: "CUSTOMER", label: "Customer" },
+                      { key: "SUPPLIER", label: "Supplier" },
+                      { key: "FINANCE", label: "Finance" },
+                    ].map(tag => (
+                      <button
+                        key={tag.key}
+                        type="button"
+                        onClick={() => setCreateForm(p => ({
+                          ...p,
+                          typeTags: p.typeTags.includes(tag.key)
+                            ? p.typeTags.filter(t => t !== tag.key)
+                            : [...p.typeTags, tag.key]
+                        }))}
+                        className={`btn btn-xs ${createForm.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
+                      >
+                        {tag.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Name Fields */}
                 {createForm.contactType === "individual" ? (
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
-                      placeholder="First name"
+                      placeholder="First name *"
                       value={createForm.firstName}
                       onChange={(e) => setCreateForm((p) => ({ ...p, firstName: e.target.value }))}
                       className="input input-bordered input-sm"
@@ -343,7 +392,7 @@ export default function ContactPicker({
                     />
                     <input
                       type="text"
-                      placeholder="Last name"
+                      placeholder="Last name *"
                       value={createForm.lastName}
                       onChange={(e) => setCreateForm((p) => ({ ...p, lastName: e.target.value }))}
                       className="input input-bordered input-sm"
@@ -353,7 +402,7 @@ export default function ContactPicker({
                 ) : (
                   <input
                     type="text"
-                    placeholder="Company name"
+                    placeholder="Company name *"
                     value={createForm.companyName}
                     onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
                     className="input input-bordered input-sm w-full"
@@ -361,20 +410,88 @@ export default function ContactPicker({
                   />
                 )}
 
-                <input
-                  type="email"
-                  placeholder="Email (optional)"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                  className="input input-bordered input-sm w-full"
-                />
+                {/* Company for individuals */}
+                {createForm.contactType === "individual" && (
+                  <input
+                    type="text"
+                    placeholder="Company (optional)"
+                    value={createForm.companyName}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
+                    className="input input-bordered input-sm w-full"
+                  />
+                )}
 
-                <input
-                  type="tel"
-                  placeholder="Phone (optional)"
-                  value={createForm.phone}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                  className="input input-bordered input-sm w-full"
+                {/* Contact Details */}
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+                    className="input input-bordered input-sm"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Phone"
+                    value={createForm.phone}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
+                    className="input input-bordered input-sm"
+                  />
+                </div>
+
+                {/* Address */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-slate-500">Address</label>
+                  <input
+                    type="text"
+                    placeholder="Address Line 1"
+                    value={createForm.addressLine1}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, addressLine1: e.target.value }))}
+                    className="input input-bordered input-sm w-full"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Address Line 2"
+                    value={createForm.addressLine2}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, addressLine2: e.target.value }))}
+                    className="input input-bordered input-sm w-full"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Town/City"
+                      value={createForm.town}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, town: e.target.value }))}
+                      className="input input-bordered input-sm"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Postcode"
+                      value={createForm.postcode}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, postcode: e.target.value }))}
+                      className="input input-bordered input-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* VAT Number - for companies */}
+                {createForm.contactType === "company" && (
+                  <input
+                    type="text"
+                    placeholder="VAT Number (e.g., GB123456789)"
+                    value={createForm.vatNumber}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, vatNumber: e.target.value }))}
+                    className="input input-bordered input-sm w-full"
+                  />
+                )}
+
+                {/* Notes */}
+                <textarea
+                  placeholder="Notes (optional)"
+                  value={createForm.notes}
+                  onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))}
+                  className="textarea textarea-bordered textarea-sm w-full"
+                  rows={2}
                 />
               </div>
 

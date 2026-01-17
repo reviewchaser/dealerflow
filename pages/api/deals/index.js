@@ -55,7 +55,7 @@ async function handler(req, res, ctx) {
     if (vatScheme) query.vatScheme = vatScheme;
 
     const deals = await Deal.find(query)
-      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus")
+      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus stockNumber")
       .populate("soldToContactId", "displayName email phone companyName")
       .populate("invoiceToContactId", "displayName companyName")
       .populate("salesPersonId", "name email")
@@ -76,6 +76,7 @@ async function handler(req, res, ctx) {
         primaryImageUrl: d.vehicleId.primaryImageUrl,
         status: d.vehicleId.status,
         salesStatus: d.vehicleId.salesStatus,
+        stockNumber: d.vehicleId.stockNumber,
       } : null,
       customer: d.soldToContactId ? {
         id: d.soldToContactId._id?.toString(),

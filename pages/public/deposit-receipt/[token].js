@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 
@@ -138,6 +138,23 @@ export default function DepositReceiptPage() {
                 )}
               </div>
             </div>
+            {/* Bank Details in Header */}
+            {snap.bankDetails?.accountNumber && (
+              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+                <div>
+                  <p className="text-slate-400">Account Name</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.accountName}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Sort Code</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.sortCode}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Account Number</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.accountNumber}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Details */}
@@ -383,17 +400,29 @@ export default function DepositReceiptPage() {
                     <td className="px-4 py-3 font-semibold">Cash Price</td>
                     <td className="px-4 py-3 text-right font-bold">{formatCurrency(snap.grandTotal)}</td>
                   </tr>
-                  {/* Part Exchange deductions */}
+                  {/* Part Exchange deductions - show allowance and settlement separately */}
                   {snap.partExchanges?.map((px, idx) => (
-                    <tr key={`px-sum-${idx}`}>
-                      <td className="px-4 py-3 text-slate-600">
-                        Part Exchange {snap.partExchanges.length > 1 ? `#${idx + 1}` : ""}
-                        {px.vrm && ` (${px.vrm})`}
-                      </td>
-                      <td className="px-4 py-3 text-right font-semibold text-emerald-600">
-                        -{formatCurrency((px.allowance || 0) - (px.settlement || 0))}
-                      </td>
-                    </tr>
+                    <React.Fragment key={`px-sum-${idx}`}>
+                      <tr>
+                        <td className="px-4 py-2 text-slate-600">
+                          Part Exchange {snap.partExchanges.length > 1 ? `#${idx + 1}` : ""} Allowance
+                          {px.vrm && ` (${px.vrm})`}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-emerald-600">
+                          -{formatCurrency(px.allowance || 0)}
+                        </td>
+                      </tr>
+                      {px.settlement > 0 && (
+                        <tr>
+                          <td className="px-4 py-2 text-slate-600 pl-8">
+                            Less: Settlement
+                          </td>
+                          <td className="px-4 py-2 text-right font-semibold text-amber-600">
+                            +{formatCurrency(px.settlement)}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                   <tr>
                     <td className="px-4 py-3 text-slate-600">Deposit Paid</td>
@@ -589,12 +618,12 @@ export default function DepositReceiptPage() {
         @media print {
           @page {
             size: A4;
-            margin: 6mm;
+            margin: 4mm;
           }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            font-size: 9px !important;
+            font-size: 8px !important;
           }
           .print\\:break-inside-avoid {
             break-inside: avoid;
@@ -607,75 +636,79 @@ export default function DepositReceiptPage() {
             break-inside: avoid;
             page-break-inside: avoid;
           }
-          /* Aggressive spacing compression */
-          .print\\:p-6, .print\\:p-4 {
-            padding: 0.35rem !important;
+          /* Maximum spacing compression */
+          .print\\:p-6, .print\\:p-4, .p-3, .p-4, .p-5, .p-6, .p-8 {
+            padding: 0.2rem !important;
           }
-          .p-5, .p-6, .p-8 {
-            padding: 0.35rem !important;
-          }
-          .print\\:space-y-6 > * + *, .space-y-6 > * + * {
-            margin-top: 0.35rem !important;
-          }
-          .mb-2, .mb-3, .mb-4 {
-            margin-bottom: 0.15rem !important;
-          }
-          .mt-1, .mt-2, .mt-3 {
+          .print\\:space-y-6 > * + *, .space-y-6 > * + *, .space-y-4 > * + *, .space-y-3 > * + * {
             margin-top: 0.15rem !important;
           }
-          .pt-4, .pt-5, .pt-6 {
-            padding-top: 0.2rem !important;
+          .mb-1, .mb-2, .mb-3, .mb-4, .mb-6 {
+            margin-bottom: 0.1rem !important;
           }
-          .pb-4, .pb-6 {
-            padding-bottom: 0.2rem !important;
+          .mt-1, .mt-2, .mt-3, .mt-4 {
+            margin-top: 0.1rem !important;
           }
-          .gap-3, .gap-4, .gap-6, .gap-8 {
-            gap: 0.2rem !important;
+          .pt-2, .pt-3, .pt-4, .pt-5, .pt-6 {
+            padding-top: 0.1rem !important;
+          }
+          .pb-2, .pb-4, .pb-6 {
+            padding-bottom: 0.1rem !important;
+          }
+          .gap-2, .gap-3, .gap-4, .gap-6, .gap-8 {
+            gap: 0.1rem !important;
           }
           /* Compact headers */
           h1, .text-2xl {
-            font-size: 14px !important;
+            font-size: 12px !important;
+            line-height: 1.2 !important;
           }
           h2, .text-xl {
-            font-size: 12px !important;
+            font-size: 10px !important;
+            line-height: 1.2 !important;
           }
           .text-lg {
-            font-size: 11px !important;
+            font-size: 9px !important;
+            line-height: 1.2 !important;
           }
           .text-3xl {
-            font-size: 16px !important;
+            font-size: 14px !important;
+            line-height: 1.2 !important;
           }
           .text-sm {
-            font-size: 9px !important;
+            font-size: 8px !important;
+            line-height: 1.2 !important;
           }
           .text-xs {
-            font-size: 8px !important;
+            font-size: 7px !important;
+            line-height: 1.2 !important;
           }
           /* Compact table cells */
           td, th {
-            padding: 0.2rem 0.35rem !important;
-            font-size: 9px !important;
+            padding: 0.1rem 0.2rem !important;
+            font-size: 8px !important;
+            line-height: 1.2 !important;
           }
           /* Ensure tables and sections stay together */
           table {
             break-inside: avoid;
           }
           /* Compact rounded boxes */
-          .rounded-xl {
-            padding: 0.25rem !important;
-            border-radius: 4px !important;
+          .rounded-xl, .rounded-2xl {
+            padding: 0.15rem !important;
+            border-radius: 3px !important;
           }
           .rounded-lg {
-            padding: 0.2rem !important;
-            border-radius: 3px !important;
+            padding: 0.1rem !important;
+            border-radius: 2px !important;
           }
           /* Keep colored sections compact */
           .bg-slate-50, .bg-emerald-50, .bg-purple-50, .bg-blue-50, .bg-orange-50 {
-            padding: 0.25rem !important;
+            padding: 0.15rem !important;
           }
-          /* Signature images - ensure they print */
+          /* Signature images - ensure they print and stay small */
           .signature-image {
-            max-height: 30px !important;
+            max-height: 25px !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             display: block !important;
@@ -686,8 +719,13 @@ export default function DepositReceiptPage() {
             -webkit-print-color-adjust: exact;
           }
           /* Grid compaction */
-          .grid-cols-2 {
-            gap: 0.25rem !important;
+          .grid-cols-2, .grid-cols-3 {
+            gap: 0.1rem !important;
+          }
+          /* Border compaction */
+          .border-b, .border-t {
+            margin-top: 0.1rem !important;
+            margin-bottom: 0.1rem !important;
           }
         }
       `}</style>

@@ -83,7 +83,17 @@ export default function InvoicePage() {
   const isMargin = snap.vatScheme === "MARGIN";
   const isVatRegistered = snap.isVatRegistered !== false;
   const showVatColumns = !isMargin && isVatRegistered;
-  const invoiceTo = snap.invoiceTo?.name ? snap.invoiceTo : snap.customer;
+
+  // Determine invoice recipient - finance company if financed, otherwise customer
+  const hasFinanceInvoice = snap.financeAdvance > 0 && snap.financeCompanyName;
+  const invoiceTo = hasFinanceInvoice && snap.invoiceTo?.name
+    ? snap.invoiceTo
+    : (snap.invoiceTo?.name ? snap.invoiceTo : snap.customer);
+
+  // For finance deals, deliverTo should always be the customer
+  const deliverTo = hasFinanceInvoice
+    ? (snap.deliverTo || snap.customer)
+    : snap.deliverTo;
 
   return (
     <>
@@ -141,6 +151,23 @@ export default function InvoicePage() {
                 )}
               </div>
             </div>
+            {/* Bank Details in Header */}
+            {snap.bankDetails?.accountNumber && (
+              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+                <div>
+                  <p className="text-slate-400">Account Name</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.accountName}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Sort Code</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.sortCode}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Account Number</p>
+                  <p className="font-medium text-slate-700">{snap.bankDetails.accountNumber}</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Details */}
@@ -179,20 +206,20 @@ export default function InvoicePage() {
                 {invoiceTo?.email && <p className="text-slate-500 text-sm mt-2">{invoiceTo.email}</p>}
               </div>
 
-              {/* Deliver To (shown if customer is different or delivery address provided) */}
-              {snap.deliverTo && (
+              {/* Deliver To (shown for finance deals or when delivery address is different) */}
+              {deliverTo && (
                 <div className="bg-emerald-50 rounded-xl p-5 print:bg-emerald-50">
                   <p className="text-sm text-emerald-600 uppercase tracking-wide font-medium mb-2">Deliver To</p>
-                  <p className="text-lg font-bold text-slate-900">{snap.deliverTo.name}</p>
-                  {snap.deliverTo.companyName && (
-                    <p className="text-slate-600">{snap.deliverTo.companyName}</p>
+                  <p className="text-lg font-bold text-slate-900">{deliverTo.name}</p>
+                  {deliverTo.companyName && (
+                    <p className="text-slate-600">{deliverTo.companyName}</p>
                   )}
-                  {snap.deliverTo.address && (
+                  {deliverTo.address && (
                     <p className="text-slate-500 text-sm mt-1 whitespace-pre-line">
-                      {[snap.deliverTo.address.line1, snap.deliverTo.address.line2, snap.deliverTo.address.town, snap.deliverTo.address.county, snap.deliverTo.address.postcode].filter(Boolean).join("\n")}
+                      {[deliverTo.address.line1, deliverTo.address.line2, deliverTo.address.town, deliverTo.address.county, deliverTo.address.postcode].filter(Boolean).join("\n")}
                     </p>
                   )}
-                  {snap.deliverTo.phone && <p className="text-slate-500 text-sm mt-2">{snap.deliverTo.phone}</p>}
+                  {deliverTo.phone && <p className="text-slate-500 text-sm mt-2">{deliverTo.phone}</p>}
                 </div>
               )}
             </div>
@@ -675,48 +702,46 @@ export default function InvoicePage() {
             break-inside: avoid;
             page-break-inside: avoid;
           }
-          /* Aggressive spacing compression */
-          .print\\:p-6, .print\\:p-4 {
-            padding: 0.35rem !important;
+          /* Maximum spacing compression for A4 */
+          .print\\:p-6, .print\\:p-4, .p-3, .p-4, .p-5, .p-6, .p-8 {
+            padding: 0.15rem !important;
           }
-          .p-6, .p-8 {
-            padding: 0.35rem !important;
+          .print\\:space-y-6 > * + *, .space-y-6 > * + *, .space-y-4 > * + *, .space-y-3 > * + * {
+            margin-top: 0.1rem !important;
           }
-          .print\\:space-y-6 > * + *, .space-y-6 > * + * {
-            margin-top: 0.35rem !important;
+          .mb-1, .mb-2, .mb-3, .mb-4, .mb-6 {
+            margin-bottom: 0.08rem !important;
           }
-          .mb-3, .mb-4, .mb-6 {
-            margin-bottom: 0.2rem !important;
+          .mt-1, .mt-2, .mt-3, .mt-4 {
+            margin-top: 0.08rem !important;
           }
-          .mt-3, .mt-4 {
-            margin-top: 0.2rem !important;
+          .pt-2, .pt-3, .pt-4, .pt-6 {
+            padding-top: 0.08rem !important;
           }
-          .pt-4, .pt-6 {
-            padding-top: 0.25rem !important;
+          .pb-2, .pb-4, .pb-6 {
+            padding-bottom: 0.08rem !important;
           }
-          .pb-4, .pb-6 {
-            padding-bottom: 0.25rem !important;
-          }
-          .gap-4, .gap-6, .gap-8 {
-            gap: 0.25rem !important;
+          .gap-2, .gap-3, .gap-4, .gap-6, .gap-8 {
+            gap: 0.08rem !important;
           }
           /* Compact table cells */
           td, th {
-            padding: 0.2rem 0.35rem !important;
-            font-size: 9px !important;
+            padding: 0.08rem 0.15rem !important;
+            font-size: 7px !important;
+            line-height: 1.15 !important;
           }
           /* Compact rounded boxes */
-          .rounded-xl {
-            padding: 0.3rem !important;
-            border-radius: 4px !important;
+          .rounded-xl, .rounded-2xl {
+            padding: 0.1rem !important;
+            border-radius: 2px !important;
           }
           .rounded-lg {
-            padding: 0.25rem !important;
-            border-radius: 3px !important;
+            padding: 0.08rem !important;
+            border-radius: 2px !important;
           }
           /* Signature images - ensure they print */
           .signature-image {
-            max-height: 30px !important;
+            max-height: 20px !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             display: block !important;
@@ -728,27 +753,41 @@ export default function InvoicePage() {
           }
           /* Compact headers */
           h1, .text-2xl {
-            font-size: 14px !important;
+            font-size: 11px !important;
+            line-height: 1.15 !important;
           }
           h2, .text-xl {
-            font-size: 12px !important;
+            font-size: 9px !important;
+            line-height: 1.15 !important;
           }
           .text-lg {
-            font-size: 11px !important;
+            font-size: 8px !important;
+            line-height: 1.15 !important;
           }
           .text-sm {
-            font-size: 9px !important;
+            font-size: 7px !important;
+            line-height: 1.15 !important;
           }
           .text-xs {
-            font-size: 8px !important;
+            font-size: 6px !important;
+            line-height: 1.15 !important;
           }
           /* Ensure tables stay together */
           table {
             break-inside: avoid;
           }
-          /* Hide non-essential decorative elements in print */
-          .bg-slate-50 {
-            padding: 0.25rem !important;
+          /* Compact colored sections */
+          .bg-slate-50, .bg-emerald-50, .bg-purple-50, .bg-blue-50, .bg-orange-50 {
+            padding: 0.1rem !important;
+          }
+          /* Grid compaction */
+          .grid-cols-2, .grid-cols-3 {
+            gap: 0.1rem !important;
+          }
+          /* Border compaction */
+          .border-b, .border-t {
+            margin-top: 0.05rem !important;
+            margin-bottom: 0.05rem !important;
           }
         }
       `}</style>
