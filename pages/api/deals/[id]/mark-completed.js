@@ -3,6 +3,8 @@ import Deal from "@/models/Deal";
 import Vehicle from "@/models/Vehicle";
 import PartExchange from "@/models/PartExchange";
 import VehicleTask from "@/models/VehicleTask";
+import VehicleIssue from "@/models/VehicleIssue";
+import AppraisalIssue from "@/models/AppraisalIssue";
 import Contact from "@/models/Contact";
 import { withDealerContext } from "@/libs/authContext";
 
@@ -126,10 +128,11 @@ async function handler(req, res, ctx) {
   deal.updatedByUserId = userId;
   await deal.save();
 
-  // Update vehicle status
+  // Update vehicle status and link to deal
   await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
     salesStatus: "COMPLETED",
     status: "SOLD", // Update main vehicle status too
+    soldDealId: deal._id, // Link vehicle to this deal for ex-stock viewing
   });
 
   // Auto-create vehicle from part exchange if applicable
@@ -148,6 +151,9 @@ async function handler(req, res, ctx) {
         }).lean();
 
         if (!existingVehicle) {
+          // Determine if this PX came from a dealer appraisal
+          const hasSourceAppraisal = px.sourceType === "DEALER_APPRAISAL" && px.sourceId;
+
           // Create vehicle from PX details
           const pxVehicle = await Vehicle.create({
             dealerId,
@@ -167,6 +173,8 @@ async function handler(req, res, ctx) {
             status: "in_stock",
             vatScheme: px.vatQualifying ? "VAT_QUALIFYING" : "MARGIN",
             notes: px.conditionSummary || px.notes,
+            // Link to original appraisal if this was a dealer appraisal PX
+            sourceAppraisalId: hasSourceAppraisal ? px.sourceId : undefined,
             // Purchase info - the PX allowance is what we "paid" for it
             purchase: {
               purchasedFromContactId: deal.soldToContactId?._id, // Buyer of main vehicle is seller of PX
@@ -188,6 +196,57 @@ async function handler(req, res, ctx) {
             }
           }
 
+          // Transfer appraisal issues to the new vehicle if from a dealer appraisal
+          let issuesTransferred = 0;
+          if (hasSourceAppraisal) {
+            try {
+              const appraisalIssues = await AppraisalIssue.find({
+                appraisalId: px.sourceId,
+              }).lean();
+
+              // Map appraisal category to vehicle category
+              const categoryMap = {
+                mechanical: "Mechanical",
+                electrical: "Electrical",
+                bodywork: "Cosmetic",
+                interior: "Cosmetic",
+                tyres: "Mechanical",
+                mot: "Mechanical",
+                service: "Mechanical",
+                fault_codes: "Electrical",
+                other: "Other",
+              };
+
+              // Map appraisal status to vehicle status
+              const statusMap = {
+                outstanding: "Outstanding",
+                ordered: "Ordered",
+                in_progress: "In Progress",
+                resolved: "Complete",
+              };
+
+              for (const issue of appraisalIssues) {
+                await VehicleIssue.create({
+                  vehicleId: pxVehicle._id,
+                  category: categoryMap[issue.category] || "Other",
+                  subcategory: issue.subcategory || issue.category || "General",
+                  description: issue.description,
+                  photos: issue.photos || [],
+                  actionNeeded: issue.actionNeeded,
+                  status: statusMap[issue.status] || "Outstanding",
+                  notes: issue.notes
+                    ? `Transferred from appraisal: ${issue.notes}`
+                    : "Transferred from appraisal",
+                  createdByUserId: userId,
+                });
+                issuesTransferred++;
+              }
+            } catch (issueErr) {
+              console.error("[mark-completed] Failed to transfer appraisal issues:", issueErr.message);
+              // Don't fail - just log
+            }
+          }
+
           // Link PX to the new vehicle
           await PartExchange.findByIdAndUpdate(px._id, {
             convertedToVehicleId: pxVehicle._id,
@@ -197,6 +256,7 @@ async function handler(req, res, ctx) {
             id: pxVehicle._id.toString(),
             vrm: pxVehicle.regCurrent,
             addedToPrep: px.disposition === "RETAIL_STOCK",
+            issuesTransferred,
           };
         }
       } catch (pxErr) {

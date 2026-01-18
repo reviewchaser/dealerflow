@@ -21,12 +21,13 @@ const addOnProductSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      enum: ["WARRANTY", "COSMETIC", "DELIVERY", "ADMIN", "OTHER"],
+      enum: ["WARRANTY", "COSMETIC", "PROTECTION", "DELIVERY", "ADMIN", "OTHER"],
       default: "OTHER",
     },
 
-    // Pricing
-    defaultPriceNet: { type: Number, required: true },
+    // Pricing - defaultPriceGross is the primary field (user enters inc VAT)
+    defaultPriceGross: { type: Number }, // Price including VAT
+    defaultPriceNet: { type: Number }, // Calculated or legacy field
     vatTreatment: {
       type: String,
       enum: ["STANDARD", "NO_VAT", "ZERO"],
@@ -60,10 +61,28 @@ addOnProductSchema.index({ dealerId: 1, isActive: 1 });
 addOnProductSchema.index({ dealerId: 1, category: 1 });
 addOnProductSchema.index({ dealerId: 1, name: 1 });
 
-// Virtual: Gross price (for STANDARD VAT treatment)
-addOnProductSchema.virtual("defaultPriceGross").get(function () {
-  if (this.vatTreatment === "STANDARD") {
-    return this.defaultPriceNet * (1 + this.vatRate);
+// Pre-save hook: Calculate net from gross if gross is provided
+addOnProductSchema.pre("save", function (next) {
+  if (this.defaultPriceGross != null) {
+    if (this.vatTreatment === "STANDARD") {
+      // Calculate net from gross: net = gross / (1 + vatRate)
+      this.defaultPriceNet = Math.round((this.defaultPriceGross / (1 + (this.vatRate || 0.2))) * 100) / 100;
+    } else {
+      // No VAT or Zero-rated: net = gross
+      this.defaultPriceNet = this.defaultPriceGross;
+    }
+  }
+  next();
+});
+
+// Virtual: Computed gross price (for backwards compatibility if only net is stored)
+addOnProductSchema.virtual("computedGross").get(function () {
+  // Return stored gross if available, otherwise calculate from net
+  if (this.defaultPriceGross != null) {
+    return this.defaultPriceGross;
+  }
+  if (this.vatTreatment === "STANDARD" && this.defaultPriceNet != null) {
+    return this.defaultPriceNet * (1 + (this.vatRate || 0.2));
   }
   return this.defaultPriceNet;
 });

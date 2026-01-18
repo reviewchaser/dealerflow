@@ -75,6 +75,7 @@ export default function StockBook() {
   const [hasSivFilter, setHasSivFilter] = useState("all");
   const [vatFilter, setVatFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all"); // STOCK, COURTESY, FLEET_OTHER, all
   const [sellerSearch, setSellerSearch] = useState("");
   const [sellerFilterName, setSellerFilterName] = useState(""); // Display name of selected seller
   const [showSellerSuggestions, setShowSellerSuggestions] = useState(false);
@@ -115,6 +116,7 @@ export default function StockBook() {
     transmission: "",
     vin: "",
     firstRegisteredDate: "",
+    vehicleType: "STOCK", // STOCK, COURTESY, FLEET_OTHER
     // Purchase info
     purchasePriceNet: "",
     purchasePriceGross: "", // For VAT_QUALIFYING: user enters gross, we calculate net
@@ -181,6 +183,7 @@ export default function StockBook() {
     mileageCurrent: "",
     fuelType: "",
     transmission: "",
+    vehicleType: "STOCK", // STOCK, COURTESY, FLEET_OTHER
     // MOT data from DVSA API
     motExpiryDate: null,
     motHistory: null,
@@ -343,6 +346,12 @@ export default function StockBook() {
         if (sellerIdStr !== sellerFilter) return false;
       }
 
+      // Type filter (STOCK, COURTESY, FLEET_OTHER)
+      if (typeFilter !== "all") {
+        const vehicleType = vehicle.type || "STOCK";
+        if (vehicleType !== typeFilter) return false;
+      }
+
       return true;
     });
 
@@ -375,6 +384,10 @@ export default function StockBook() {
           aVal = a.stockNumber || "";
           bVal = b.stockNumber || "";
           break;
+        case "year":
+          aVal = a.year || 0;
+          bVal = b.year || 0;
+          break;
         default:
           aVal = getDaysInStock(a.createdAt);
           bVal = getDaysInStock(b.createdAt);
@@ -392,7 +405,7 @@ export default function StockBook() {
     });
 
     return sorted;
-  }, [vehicles, activeStatus, searchQuery, daysFilter, hasSivFilter, vatFilter, sellerFilter, sortField, sortDirection]);
+  }, [vehicles, activeStatus, searchQuery, daysFilter, hasSivFilter, vatFilter, sellerFilter, typeFilter, sortField, sortDirection]);
 
   // Calculate stats (treat undefined/null salesStatus as AVAILABLE)
   const stats = useMemo(() => {
@@ -483,6 +496,7 @@ export default function StockBook() {
         transmission: data.transmission || "",
         vin: data.vin || "",
         firstRegisteredDate: data.firstRegisteredDate ? new Date(data.firstRegisteredDate).toISOString().split("T")[0] : "",
+        vehicleType: data.type || "STOCK",
         // Purchase info
         purchasePriceNet: net,
         purchasePriceGross: data.vatScheme === "VAT_QUALIFYING" ? gross : "",
@@ -593,6 +607,7 @@ export default function StockBook() {
           transmission: purchaseForm.transmission || undefined,
           vin: purchaseForm.vin || undefined,
           firstRegisteredDate: purchaseForm.firstRegisteredDate || undefined,
+          type: purchaseForm.vehicleType || "STOCK",
           // Purchase info
           vatScheme: purchaseForm.vatScheme,
           purchase: {
@@ -1091,7 +1106,7 @@ export default function StockBook() {
           mileageCurrent: addVehicleForm.mileageCurrent ? parseInt(addVehicleForm.mileageCurrent) : undefined,
           fuelType: addVehicleForm.fuelType || undefined,
           transmission: addVehicleForm.transmission || undefined,
-          type: "STOCK",
+          type: addVehicleForm.vehicleType || "STOCK",
           status: "in_stock",
           // Set showOnPrepBoard if adding to Vehicle Prep
           showOnPrepBoard: addVehicleForm.addToVehiclePrep,
@@ -1186,8 +1201,8 @@ export default function StockBook() {
       setShowAddVehicleModal(false);
       setAddVehicleForm({
         regCurrent: "", vin: "", make: "", model: "", year: "", colour: "",
-        mileageCurrent: "", fuelType: "", transmission: "",
-        motExpiryDate: null, motHistory: null, dvlaDetails: null,
+        mileageCurrent: "", fuelType: "", transmission: "", vehicleType: "STOCK",
+        motExpiryDate: null, motHistory: null, dvlaDetails: null, firstRegisteredDate: null,
         vatScheme: "MARGIN", purchasePriceNet: "", purchasePriceGross: "", purchaseVat: "",
         purchasedFromContactId: "", purchaseDate: "", purchaseInvoiceRef: "", purchaseNotes: "",
         v5File: null, serviceHistoryFile: null,
@@ -1257,6 +1272,73 @@ export default function StockBook() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="input input-bordered w-full pl-10 h-10"
                   />
+                </div>
+
+                {/* Sort Dropdown */}
+                <div className="dropdown dropdown-end">
+                  <label tabIndex={0} className="btn btn-sm btn-ghost gap-1">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    <span className="hidden sm:inline">Sort</span>
+                    <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </label>
+                  <ul tabIndex={0} className="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-52 z-50 border border-slate-200">
+                    <li className="menu-title text-xs text-slate-500 px-2 py-1">Sort By</li>
+                    {[
+                      { field: "year", label: "Year" },
+                      { field: "siv", label: "SIV (Purchase Price)" },
+                      { field: "purchased", label: "Purchase Date" },
+                      { field: "vrm", label: "VRM" },
+                      { field: "stock", label: "Stock Number" },
+                      { field: "days", label: "Days in Stock" },
+                      { field: "vehicle", label: "Make/Model" },
+                    ].map(({ field, label }) => (
+                      <li key={field}>
+                        <button
+                          onClick={() => handleSort(field)}
+                          className={`text-sm ${sortField === field ? "active bg-blue-50 text-blue-700" : ""}`}
+                        >
+                          {label}
+                          {sortField === field && (
+                            <span className="ml-auto text-xs">
+                              {sortDirection === "asc" ? "↑" : "↓"}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                    <li className="divider my-1"></li>
+                    <li className="menu-title text-xs text-slate-500 px-2 py-1">Direction</li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSortDirection("asc");
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("stockbook_sortDirection", "asc");
+                          }
+                        }}
+                        className={`text-sm ${sortDirection === "asc" ? "active bg-blue-50 text-blue-700" : ""}`}
+                      >
+                        Ascending ↑
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => {
+                          setSortDirection("desc");
+                          if (typeof window !== "undefined") {
+                            localStorage.setItem("stockbook_sortDirection", "desc");
+                          }
+                        }}
+                        className={`text-sm ${sortDirection === "desc" ? "active bg-blue-50 text-blue-700" : ""}`}
+                      >
+                        Descending ↓
+                      </button>
+                    </li>
+                  </ul>
                 </div>
 
                 {/* Filter Toggle */}
@@ -1395,6 +1477,20 @@ export default function StockBook() {
                   </select>
                 </div>
 
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-500">Vehicle Type</label>
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="select select-sm select-bordered bg-white"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="STOCK">Stock</option>
+                    <option value="COURTESY">Courtesy</option>
+                    <option value="FLEET_OTHER">Fleet/Other</option>
+                  </select>
+                </div>
+
                 {uniqueSellers.length > 0 && (
                   <div className="flex flex-col gap-1 relative">
                     <label className="text-xs font-medium text-slate-500">Seller</label>
@@ -1459,6 +1555,7 @@ export default function StockBook() {
                     setSellerFilter("all");
                     setSellerSearch("");
                     setSellerFilterName("");
+                    setTypeFilter("all");
                   }}
                   className="btn btn-sm btn-ghost self-end"
                 >
@@ -1936,6 +2033,20 @@ export default function StockBook() {
                           onChange={(e) => setPurchaseForm({ ...purchaseForm, firstRegisteredDate: e.target.value })}
                           className="input input-bordered input-sm w-full"
                         />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Vehicle Type</span>
+                        </label>
+                        <select
+                          value={purchaseForm.vehicleType}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, vehicleType: e.target.value })}
+                          className="select select-bordered select-sm w-full"
+                        >
+                          <option value="STOCK">Stock</option>
+                          <option value="COURTESY">Courtesy</option>
+                          <option value="FLEET_OTHER">Fleet/Other</option>
+                        </select>
                       </div>
                     </div>
                     <div className="form-control mt-4">
@@ -2541,6 +2652,20 @@ export default function StockBook() {
                           <option value="Manual">Manual</option>
                           <option value="Automatic">Automatic</option>
                           <option value="Semi-Automatic">Semi-Automatic</option>
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label className="label">
+                          <span className="label-text font-medium">Vehicle Type</span>
+                        </label>
+                        <select
+                          value={addVehicleForm.vehicleType}
+                          onChange={(e) => setAddVehicleForm({ ...addVehicleForm, vehicleType: e.target.value })}
+                          className="select select-bordered w-full"
+                        >
+                          <option value="STOCK">Stock</option>
+                          <option value="COURTESY">Courtesy</option>
+                          <option value="FLEET_OTHER">Fleet/Other</option>
                         </select>
                       </div>
                     </div>

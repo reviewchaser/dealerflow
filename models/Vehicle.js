@@ -47,6 +47,8 @@ const vehicleSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Track when vehicle was removed from prep board (for restore option)
+    prepBoardRemovedAt: { type: Date },
     // Whether vehicle is advertised online
     isAdvertised: {
       type: Boolean,
@@ -113,6 +115,12 @@ const vehicleSchema = new mongoose.Schema(
       purchaseInvoiceRef: { type: String },
       purchaseNotes: { type: String },
     },
+
+    // Link to original appraisal if this vehicle was a part exchange
+    sourceAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "Appraisal" },
+
+    // Link to deal that sold this vehicle (for ex-stock viewing)
+    soldDealId: { type: mongoose.Schema.Types.ObjectId, ref: "Deal" },
 
     // Sales status (tracks vehicle through sales pipeline)
     salesStatus: {

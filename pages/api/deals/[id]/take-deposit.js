@@ -113,7 +113,7 @@ async function handler(req, res, ctx) {
 
   // Update vehicle status - move to "Sold In Progress" on prep board
   await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
-    salesStatus: "IN_DEAL",
+    salesStatus: "SOLD_IN_PROGRESS",
     status: "live",
     soldAt: new Date(),
   });
@@ -189,15 +189,27 @@ async function handler(req, res, ctx) {
     vehiclePriceNet: deal.vehiclePriceNet || deal.vehiclePriceGross,
     vehicleVatAmount: deal.vehicleVatAmount || 0,
     vehiclePriceGross: deal.vehiclePriceGross,
-    // Warranty details
-    warranty: deal.warranty?.included ? {
-      included: true,
-      name: deal.warranty.name,
-      durationMonths: deal.warranty.durationMonths,
-      claimLimit: deal.warranty.claimLimit,
-      priceGross: deal.warranty.priceGross,
-      isDefault: deal.warranty.isDefault,
-    } : null,
+    // Warranty details with VAT breakdown
+    warranty: deal.warranty?.included ? (() => {
+      const priceGross = deal.warranty.priceGross || 0;
+      const vatApplicable = dealer?.salesSettings?.defaultWarranty?.vatApplicable || false;
+      const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+      // If VAT applicable: priceNet = priceGross / (1 + vatRate), vatAmount = priceGross - priceNet
+      // If VAT exempt: priceNet = priceGross, vatAmount = 0
+      const priceNet = vatApplicable ? priceGross / (1 + vatRate) : priceGross;
+      const vatAmount = vatApplicable ? priceGross - priceNet : 0;
+      return {
+        included: true,
+        name: deal.warranty.name,
+        durationMonths: deal.warranty.durationMonths,
+        claimLimit: deal.warranty.claimLimit,
+        priceGross,
+        priceNet: Math.round(priceNet * 100) / 100,
+        vatAmount: Math.round(vatAmount * 100) / 100,
+        vatApplicable,
+        isDefault: deal.warranty.isDefault,
+      };
+    })() : null,
     // Include add-ons in deposit receipt
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,

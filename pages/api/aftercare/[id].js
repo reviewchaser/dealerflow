@@ -144,6 +144,102 @@ async function handler(req, res, ctx) {
       THIRD_PARTY: "Third-party"
     };
 
+    // Handle parts order actions
+    if (_eventType === "PARTS_ORDER_ADDED") {
+      const { supplierName, orderRef, expectedAt, notes } = _eventMetadata || {};
+      if (!supplierName) {
+        return res.status(400).json({ error: "Supplier name is required" });
+      }
+
+      const newOrder = {
+        supplierName,
+        orderRef: orderRef || null,
+        orderedAt: new Date(),
+        expectedAt: expectedAt ? new Date(expectedAt) : null,
+        notes: notes || null,
+        status: "ORDERED",
+        createdByUserId: userId,
+        createdByName: userName
+      };
+
+      await AftercareCase.updateOne(
+        { _id: id, dealerId },
+        {
+          $push: { partsOrders: newOrder },
+          $set: { partsRequired: true }
+        }
+      );
+
+      events.push({
+        type: "PARTS_ORDER_ADDED",
+        createdAt: new Date(),
+        createdByUserId: userId,
+        createdByName: userName,
+        summary: `Parts order added: ${supplierName}${orderRef ? ` (Ref: ${orderRef})` : ""}`,
+        metadata: { supplierName, orderRef }
+      });
+    }
+
+    if (_eventType === "PARTS_ORDER_RECEIVED") {
+      const { orderIndex } = _eventMetadata || {};
+      if (orderIndex === undefined) {
+        return res.status(400).json({ error: "Order index is required" });
+      }
+
+      const updateKey = `partsOrders.${orderIndex}`;
+      await AftercareCase.updateOne(
+        { _id: id, dealerId },
+        {
+          $set: {
+            [`${updateKey}.status`]: "RECEIVED",
+            [`${updateKey}.receivedAt`]: new Date()
+          }
+        }
+      );
+
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+      const orderInfo = currentCase?.partsOrders?.[orderIndex];
+
+      events.push({
+        type: "PARTS_ORDER_RECEIVED",
+        createdAt: new Date(),
+        createdByUserId: userId,
+        createdByName: userName,
+        summary: `Parts received from ${orderInfo?.supplierName || "supplier"}`,
+        metadata: { orderIndex, supplierName: orderInfo?.supplierName }
+      });
+    }
+
+    if (_eventType === "PARTS_ORDER_REMOVED") {
+      const { orderIndex } = _eventMetadata || {};
+      if (orderIndex === undefined) {
+        return res.status(400).json({ error: "Order index is required" });
+      }
+
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+      const orderInfo = currentCase?.partsOrders?.[orderIndex];
+
+      // Remove by pulling at specific index - first set to null, then pull null
+      const updateKey = `partsOrders.${orderIndex}`;
+      await AftercareCase.updateOne(
+        { _id: id, dealerId },
+        { $unset: { [updateKey]: 1 } }
+      );
+      await AftercareCase.updateOne(
+        { _id: id, dealerId },
+        { $pull: { partsOrders: null } }
+      );
+
+      events.push({
+        type: "PARTS_ORDER_REMOVED",
+        createdAt: new Date(),
+        createdByUserId: userId,
+        createdByName: userName,
+        summary: `Parts order removed: ${orderInfo?.supplierName || "supplier"}`,
+        metadata: { orderIndex, supplierName: orderInfo?.supplierName }
+      });
+    }
+
     // Handle custom event types (LOCATION_UPDATED, PARTS_UPDATED, COURTESY_REQUIRED_TOGGLED, CUSTOMER_CONTACTED, CONTACT_REMINDER_SET, COSTING_UPDATED)
     // Note: BOOKING_UPDATED is now handled separately with auto-move logic below
     if (_eventType && ["LOCATION_UPDATED", "PARTS_UPDATED", "COURTESY_REQUIRED_TOGGLED", "CUSTOMER_CONTACTED", "CONTACT_REMINDER_SET", "COSTING_UPDATED"].includes(_eventType)) {
@@ -175,15 +271,11 @@ async function handler(req, res, ctx) {
           }
           break;
         case "COSTING_UPDATED":
-          // Calculate totals from new VAT structure
-          const partsNet = _eventMetadata?.partsNet || 0;
-          const labourNet = _eventMetadata?.labourNet || 0;
-          const partsVat = _eventMetadata?.partsVatTreatment === "NO_VAT" ? 0 : partsNet * (_eventMetadata?.partsVatRate || 0.2);
-          const labourVat = _eventMetadata?.labourVatTreatment === "NO_VAT" ? 0 : labourNet * (_eventMetadata?.labourVatRate || 0.2);
-          const totalNet = partsNet + labourNet;
-          const totalVat = partsVat + labourVat;
-          const totalGross = totalNet + totalVat;
-          summary = `Costing updated: £${totalNet.toFixed(2)} net (Parts: £${partsNet.toFixed(2)}, Labour: £${labourNet.toFixed(2)})${totalVat > 0 ? ` + £${totalVat.toFixed(2)} VAT = £${totalGross.toFixed(2)} gross` : ""}`;
+          // Simplified gross-only costing
+          const partsGross = _eventMetadata?.partsGross || 0;
+          const labourGross = _eventMetadata?.labourGross || 0;
+          const totalGross = partsGross + labourGross;
+          summary = `Costing updated: £${totalGross.toFixed(2)} total (Parts: £${partsGross.toFixed(2)}, Labour: £${labourGross.toFixed(2)})`;
           break;
       }
 
@@ -206,18 +298,14 @@ async function handler(req, res, ctx) {
     if (_eventType === "CONTACT_REMINDER_SET") {
       otherUpdates.nextContactAt = _eventMetadata?.nextContactAt ? new Date(_eventMetadata.nextContactAt) : null;
     }
-    // Handle costing updates
+    // Handle costing updates - simplified gross-only
     if (_eventType === "COSTING_UPDATED") {
-      const costingPartsNet = _eventMetadata?.partsNet || 0;
-      const costingLabourNet = _eventMetadata?.labourNet || 0;
+      const costingPartsGross = _eventMetadata?.partsGross || 0;
+      const costingLabourGross = _eventMetadata?.labourGross || 0;
 
       otherUpdates.costing = {
-        partsNet: costingPartsNet,
-        partsVatTreatment: _eventMetadata?.partsVatTreatment || "STANDARD",
-        partsVatRate: _eventMetadata?.partsVatRate ?? 0.2,
-        labourNet: costingLabourNet,
-        labourVatTreatment: _eventMetadata?.labourVatTreatment || "STANDARD",
-        labourVatRate: _eventMetadata?.labourVatRate ?? 0.2,
+        partsGross: costingPartsGross,
+        labourGross: costingLabourGross,
         notes: _eventMetadata?.notes || "",
         updatedAt: new Date(),
         updatedByUserId: userId
@@ -225,7 +313,7 @@ async function handler(req, res, ctx) {
 
       // Set costingAddedAt on first time costs are added (and not already set)
       // This date is used for KPI month attribution and never changes after first set
-      if ((costingPartsNet > 0 || costingLabourNet > 0)) {
+      if ((costingPartsGross > 0 || costingLabourGross > 0)) {
         const existingCase = await AftercareCase.findOne({ _id: id, dealerId }).select("costingAddedAt").lean();
         if (!existingCase?.costingAddedAt) {
           otherUpdates.costingAddedAt = new Date();

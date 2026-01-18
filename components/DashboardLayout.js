@@ -171,7 +171,7 @@ const navigation = [
   { name: "Stock Book", href: "/stock-book", Icon: BookOpenIcon, requiresPermission: "sales", section: "main" },
   { name: "Vehicle Prep", href: "/prep", Icon: TruckIcon, section: "main" },
   { name: "Sales", href: "/sales", Icon: CurrencyPoundIcon, requiresPermission: "sales", section: "main" },
-  { name: "Aftersales", href: "/warranty", Icon: WrenchIcon, section: "main" },
+  { name: "Aftersales", href: "/aftersales", Icon: WrenchIcon, section: "main" },
   // Management Section
   { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon, section: "management" },
   { name: "Contacts", href: "/contacts", Icon: UsersIcon, requiresPermission: "sales", section: "management" },
@@ -878,7 +878,7 @@ export default function DashboardLayout({ children }) {
           {[
             { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
             { name: "Prep", href: "/prep", Icon: TruckIcon },
-            { name: "Aftersales", href: "/warranty", Icon: WrenchIcon },
+            { name: "Aftersales", href: "/aftersales", Icon: WrenchIcon },
             { name: "Records", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {
@@ -1046,7 +1046,7 @@ export default function DashboardLayout({ children }) {
               <span className="font-medium text-slate-900">Create Sale</span>
             </Link>
             <Link
-              href={getPath("/warranty?addCase=1")}
+              href={getPath("/aftersales?addCase=1")}
               onClick={() => setShowMobileQuickAdd(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
             >
@@ -1134,7 +1134,7 @@ export default function DashboardLayout({ children }) {
                   <span className="text-sm font-medium text-slate-900">Create Sale</span>
                 </Link>
                 <Link
-                  href={getPath("/warranty?addCase=1")}
+                  href={getPath("/aftersales?addCase=1")}
                   onClick={() => setShowDesktopQuickAdd(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                 >

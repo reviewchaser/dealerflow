@@ -11,6 +11,9 @@ export default function WarrantyClaimForm() {
     customerName: "",
     customerEmail: "",
     customerPhone: "",
+    addressStreet: "",
+    addressCity: "",
+    addressPostcode: "",
     vehicleReg: "",
     regAtPurchase: "",
     vin: "",
@@ -72,7 +75,7 @@ export default function WarrantyClaimForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.customerName || !formData.customerPhone || !formData.vehicleReg || !formData.category || !formData.issueDescription) {
+    if (!formData.customerName || !formData.customerPhone || !formData.vehicleReg || !formData.category || !formData.issueDescription || !formData.addressStreet || !formData.addressCity || !formData.addressPostcode) {
       return toast.error("Please fill in all required fields");
     }
     setIsSubmitting(true);
@@ -84,6 +87,9 @@ export default function WarrantyClaimForm() {
           customerName: formData.customerName,
           customerEmail: formData.customerEmail,
           customerPhone: formData.customerPhone,
+          addressStreet: formData.addressStreet,
+          addressCity: formData.addressCity,
+          addressPostcode: formData.addressPostcode,
           vehicleReg: formData.vehicleReg,
           regAtPurchase: formData.regAtPurchase || formData.vehicleReg,
           vehicleMake: vehicleMake,
@@ -179,6 +185,26 @@ export default function WarrantyClaimForm() {
                 <label className="label"><span className="label-text">Email</span></label>
                 <input type="email" name="customerEmail" value={formData.customerEmail} onChange={handleChange}
                   className="input input-bordered" />
+              </div>
+            </div>
+
+            {/* Address */}
+            <div className="form-control">
+              <label className="label"><span className="label-text">Street Address *</span></label>
+              <input type="text" name="addressStreet" value={formData.addressStreet} onChange={handleChange}
+                className="input input-bordered" placeholder="123 Main Street" required />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control">
+                <label className="label"><span className="label-text">Town/City *</span></label>
+                <input type="text" name="addressCity" value={formData.addressCity} onChange={handleChange}
+                  className="input input-bordered" required />
+              </div>
+              <div className="form-control">
+                <label className="label"><span className="label-text">Postcode *</span></label>
+                <input type="text" name="addressPostcode" value={formData.addressPostcode} onChange={handleChange}
+                  className="input input-bordered uppercase" required />
               </div>
             </div>
 

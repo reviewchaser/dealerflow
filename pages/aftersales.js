@@ -3,7 +3,8 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import DashboardLayout from "@/components/DashboardLayout";
 import VehicleDrawer from "@/components/VehicleDrawer";
-import AISuggestionsPanel from "@/components/AISuggestionsPanel";
+// TEMPORARILY DISABLED - AI features commented out for later reinstatement
+// import AISuggestionsPanel from "@/components/AISuggestionsPanel";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 import { PageHint } from "@/components/ui";
@@ -418,14 +419,24 @@ export default function Warranty() {
   const [newComment, setNewComment] = useState("");
   const [commentAttachments, setCommentAttachments] = useState([]);
   const [isUploadingCaseMedia, setIsUploadingCaseMedia] = useState(false);
-  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
-  const [aiDiagnostics, setAiDiagnostics] = useState(null);
-  const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
+  // TEMPORARILY DISABLED - AI features
+  // const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  // const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  // const [aiDiagnostics, setAiDiagnostics] = useState(null);
+  // const [isLoadingDiagnostics, setIsLoadingDiagnostics] = useState(false);
   const [expandedTimelineGroups, setExpandedTimelineGroups] = useState({});
   const [isVehicleDrawerOpen, setIsVehicleDrawerOpen] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Parts order form state
+  const [showPartsOrderForm, setShowPartsOrderForm] = useState(false);
+  const [partsOrderForm, setPartsOrderForm] = useState({
+    supplierName: "",
+    orderRef: "",
+    expectedAt: "",
+    notes: "",
+  });
 
   // Drag state - matching Sales & Prep
   const [draggedCard, setDraggedCard] = useState(null);
@@ -487,7 +498,7 @@ export default function Warranty() {
     fetchCases(showAllClosed);
   }, [showAllClosed]);
 
-  // Auto-open case from query param (e.g., /warranty?caseId=123)
+  // Auto-open case from query param (e.g., /aftersales?caseId=123)
   useEffect(() => {
     if (router.query.caseId && !selectedCase) {
       fetchCaseDetail(router.query.caseId);
@@ -499,7 +510,7 @@ export default function Warranty() {
     if (router.query.addCase === "1") {
       setShowAddModal(true);
       // Remove the query param from URL without reload
-      router.replace("/warranty", undefined, { shallow: true });
+      router.replace("/aftersales", undefined, { shallow: true });
     }
   }, [router.query.addCase]);
 
@@ -552,8 +563,8 @@ export default function Warranty() {
 
   const fetchCaseDetail = async (caseId) => {
     if (!caseId) return; // Guard against undefined/null caseId
-    // Clear AI diagnostics when switching cases
-    setAiDiagnostics(null);
+    // TEMPORARILY DISABLED - AI diagnostics
+    // setAiDiagnostics(null);
     try {
       const res = await fetch(`/api/aftercare/${caseId}`);
       // Check for JSON response
@@ -654,6 +665,34 @@ export default function Warranty() {
     } finally {
       setIsLoadingCourtesy(false);
     }
+  };
+
+  // Parts order modal helpers
+  const closePartsOrderModal = () => {
+    setShowPartsOrderForm(false);
+    setPartsOrderForm({
+      supplierName: "",
+      orderRef: "",
+      expectedAt: "",
+      notes: "",
+    });
+  };
+
+  const addPartsOrder = async () => {
+    if (!partsOrderForm.supplierName.trim()) {
+      toast.error("Supplier name is required");
+      return;
+    }
+    await updateCase({
+      _eventType: "PARTS_ORDER_ADDED",
+      _eventMetadata: {
+        supplierName: partsOrderForm.supplierName.trim(),
+        orderRef: partsOrderForm.orderRef.trim() || undefined,
+        expectedAt: partsOrderForm.expectedAt || undefined,
+        notes: partsOrderForm.notes.trim() || undefined,
+      }
+    }, "Parts order added");
+    closePartsOrderModal();
   };
 
   // Allocate courtesy vehicle to case
@@ -943,6 +982,8 @@ export default function Warranty() {
     }
   };
 
+  // TEMPORARILY DISABLED - AI functions
+  /*
   const generateAIReview = async (regenerate = false) => {
     if (regenerate) {
       setShowRegenerateConfirm(false);
@@ -1027,6 +1068,7 @@ export default function Warranty() {
       setIsLoadingDiagnostics(false);
     }
   };
+  */
 
   const copyToClipboard = (text, label) => {
     navigator.clipboard.writeText(text);
@@ -2123,25 +2165,20 @@ export default function Warranty() {
                     </button>
                   ))}
                 </div>
-                <div className="bg-slate-100 rounded-lg p-1 flex">
-                  {["low", "normal", "high", "critical"].map(p => (
-                    <button
-                      key={p}
-                      onClick={async () => {
-                        if (selectedCase.priority !== p) {
-                          await updateCase({ priority: p }, "Priority updated");
-                        }
-                      }}
-                      className={`px-2 py-1.5 text-xs font-medium rounded-md capitalize transition-all ${
-                        selectedCase.priority === p
-                          ? `${PRIORITIES[p]?.bg} ${PRIORITIES[p]?.text} shadow-sm`
-                          : "text-slate-400 hover:text-slate-600"
-                      }`}
-                    >
-                      {p === "critical" ? "!" : p.charAt(0).toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+                <select
+                  className="select select-sm bg-slate-50 border-slate-200 text-sm font-medium rounded-lg"
+                  value={selectedCase.priority || "normal"}
+                  onChange={async (e) => {
+                    if (selectedCase.priority !== e.target.value) {
+                      await updateCase({ priority: e.target.value }, "Priority updated");
+                    }
+                  }}
+                >
+                  <option value="low">Low Priority</option>
+                  <option value="normal">Normal Priority</option>
+                  <option value="high">High Priority</option>
+                  <option value="critical">Critical Priority</option>
+                </select>
               </div>
 
               {/* Reopen Case Banner - shown when case is closed */}
@@ -2194,6 +2231,18 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>
                       <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.email || "—"}</p>
                     </div>
+                    {selectedCase.customerAddress && (selectedCase.customerAddress.street || selectedCase.customerAddress.city || selectedCase.customerAddress.postcode) && (
+                      <div className="col-span-2">
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Address</span>
+                        <p className="text-slate-900 mt-0.5">
+                          {[
+                            selectedCase.customerAddress.street,
+                            selectedCase.customerAddress.city,
+                            selectedCase.customerAddress.postcode
+                          ].filter(Boolean).join(", ")}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Reg at Purchase</span>
                       <p className="text-slate-900 mt-0.5">{selectedCase.regAtPurchase || "—"}</p>
@@ -2547,20 +2596,91 @@ export default function Warranty() {
                   </label>
 
                   {selectedCase.partsRequired && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Parts Notes</label>
-                      <textarea
-                        className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm resize-none"
-                        rows={2}
-                        value={selectedCase.partsNotes || ""}
-                        placeholder="List parts needed, order status, etc..."
-                        onChange={(e) => setSelectedCase({ ...selectedCase, partsNotes: e.target.value })}
-                        onBlur={() => updateCase({
-                          partsNotes: selectedCase.partsNotes,
-                          _eventType: "PARTS_UPDATED",
-                          _eventMetadata: { partsNotes: selectedCase.partsNotes }
-                        })}
-                      />
+                    <div className="pt-2 border-t border-slate-100 space-y-3">
+                      {/* Parts Orders List */}
+                      {selectedCase.partsOrders?.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Orders</label>
+                          {selectedCase.partsOrders.map((order, idx) => (
+                            <div key={idx} className={`p-3 rounded-lg border ${order.status === "RECEIVED" ? "bg-emerald-50 border-emerald-200" : "bg-amber-50 border-amber-200"}`}>
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm text-slate-900">{order.supplierName}</p>
+                                  {order.orderRef && <p className="text-xs text-slate-500">Ref: {order.orderRef}</p>}
+                                  {order.expectedAt && (
+                                    <p className="text-xs text-slate-500">
+                                      Expected: {new Date(order.expectedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                                    </p>
+                                  )}
+                                  {order.notes && <p className="text-xs text-slate-600 mt-1">{order.notes}</p>}
+                                </div>
+                                <div className="flex items-center gap-1 ml-2">
+                                  {order.status === "ORDERED" ? (
+                                    <button
+                                      onClick={() => updateCase({
+                                        _eventType: "PARTS_ORDER_RECEIVED",
+                                        _eventMetadata: { orderIndex: idx }
+                                      }, "Parts received")}
+                                      className="p-1.5 text-emerald-600 hover:bg-emerald-100 rounded transition-colors"
+                                      title="Mark Received"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs font-medium text-emerald-700 px-2 py-0.5 bg-emerald-100 rounded-full">Received</span>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      if (confirm("Remove this parts order?")) {
+                                        updateCase({
+                                          _eventType: "PARTS_ORDER_REMOVED",
+                                          _eventMetadata: { orderIndex: idx }
+                                        }, "Parts order removed");
+                                      }
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="Remove"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Add Parts Order Button */}
+                      <button
+                        onClick={() => setShowPartsOrderForm(true)}
+                        className="w-full py-2 px-3 text-sm font-medium text-[#0066CC] bg-[#0066CC]/5 hover:bg-[#0066CC]/10 border border-dashed border-[#0066CC]/30 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Parts Order
+                      </button>
+
+                      {/* Parts Notes */}
+                      <div>
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Notes</label>
+                        <textarea
+                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm resize-none"
+                          rows={2}
+                          value={selectedCase.partsNotes || ""}
+                          placeholder="Additional notes about parts..."
+                          onChange={(e) => setSelectedCase({ ...selectedCase, partsNotes: e.target.value })}
+                          onBlur={() => updateCase({
+                            partsNotes: selectedCase.partsNotes,
+                            _eventType: "PARTS_UPDATED",
+                            _eventMetadata: { partsNotes: selectedCase.partsNotes }
+                          })}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2667,29 +2787,40 @@ export default function Warranty() {
                       {/* Quick allocation */}
                       <div>
                         <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Quick Allocate</label>
-                        <select
-                          className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
-                          onFocus={loadCourtesyVehicles}
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              allocateCourtesy(e.target.value);
-                            }
-                          }}
-                          defaultValue=""
-                        >
-                          <option value="" disabled>
-                            {isLoadingCourtesy ? "Loading..." : "Choose courtesy vehicle..."}
-                          </option>
-                          {courtesyVehicles.map((v) => (
-                            <option key={v._id} value={v._id}>
-                              {v.regCurrent} - {v.make} {v.model}
-                            </option>
-                          ))}
-                          {courtesyVehicles.length === 0 && !isLoadingCourtesy && (
-                            <option value="" disabled>No courtesy vehicles available</option>
-                          )}
-                        </select>
-                        <p className="text-xs text-slate-400 mt-1">Select to allocate immediately</p>
+                        {courtesyVehicles.length === 0 && !isLoadingCourtesy ? (
+                          <a
+                            href="/stock-book"
+                            className="flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:border-slate-300 transition-colors"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Select Courtesy Vehicles in Stock Book
+                          </a>
+                        ) : (
+                          <>
+                            <select
+                              className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
+                              onFocus={loadCourtesyVehicles}
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  allocateCourtesy(e.target.value);
+                                }
+                              }}
+                              defaultValue=""
+                            >
+                              <option value="" disabled>
+                                {isLoadingCourtesy ? "Loading..." : "Choose courtesy vehicle..."}
+                              </option>
+                              {courtesyVehicles.map((v) => (
+                                <option key={v._id} value={v._id}>
+                                  {v.regCurrent} - {v.make} {v.model}
+                                </option>
+                              ))}
+                            </select>
+                            <p className="text-xs text-slate-400 mt-1">Select to allocate immediately</p>
+                          </>
+                        )}
                       </div>
                       {/* Full form option */}
                       <div className="pt-2 border-t border-slate-100">
@@ -2710,7 +2841,7 @@ export default function Warranty() {
                 </div>
               </div>
 
-              {/* Costing Section - Per-component VAT */}
+              {/* Costing Section - Simplified Gross Only */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -2720,12 +2851,13 @@ export default function Warranty() {
                     <h3 className="text-sm font-semibold text-slate-900">Costing</h3>
                   </div>
                   {(() => {
-                    const pNet = selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
-                    const lNet = selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
-                    const totalNet = pNet + lNet;
-                    return totalNet > 0 && (
+                    // Support both new partsGross/labourGross and legacy partsNet/labourNet fields
+                    const pGross = selectedCase.costing?.partsGross || selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
+                    const lGross = selectedCase.costing?.labourGross || selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
+                    const totalGross = pGross + lGross;
+                    return totalGross > 0 && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                        £{totalNet.toFixed(2)} net
+                        £{totalGross.toFixed(2)} total
                       </span>
                     );
                   })()}
@@ -2733,28 +2865,7 @@ export default function Warranty() {
                 <div className="p-4 space-y-4">
                   {/* Parts Section */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Parts (Net)</label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <span className="text-xs text-slate-500">VAT applies</span>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={(selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD"}
-                            onChange={(e) => {
-                              const newTreatment = e.target.checked ? "STANDARD" : "NO_VAT";
-                              setSelectedCase({
-                                ...selectedCase,
-                                costing: { ...selectedCase.costing, partsVatTreatment: newTreatment }
-                              });
-                            }}
-                          />
-                          <div className="w-8 h-5 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-3"></div>
-                        </div>
-                      </label>
-                    </div>
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Parts (Gross)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
                       <input
@@ -2762,45 +2873,19 @@ export default function Warranty() {
                         step="0.01"
                         min="0"
                         className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
-                        value={selectedCase.costing?.partsNet ?? selectedCase.costing?.partsCost ?? ""}
+                        value={selectedCase.costing?.partsGross ?? selectedCase.costing?.partsNet ?? selectedCase.costing?.partsCost ?? ""}
                         placeholder="0.00"
                         onChange={(e) => setSelectedCase({
                           ...selectedCase,
-                          costing: { ...selectedCase.costing, partsNet: parseFloat(e.target.value) || 0 }
+                          costing: { ...selectedCase.costing, partsGross: parseFloat(e.target.value) || 0 }
                         })}
                       />
                     </div>
-                    {(selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD" && (selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0) > 0 && (
-                      <p className="text-xs text-slate-400">
-                        + £{((selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0) * 0.2).toFixed(2)} VAT
-                      </p>
-                    )}
                   </div>
 
                   {/* Labour Section */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Labour (Net)</label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <span className="text-xs text-slate-500">VAT applies</span>
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={(selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD"}
-                            onChange={(e) => {
-                              const newTreatment = e.target.checked ? "STANDARD" : "NO_VAT";
-                              setSelectedCase({
-                                ...selectedCase,
-                                costing: { ...selectedCase.costing, labourVatTreatment: newTreatment }
-                              });
-                            }}
-                          />
-                          <div className="w-8 h-5 bg-slate-200 rounded-full peer-checked:bg-[#0066CC] transition-colors"></div>
-                          <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-3"></div>
-                        </div>
-                      </label>
-                    </div>
+                    <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Labour (Gross)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
                       <input
@@ -2808,47 +2893,28 @@ export default function Warranty() {
                         step="0.01"
                         min="0"
                         className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
-                        value={selectedCase.costing?.labourNet ?? selectedCase.costing?.labourCost ?? ""}
+                        value={selectedCase.costing?.labourGross ?? selectedCase.costing?.labourNet ?? selectedCase.costing?.labourCost ?? ""}
                         placeholder="0.00"
                         onChange={(e) => setSelectedCase({
                           ...selectedCase,
-                          costing: { ...selectedCase.costing, labourNet: parseFloat(e.target.value) || 0 }
+                          costing: { ...selectedCase.costing, labourGross: parseFloat(e.target.value) || 0 }
                         })}
                       />
                     </div>
-                    {(selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD" && (selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0) > 0 && (
-                      <p className="text-xs text-slate-400">
-                        + £{((selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0) * 0.2).toFixed(2)} VAT
-                      </p>
-                    )}
                   </div>
 
-                  {/* Totals Summary */}
+                  {/* Total */}
                   {(() => {
-                    const pNet = selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
-                    const lNet = selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
-                    const pVat = (selectedCase.costing?.partsVatTreatment || "STANDARD") === "STANDARD" ? pNet * 0.2 : 0;
-                    const lVat = (selectedCase.costing?.labourVatTreatment || "STANDARD") === "STANDARD" ? lNet * 0.2 : 0;
-                    const totalNet = pNet + lNet;
-                    const totalVat = pVat + lVat;
-                    const totalGross = totalNet + totalVat;
+                    const pGross = selectedCase.costing?.partsGross || selectedCase.costing?.partsNet || selectedCase.costing?.partsCost || 0;
+                    const lGross = selectedCase.costing?.labourGross || selectedCase.costing?.labourNet || selectedCase.costing?.labourCost || 0;
+                    const totalGross = pGross + lGross;
 
-                    if (totalNet === 0) return null;
+                    if (totalGross === 0) return null;
 
                     return (
-                      <div className="pt-3 border-t border-slate-100 space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">Net Total</span>
-                          <span className="font-medium text-slate-700">£{totalNet.toFixed(2)}</span>
-                        </div>
-                        {totalVat > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-500">VAT</span>
-                            <span className="text-slate-600">£{totalVat.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between text-sm font-semibold pt-1 border-t border-slate-50">
-                          <span className="text-slate-900">Gross Total</span>
+                      <div className="pt-3 border-t border-slate-100">
+                        <div className="flex justify-between text-sm font-semibold">
+                          <span className="text-slate-900">Total</span>
                           <span className="text-slate-900">£{totalGross.toFixed(2)}</span>
                         </div>
                       </div>
@@ -2878,12 +2944,8 @@ export default function Warranty() {
                       await updateCase({
                         _eventType: "COSTING_UPDATED",
                         _eventMetadata: {
-                          partsNet: costing.partsNet || costing.partsCost || 0,
-                          partsVatTreatment: costing.partsVatTreatment || "STANDARD",
-                          partsVatRate: 0.2,
-                          labourNet: costing.labourNet || costing.labourCost || 0,
-                          labourVatTreatment: costing.labourVatTreatment || "STANDARD",
-                          labourVatRate: 0.2,
+                          partsGross: costing.partsGross || costing.partsNet || costing.partsCost || 0,
+                          labourGross: costing.labourGross || costing.labourNet || costing.labourCost || 0,
                           notes: costing.notes || ""
                         }
                       });
@@ -2896,7 +2958,7 @@ export default function Warranty() {
                 </div>
               </div>
 
-              {/* Quick Actions Row */}
+              {/* TEMPORARILY DISABLED - AI Quick Actions Row
               <div className="flex gap-2 flex-wrap">
                 {selectedCase.aiReview?.payload ? (
                   <button
@@ -2950,162 +3012,23 @@ export default function Warranty() {
                   Internal Note
                 </button>
               </div>
+              */}
 
-              {/* AI Case Review Panel */}
+              {/* TEMPORARILY DISABLED - AI Case Review Panel and AI Diagnostics Panel
               {selectedCase.aiReview?.payload ? (
                 <div className="bg-[#0066CC]/5/50 rounded-xl border border-[#0066CC]/20 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#0066CC]/10 flex justify-between items-center bg-[#0066CC]/8">
-                    <h3 className="text-sm font-semibold text-[#0055BB] flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      AI Case Review
-                    </h3>
-                    <span className="text-xs text-[#0066CC]">
-                      Generated {relativeTime(selectedCase.aiReview.generatedAt)}
-                    </span>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    {/* Summary */}
-                    <div>
-                      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Summary</h4>
-                      <p className="text-sm text-slate-700">{selectedCase.aiReview.payload.summary}</p>
-                    </div>
-
-                    {/* Possible Causes */}
-                    {selectedCase.aiReview.payload.possibleCauses?.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Possible Causes</h4>
-                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
-                          {selectedCase.aiReview.payload.possibleCauses.map((cause, i) => (
-                            <li key={i}>{cause}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Recommended Steps */}
-                    {selectedCase.aiReview.payload.recommendedSteps?.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Recommended Next Steps</h4>
-                        <ol className="text-sm text-slate-700 list-decimal list-inside space-y-1">
-                          {selectedCase.aiReview.payload.recommendedSteps.map((step, i) => (
-                            <li key={i}>{step}</li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-
-                    {/* Warranty Considerations */}
-                    {selectedCase.aiReview.payload.warrantyConsiderations?.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Warranty Considerations</h4>
-                        <ul className="text-sm text-slate-700 list-disc list-inside space-y-1">
-                          {selectedCase.aiReview.payload.warrantyConsiderations.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* Draft Customer Reply */}
-                    {selectedCase.aiReview.payload.draftCustomerReply && (
-                      <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Customer Reply</h4>
-                          <button
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0066CC] hover:text-[#0066CC] hover:bg-[#0066CC]/10 rounded transition-colors"
-                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftCustomerReply, "Customer reply")}
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            Copy
-                          </button>
-                        </div>
-                        <p className="text-sm bg-white p-3 rounded-lg border border-[#0066CC]/10 whitespace-pre-wrap text-slate-700">
-                          {selectedCase.aiReview.payload.draftCustomerReply}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Draft Internal Note */}
-                    {selectedCase.aiReview.payload.draftInternalNote && (
-                      <div>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Draft Internal Note</h4>
-                          <button
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#0066CC] hover:text-[#0066CC] hover:bg-[#0066CC]/10 rounded transition-colors"
-                            onClick={() => copyToClipboard(selectedCase.aiReview.payload.draftInternalNote, "Internal note")}
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            Copy
-                          </button>
-                        </div>
-                        <p className="text-sm bg-white p-3 rounded-lg border border-[#0066CC]/10 whitespace-pre-wrap text-slate-700">
-                          {selectedCase.aiReview.payload.draftInternalNote}
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                  ...AI Case Review content...
                 </div>
               ) : (
                 <div className="bg-gradient-to-br from-[#0066CC]/5 to-purple-50 rounded-xl border border-[#0066CC]/10 p-6 text-center">
-                  <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-white shadow-sm flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#0066CC]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-slate-600">
-                    Click "Generate AI Review" to get AI-powered analysis of this case.
-                  </p>
+                  ...placeholder content...
                 </div>
               )}
 
-              {/* AI Diagnostics Panel */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-900">AI Diagnostics</h3>
-                  <button
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-md transition-colors"
-                    onClick={fetchAIDiagnostics}
-                    disabled={isLoadingDiagnostics}
-                  >
-                    {isLoadingDiagnostics ? (
-                      <span className="w-3.5 h-3.5 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
-                    ) : aiDiagnostics ? (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Refresh
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                        Get Suggestions
-                      </>
-                    )}
-                  </button>
-                </div>
-                {(aiDiagnostics || isLoadingDiagnostics) && (
-                  <AISuggestionsPanel
-                    suggestions={aiDiagnostics?.suggestions}
-                    isLoading={isLoadingDiagnostics}
-                    isDummy={aiDiagnostics?.isDummy}
-                    errorCode={aiDiagnostics?.errorCode}
-                    errorMessage={aiDiagnostics?.errorMessage}
-                    onCopyToNotes={(text) => {
-                      setNewComment((prev) => prev ? prev + "\n\n" + text : text);
-                      toast.success("Added to comment draft");
-                    }}
-                  />
-                )}
+                ...AI Diagnostics Panel content...
               </div>
+              */}
 
               {/* Issue Summary */}
               {selectedCase.summary && (
@@ -3392,7 +3315,7 @@ export default function Warranty() {
         </div>
       )}
 
-      {/* Regenerate Confirm Modal */}
+      {/* TEMPORARILY DISABLED - Regenerate Confirm Modal
       {showRegenerateConfirm && (
         <div className="modal modal-open">
           <div className="modal-box">
@@ -3406,6 +3329,7 @@ export default function Warranty() {
           <div className="modal-backdrop" onClick={() => setShowRegenerateConfirm(false)}></div>
         </div>
       )}
+      */}
 
       {/* Add Case Modal */}
       {showAddModal && (
@@ -3522,6 +3446,86 @@ export default function Warranty() {
         </div>
       )}
 
+      {/* Parts Order Modal */}
+      {showPartsOrderForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Add Parts Order</h3>
+              <button
+                onClick={closePartsOrderModal}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Supplier Name</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Euro Car Parts, TPS, Main Dealer"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.supplierName}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Order Reference (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., ORD-123456"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.orderRef}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, orderRef: e.target.value })}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Expected Delivery (Optional)</span>
+                </label>
+                <input
+                  type="date"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.expectedAt}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, expectedAt: e.target.value })}
+                />
+              </div>
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-medium">Notes (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Oil filter + air filter"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.notes}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, notes: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-slate-200">
+              <button
+                className="btn btn-ghost"
+                onClick={closePartsOrderModal}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={addPartsOrder}
+              >
+                Add Order
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Move Case Bottom Sheet */}
       <BottomSheet
         isOpen={!!moveCase}
@@ -3558,6 +3562,12 @@ export default function Warranty() {
         onClose={() => setShowCourtesyOutModal(false)}
         formType="COURTESY_OUT"
         prefill={{
+          customer_name: selectedCase?.contactId?.name,
+          customer_phone: selectedCase?.contactId?.phone,
+          customer_email: selectedCase?.contactId?.email,
+          customer_address: selectedCase?.customerAddress
+            ? [selectedCase.customerAddress.street, selectedCase.customerAddress.city, selectedCase.customerAddress.postcode].filter(Boolean).join(", ")
+            : "",
           customer_vehicle_reg: selectedCase?.regAtPurchase || selectedCase?.currentReg,
           caseId: selectedCase?.id || selectedCase?._id,
         }}
@@ -3594,13 +3604,72 @@ function AddCaseModal({ onClose, onSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [mediaAttachments, setMediaAttachments] = useState([]);
+
+  // VRM lookup state
+  const [vrmLookup, setVrmLookup] = useState("");
+  const [isSearchingVrm, setIsSearchingVrm] = useState(false);
+  const [matchingDeals, setMatchingDeals] = useState([]);
+  const [showDealDropdown, setShowDealDropdown] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState(null);
+
   const [formData, setFormData] = useState({
     customerName: "", customerEmail: "", customerPhone: "",
     vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
     warrantyType: "", mileage: "",
     addressStreet: "", addressCity: "", addressPostcode: "",
     partsRequired: false, partsNotes: "",
+    vehicleId: null, // linked vehicle ID
   });
+
+  // Debounced VRM search
+  useEffect(() => {
+    if (!vrmLookup || vrmLookup.length < 2) {
+      setMatchingDeals([]);
+      setShowDealDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingVrm(true);
+      try {
+        const res = await fetch(`/api/deals?vehicleVrm=${encodeURIComponent(vrmLookup)}&status=COMPLETED,DELIVERED`);
+        if (res.ok) {
+          const data = await res.json();
+          setMatchingDeals(data.deals || []);
+          setShowDealDropdown(true);
+        }
+      } catch (err) {
+        console.error("VRM lookup error:", err);
+      } finally {
+        setIsSearchingVrm(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [vrmLookup]);
+
+  // Handle deal selection
+  const handleDealSelect = (deal) => {
+    setSelectedDeal(deal);
+    setShowDealDropdown(false);
+    setVrmLookup(deal.vehicleId?.regCurrent || deal.vehicleId?.vrm || "");
+
+    // Auto-populate form from deal
+    const customer = deal.customerId || deal.contactId;
+    setFormData({
+      ...formData,
+      customerName: customer?.name || "",
+      customerEmail: customer?.email || "",
+      customerPhone: customer?.phone || "",
+      vehicleReg: deal.vehicleId?.regCurrent || deal.vehicleId?.vrm || "",
+      regAtPurchase: deal.vehicleId?.vrm || "",
+      vehicleId: deal.vehicleId?._id || deal.vehicleId?.id || null,
+      mileage: deal.snapshot?.vehicleMileage || deal.vehicleId?.mileage || "",
+      addressStreet: customer?.address?.street || "",
+      addressCity: customer?.address?.city || "",
+      addressPostcode: customer?.address?.postcode || "",
+    });
+  };
 
   const handleMediaUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -3684,6 +3753,87 @@ function AddCaseModal({ onClose, onSuccess }) {
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+          {/* VRM Lookup - Search for existing deals */}
+          <div className="form-control mb-4 relative">
+            <label className="label"><span className="label-text font-semibold">Search by VRM (optional)</span></label>
+            <div className="relative">
+              <input
+                type="text"
+                className="input input-bordered w-full uppercase pr-10"
+                placeholder="Enter vehicle registration..."
+                value={vrmLookup}
+                onChange={(e) => setVrmLookup(e.target.value.toUpperCase())}
+              />
+              {isSearchingVrm && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span className="loading loading-spinner loading-sm text-slate-400"></span>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Search completed sales to auto-fill customer details</p>
+
+            {/* Matching deals dropdown */}
+            {showDealDropdown && matchingDeals.length > 0 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {matchingDeals.map((deal) => (
+                  <button
+                    key={deal._id || deal.id}
+                    type="button"
+                    onClick={() => handleDealSelect(deal)}
+                    className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0"
+                  >
+                    <div className="font-medium text-sm">
+                      {deal.vehicleId?.make} {deal.vehicleId?.model} ({deal.vehicleId?.year})
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {deal.customerId?.name || deal.contactId?.name || "Unknown"} &middot;{" "}
+                      {new Date(deal.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showDealDropdown && matchingDeals.length === 0 && !isSearchingVrm && vrmLookup.length >= 2 && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 text-sm text-slate-500 text-center">
+                No matching sales found for "{vrmLookup}"
+              </div>
+            )}
+          </div>
+
+          {/* Selected deal indicator */}
+          {selectedDeal && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm font-medium text-emerald-800">
+                    Linked to sale: {selectedDeal.vehicleId?.make} {selectedDeal.vehicleId?.model}
+                  </p>
+                  <p className="text-xs text-emerald-600">Customer details auto-filled</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDeal(null);
+                    setVrmLookup("");
+                    setFormData({
+                      ...formData,
+                      customerName: "", customerEmail: "", customerPhone: "",
+                      vehicleReg: "", regAtPurchase: "", vehicleId: null, mileage: "",
+                      addressStreet: "", addressCity: "", addressPostcode: "",
+                    });
+                  }}
+                  className="text-emerald-600 hover:text-emerald-800"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="divider text-xs text-slate-400">Customer Details</div>
+
           <div className="form-control mb-3">
             <label className="label"><span className="label-text">Customer Name *</span></label>
             <input type="text" className="input input-bordered" value={formData.customerName}

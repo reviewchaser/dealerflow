@@ -51,7 +51,9 @@
       "WebFetch(domain:www.gov.uk)",
       "Bash(find:*)",
       "Bash(git show:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(git restore:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

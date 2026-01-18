@@ -53,6 +53,7 @@ async function handler(req, res, ctx) {
       description,
       category,
       defaultPriceNet,
+      defaultPriceGross,  // NEW: User enters gross, model calculates net
       vatTreatment,
       vatRate,
       costPrice,
@@ -66,8 +67,10 @@ async function handler(req, res, ctx) {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    if (defaultPriceNet === undefined || defaultPriceNet === null) {
-      return res.status(400).json({ error: "Default price (net) is required" });
+    // Require either gross or net price (gross preferred)
+    if ((defaultPriceGross === undefined || defaultPriceGross === null) &&
+        (defaultPriceNet === undefined || defaultPriceNet === null)) {
+      return res.status(400).json({ error: "Price is required" });
     }
 
     const addOn = await AddOnProduct.create({
@@ -75,7 +78,8 @@ async function handler(req, res, ctx) {
       name,
       description,
       category: category || "OTHER",
-      defaultPriceNet,
+      defaultPriceGross,  // Model pre-save hook calculates net from this
+      defaultPriceNet: defaultPriceGross ? undefined : defaultPriceNet,  // Only use if gross not provided
       vatTreatment: vatTreatment || "STANDARD",
       vatRate: vatRate ?? 0.2,
       costPrice,

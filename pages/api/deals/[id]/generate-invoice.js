@@ -107,18 +107,8 @@ async function handler(req, res, ctx) {
     });
   }
 
-  // Part exchange settlement validation - must have settlement in writing if finance
-  const pxWithoutSettlement = (deal.partExchanges || []).filter(
-    px => px.hasFinance && !px.hasSettlementInWriting
-  );
-  if (pxWithoutSettlement.length > 0) {
-    return res.status(400).json({
-      error: "Finance settlement must be confirmed in writing for all part exchanges",
-      field: "partExchanges",
-      hint: `Part exchange ${pxWithoutSettlement[0].vrm || 'vehicle'} has outstanding finance but no written settlement confirmation`,
-      pxRequiringSettlement: pxWithoutSettlement.map(px => px.vrm),
-    });
-  }
+  // Note: Settlement in writing is now only required for mark-completed, not invoice generation
+  // This allows invoices to be generated while finance settlement is still being processed
 
   // Check if deposit receipt exists and requires signature (in-person sales)
   const depositReceipt = await SalesDocument.findOne({
@@ -129,10 +119,10 @@ async function handler(req, res, ctx) {
 
   if (depositReceipt && deal.saleChannel !== "DISTANCE") {
     // In-person sales require signature on deposit receipt before invoice
-    if (!deal.signature?.customerSignedAt) {
+    if (!deal.depositSignature?.customerSignedAt) {
       return res.status(400).json({
         error: "Deposit receipt must be signed before generating invoice",
-        field: "signature",
+        field: "depositSignature",
         hint: "Please have the customer sign the deposit receipt first",
       });
     }
@@ -323,15 +313,27 @@ async function handler(req, res, ctx) {
     vehiclePriceNet: deal.vehiclePriceNet,
     vehicleVatAmount: deal.vehicleVatAmount,
     vehiclePriceGross: deal.vehiclePriceGross,
-    // Warranty details
-    warranty: deal.warranty?.included ? {
-      included: true,
-      name: deal.warranty.name,
-      durationMonths: deal.warranty.durationMonths,
-      claimLimit: deal.warranty.claimLimit,
-      priceGross: deal.warranty.priceGross,
-      isDefault: deal.warranty.isDefault,
-    } : null,
+    // Warranty details with VAT breakdown
+    warranty: deal.warranty?.included ? (() => {
+      const priceGross = deal.warranty.priceGross || 0;
+      const vatApplicable = dealer?.salesSettings?.defaultWarranty?.vatApplicable || false;
+      const vatRate = dealer?.salesSettings?.vatRate || 0.2;
+      // If VAT applicable: priceNet = priceGross / (1 + vatRate), vatAmount = priceGross - priceNet
+      // If VAT exempt: priceNet = priceGross, vatAmount = 0
+      const priceNet = vatApplicable ? priceGross / (1 + vatRate) : priceGross;
+      const vatAmount = vatApplicable ? priceGross - priceNet : 0;
+      return {
+        included: true,
+        name: deal.warranty.name,
+        durationMonths: deal.warranty.durationMonths,
+        claimLimit: deal.warranty.claimLimit,
+        priceGross,
+        priceNet: Math.round(priceNet * 100) / 100,
+        vatAmount: Math.round(vatAmount * 100) / 100,
+        vatApplicable,
+        isDefault: deal.warranty.isDefault,
+      };
+    })() : null,
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,
       qty: a.qty || 1,

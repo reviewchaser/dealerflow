@@ -226,6 +226,18 @@ async function handler(req, res, ctx) {
       invoice.snapshotData.totalPaid = totalPaidBefore + amount;
       invoice.snapshotData.balanceDue = Math.max(0, balanceAfter);
 
+      // Calculate and update otherPayments total (for invoice display)
+      const otherPaymentsTotal = freshPayments
+        .filter(p => p.type !== "DEPOSIT" && p.type !== "FINANCE_ADVANCE")
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      invoice.snapshotData.otherPayments = otherPaymentsTotal;
+
+      // Also update depositPaid in case it changed
+      const depositTotal = freshPayments
+        .filter(p => p.type === "DEPOSIT")
+        .reduce((sum, p) => sum + (p.amount || 0), 0);
+      invoice.snapshotData.depositPaid = depositTotal;
+
       // If full payment, mark the invoice as paid
       if (isFullPayment) {
         invoice.paidAt = new Date();

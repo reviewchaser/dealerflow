@@ -40,6 +40,7 @@ async function handler(req, res, ctx) {
   if (req.method === "POST") {
     const {
       customerName, customerEmail, customerPhone,
+      addressStreet, addressCity, addressPostcode,
       vehicleReg, regAtPurchase, summary, details, source = "manual",
       priority = "normal", warrantyType, attachments
     } = req.body;
@@ -90,6 +91,13 @@ async function handler(req, res, ctx) {
       });
     }
 
+    // Build customerAddress object if any address fields provided
+    const customerAddress = (addressStreet || addressCity || addressPostcode) ? {
+      street: addressStreet || "",
+      city: addressCity || "",
+      postcode: addressPostcode || "",
+    } : undefined;
+
     // Create case with CASE_CREATED event
     const aftercareCase = await AftercareCase.create({
       dealerId,
@@ -99,6 +107,7 @@ async function handler(req, res, ctx) {
       source,
       priority,
       regAtPurchase,
+      customerAddress,
       warrantyType: warrantyType || undefined,
       boardStatus: "not_booked_in",
       status: "new",

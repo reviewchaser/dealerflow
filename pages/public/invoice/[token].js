@@ -314,6 +314,29 @@ export default function InvoicePage() {
                       </tr>
                     )}
 
+                    {/* Warranty - show if included with cost breakdown */}
+                    {snap.warranty?.included && snap.warranty?.priceGross > 0 && (
+                      <tr>
+                        <td className="px-4 py-3 text-slate-900">
+                          {snap.warranty.name || "Warranty"} ({snap.warranty.durationMonths || 3} months)
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">1</td>
+                        {showVatColumns && (
+                          <td className="px-4 py-3 text-right text-slate-900">
+                            {formatCurrency(snap.warranty.priceNet || snap.warranty.priceGross)}
+                          </td>
+                        )}
+                        {showVatColumns && (
+                          <td className="px-4 py-3 text-right text-slate-600">
+                            {snap.warranty.vatApplicable ? formatCurrency(snap.warranty.vatAmount || 0) : "Exempt"}
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                          {formatCurrency(snap.warranty.priceGross)}
+                        </td>
+                      </tr>
+                    )}
+
                     {/* Delivery Credit - if delivery was charged on deposit but removed */}
                     {snap.deliveryCredit > 0 && (
                       <tr className="bg-red-50">
@@ -359,40 +382,64 @@ export default function InvoicePage() {
                       {/* Part Exchange(s) - full breakdown */}
                       {snap.partExchanges?.length > 0 ? (
                         // Multiple PX format with full breakdown
-                        snap.partExchanges.map((px, idx) => (
-                          <React.Fragment key={`px-${idx}`}>
-                            <tr className="bg-purple-50">
-                              <td colSpan="2" className="px-4 py-2">
-                                <div className="text-sm font-medium text-purple-700">
-                                  Part Exchange {snap.partExchanges.length > 1 ? `#${idx + 1}` : ""} {px.vrm ? `(${px.vrm})` : ""}
-                                  {px.make && px.model && <span className="font-normal text-purple-600"> - {px.make} {px.model}</span>}
-                                </div>
-                                {(px.year || px.colour || px.mileage || px.fuelType) && (
-                                  <div className="text-xs text-purple-600 mt-0.5">
-                                    {px.year && <span>{px.year}</span>}
-                                    {px.colour && <span> • {px.colour}</span>}
-                                    {px.mileage && <span> • {px.mileage.toLocaleString()} miles</span>}
-                                    {px.fuelType && <span> • {px.fuelType}</span>}
+                        snap.partExchanges.map((px, idx) => {
+                          // Calculate VAT breakdown if VAT Qualifying
+                          const pxNet = px.vatQualifying ? (px.allowance / 1.2) : null;
+                          const pxVat = px.vatQualifying ? (px.allowance - pxNet) : null;
+
+                          return (
+                            <React.Fragment key={`px-${idx}`}>
+                              <tr className="bg-purple-50">
+                                <td colSpan="2" className="px-4 py-2">
+                                  <div className="text-sm font-medium text-purple-700 flex items-center gap-2">
+                                    <span>Part Exchange {snap.partExchanges.length > 1 ? `#${idx + 1}` : ""} {px.vrm ? `(${px.vrm})` : ""}</span>
+                                    {px.vatQualifying ? (
+                                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">VAT Q</span>
+                                    ) : (
+                                      <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">Margin</span>
+                                    )}
+                                    {px.make && px.model && <span className="font-normal text-purple-600"> - {px.make} {px.model}</span>}
                                   </div>
-                                )}
-                              </td>
-                            </tr>
-                            <tr>
-                              <td className="px-4 py-2 text-slate-600 pl-8">Allowance</td>
-                              <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(px.allowance || 0)}</td>
-                            </tr>
-                            {px.settlement > 0 && (
-                              <tr>
-                                <td className="px-4 py-2 text-slate-600 pl-8">Less: Settlement</td>
-                                <td className="px-4 py-2 text-right font-semibold text-amber-600">+{formatCurrency(px.settlement)}</td>
+                                  {(px.year || px.colour || px.mileage || px.fuelType) && (
+                                    <div className="text-xs text-purple-600 mt-0.5">
+                                      {px.year && <span>{px.year}</span>}
+                                      {px.colour && <span> • {px.colour}</span>}
+                                      {px.mileage && <span> • {px.mileage.toLocaleString()} miles</span>}
+                                      {px.fuelType && <span> • {px.fuelType}</span>}
+                                    </div>
+                                  )}
+                                </td>
                               </tr>
-                            )}
-                            <tr>
-                              <td className="px-4 py-2 text-slate-600 pl-8 font-medium">Net Part Exchange</td>
-                              <td className="px-4 py-2 text-right font-bold text-emerald-600">-{formatCurrency((px.allowance || 0) - (px.settlement || 0))}</td>
-                            </tr>
-                          </React.Fragment>
-                        ))
+                              {/* VAT breakdown for VAT Qualifying PX */}
+                              {px.vatQualifying && (
+                                <>
+                                  <tr>
+                                    <td className="px-4 py-1 text-slate-500 pl-8 text-sm">Net Allowance</td>
+                                    <td className="px-4 py-1 text-right text-slate-600 text-sm">-{formatCurrency(pxNet)}</td>
+                                  </tr>
+                                  <tr>
+                                    <td className="px-4 py-1 text-slate-500 pl-8 text-sm">VAT (20%)</td>
+                                    <td className="px-4 py-1 text-right text-slate-600 text-sm">-{formatCurrency(pxVat)}</td>
+                                  </tr>
+                                </>
+                              )}
+                              <tr>
+                                <td className="px-4 py-2 text-slate-600 pl-8">Allowance (Gross)</td>
+                                <td className="px-4 py-2 text-right font-semibold text-emerald-600">-{formatCurrency(px.allowance || 0)}</td>
+                              </tr>
+                              {px.settlement > 0 && (
+                                <tr>
+                                  <td className="px-4 py-2 text-slate-600 pl-8">Less: Settlement</td>
+                                  <td className="px-4 py-2 text-right font-semibold text-amber-600">+{formatCurrency(px.settlement)}</td>
+                                </tr>
+                              )}
+                              <tr>
+                                <td className="px-4 py-2 text-slate-600 pl-8 font-medium">Net Part Exchange</td>
+                                <td className="px-4 py-2 text-right font-bold text-emerald-600">-{formatCurrency((px.allowance || 0) - (px.settlement || 0))}</td>
+                              </tr>
+                            </React.Fragment>
+                          );
+                        })
                       ) : snap.partExchange?.allowance > 0 ? (
                         // Legacy single PX format with full breakdown
                         <>
@@ -557,47 +604,6 @@ export default function InvoicePage() {
               </div>
             )}
 
-            {/* Payments Received - Individual breakdown */}
-            {snap.payments?.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
-                <div className="bg-emerald-50 px-4 py-2 border-b border-slate-200">
-                  <p className="text-sm font-medium text-emerald-800">Payments Received</p>
-                </div>
-                <table className="w-full min-w-[400px]">
-                  <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-                    <tr>
-                      <th className="px-4 py-2 text-left font-medium">Type</th>
-                      <th className="px-4 py-2 text-left font-medium">Method</th>
-                      <th className="px-4 py-2 text-left font-medium">Date</th>
-                      <th className="px-4 py-2 text-right font-medium">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {snap.payments.map((payment, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2 text-slate-900 capitalize">
-                          {(payment.type || "Payment").replace(/_/g, " ").toLowerCase()}
-                        </td>
-                        <td className="px-4 py-2 text-slate-600">
-                          {payment.method?.replace(/_/g, " ") || "—"}
-                        </td>
-                        <td className="px-4 py-2 text-slate-600 text-sm">
-                          {payment.paidAt ? new Date(payment.paidAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
-                        </td>
-                        <td className="px-4 py-2 text-right font-semibold text-emerald-600">{formatCurrency(payment.amount)}</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-emerald-50">
-                      <td colSpan="3" className="px-4 py-2 font-medium text-emerald-800">Total Paid</td>
-                      <td className="px-4 py-2 text-right font-bold text-emerald-700">
-                        {formatCurrency(snap.payments.reduce((sum, p) => sum + (p.amount || 0), 0))}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-
             {/* Signature Block + Footer - combined to stay together */}
             <div className="signature-footer-block border-t border-slate-200 pt-3 print:pt-2">
               {/* Signature Block - only for retail sales (not trade/export) */}
@@ -689,11 +695,59 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          {/* Terms & Conditions - separate page if present */}
-          {snap.termsText && (
-            <div className="p-8 print:p-6 print:break-before-page border-t border-slate-200">
-              <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
-              <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+          {/* Page 2: Payments Received + Terms & Conditions */}
+          {(snap.payments?.length > 0 || snap.termsText) && (
+            <div className="print:break-before-page">
+              {/* Payments Received - Individual breakdown */}
+              {snap.payments?.length > 0 && (
+                <div className="p-8 print:p-6">
+                  <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                    <div className="bg-emerald-50 px-4 py-2 border-b border-slate-200">
+                      <p className="text-sm font-medium text-emerald-800">Payments Received</p>
+                    </div>
+                    <table className="w-full min-w-[400px]">
+                      <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                        <tr>
+                          <th className="px-4 py-2 text-left font-medium">Type</th>
+                          <th className="px-4 py-2 text-left font-medium">Method</th>
+                          <th className="px-4 py-2 text-left font-medium">Date</th>
+                          <th className="px-4 py-2 text-right font-medium">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {snap.payments.map((payment, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 text-slate-900 capitalize">
+                              {(payment.type || "Payment").replace(/_/g, " ").toLowerCase()}
+                            </td>
+                            <td className="px-4 py-2 text-slate-600">
+                              {payment.method?.replace(/_/g, " ") || "—"}
+                            </td>
+                            <td className="px-4 py-2 text-slate-600 text-sm">
+                              {payment.paidAt ? new Date(payment.paidAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-right font-semibold text-emerald-600">{formatCurrency(payment.amount)}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-emerald-50">
+                          <td colSpan="3" className="px-4 py-2 font-medium text-emerald-800">Total Paid</td>
+                          <td className="px-4 py-2 text-right font-bold text-emerald-700">
+                            {formatCurrency(snap.payments.reduce((sum, p) => sum + (p.amount || 0), 0))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Terms & Conditions */}
+              {snap.termsText && (
+                <div className="p-8 print:p-6 border-t border-slate-200">
+                  <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
+                  <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+                </div>
+              )}
             </div>
           )}
         </div>

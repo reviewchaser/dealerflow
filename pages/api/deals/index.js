@@ -14,6 +14,7 @@ import { withDealerContext } from "@/libs/authContext";
  * Query params:
  * - status: Filter by status (or comma-separated list)
  * - vehicleId: Filter by vehicle
+ * - vehicleVrm: Filter by vehicle registration (searches regCurrent field)
  * - customerId: Filter by customer (soldToContactId)
  * - salesPersonId: Filter by salesperson
  * - buyerType: CONSUMER|BUSINESS
@@ -28,6 +29,7 @@ async function handler(req, res, ctx) {
     const {
       status,
       vehicleId,
+      vehicleVrm,
       customerId,
       salesPersonId,
       buyerType,
@@ -53,6 +55,22 @@ async function handler(req, res, ctx) {
     if (buyerType) query.buyerType = buyerType;
     if (saleType) query.saleType = saleType;
     if (vatScheme) query.vatScheme = vatScheme;
+
+    // Filter by vehicle VRM - find matching vehicles first, then filter deals
+    if (vehicleVrm) {
+      const cleanVrm = vehicleVrm.replace(/\s/g, "").toUpperCase();
+      const matchingVehicles = await Vehicle.find({
+        dealerId,
+        regCurrent: { $regex: cleanVrm, $options: "i" }
+      }).select("_id").lean();
+
+      if (matchingVehicles.length > 0) {
+        query.vehicleId = { $in: matchingVehicles.map(v => v._id) };
+      } else {
+        // No matching vehicles, return empty results
+        return res.status(200).json({ deals: [] });
+      }
+    }
 
     const deals = await Deal.find(query)
       .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus stockNumber")

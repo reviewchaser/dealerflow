@@ -107,7 +107,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "warrantyNotBookedIn",
     label: "Warranty not booked in",
-    href: "/warranty",
+    href: "/aftersales",
     color: "danger",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +131,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "courtesyDueBack",
     label: "Courtesy due back",
-    href: "/warranty",
+    href: "/aftersales",
     color: "warning",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,7 +155,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "contactDue",
     label: "Contact due",
-    href: "/warranty",
+    href: "/aftersales",
     color: "warning",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +167,7 @@ const NEEDS_ATTENTION_ITEMS = [
   {
     key: "newWarrantyCases",
     label: "New warranty cases",
-    href: "/warranty",
+    href: "/aftersales",
     color: "info",
     icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -430,7 +430,7 @@ export default function Dashboard() {
                   </Link>
                 )}
                 {(stats?.today?.courtesyDueBack ?? 0) > 0 && (
-                  <Link href={getPath("/warranty")} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 transition-all shadow-sm">
+                  <Link href={getPath("/aftersales")} className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-amber-200 text-amber-700 rounded-xl text-sm font-semibold hover:bg-amber-50 transition-all shadow-sm">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                     {stats.today.courtesyDueBack} courtesy due
                   </Link>
@@ -747,7 +747,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              <Link href={getPath("/warranty")} className="block">
+              <Link href={getPath("/aftersales")} className="block">
                 <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-lg hover:border-[#0066CC]/30 transition-all cursor-pointer group">
                   <div className="flex items-start justify-between">
                     <div>
@@ -996,7 +996,7 @@ export default function Dashboard() {
                   </div>
                 </Link>
 
-                <Link href={getPath("/warranty?addCase=1")} className="action-card">
+                <Link href={getPath("/aftersales?addCase=1")} className="action-card">
                   <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

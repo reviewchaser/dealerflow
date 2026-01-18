@@ -22,7 +22,7 @@ const TENANT_ROUTES = [
   '/dashboard',
   '/prep',
   '/stock-book',
-  '/warranty',
+  '/aftersales',
   '/appraisals',
   '/forms',
   '/reviews',

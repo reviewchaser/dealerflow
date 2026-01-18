@@ -64,6 +64,19 @@ async function handler(req, res, ctx) {
   if (!vrm) {
     return res.status(400).json({ error: "VRM is required" });
   }
+
+  // Check for duplicate VRM in existing part exchanges
+  const normalizedVrm = vrm.toUpperCase().replace(/\s/g, "");
+  const existingPxWithSameVrm = (deal.partExchanges || []).find(
+    px => px.vrm?.toUpperCase().replace(/\s/g, "") === normalizedVrm
+  );
+  if (existingPxWithSameVrm) {
+    return res.status(400).json({
+      error: "This vehicle is already added as a part exchange on this deal",
+      field: "vrm",
+    });
+  }
+
   if (allowance === undefined || allowance === null) {
     return res.status(400).json({ error: "Allowance is required" });
   }

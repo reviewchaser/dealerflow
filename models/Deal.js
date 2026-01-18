@@ -143,6 +143,11 @@ const dealSchema = new mongoose.Schema(
       enum: ["IN_PERSON", "DISTANCE"],
       default: "IN_PERSON",
     },
+    // Step 4: Has buyer physically seen the vehicle? (for defect acknowledgement)
+    buyerHasSeenVehicle: {
+      type: Boolean,
+      default: false,
+    },
     // Payment method for balance (confirmed at invoice generation)
     paymentMethod: {
       type: String,

@@ -109,6 +109,7 @@ export default function DealDrawer({
   onUpdate,
 }) {
   const [deal, setDeal] = useState(null);
+  const [dealer, setDealer] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -165,6 +166,10 @@ export default function DealDrawer({
     unitPriceGross: "",
     category: "OTHER",
     vatTreatment: "STANDARD",
+    saveToCatalogue: false, // Option to save as reusable catalogue item
+    costPrice: "", // Cost price for catalogue items
+    termMonths: "", // For WARRANTY category
+    claimLimit: "", // For WARRANTY category
   });
 
   // Agreed Work Items state
@@ -242,6 +247,16 @@ export default function DealDrawer({
   });
   const [scheduleDeliveryLoading, setScheduleDeliveryLoading] = useState(false);
 
+  // Edit warranty state
+  const [showEditWarrantyModal, setShowEditWarrantyModal] = useState(false);
+  const [warrantyEditForm, setWarrantyEditForm] = useState({
+    name: "",
+    durationMonths: "",
+    claimLimit: "",
+    priceGross: "",
+  });
+  const [warrantyEditLoading, setWarrantyEditLoading] = useState(false);
+
   // Schedule collection state
   const [showScheduleCollectionModal, setShowScheduleCollectionModal] = useState(false);
   const [scheduleCollectionForm, setScheduleCollectionForm] = useState({
@@ -263,6 +278,20 @@ export default function DealDrawer({
     reference: "",
   });
   const [takePaymentLoading, setTakePaymentLoading] = useState(false);
+
+  // Check if add-ons can be edited based on deal status and signature state
+  const canEditAddOns = () => {
+    if (!deal) return false;
+    // Always allow for DRAFT and DEPOSIT_TAKEN
+    if (["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status)) return true;
+    // For INVOICED: allow if not fully signed (need BOTH signatures to lock)
+    if (deal.status === "INVOICED") {
+      const isFullySigned = deal.signature?.customerSignedAt && deal.signature?.dealerSignedAt;
+      return !isFullySigned;
+    }
+    // Not editable for DELIVERED, COMPLETED, CANCELLED
+    return false;
+  };
 
   // VRM Lookup for Part Exchange
   const handlePxVrmLookup = async () => {
@@ -499,20 +528,60 @@ export default function DealDrawer({
       netPrice = grossPrice;
     }
 
-    const customId = `custom_${Date.now()}`;
-    const newAddOn = {
-      addOnProductId: customId,
-      name: customAddOn.name.trim(),
-      qty: 1,
-      unitPriceNet: Math.round(netPrice * 100) / 100,
-      vatTreatment: vatTreatment,
-      vatRate: vatTreatment === "STANDARD" ? 0.2 : 0,
-      category: customAddOn.category || "OTHER",
-      isCustom: true,
-    };
-
     setActionLoading("addon");
     try {
+      let catalogueProductId = null;
+
+      // If saving to catalogue, create the product first
+      if (customAddOn.saveToCatalogue) {
+        const cataloguePayload = {
+          name: customAddOn.name.trim(),
+          defaultPriceNet: Math.round(netPrice * 100) / 100,
+          costPriceNet: customAddOn.costPrice ? parseFloat(customAddOn.costPrice) : undefined,
+          category: customAddOn.category || "OTHER",
+          vatTreatment: vatTreatment,
+        };
+
+        // Add warranty-specific fields if category is WARRANTY
+        if (customAddOn.category === "WARRANTY") {
+          if (customAddOn.termMonths) {
+            cataloguePayload.termMonths = parseInt(customAddOn.termMonths);
+          }
+          if (customAddOn.claimLimit) {
+            cataloguePayload.claimLimit = parseFloat(customAddOn.claimLimit);
+          }
+        }
+
+        const catalogueRes = await fetch("/api/addons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(cataloguePayload),
+        });
+
+        if (!catalogueRes.ok) {
+          const err = await catalogueRes.json();
+          throw new Error(err.error || "Failed to save to catalogue");
+        }
+
+        const catalogueProduct = await catalogueRes.json();
+        catalogueProductId = catalogueProduct.id || catalogueProduct._id;
+
+        // Refresh available add-ons list
+        fetchAddOnProducts();
+      }
+
+      const customId = catalogueProductId || `custom_${Date.now()}`;
+      const newAddOn = {
+        addOnProductId: customId,
+        name: customAddOn.name.trim(),
+        qty: 1,
+        unitPriceNet: Math.round(netPrice * 100) / 100,
+        vatTreatment: vatTreatment,
+        vatRate: vatTreatment === "STANDARD" ? 0.2 : 0,
+        category: customAddOn.category || "OTHER",
+        isCustom: !customAddOn.saveToCatalogue,
+      };
+
       const updatedAddOns = [...(deal.addOns || []), newAddOn];
       const res = await fetch(`/api/deals/${dealId}`, {
         method: "PUT",
@@ -522,16 +591,20 @@ export default function DealDrawer({
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to add custom add-on");
+        throw new Error(err.error || "Failed to add add-on");
       }
 
-      toast.success("Custom add-on added");
+      toast.success(customAddOn.saveToCatalogue ? "Add-on saved to catalogue and added to deal" : "Custom add-on added");
       setShowCustomAddOnForm(false);
       setCustomAddOn({
         name: "",
         unitPriceGross: "",
         category: "OTHER",
         vatTreatment: "STANDARD",
+        saveToCatalogue: false,
+        costPrice: "",
+        termMonths: "",
+        claimLimit: "",
       });
       fetchDeal();
       onUpdate?.();
@@ -562,6 +635,8 @@ export default function DealDrawer({
       // If sync to vehicle is enabled, create a VehicleIssue
       if (agreedWorkForm.syncToVehicle && deal.vehicleId) {
         const vehicleId = deal.vehicleId._id || deal.vehicleId;
+        // Format deal number for display (e.g., "D00043")
+        const dealNumber = deal.dealNumber || (deal.id ? `D${String(deal.id).slice(-5).padStart(5, "0")}` : null);
         const issueRes = await fetch(`/api/vehicles/${vehicleId}/issues`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -572,6 +647,8 @@ export default function DealDrawer({
             actionNeeded: agreedWorkForm.details.trim() || `Agreed at sale: ${agreedWorkForm.title.trim()}`,
             priority: "high",
             status: "Outstanding",
+            dealId: deal._id || deal.id, // Link to originating deal
+            dealNumber: dealNumber, // Store formatted deal number for display
           }),
         });
 
@@ -706,6 +783,7 @@ export default function DealDrawer({
   useEffect(() => {
     if (isOpen && dealId) {
       fetchDeal();
+      fetchDealer();
     } else if (!dealId) {
       // Reset state when dealId is cleared
       setDeal(null);
@@ -724,6 +802,21 @@ export default function DealDrawer({
       }
       const data = await res.json();
       setDeal(data);
+
+      // Check if deal has an active driver link and restore state
+      if (data.signature?.driverLinkToken && data.signature?.driverLinkExpiresAt) {
+        const expiry = new Date(data.signature.driverLinkExpiresAt);
+        if (expiry > new Date()) {
+          // Link is still valid - reconstruct URL
+          setDriverLink(`${window.location.origin}/public/delivery-signing/${data.signature.driverLinkToken}`);
+        } else {
+          // Link expired - clear state
+          setDriverLink(null);
+        }
+      } else {
+        setDriverLink(null);
+      }
+
       // Fetch documents after deal is loaded
       fetchDocuments();
     } catch (error) {
@@ -747,6 +840,58 @@ export default function DealDrawer({
       }
     } catch (error) {
       console.error("Failed to fetch documents:", error);
+    }
+  };
+
+  const fetchDealer = async () => {
+    try {
+      const res = await fetch("/api/dealer");
+      if (res.ok) {
+        const data = await res.json();
+        setDealer(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dealer:", error);
+    }
+  };
+
+  // Apply default warranty to the deal
+  const handleApplyDefaultWarranty = async () => {
+    const defaultWarranty = dealer?.salesSettings?.defaultWarranty;
+    if (!defaultWarranty?.enabled) {
+      toast.error("No default warranty configured");
+      return;
+    }
+
+    setActionLoading("applyWarranty");
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warranty: {
+            included: true,
+            name: defaultWarranty.name || "Standard Warranty",
+            durationMonths: defaultWarranty.durationMonths || 3,
+            claimLimit: defaultWarranty.claimLimit || null,
+            priceGross: defaultWarranty.priceGross || 0,
+            isDefault: true,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to apply warranty");
+      }
+
+      toast.success("Default warranty applied");
+      fetchDeal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.message || "Failed to apply warranty");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -900,6 +1045,37 @@ export default function DealDrawer({
     }
   };
 
+  // Save warranty changes
+  const handleSaveWarranty = async () => {
+    setWarrantyEditLoading(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/update-warranty`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: warrantyEditForm.name,
+          durationMonths: warrantyEditForm.durationMonths ? parseInt(warrantyEditForm.durationMonths) : null,
+          claimLimit: warrantyEditForm.claimLimit ? parseFloat(warrantyEditForm.claimLimit) : null,
+          priceGross: warrantyEditForm.priceGross ? parseFloat(warrantyEditForm.priceGross) : 0,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update warranty");
+      }
+
+      toast.success("Warranty updated");
+      setShowEditWarrantyModal(false);
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setWarrantyEditLoading(false);
+    }
+  };
+
   // Add Part Exchange
   const handleAddPartExchange = async () => {
     if (!pxForm.vrm) {
@@ -908,6 +1084,16 @@ export default function DealDrawer({
     }
     if (!pxForm.allowance || parseFloat(pxForm.allowance) <= 0) {
       toast.error("Please enter a valid allowance amount");
+      return;
+    }
+
+    // Check for duplicate VRM in existing part exchanges
+    const normalizedVrm = pxForm.vrm.toUpperCase().replace(/\s/g, "");
+    const existingPxWithSameVrm = deal.partExchanges?.find(
+      px => px.vrm?.toUpperCase().replace(/\s/g, "") === normalizedVrm
+    );
+    if (existingPxWithSameVrm) {
+      toast.error("This vehicle is already added as a part exchange on this deal");
       return;
     }
 
@@ -2199,6 +2385,23 @@ export default function DealDrawer({
                           </div>
                         )}
 
+                        {/* Buyer Has Seen Vehicle */}
+                        <div>
+                          <label className="block text-xs font-medium text-slate-500 mb-1.5">Vehicle Inspection</label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={deal.buyerHasSeenVehicle || false}
+                              onChange={(e) => handleUpdateField({ buyerHasSeenVehicle: e.target.checked })}
+                              className="checkbox checkbox-sm checkbox-primary"
+                            />
+                            <span className="text-sm text-slate-700">Buyer has viewed the vehicle</span>
+                          </label>
+                          <p className="text-xs text-slate-400 mt-1 ml-6">
+                            Buyer has physically inspected the vehicle and acknowledges any visible defects.
+                          </p>
+                        </div>
+
                         {/* Step 4: Business Details - For Trade or Business buyers */}
                         {(deal.saleType === "TRADE" || deal.buyerUse === "BUSINESS") && (
                           <div className="border-t border-slate-100 pt-4 space-y-3">
@@ -2413,6 +2616,101 @@ export default function DealDrawer({
                       </div>
                     </div>
                   )}
+
+                  {/* Warranty Section */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-emerald-50 to-white border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Warranty</h3>
+                        </div>
+                        {/* Edit button - only for DEPOSIT_TAKEN status */}
+                        {deal.status === "DEPOSIT_TAKEN" && deal.warranty?.included && (
+                          <button
+                            onClick={() => {
+                              setWarrantyEditForm({
+                                name: deal.warranty.name || "",
+                                durationMonths: deal.warranty.durationMonths || "",
+                                claimLimit: deal.warranty.claimLimit || "",
+                                priceGross: deal.warranty.priceGross || "",
+                              });
+                              setShowEditWarrantyModal(true);
+                            }}
+                            className="btn btn-ghost btn-xs"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      {deal.warranty?.included ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-emerald-700">{deal.warranty.name || "Warranty"}</span>
+                            {deal.warranty.priceGross > 0 ? (
+                              <span className="font-semibold text-emerald-700">{formatCurrency(deal.warranty.priceGross)}</span>
+                            ) : (
+                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                                {deal.warranty.isDefault ? "Default" : "FREE"}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            {deal.warranty.durationMonths && (
+                              <span>{deal.warranty.durationMonths} months</span>
+                            )}
+                            {deal.warranty.claimLimit ? (
+                              <span>Claim limit: {formatCurrency(deal.warranty.claimLimit)}</span>
+                            ) : (
+                              <span>Unlimited claims</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-2">
+                          <p className="text-sm text-slate-500 text-center">No warranty included</p>
+                          <p className="text-xs text-slate-400 mt-1 text-center">Add a warranty via the Add-ons tab</p>
+                          {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) &&
+                           dealer?.salesSettings?.defaultWarranty?.enabled && (
+                            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                              <p className="text-xs text-emerald-700 font-medium mb-2">Default Warranty Available:</p>
+                              <div className="text-xs text-emerald-600 space-y-1 mb-3">
+                                <p className="font-medium">{dealer.salesSettings.defaultWarranty.name || "Standard Warranty"}</p>
+                                <p>
+                                  {dealer.salesSettings.defaultWarranty.durationMonths || 3} months
+                                  {" • "}
+                                  {dealer.salesSettings.defaultWarranty.claimLimit
+                                    ? `Claim limit: ${formatCurrency(dealer.salesSettings.defaultWarranty.claimLimit)}`
+                                    : "Unlimited claims"}
+                                </p>
+                                <p>
+                                  {dealer.salesSettings.defaultWarranty.type === "PAID" && dealer.salesSettings.defaultWarranty.priceGross > 0
+                                    ? formatCurrency(dealer.salesSettings.defaultWarranty.priceGross)
+                                    : "FREE"}
+                                </p>
+                              </div>
+                              <button
+                                onClick={handleApplyDefaultWarranty}
+                                disabled={actionLoading === "applyWarranty"}
+                                className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors disabled:opacity-50"
+                              >
+                                {actionLoading === "applyWarranty" ? "Applying..." : "Apply This Warranty"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Vehicle Section */}
                   {deal.vehicle && (
@@ -3978,7 +4276,7 @@ export default function DealDrawer({
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                       <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100 flex items-center justify-between">
                         <h3 className="text-sm font-bold text-slate-800">Add-ons</h3>
-                        {deal.status === "DRAFT" && (
+                        {canEditAddOns() && (
                           <button
                             onClick={() => {
                               setShowAddOnPicker(true);
@@ -4004,7 +4302,7 @@ export default function DealDrawer({
                             <span className="font-semibold text-slate-900">
                               {formatCurrency(addon.unitPriceNet * (addon.qty || 1))}
                             </span>
-                            {deal.status === "DRAFT" && (
+                            {canEditAddOns() && (
                               <button
                                 onClick={() => handleRemoveAddOn(idx)}
                                 disabled={actionLoading === "addon"}
@@ -4034,7 +4332,7 @@ export default function DealDrawer({
                       </div>
                       <p className="text-sm font-medium text-slate-600">No add-ons</p>
                       <p className="text-xs text-slate-400 mt-1">Add products like warranties or accessories</p>
-                      {deal.status === "DRAFT" && (
+                      {canEditAddOns() && (
                         <button
                           onClick={() => {
                             setShowAddOnPicker(true);
@@ -4289,6 +4587,68 @@ export default function DealDrawer({
                       </select>
                     </div>
                   </div>
+
+                  {/* Warranty-specific fields */}
+                  {customAddOn.category === "WARRANTY" && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div className="form-control">
+                        <label className="label py-0"><span className="label-text text-xs">Term (months)</span></label>
+                        <input
+                          type="number"
+                          value={customAddOn.termMonths}
+                          onChange={(e) => setCustomAddOn(prev => ({ ...prev, termMonths: e.target.value }))}
+                          placeholder="e.g., 12"
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-0"><span className="label-text text-xs">Claim Limit (£)</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={customAddOn.claimLimit}
+                          onChange={(e) => setCustomAddOn(prev => ({ ...prev, claimLimit: e.target.value }))}
+                          placeholder="Leave empty for unlimited"
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Save to Catalogue Option */}
+                  <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={customAddOn.saveToCatalogue}
+                        onChange={(e) => setCustomAddOn(prev => ({ ...prev, saveToCatalogue: e.target.checked }))}
+                        className="checkbox checkbox-sm checkbox-success mt-0.5"
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-emerald-800">Save to Catalogue</p>
+                        <p className="text-xs text-emerald-600">Make this available for future deals (appears in Settings)</p>
+                      </div>
+                    </label>
+                    {customAddOn.saveToCatalogue && (
+                      <div className="mt-3 pt-3 border-t border-emerald-200">
+                        <div className="form-control">
+                          <label className="label py-0"><span className="label-text text-xs text-emerald-700">Cost Price (optional)</span></label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">£</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={customAddOn.costPrice}
+                              onChange={(e) => setCustomAddOn(prev => ({ ...prev, costPrice: e.target.value }))}
+                              placeholder="Your cost"
+                              className="input input-bordered input-sm w-full pl-7"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="mt-3 flex justify-end">
                     <button
                       type="button"
@@ -4298,6 +4658,8 @@ export default function DealDrawer({
                     >
                       {actionLoading === "addon" ? (
                         <span className="loading loading-spinner loading-sm"></span>
+                      ) : customAddOn.saveToCatalogue ? (
+                        "Save & Add to Deal"
                       ) : (
                         "Add Custom Item"
                       )}
@@ -5652,6 +6014,97 @@ export default function DealDrawer({
         deal={deal}
         existingSignatures={deal?.depositSignature}
       />
+
+      {/* Edit Warranty Modal */}
+      {showEditWarrantyModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowEditWarrantyModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Edit Warranty</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Warranty Name
+                </label>
+                <input
+                  type="text"
+                  value={warrantyEditForm.name}
+                  onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="input input-bordered w-full"
+                  placeholder="e.g., 3 Month Warranty"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Duration (months)
+                  </label>
+                  <input
+                    type="number"
+                    value={warrantyEditForm.durationMonths}
+                    onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, durationMonths: e.target.value }))}
+                    className="input input-bordered w-full"
+                    placeholder="0"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Claim Limit (£)
+                  </label>
+                  <input
+                    type="number"
+                    value={warrantyEditForm.claimLimit}
+                    onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, claimLimit: e.target.value }))}
+                    className="input input-bordered w-full"
+                    placeholder="Leave empty for unlimited"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Price (£)
+                </label>
+                <input
+                  type="number"
+                  value={warrantyEditForm.priceGross}
+                  onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, priceGross: e.target.value }))}
+                  className="input input-bordered w-full"
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                />
+                <p className="text-xs text-slate-500 mt-1">Set to 0 for included/free warranty</p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowEditWarrantyModal(false)}
+                className="btn btn-ghost flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveWarranty}
+                disabled={warrantyEditLoading}
+                className="btn bg-emerald-500 hover:bg-emerald-600 text-white border-none flex-1"
+              >
+                {warrantyEditLoading ? (
+                  <span className="loading loading-spinner loading-sm"></span>
+                ) : (
+                  "Save Changes"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Inline Form Modals */}
       <InlineFormModal

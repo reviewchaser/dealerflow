@@ -81,6 +81,7 @@ async function handler(req, res, ctx) {
       internalNotes,
       warrantyMonths,
       deliveryAddress,
+      delivery,
       termsKey,
       termsSnapshotText,
     } = req.body;
@@ -116,6 +117,11 @@ async function handler(req, res, ctx) {
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
     if (termsKey !== undefined) updateData.termsKey = termsKey;
     if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
+
+    // Delivery can be edited until INVOICED status
+    if (delivery !== undefined && deal.status !== "INVOICED" && deal.status !== "DELIVERED") {
+      updateData.delivery = { ...(deal.delivery?.toObject?.() || deal.delivery || {}), ...delivery };
+    }
 
     const updatedDeal = await Deal.findByIdAndUpdate(
       id,

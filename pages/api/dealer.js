@@ -86,6 +86,9 @@ async function handler(req, res, ctx) {
       if (salesSettings.terms) {
         updateFields["salesSettings.terms"] = salesSettings.terms;
       }
+      if (salesSettings.defaultWarranty !== undefined) {
+        updateFields["salesSettings.defaultWarranty"] = salesSettings.defaultWarranty;
+      }
     }
 
     const updatedDealer = await Dealer.findByIdAndUpdate(

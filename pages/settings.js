@@ -20,7 +20,7 @@ export default function Settings() {
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
-  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
   const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
 
   // Dealer branding state
@@ -66,6 +66,7 @@ export default function Settings() {
       durationMonths: 3,
       claimLimit: "",
       name: "Standard Warranty",
+      vatApplicable: false,
     },
   });
   const [isSavingSales, setIsSavingSales] = useState(false);
@@ -235,11 +236,11 @@ export default function Settings() {
   const addAddOn = async (e) => {
     e.preventDefault();
     if (!newAddOn.name) return toast.error("Product name required");
-    if (!newAddOn.defaultPriceNet) return toast.error("Price required");
+    if (!newAddOn.defaultPriceGross) return toast.error("Price required");
     try {
       const payload = {
         name: newAddOn.name,
-        defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
+        defaultPriceGross: parseFloat(newAddOn.defaultPriceGross),
         costPrice: newAddOn.costPrice ? parseFloat(newAddOn.costPrice) : undefined,
         category: newAddOn.category,
         vatTreatment: newAddOn.vatTreatment,
@@ -255,7 +256,7 @@ export default function Settings() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewAddOn({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
+      setNewAddOn({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
       fetchAddOns();
       toast.success("Add-on product created");
     } catch (error) {
@@ -420,6 +421,7 @@ export default function Settings() {
           durationMonths: ss.defaultWarranty?.durationMonths || 3,
           claimLimit: ss.defaultWarranty?.claimLimit || "",
           name: ss.defaultWarranty?.name || "Standard Warranty",
+          vatApplicable: ss.defaultWarranty?.vatApplicable || false,
         },
       });
     } catch (error) {
@@ -552,6 +554,7 @@ export default function Settings() {
             durationMonths: parseInt(salesSettings.defaultWarranty?.durationMonths) || 3,
             claimLimit: salesSettings.defaultWarranty?.claimLimit ? parseFloat(salesSettings.defaultWarranty.claimLimit) : null,
             name: salesSettings.defaultWarranty?.name || "Standard Warranty",
+            vatApplicable: salesSettings.defaultWarranty?.vatApplicable || false,
           },
         },
       };
@@ -1194,12 +1197,13 @@ export default function Settings() {
                   const profitMargin = addon.costPrice && addon.defaultPriceNet
                     ? ((addon.defaultPriceNet - addon.costPrice) / addon.defaultPriceNet * 100).toFixed(0)
                     : null;
+                  const grossPrice = addon.defaultPriceGross || addon.computedGross || (addon.defaultPriceNet * 1.2) || 0;
                   return (
                     <div key={addon.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
                       <div>
                         <p className="font-medium">{addon.name}</p>
                         <p className="text-xs text-base-content/60">
-                          {addon.category} · £{(addon.defaultPriceNet || 0).toFixed(2)} net
+                          {addon.category} · £{grossPrice.toFixed(2)} inc VAT
                           {addon.costPrice != null && (
                             <span className="ml-2">
                               · Cost: £{addon.costPrice.toFixed(2)}
@@ -1234,9 +1238,9 @@ export default function Settings() {
                   step="0.01"
                   min="0"
                   className="input input-bordered input-sm w-28"
-                  placeholder="Price (net)"
-                  value={newAddOn.defaultPriceNet}
-                  onChange={(e) => setNewAddOn({ ...newAddOn, defaultPriceNet: e.target.value })}
+                  placeholder="Price (inc VAT)"
+                  value={newAddOn.defaultPriceGross}
+                  onChange={(e) => setNewAddOn({ ...newAddOn, defaultPriceGross: e.target.value })}
                 />
                 <input
                   type="number"
@@ -1403,7 +1407,20 @@ export default function Settings() {
                           placeholder="0.00"
                         />
                       </div>
-                      <label className="label"><span className="label-text-alt text-base-content/50">Warranties are VAT exempt</span></label>
+                      {/* VAT Toggle */}
+                      <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="checkbox checkbox-primary checkbox-sm"
+                          checked={salesSettings.defaultWarranty?.vatApplicable || false}
+                          onChange={(e) => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, vatApplicable: e.target.checked }
+                          })}
+                        />
+                        <span className="label-text text-sm">Charge VAT on warranty</span>
+                      </label>
+                      <label className="label"><span className="label-text-alt text-base-content/50">{salesSettings.defaultWarranty?.vatApplicable ? "VAT will be added to warranty price" : "Warranty is VAT exempt"}</span></label>
                     </div>
                   )}
 

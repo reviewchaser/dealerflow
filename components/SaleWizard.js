@@ -38,6 +38,7 @@ const initialWizardData = {
   saleType: "RETAIL",
   buyerUse: "PERSONAL",
   saleChannel: "IN_PERSON",
+  buyerHasSeenVehicle: false,
 
   // Step 2: Customer & Part Exchange
   customerId: null,
@@ -586,6 +587,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         saleType: wizardData.saleType,
         saleChannel: wizardData.saleChannel,
         buyerUse: wizardData.buyerUse,
+        buyerHasSeenVehicle: wizardData.buyerHasSeenVehicle || false,
         vatScheme,
         vehiclePriceNet,
         vehicleVatAmount,
@@ -1091,6 +1093,22 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                     </>
                   )}
                 </div>
+
+                {/* Buyer Has Seen Vehicle */}
+                <label className="flex items-start gap-3 cursor-pointer bg-slate-50 rounded-xl p-4 border border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={wizardData.buyerHasSeenVehicle}
+                    onChange={(e) => setWizardData(prev => ({ ...prev, buyerHasSeenVehicle: e.target.checked }))}
+                    className="checkbox checkbox-primary mt-0.5"
+                  />
+                  <div>
+                    <span className="font-medium text-slate-900">Buyer has viewed the vehicle</span>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                      Check this if the buyer has physically inspected the vehicle and acknowledges any visible defects or imperfections.
+                    </p>
+                  </div>
+                </label>
               </div>
             )}
 
@@ -1618,6 +1636,39 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Default Warranty Info Banner */}
+                {wizardData.warranty?.included && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        <div>
+                          <p className="font-semibold text-emerald-900">{wizardData.warranty.name || "Warranty"} Included</p>
+                          <div className="text-sm text-emerald-700 flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                            {wizardData.warranty.durationMonths > 0 && (
+                              <span>{wizardData.warranty.durationMonths} months</span>
+                            )}
+                            {wizardData.warranty.claimLimit ? (
+                              <span>Claim limit: £{wizardData.warranty.claimLimit.toLocaleString()}</span>
+                            ) : (
+                              <span>Unlimited claims</span>
+                            )}
+                            {wizardData.warranty.priceGross > 0 && (
+                              <span className="font-medium">£{wizardData.warranty.priceGross.toLocaleString()}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      {wizardData.warranty.isDefault && (
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Default</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-emerald-600 mt-2">Other warranties can be selected as Add-Ons below to replace this default.</p>
+                  </div>
+                )}
 
                 {/* Delivery */}
                 <div>

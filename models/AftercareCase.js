@@ -33,6 +33,14 @@ const aftercareCaseSchema = new mongoose.Schema(
     details: { type: Object }, // text or json
     regAtPurchase: { type: String }, // reg at time of purchase if different
     currentReg: { type: String }, // current reg if vehicle was re-registered
+
+    // Customer address - captured from public form
+    customerAddress: {
+      street: { type: String },
+      city: { type: String },
+      postcode: { type: String },
+    },
+
     warrantyType: {
       type: String,
       enum: ["Dealer Warranty", "External Warranty"],
@@ -64,6 +72,9 @@ const aftercareCaseSchema = new mongoose.Schema(
           "LOCATION_UPDATED",
           "BOOKING_UPDATED",
           "PARTS_UPDATED",
+          "PARTS_ORDER_ADDED",
+          "PARTS_ORDER_RECEIVED",
+          "PARTS_ORDER_REMOVED",
           "COURTESY_REQUIRED_TOGGLED",
           "COURTESY_ALLOCATED",
           "COURTESY_RETURNED",
@@ -117,6 +128,23 @@ const aftercareCaseSchema = new mongoose.Schema(
     partsRequired: { type: Boolean, default: false },
     partsNotes: { type: String },
 
+    // Parts orders - structured tracking like prep board
+    partsOrders: [{
+      supplierName: { type: String, required: true },
+      orderRef: { type: String },
+      orderedAt: { type: Date, default: Date.now },
+      expectedAt: { type: Date },
+      receivedAt: { type: Date },
+      notes: { type: String },
+      status: {
+        type: String,
+        enum: ["ORDERED", "RECEIVED"],
+        default: "ORDERED"
+      },
+      createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      createdByName: { type: String }
+    }],
+
     // Courtesy car fields
     courtesyRequired: { type: Boolean, default: false },
     courtesyAllocationId: { type: mongoose.Schema.Types.ObjectId, ref: "CourtesyAllocation" },
@@ -144,32 +172,26 @@ const aftercareCaseSchema = new mongoose.Schema(
     },
 
     // Costing fields - for tracking aftersales costs per case
-    // All amounts stored as NET (ex VAT), with per-component VAT treatment
+    // All amounts stored as GROSS (inc VAT) - simplified approach
     costing: {
-      // Parts - net amount and VAT treatment
-      partsNet: { type: Number, default: 0, min: 0 },
-      partsVatTreatment: {
-        type: String,
-        enum: ["STANDARD", "NO_VAT"],
-        default: "STANDARD"
-      },
-      partsVatRate: { type: Number, default: 0.2 }, // 20% UK standard rate
-      // Labour - net amount and VAT treatment
-      labourNet: { type: Number, default: 0, min: 0 },
-      labourVatTreatment: {
-        type: String,
-        enum: ["STANDARD", "NO_VAT"],
-        default: "STANDARD"
-      },
-      labourVatRate: { type: Number, default: 0.2 },
+      // Parts - gross amount
+      partsGross: { type: Number, default: 0, min: 0 },
+      // Labour - gross amount
+      labourGross: { type: Number, default: 0, min: 0 },
       // Notes
       notes: { type: String },
       // Audit
       updatedAt: { type: Date },
       updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      // LEGACY: kept for backwards compatibility migration
+      // LEGACY: kept for backwards compatibility migration - treat as gross going forward
+      partsNet: { type: Number },
+      labourNet: { type: Number },
       partsCost: { type: Number },
       labourCost: { type: Number },
+      partsVatTreatment: { type: String },
+      labourVatTreatment: { type: String },
+      partsVatRate: { type: Number },
+      labourVatRate: { type: Number },
       vatMode: { type: String }
     },
     // Date when costs were first added - used for KPI month attribution

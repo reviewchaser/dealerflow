@@ -1668,7 +1668,7 @@ export default function Forms() {
                         )}
                         {submissionDetail.submission.linkedAftercareCaseId && (
                           <Link
-                            href={`/warranty?caseId=${submissionDetail.submission.linkedAftercareCaseId._id}`}
+                            href={`/aftersales?caseId=${submissionDetail.submission.linkedAftercareCaseId._id}`}
                             className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

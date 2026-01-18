@@ -3438,11 +3438,14 @@ export default function SalesPrep() {
                   <button
                     className="btn btn-ghost btn-sm text-warning"
                     onClick={async () => {
-                      if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book.")) {
+                      if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book. Tasks will be preserved for restore.")) {
                         await fetch(`/api/vehicles/${selectedVehicle.id}`, {
                           method: "PUT",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ showOnPrepBoard: false }),
+                          body: JSON.stringify({
+                            showOnPrepBoard: false,
+                            prepBoardRemovedAt: new Date().toISOString(),
+                          }),
                         });
                         setSelectedVehicle(null);
                         fetchVehicles();
@@ -4674,6 +4677,11 @@ export default function SalesPrep() {
                                 {issue.subcategory && (
                                   <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                                     {issue.subcategory}
+                                  </span>
+                                )}
+                                {issue.dealNumber && (
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                    {issue.dealNumber}
                                   </span>
                                 )}
                               </div>

@@ -47,6 +47,7 @@ const vehicleIssueSchema = new mongoose.Schema(
     sourceFieldKey: { type: String },
     // Deal tracking - links issue to originating deal (for cancelled deal indicators)
     dealId: { type: mongoose.Schema.Types.ObjectId, ref: "Deal" },
+    dealNumber: { type: String }, // e.g., "D00043" - formatted deal reference for display
     // Parts tracking
     partsRequired: { type: Boolean, default: false },
     partsDetails: { type: String }, // supplier, part no, ordered by, ETA (legacy)
