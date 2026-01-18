@@ -9,6 +9,7 @@ import { MobileStageSelector } from "@/components/ui/PageShell";
 import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
+import InlineFormModal from "@/components/InlineFormModal";
 
 // Column config matching Sales & Prep style
 // NOTE: Internal keys are legacy names - keep stable for database compatibility
@@ -474,6 +475,10 @@ export default function Warranty() {
   });
   // KPI display mode: "net" (default) or "gross"
   const [kpiDisplayMode, setKpiDisplayMode] = useState("net");
+
+  // Inline form modals state
+  const [showCourtesyOutModal, setShowCourtesyOutModal] = useState(false);
+  const [showCourtesyInModal, setShowCourtesyInModal] = useState(false);
 
   useEffect(() => { fetchCases(showAllClosed); fetchCostKpis(); }, []);
 
@@ -2619,15 +2624,25 @@ export default function Warranty() {
                           Due back: {new Date(selectedCase.courtesyAllocation.dateDueBack).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                         </p>
                       )}
-                      <button
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors mt-1"
-                        onClick={returnCourtesy}
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Mark as Returned
-                      </button>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowCourtesyInModal(true)}
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 border border-emerald-200 rounded-lg transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                          Return Courtesy Car
+                        </button>
+                        <button
+                          className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors"
+                          onClick={returnCourtesy}
+                          title="Quick return without form"
+                        >
+                          Quick
+                        </button>
+                      </div>
                     </div>
                   ) : selectedCase.courtesyAllocation && selectedCase.courtesyAllocation.status === "RETURNED" ? (
                     <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3">
@@ -2642,15 +2657,16 @@ export default function Warranty() {
                       </div>
                     </div>
                   ) : selectedCase.courtesyRequired ? (
-                    <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <div className="space-y-3 pt-2 border-t border-slate-100">
                       <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         No courtesy car allocated yet
                       </p>
+                      {/* Quick allocation */}
                       <div>
-                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Select Vehicle</label>
+                        <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5 block">Quick Allocate</label>
                         <select
                           className="w-full px-3 py-2 bg-slate-50 border border-transparent rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#0066CC] focus:border-transparent transition-all outline-none text-sm"
                           onFocus={loadCourtesyVehicles}
@@ -2673,6 +2689,21 @@ export default function Warranty() {
                             <option value="" disabled>No courtesy vehicles available</option>
                           )}
                         </select>
+                        <p className="text-xs text-slate-400 mt-1">Select to allocate immediately</p>
+                      </div>
+                      {/* Full form option */}
+                      <div className="pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => setShowCourtesyOutModal(true)}
+                          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200 rounded-lg transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                          </svg>
+                          Book Out with Full Form
+                        </button>
+                        <p className="text-xs text-slate-400 mt-1 text-center">Includes licence check, terms & signature</p>
                       </div>
                     </div>
                   ) : null}
@@ -3520,6 +3551,41 @@ export default function Warranty() {
           ))}
         </div>
       </BottomSheet>
+
+      {/* Inline Form Modals */}
+      <InlineFormModal
+        isOpen={showCourtesyOutModal}
+        onClose={() => setShowCourtesyOutModal(false)}
+        formType="COURTESY_OUT"
+        prefill={{
+          customer_vehicle_reg: selectedCase?.regAtPurchase || selectedCase?.currentReg,
+          caseId: selectedCase?.id || selectedCase?._id,
+        }}
+        onSuccess={() => {
+          toast.success("Courtesy car booked out");
+          fetchCaseDetail(selectedCase.id || selectedCase._id);
+          loadCourtesyVehicles();
+          setShowCourtesyOutModal(false);
+        }}
+      />
+
+      <InlineFormModal
+        isOpen={showCourtesyInModal}
+        onClose={() => setShowCourtesyInModal(false)}
+        formType="COURTESY_IN"
+        prefill={{
+          courtesy_vrm: selectedCase?.courtesyAllocation?.courtesyVehicle?.regCurrent,
+          customer_vehicle_reg: selectedCase?.regAtPurchase || selectedCase?.currentReg,
+          caseId: selectedCase?.id || selectedCase?._id,
+          allocationId: selectedCase?.courtesyAllocation?._id || selectedCase?.courtesyAllocationId,
+        }}
+        onSuccess={() => {
+          toast.success("Courtesy car returned");
+          fetchCaseDetail(selectedCase.id || selectedCase._id);
+          loadCourtesyVehicles();
+          setShowCourtesyInModal(false);
+        }}
+      />
     </DashboardLayout>
   );
 }

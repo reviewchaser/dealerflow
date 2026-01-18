@@ -48,7 +48,8 @@
       "WebFetch(domain:vehicle-search.co.uk)",
       "WebFetch(domain:www.regcheck.org.uk)",
       "Bash(npx next lint:*)",
-      "WebFetch(domain:www.gov.uk)"
+      "WebFetch(domain:www.gov.uk)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -102,8 +102,19 @@ export default function StockBook() {
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingSelfBill, setIsGeneratingSelfBill] = useState(false);
 
-  // Purchase info form state
+  // Purchase info form state (includes vehicle details for editing)
   const [purchaseForm, setPurchaseForm] = useState({
+    // Vehicle details
+    make: "",
+    model: "",
+    year: "",
+    mileageCurrent: "",
+    colour: "",
+    fuelType: "",
+    transmission: "",
+    vin: "",
+    firstRegisteredDate: "",
+    // Purchase info
     purchasePriceNet: "",
     purchasePriceGross: "", // For VAT_QUALIFYING: user enters gross, we calculate net
     purchaseVat: "",
@@ -121,6 +132,37 @@ export default function StockBook() {
     type: "other",
     file: null,
   });
+
+  // Add Contact modal state (inline form for adding suppliers)
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [addContactSource, setAddContactSource] = useState("drawer"); // "drawer" or "addVehicle"
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [addContactForm, setAddContactForm] = useState({
+    contactType: "company",
+    firstName: "",
+    lastName: "",
+    companyName: "",
+    email: "",
+    phone: "",
+    addressLine1: "",
+    addressLine2: "",
+    town: "",
+    postcode: "",
+    country: "United Kingdom",
+    vatNumber: "",
+    notes: "",
+    typeTags: ["SUPPLIER"],
+  });
+
+  // Toggle type tag for Add Contact form
+  const toggleContactTypeTag = (tag) => {
+    setAddContactForm(prev => ({
+      ...prev,
+      typeTags: prev.typeTags.includes(tag)
+        ? prev.typeTags.filter(t => t !== tag)
+        : [...prev.typeTags, tag],
+    }));
+  };
 
   // Add Vehicle modal state
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
@@ -224,7 +266,7 @@ export default function StockBook() {
 
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
-    return vehicles.filter((vehicle) => {
+    const filtered = vehicles.filter((vehicle) => {
       // Status filter - treat undefined/null salesStatus as "AVAILABLE"
       const vehicleSalesStatus = vehicle.salesStatus || "AVAILABLE";
 
@@ -414,6 +456,17 @@ export default function StockBook() {
       const gross = net && vat ? (parseFloat(net) + parseFloat(vat)).toFixed(2) : net || "";
 
       setPurchaseForm({
+        // Vehicle details
+        make: data.make || "",
+        model: data.model || "",
+        year: data.year || "",
+        mileageCurrent: data.mileageCurrent || "",
+        colour: data.colour || "",
+        fuelType: data.fuelType || "",
+        transmission: data.transmission || "",
+        vin: data.vin || "",
+        firstRegisteredDate: data.firstRegisteredDate ? new Date(data.firstRegisteredDate).toISOString().split("T")[0] : "",
+        // Purchase info
         purchasePriceNet: net,
         purchasePriceGross: data.vatScheme === "VAT_QUALIFYING" ? gross : "",
         purchaseVat: vat,
@@ -460,6 +513,17 @@ export default function StockBook() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          // Vehicle details
+          make: purchaseForm.make || undefined,
+          model: purchaseForm.model || undefined,
+          year: purchaseForm.year ? parseInt(purchaseForm.year) : undefined,
+          mileageCurrent: purchaseForm.mileageCurrent ? parseInt(purchaseForm.mileageCurrent) : undefined,
+          colour: purchaseForm.colour || undefined,
+          fuelType: purchaseForm.fuelType || undefined,
+          transmission: purchaseForm.transmission || undefined,
+          vin: purchaseForm.vin || undefined,
+          firstRegisteredDate: purchaseForm.firstRegisteredDate || undefined,
+          // Purchase info
           vatScheme: purchaseForm.vatScheme,
           purchase: {
             purchasePriceNet: purchaseForm.purchasePriceNet ? parseFloat(purchaseForm.purchasePriceNet) : null,
@@ -477,11 +541,11 @@ export default function StockBook() {
         throw new Error(err.error || "Failed to save");
       }
 
-      toast.success("Purchase info saved");
+      toast.success("Vehicle details saved");
       fetchVehicles(); // Refresh list
       handleDrawerClose();
     } catch (error) {
-      toast.error(error.message || "Failed to save purchase info");
+      toast.error(error.message || "Failed to save changes");
     } finally {
       setIsSaving(false);
     }
@@ -751,6 +815,94 @@ export default function StockBook() {
       .filter(([, name]) => name.toLowerCase().includes(search))
       .slice(0, 10); // Limit to 10 suggestions
   }, [uniqueSellers, sellerSearch]);
+
+  // Save new contact (inline form)
+  const handleSaveNewContact = async (e) => {
+    e.preventDefault();
+    setIsSavingContact(true);
+
+    try {
+      // Compute displayName from firstName/lastName or companyName
+      let displayName;
+      if (addContactForm.contactType === "company") {
+        displayName = addContactForm.companyName?.trim();
+      } else {
+        displayName = `${addContactForm.firstName || ""} ${addContactForm.lastName || ""}`.trim();
+      }
+
+      if (!displayName) {
+        toast.error("Name is required");
+        setIsSavingContact(false);
+        return;
+      }
+
+      const payload = {
+        displayName,
+        companyName: addContactForm.companyName,
+        email: addContactForm.email,
+        phone: addContactForm.phone,
+        address: {
+          line1: addContactForm.addressLine1,
+          line2: addContactForm.addressLine2,
+          town: addContactForm.town,
+          postcode: addContactForm.postcode,
+          country: addContactForm.country,
+        },
+        vatNumber: addContactForm.vatNumber,
+        notes: addContactForm.notes,
+        typeTags: addContactForm.typeTags,
+      };
+
+      const res = await fetch("/api/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create contact");
+      }
+
+      const newContact = await res.json();
+
+      toast.success("Contact created");
+      setShowAddContactModal(false);
+
+      // Reset form
+      setAddContactForm({
+        contactType: "company",
+        firstName: "",
+        lastName: "",
+        companyName: "",
+        email: "",
+        phone: "",
+        addressLine1: "",
+        addressLine2: "",
+        town: "",
+        postcode: "",
+        country: "United Kingdom",
+        vatNumber: "",
+        notes: "",
+        typeTags: ["SUPPLIER"],
+      });
+
+      // Refresh contacts list and auto-select the new contact
+      await fetchContacts();
+      const newContactId = newContact.id || newContact._id;
+      if (newContactId) {
+        if (addContactSource === "addVehicle") {
+          setAddVehicleForm(prev => ({ ...prev, purchasedFromContactId: newContactId }));
+        } else {
+          setPurchaseForm(prev => ({ ...prev, purchasedFromContactId: newContactId }));
+        }
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
 
   // VRM Lookup for Add Vehicle form
   const handleAddVehicleVrmLookup = async () => {
@@ -1510,7 +1662,7 @@ export default function StockBook() {
             {/* Drawer Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">Purchase Information</h2>
+                <h2 className="text-lg font-bold text-slate-900">Vehicle Information</h2>
                 {selectedVehicle && (
                   <p className="text-sm text-slate-500">
                     {selectedVehicle.regCurrent} - {selectedVehicle.make} {selectedVehicle.model}
@@ -1535,6 +1687,133 @@ export default function StockBook() {
                 </div>
               ) : (
                 <form onSubmit={handleSavePurchaseInfo} className="space-y-6">
+                  {/* Vehicle Details Section */}
+                  <div className="border-b border-slate-200 pb-4">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">Vehicle Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Make</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={purchaseForm.make}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, make: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Model</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={purchaseForm.model}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, model: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Year</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={purchaseForm.year}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, year: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                          min="1900"
+                          max="2099"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Mileage</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={purchaseForm.mileageCurrent}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, mileageCurrent: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                          min="0"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Colour</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={purchaseForm.colour}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, colour: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Fuel Type</span>
+                        </label>
+                        <select
+                          value={purchaseForm.fuelType}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, fuelType: e.target.value })}
+                          className="select select-bordered select-sm w-full"
+                        >
+                          <option value="">Select...</option>
+                          <option value="Petrol">Petrol</option>
+                          <option value="Diesel">Diesel</option>
+                          <option value="Electric">Electric</option>
+                          <option value="Hybrid">Hybrid</option>
+                          <option value="Plug-in Hybrid">Plug-in Hybrid</option>
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">Transmission</span>
+                        </label>
+                        <select
+                          value={purchaseForm.transmission}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, transmission: e.target.value })}
+                          className="select select-bordered select-sm w-full"
+                        >
+                          <option value="">Select...</option>
+                          <option value="Manual">Manual</option>
+                          <option value="Automatic">Automatic</option>
+                          <option value="Semi-Automatic">Semi-Automatic</option>
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1">
+                          <span className="label-text font-medium">First Registered</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={purchaseForm.firstRegisteredDate}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, firstRegisteredDate: e.target.value })}
+                          className="input input-bordered input-sm w-full"
+                        />
+                      </div>
+                    </div>
+                    <div className="form-control mt-4">
+                      <label className="label py-1">
+                        <span className="label-text font-medium">VIN</span>
+                        <span className="label-text-alt text-slate-400">17 characters</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={purchaseForm.vin}
+                        onChange={(e) => setPurchaseForm({ ...purchaseForm, vin: e.target.value.toUpperCase() })}
+                        className="input input-bordered input-sm w-full font-mono"
+                        maxLength={17}
+                        placeholder="e.g. WVWZZZ3CZWE123456"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Purchase Information Section */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">Purchase Information</h3>
+                  </div>
+
                   {/* VAT Scheme */}
                   <div className="form-control">
                     <label className="label">
@@ -1649,7 +1928,10 @@ export default function StockBook() {
                         Don&apos;t see the seller?{" "}
                         <button
                           type="button"
-                          onClick={() => router.push("/contacts?addContact=1&type=SUPPLIER")}
+                          onClick={() => {
+                            setAddContactSource("drawer");
+                            setShowAddContactModal(true);
+                          }}
                           className="text-[#0066CC] hover:underline"
                         >
                           Add a new contact
@@ -1879,7 +2161,7 @@ export default function StockBook() {
                       {isSaving ? (
                         <span className="loading loading-spinner loading-sm"></span>
                       ) : (
-                        "Save Purchase Info"
+                        "Save Changes"
                       )}
                     </button>
                   </div>
@@ -2216,7 +2498,10 @@ export default function StockBook() {
                             Don&apos;t see the seller?{" "}
                             <button
                               type="button"
-                              onClick={() => router.push("/contacts?addContact=1&type=SUPPLIER")}
+                              onClick={() => {
+                                setAddContactSource("addVehicle");
+                                setShowAddContactModal(true);
+                              }}
                               className="text-[#0066CC] hover:underline"
                             >
                               Add a new contact
@@ -2363,6 +2648,224 @@ export default function StockBook() {
             uploadDocument(documentForm.file, docName, documentForm.type);
           }}
         />
+      )}
+
+      {/* Add Contact Modal */}
+      {showAddContactModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddContactModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">New Contact</h3>
+              <button
+                onClick={() => setShowAddContactModal(false)}
+                className="btn btn-sm btn-ghost btn-circle"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewContact} className="p-6 space-y-4">
+              {/* Contact Type */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Type</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddContactForm(p => ({ ...p, contactType: "individual" }))}
+                    className={`flex-1 btn btn-sm ${addContactForm.contactType === "individual" ? "btn-primary" : "btn-ghost"}`}
+                  >
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAddContactForm(p => ({ ...p, contactType: "company" }))}
+                    className={`flex-1 btn btn-sm ${addContactForm.contactType === "company" ? "btn-primary" : "btn-ghost"}`}
+                  >
+                    Business
+                  </button>
+                </div>
+              </div>
+
+              {/* Type Tags / Categories */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Categories</label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { key: "CUSTOMER", label: "Customer" },
+                    { key: "SUPPLIER", label: "Supplier" },
+                    { key: "FINANCE", label: "Finance Company" },
+                  ].map(tag => (
+                    <button
+                      key={tag.key}
+                      type="button"
+                      onClick={() => toggleContactTypeTag(tag.key)}
+                      className={`btn btn-sm ${addContactForm.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
+                    >
+                      {tag.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name Fields */}
+              {addContactForm.contactType === "individual" ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      value={addContactForm.firstName}
+                      onChange={(e) => setAddContactForm(p => ({ ...p, firstName: e.target.value }))}
+                      className="input input-bordered w-full"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Last Name *</label>
+                    <input
+                      type="text"
+                      value={addContactForm.lastName}
+                      onChange={(e) => setAddContactForm(p => ({ ...p, lastName: e.target.value }))}
+                      className="input input-bordered w-full"
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name *</label>
+                  <input
+                    type="text"
+                    value={addContactForm.companyName}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, companyName: e.target.value }))}
+                    className="input input-bordered w-full"
+                    required
+                  />
+                </div>
+              )}
+
+              {/* Company Name for Individuals */}
+              {addContactForm.contactType === "individual" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Company (optional)</label>
+                  <input
+                    type="text"
+                    value={addContactForm.companyName}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, companyName: e.target.value }))}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+              )}
+
+              {/* Contact Details */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={addContactForm.email}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, email: e.target.value }))}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={addContactForm.phone}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, phone: e.target.value }))}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-700">Address</label>
+                <input
+                  type="text"
+                  placeholder="Address Line 1"
+                  value={addContactForm.addressLine1}
+                  onChange={(e) => setAddContactForm(p => ({ ...p, addressLine1: e.target.value }))}
+                  className="input input-bordered w-full"
+                />
+                <input
+                  type="text"
+                  placeholder="Address Line 2"
+                  value={addContactForm.addressLine2}
+                  onChange={(e) => setAddContactForm(p => ({ ...p, addressLine2: e.target.value }))}
+                  className="input input-bordered w-full"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Town/City"
+                    value={addContactForm.town}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, town: e.target.value }))}
+                    className="input input-bordered w-full"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Postcode"
+                    value={addContactForm.postcode}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, postcode: e.target.value }))}
+                    className="input input-bordered w-full"
+                  />
+                </div>
+              </div>
+
+              {/* VAT Number */}
+              {addContactForm.contactType === "company" && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">VAT Number</label>
+                  <input
+                    type="text"
+                    value={addContactForm.vatNumber}
+                    onChange={(e) => setAddContactForm(p => ({ ...p, vatNumber: e.target.value }))}
+                    className="input input-bordered w-full"
+                    placeholder="GB123456789"
+                  />
+                </div>
+              )}
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                <textarea
+                  value={addContactForm.notes}
+                  onChange={(e) => setAddContactForm(p => ({ ...p, notes: e.target.value }))}
+                  className="textarea textarea-bordered w-full"
+                  rows={2}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddContactModal(false)}
+                  className="btn btn-ghost flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingContact}
+                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
+                >
+                  {isSavingContact ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    "Create Contact"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </DashboardLayout>
   );

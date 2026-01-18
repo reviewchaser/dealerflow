@@ -120,6 +120,24 @@ async function handler(req, res, ctx) {
     });
   }
 
+  // Check if deposit receipt exists and requires signature (in-person sales)
+  const depositReceipt = await SalesDocument.findOne({
+    dealId: deal._id,
+    type: "DEPOSIT_RECEIPT",
+    status: { $ne: "VOID" },
+  });
+
+  if (depositReceipt && deal.saleChannel !== "DISTANCE") {
+    // In-person sales require signature on deposit receipt before invoice
+    if (!deal.signature?.customerSignedAt) {
+      return res.status(400).json({
+        error: "Deposit receipt must be signed before generating invoice",
+        field: "signature",
+        hint: "Please have the customer sign the deposit receipt first",
+      });
+    }
+  }
+
   // Get dealer for settings
   const dealer = await Dealer.findById(dealerId);
 
@@ -224,8 +242,15 @@ async function handler(req, res, ctx) {
   // Part exchange net value
   const pxNetValue = px ? (px.allowance || 0) - (px.settlement || 0) : 0;
 
-  // Delivery amount
-  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
+  // Delivery amount (use gross if available, otherwise amount)
+  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
+
+  // Calculate delivery credit if delivery was on deposit but removed/reduced before invoicing
+  let deliveryCredit = 0;
+  if (deal.delivery?.originalAmountOnDeposit > 0 && deliveryAmount === 0 && !deal.delivery?.isFree) {
+    // Delivery was charged on deposit but removed before invoicing - issue credit
+    deliveryCredit = deal.delivery.originalAmountOnDeposit;
+  }
 
   // Calculate grand total based on VAT scheme
   let subtotal, totalVat, grandTotal;
@@ -233,12 +258,12 @@ async function handler(req, res, ctx) {
   if (deal.vatScheme === "VAT_QUALIFYING") {
     subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
     totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-    grandTotal = subtotal + totalVat + deliveryAmount;
+    grandTotal = subtotal + totalVat + deliveryAmount - deliveryCredit;
   } else {
     // Margin scheme - no VAT breakdown
     subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
     totalVat = 0;
-    grandTotal = subtotal + deliveryAmount;
+    grandTotal = subtotal + deliveryAmount - deliveryCredit;
   }
 
   const balanceDue = grandTotal - totalPaid - pxNetValue;
@@ -346,12 +371,16 @@ async function handler(req, res, ctx) {
       paidAt: p.paidAt,
       reference: p.reference,
     })),
-    // Delivery
+    // Delivery - include full VAT breakdown
     delivery: deal.delivery ? {
-      amount: deal.delivery.amount,
-      isFree: deal.delivery.isFree,
+      amountNet: deal.delivery.amountNet || deal.delivery.amount || 0,
+      vatAmount: deal.delivery.vatAmount || 0,
+      amountGross: deal.delivery.amountGross || deal.delivery.amount || 0,
+      isFree: deal.delivery.isFree || false,
       notes: deal.delivery.notes,
     } : null,
+    // Delivery credit (if delivery was on deposit but removed before invoicing)
+    deliveryCredit: deliveryCredit || null,
     // Totals
     subtotal,
     totalVat,

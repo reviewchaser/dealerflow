@@ -43,6 +43,7 @@ export default function CustomerPXForm() {
     mileage: "",
     colour: "",
     fuelType: "",
+    dateOfRegistration: "",
     conditionRating: "",
     conditionNotes: "",
     proposedPurchasePrice: "",
@@ -115,7 +116,7 @@ export default function CustomerPXForm() {
         return;
       }
 
-      // Merge data from both sources (MOT has VIN and model, DVLA has more details)
+      // Merge data from both sources (MOT has VIN, model, and firstUsedDate; DVLA has more details)
       const mergedData = {
         make: dvlaDataResponse?.make || motData?.make,
         model: motData?.model || dvlaDataResponse?.model,
@@ -123,6 +124,7 @@ export default function CustomerPXForm() {
         colour: dvlaDataResponse?.colour || motData?.colour,
         fuelType: dvlaDataResponse?.fuelType || motData?.fuelType,
         vin: motData?.vin || null,
+        firstUsedDate: motData?.firstUsedDate || null,
         isDummy: dvlaDataResponse?.isDummy,
       };
 
@@ -135,6 +137,7 @@ export default function CustomerPXForm() {
         vehicleYear: mergedData.yearOfManufacture || prev.vehicleYear,
         colour: mergedData.colour || prev.colour,
         fuelType: mergedData.fuelType || prev.fuelType,
+        dateOfRegistration: mergedData.firstUsedDate || prev.dateOfRegistration,
       }));
 
       // Show appropriate message based on data completeness
@@ -512,6 +515,18 @@ export default function CustomerPXForm() {
                   <option value="Electric">Electric</option>
                 </select>
               </div>
+            </div>
+
+            {/* Date of First Registration */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of First Registration</label>
+              <input
+                type="date"
+                name="dateOfRegistration"
+                value={formData.dateOfRegistration}
+                onChange={handleChange}
+                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
           </div>
 

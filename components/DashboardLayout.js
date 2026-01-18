@@ -176,7 +176,7 @@ const navigation = [
   { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon, section: "management" },
   { name: "Contacts", href: "/contacts", Icon: UsersIcon, requiresPermission: "sales", section: "management" },
   { name: "Reports", href: "/reports", Icon: ChartBarIcon, requiresPermission: "sales", section: "management" },
-  { name: "Submissions", href: "/forms", Icon: DocumentTextIcon, section: "management" },
+  { name: "Forms & Records", href: "/forms", Icon: DocumentTextIcon, section: "management" },
   { name: "Reviews", href: "/reviews", Icon: StarIcon, section: "management" },
   { name: "Calendar", href: "/calendar", Icon: CalendarIcon, section: "management" },
   // HR Section
@@ -879,7 +879,7 @@ export default function DashboardLayout({ children }) {
             { name: "Home", href: "/dashboard", Icon: ChartBarIcon },
             { name: "Prep", href: "/prep", Icon: TruckIcon },
             { name: "Aftersales", href: "/warranty", Icon: WrenchIcon },
-            { name: "Forms", href: "/forms", Icon: DocumentTextIcon },
+            { name: "Records", href: "/forms", Icon: DocumentTextIcon },
             { name: "More", href: null, Icon: CogIcon, isMore: true },
           ].map((item) => {
             const itemPath = item.href ? getPath(item.href) : null;

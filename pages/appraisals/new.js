@@ -60,6 +60,7 @@ export default function NewAppraisal() {
     mileage: "",
     colour: "",
     fuelType: "",
+    dateOfRegistration: "",
     conditionNotes: "",
     proposedPurchasePrice: "",
     aiHintText: "",
@@ -93,59 +94,62 @@ export default function NewAppraisal() {
 
   const handleDvlaLookup = async () => {
     if (!formData.vehicleReg) return toast.error("Enter registration first");
+    const vrm = formData.vehicleReg.replace(/\s/g, "").toUpperCase();
     setIsLookingUp(true);
     setAiHints(null);
     setDvlaData(null);
 
     try {
-      const res = await fetch("/api/dvla-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleReg: formData.vehicleReg }),
-      });
-      const data = await res.json();
+      // Call both DVLA and MOT APIs in parallel for complete data
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch("/api/dvla-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicleReg: vrm }),
+        }),
+        fetch(`/api/public/mot-lookup?vrm=${vrm}`),
+      ]);
 
-      // Handle error responses
-      if (!res.ok) {
-        const errorCode = data.errorCode || "UNKNOWN";
-        switch (errorCode) {
-          case "NOT_FOUND":
-            toast.error("VRM not found - please check the registration");
-            break;
-          case "INVALID_FORMAT":
-            toast.error("Invalid registration format");
-            break;
-          case "NOT_CONFIGURED":
-          case "AUTH_FAILED":
-          case "ACCESS_DENIED":
-            toast.error("DVLA integration not configured");
-            break;
-          case "NETWORK_ERROR":
-          case "SERVICE_ERROR":
-            toast.error("DVLA service unavailable, try again later");
-            break;
-          default:
-            toast.error(data.message || "Lookup failed");
-        }
+      const dvlaOk = dvlaRes.ok;
+      const motOk = motRes.ok;
+
+      const dvlaDataResponse = dvlaOk ? await dvlaRes.json() : null;
+      const motData = motOk ? await motRes.json() : null;
+
+      // Handle case where both APIs fail
+      if (!dvlaOk && !motOk) {
+        toast.error("VRM not found - please check the registration");
         return;
       }
 
-      setDvlaData(data);
-      if (data.isDummy) showDummyNotification("DVLA API");
+      // Merge data from both sources (MOT has better model data and firstUsedDate)
+      const mergedData = {
+        make: dvlaDataResponse?.make || motData?.make,
+        model: motData?.model || dvlaDataResponse?.model, // Prefer MOT model
+        yearOfManufacture: dvlaDataResponse?.yearOfManufacture || motData?.yearOfManufacture,
+        colour: dvlaDataResponse?.colour || motData?.colour,
+        fuelType: dvlaDataResponse?.fuelType || motData?.fuelType,
+        firstUsedDate: motData?.firstUsedDate || null,
+        isDummy: dvlaDataResponse?.isDummy,
+      };
+
+      setDvlaData(mergedData);
+      if (mergedData.isDummy) showDummyNotification("DVLA API");
 
       setFormData((prev) => ({
         ...prev,
-        vehicleMake: data.make || prev.vehicleMake,
-        vehicleModel: data.model || prev.vehicleModel,
-        vehicleYear: data.yearOfManufacture || prev.vehicleYear,
-        colour: data.colour || prev.colour,
-        fuelType: data.fuelType || prev.fuelType,
+        vehicleMake: mergedData.make || prev.vehicleMake,
+        vehicleModel: mergedData.model || prev.vehicleModel,
+        vehicleYear: mergedData.yearOfManufacture || prev.vehicleYear,
+        colour: mergedData.colour || prev.colour,
+        fuelType: mergedData.fuelType || prev.fuelType,
+        dateOfRegistration: mergedData.firstUsedDate || prev.dateOfRegistration,
       }));
 
       // Fetch AI hints
-      fetchAiHints(data.make, data.model, data.yearOfManufacture);
+      fetchAiHints(mergedData.make, mergedData.model, mergedData.yearOfManufacture);
     } catch (error) {
-      toast.error("DVLA service unavailable, try again later");
+      toast.error("Lookup service unavailable, try again later");
     } finally {
       setIsLookingUp(false);
     }
@@ -417,6 +421,18 @@ export default function NewAppraisal() {
                       <option value="Hybrid">Hybrid</option>
                       <option value="Electric">Electric</option>
                     </select>
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Date of First Registration</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="dateOfRegistration"
+                      value={formData.dateOfRegistration}
+                      onChange={handleChange}
+                      className="input input-bordered"
+                    />
                   </div>
                 </div>
                 <div className="form-control mt-4">

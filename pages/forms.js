@@ -807,14 +807,14 @@ export default function Forms() {
 
   return (
     <DashboardLayout>
-      <Head><title>Submissions | DealerHQ</title></Head>
+      <Head><title>Forms & Records | DealerHQ</title></Head>
 
       {/* Compact Sticky Header */}
       <div className="sticky top-0 z-30 bg-white border-b border-slate-200 -mx-4 md:-mx-6 lg:-mx-8">
         {/* Row 1: Title + Actions */}
         <div className="flex items-center justify-between h-12 px-4">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold text-slate-800">Submissions</h1>
+            <h1 className="text-lg font-bold text-slate-800">Forms & Records</h1>
             <PageHint id="submissions">View all completed forms. Use Share Forms to send customers a link to fill out forms. We recommend having a link direct from your website to the warranty form for customers to use.</PageHint>
           </div>
 

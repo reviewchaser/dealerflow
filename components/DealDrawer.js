@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "react-hot-toast";
 import ContactPicker from "@/components/ContactPicker";
 import SignatureCapture from "@/components/SignatureCapture";
+import InlineFormModal from "@/components/InlineFormModal";
 
 // Format currency
 const formatCurrency = (amount) => {
@@ -241,6 +242,10 @@ export default function DealDrawer({
     time: "",
     notes: "",
   });
+
+  // Inline form modals state
+  const [showServiceReceiptModal, setShowServiceReceiptModal] = useState(false);
+  const [showDeliveryFormModal, setShowDeliveryFormModal] = useState(false);
   const [scheduleCollectionLoading, setScheduleCollectionLoading] = useState(false);
 
   // Take Payment modal state
@@ -737,16 +742,19 @@ export default function DealDrawer({
       return sum;
     }, 0);
 
+    // Calculate delivery amount
+    const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
+
     let subtotal, totalVat, grandTotal;
 
     if (deal.vatScheme === "VAT_QUALIFYING") {
       subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
       totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-      grandTotal = subtotal + totalVat;
+      grandTotal = subtotal + totalVat + deliveryAmount;
     } else {
       subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
       totalVat = 0;
-      grandTotal = subtotal;
+      grandTotal = subtotal + deliveryAmount;
     }
 
     const totalPaid = (deal.payments || [])
@@ -768,6 +776,7 @@ export default function DealDrawer({
     return {
       addOnsNetTotal,
       addOnsVatTotal,
+      deliveryAmount,
       subtotal,
       totalVat,
       grandTotal,
@@ -1243,6 +1252,149 @@ export default function DealDrawer({
     }
   };
 
+  // Cancel scheduled delivery
+  const handleCancelScheduledDelivery = async () => {
+    if (!confirm("Are you sure you want to cancel this scheduled delivery?")) return;
+
+    setActionLoading("cancelDelivery");
+    try {
+      // Delete calendar event if exists
+      if (deal.delivery?.scheduledCalendarEventId) {
+        await fetch(`/api/calendar/${deal.delivery.scheduledCalendarEventId}`, { method: "DELETE" });
+      }
+      // Clear deal delivery schedule
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "delivery.scheduledDate": null,
+          "delivery.scheduledCalendarEventId": null,
+        }),
+      });
+      toast.success("Delivery schedule cancelled");
+      fetchDeal();
+    } catch (error) {
+      toast.error(error.message || "Failed to cancel delivery");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Reschedule delivery - clear existing and open modal
+  const handleRescheduleDelivery = async () => {
+    setActionLoading("rescheduleDelivery");
+    try {
+      // Delete existing calendar event if exists
+      if (deal.delivery?.scheduledCalendarEventId) {
+        await fetch(`/api/calendar/${deal.delivery.scheduledCalendarEventId}`, { method: "DELETE" });
+      }
+      // Clear schedule in deal
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "delivery.scheduledDate": null,
+          "delivery.scheduledCalendarEventId": null,
+        }),
+      });
+      await fetchDeal();
+      // Open schedule modal
+      setShowScheduleDeliveryModal(true);
+    } catch (error) {
+      toast.error(error.message || "Failed to clear schedule");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Cancel scheduled collection
+  const handleCancelScheduledCollection = async () => {
+    if (!confirm("Are you sure you want to cancel this scheduled collection?")) return;
+
+    setActionLoading("cancelCollection");
+    try {
+      // Delete calendar event if exists
+      if (deal.collection?.scheduledCalendarEventId) {
+        await fetch(`/api/calendar/${deal.collection.scheduledCalendarEventId}`, { method: "DELETE" });
+      }
+      // Clear deal collection schedule
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "collection.scheduledDate": null,
+          "collection.scheduledCalendarEventId": null,
+        }),
+      });
+      toast.success("Collection schedule cancelled");
+      fetchDeal();
+    } catch (error) {
+      toast.error(error.message || "Failed to cancel collection");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Reschedule collection - clear existing and open modal
+  const handleRescheduleCollection = async () => {
+    setActionLoading("rescheduleCollection");
+    try {
+      // Delete existing calendar event if exists
+      if (deal.collection?.scheduledCalendarEventId) {
+        await fetch(`/api/calendar/${deal.collection.scheduledCalendarEventId}`, { method: "DELETE" });
+      }
+      // Clear schedule in deal
+      await fetch(`/api/deals/${dealId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          "collection.scheduledDate": null,
+          "collection.scheduledCalendarEventId": null,
+        }),
+      });
+      await fetchDeal();
+      // Open schedule modal
+      setShowScheduleCollectionModal(true);
+    } catch (error) {
+      toast.error(error.message || "Failed to clear schedule");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Void invoice and revert to DEPOSIT_TAKEN
+  const handleVoidInvoice = async () => {
+    if (!confirm("Are you sure you want to void this invoice? This will revert the deal to Deposit Taken status, allowing you to generate a new invoice.")) {
+      return;
+    }
+
+    setActionLoading("voidInvoice");
+    try {
+      const res = await fetch(`/api/deals/${dealId}/void-invoice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: "Voided by user to reissue",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to void invoice");
+      }
+
+      const result = await res.json();
+      toast.success(result.message || "Invoice voided");
+      fetchDeal();
+      fetchDocuments();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Handle taking a balance payment
   const handleTakePayment = async () => {
     const amount = parseFloat(takePaymentForm.amount);
@@ -1335,6 +1487,35 @@ export default function DealDrawer({
       }
 
       toast.success("Deal completed");
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Mark as collected (for customer pickups - no delivery)
+  const handleMarkCollected = async () => {
+    if (!confirm("Mark this vehicle as collected by the customer?")) return;
+
+    setActionLoading("collected");
+    try {
+      const res = await fetch(`/api/deals/${dealId}/mark-delivered`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deliveryNotes: "Customer collection",
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to mark as collected");
+      }
+
+      toast.success("Vehicle marked as collected");
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -1987,27 +2168,20 @@ export default function DealDrawer({
                           </div>
                         )}
 
-                        {/* VAT Treatment */}
+                        {/* VAT Treatment (Read-only - inherited from vehicle purchase) */}
                         <div className="border-t border-slate-100 pt-4">
                           <label className="block text-xs font-medium text-slate-500 mb-1.5">VAT Treatment</label>
-                          <div className="flex flex-wrap gap-2">
-                            {[
-                              { value: "MARGIN", label: "Margin Scheme" },
-                              { value: "VAT_QUALIFYING", label: "Standard VAT" },
-                              { value: "NO_VAT", label: "Zero-rated / No VAT" },
-                            ].map((opt) => (
-                              <button
-                                key={opt.value}
-                                onClick={() => handleUpdateField({ vatScheme: opt.value })}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                  deal.vatScheme === opt.value
-                                    ? "bg-[#0066CC] text-white"
-                                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${
+                              deal.vatScheme === "VAT_QUALIFYING"
+                                ? "bg-blue-100 text-blue-700"
+                                : deal.vatScheme === "MARGIN"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-600"
+                            }`}>
+                              {VAT_SCHEME_LABELS[deal.vatScheme] || deal.vatScheme || "Not set"}
+                            </span>
+                            <span className="text-xs text-slate-400">(from vehicle purchase)</span>
                           </div>
                         </div>
 
@@ -2141,6 +2315,20 @@ export default function DealDrawer({
                           <span className="text-sm text-slate-600">Add-ons</span>
                           <span className="font-semibold text-slate-900">
                             {formatCurrency(totals.addOnsNetTotal)}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Delivery */}
+                      {(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-slate-600">Delivery</span>
+                          <span className="font-semibold text-slate-900">
+                            {deal.delivery?.isFree ? (
+                              <span className="text-emerald-600">FREE</span>
+                            ) : (
+                              formatCurrency(totals.deliveryAmount)
+                            )}
                           </span>
                         </div>
                       )}
@@ -2545,6 +2733,78 @@ export default function DealDrawer({
                     </div>
                   </div>
 
+                  {/* Service Documentation - PDI and Service Receipt status */}
+                  {deal.status !== "CANCELLED" && deal.vehicleId && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-teal-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Service Documentation</h3>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        {/* PDI Status */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                            </svg>
+                            <span className="text-sm text-slate-700">PDI</span>
+                          </div>
+                          {linkedSubmissions?.pdi ? (
+                            <a
+                              href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.pdi.id}`}
+                              className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                            >
+                              Complete
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          ) : (
+                            <span className="text-xs text-amber-600 font-medium">Not completed</span>
+                          )}
+                        </div>
+
+                        {/* Service Receipt Status */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185z" />
+                            </svg>
+                            <span className="text-sm text-slate-700">Service Receipt</span>
+                          </div>
+                          {linkedSubmissions?.serviceReceipt ? (
+                            <a
+                              href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.serviceReceipt.id}`}
+                              className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                            >
+                              Complete
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowServiceReceiptModal(true)}
+                              className="btn btn-xs btn-outline gap-1"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              Add Service Receipt
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Next Actions */}
                   {deal.status !== "COMPLETED" && deal.status !== "CANCELLED" && (
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
@@ -2782,20 +3042,6 @@ export default function DealDrawer({
                           </div>
                         )}
 
-                        {/* Mark Delivered */}
-                        {deal.status === "INVOICED" && (
-                          <button
-                            onClick={() => setShowDeliveryModal(true)}
-                            disabled={actionLoading}
-                            className="btn btn-sm w-full bg-purple-500 hover:bg-purple-600 text-white border-none"
-                          >
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Mark Delivered
-                          </button>
-                        )}
-
                         {/* Take Payment - when INVOICED and balance due > 0 */}
                         {deal.status === "INVOICED" && totals.balanceDue > 0 && (
                           <button
@@ -2817,6 +3063,20 @@ export default function DealDrawer({
                           </button>
                         )}
 
+                        {/* Void Invoice - when INVOICED (allows reissuing) */}
+                        {deal.status === "INVOICED" && (
+                          <button
+                            onClick={handleVoidInvoice}
+                            disabled={actionLoading}
+                            className="btn btn-sm w-full btn-ghost border border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Void Invoice
+                          </button>
+                        )}
+
                         {/* Schedule Delivery - when deal has delivery */}
                         {(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && deal.status === "INVOICED" && (
                           <div className="space-y-2 pt-2 border-t border-slate-100">
@@ -2829,28 +3089,69 @@ export default function DealDrawer({
                               )}
                             </div>
                             {deal.delivery?.scheduledDate ? (
-                              <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
-                                <p className="text-sm text-purple-700 font-medium">
-                                  {new Date(deal.delivery.scheduledDate).toLocaleDateString("en-GB", {
-                                    weekday: "short",
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </p>
+                              <div className="space-y-2">
+                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                                  <p className="text-sm text-purple-700 font-medium">
+                                    {new Date(deal.delivery.scheduledDate).toLocaleDateString("en-GB", {
+                                      weekday: "short",
+                                      day: "numeric",
+                                      month: "short",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                {/* Fill Delivery Form button */}
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDeliveryFormModal(true)}
+                                  className="btn btn-sm w-full btn-primary"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                  </svg>
+                                  Fill Delivery Form
+                                </button>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleRescheduleDelivery}
+                                    disabled={actionLoading}
+                                    className="btn btn-xs flex-1 btn-ghost border border-slate-200"
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    onClick={handleCancelScheduledDelivery}
+                                    disabled={actionLoading}
+                                    className="btn btn-xs flex-1 btn-ghost border border-red-200 text-red-600 hover:bg-red-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
                               </div>
                             ) : (
-                              <button
-                                onClick={() => setShowScheduleDeliveryModal(true)}
-                                disabled={actionLoading}
-                                className="btn btn-sm w-full btn-ghost border border-slate-200"
-                              >
-                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                Schedule Delivery
-                              </button>
+                              <div className="space-y-2">
+                                <button
+                                  onClick={() => setShowScheduleDeliveryModal(true)}
+                                  disabled={actionLoading}
+                                  className="btn btn-sm w-full btn-ghost border border-slate-200"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  Schedule Delivery
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDeliveryFormModal(true)}
+                                  className="btn btn-sm w-full btn-outline text-slate-600"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                  </svg>
+                                  Fill Delivery Form
+                                </button>
+                              </div>
                             )}
                           </div>
                         )}
@@ -2867,16 +3168,51 @@ export default function DealDrawer({
                               )}
                             </div>
                             {deal.collection?.scheduledDate ? (
-                              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                                <p className="text-sm text-blue-700 font-medium">
-                                  {new Date(deal.collection.scheduledDate).toLocaleDateString("en-GB", {
-                                    weekday: "short",
-                                    day: "numeric",
-                                    month: "short",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </p>
+                              <div className="space-y-2">
+                                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                                  <p className="text-sm text-blue-700 font-medium">
+                                    {new Date(deal.collection.scheduledDate).toLocaleDateString("en-GB", {
+                                      weekday: "short",
+                                      day: "numeric",
+                                      month: "short",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={handleRescheduleCollection}
+                                    disabled={actionLoading}
+                                    className="btn btn-xs flex-1 btn-ghost border border-slate-200"
+                                  >
+                                    Reschedule
+                                  </button>
+                                  <button
+                                    onClick={handleCancelScheduledCollection}
+                                    disabled={actionLoading}
+                                    className="btn btn-xs flex-1 btn-ghost border border-red-200 text-red-600 hover:bg-red-50"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                                {/* Mark as Collected - when collection is scheduled */}
+                                <button
+                                  onClick={handleMarkCollected}
+                                  disabled={actionLoading}
+                                  className="btn btn-sm w-full bg-emerald-500 hover:bg-emerald-600 text-white border-none mt-2"
+                                >
+                                  {actionLoading === "collected" ? (
+                                    <span className="loading loading-spinner loading-xs"></span>
+                                  ) : (
+                                    <>
+                                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                      Mark as Collected
+                                    </>
+                                  )}
+                                </button>
                               </div>
                             ) : (
                               <button
@@ -2890,6 +3226,24 @@ export default function DealDrawer({
                                 Schedule Collection
                               </button>
                             )}
+
+                            {/* Mark as Collected - quick option for immediate pickup */}
+                            <button
+                              onClick={handleMarkCollected}
+                              disabled={actionLoading}
+                              className="btn btn-sm w-full bg-emerald-500 hover:bg-emerald-600 text-white border-none mt-2"
+                            >
+                              {actionLoading === "collected" ? (
+                                <span className="loading loading-spinner loading-xs"></span>
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Mark as Collected
+                                </>
+                              )}
+                            </button>
                           </div>
                         )}
 
@@ -3712,88 +4066,6 @@ export default function DealDrawer({
                   <span className="loading loading-spinner loading-sm"></span>
                 ) : (
                   "Delete"
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Confirmation Modal */}
-      {showDeliveryModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowDeliveryModal(false); setDeliveryForm({ deliveryMileage: "", customerConfirmed: false, notes: "" }); }} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Confirm Vehicle Delivery</h3>
-            <p className="text-sm text-slate-500 text-center mb-4">
-              Please confirm the delivery details before marking this vehicle as delivered.
-            </p>
-
-            <div className="space-y-4">
-              {/* Delivery Mileage */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Delivery Mileage</label>
-                <input
-                  type="number"
-                  value={deliveryForm.deliveryMileage}
-                  onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryMileage: e.target.value })}
-                  placeholder="e.g., 45000"
-                  className="input input-bordered w-full"
-                />
-                <p className="text-xs text-slate-400 mt-1">Optional - record odometer reading at handover</p>
-              </div>
-
-              {/* Delivery Notes */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
-                <textarea
-                  value={deliveryForm.notes}
-                  onChange={(e) => setDeliveryForm({ ...deliveryForm, notes: e.target.value })}
-                  placeholder="Any notes about the delivery..."
-                  className="textarea textarea-bordered w-full h-20"
-                />
-              </div>
-
-              {/* Customer Confirmation Checkbox */}
-              <div className="bg-slate-50 rounded-xl p-4">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={deliveryForm.customerConfirmed}
-                    onChange={(e) => setDeliveryForm({ ...deliveryForm, customerConfirmed: e.target.checked })}
-                    className="checkbox checkbox-primary mt-0.5"
-                  />
-                  <div>
-                    <span className="font-medium text-slate-700">Customer has received the vehicle</span>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      I confirm the customer has taken physical possession of the vehicle
-                    </p>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => { setShowDeliveryModal(false); setDeliveryForm({ deliveryMileage: "", customerConfirmed: false, notes: "" }); }}
-                className="btn btn-ghost flex-1"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleMarkDelivered}
-                disabled={actionLoading === "delivered" || !deliveryForm.customerConfirmed}
-                className="btn bg-purple-500 hover:bg-purple-600 text-white border-none flex-1 disabled:bg-slate-300"
-              >
-                {actionLoading === "delivered" ? (
-                  <span className="loading loading-spinner loading-sm"></span>
-                ) : (
-                  "Mark Delivered"
                 )}
               </button>
             </div>
@@ -5060,6 +5332,46 @@ export default function DealDrawer({
         onComplete={handleDepositSignatureComplete}
         deal={deal}
         existingSignatures={deal?.depositSignature}
+      />
+
+      {/* Inline Form Modals */}
+      <InlineFormModal
+        isOpen={showServiceReceiptModal}
+        onClose={() => setShowServiceReceiptModal(false)}
+        formType="SERVICE_RECEIPT"
+        prefill={{
+          vrm: deal?.vehicleId?.regCurrent,
+          make: deal?.vehicleId?.make,
+          model: deal?.vehicleId?.model,
+          mileage: deal?.vehicleId?.mileageCurrent,
+          vehicleId: deal?.vehicleId?._id || deal?.vehicleId,
+          dealId: dealId,
+        }}
+        onSuccess={() => {
+          toast.success("Service receipt added");
+          fetchLinkedSubmissions();
+          setShowServiceReceiptModal(false);
+        }}
+      />
+
+      <InlineFormModal
+        isOpen={showDeliveryFormModal}
+        onClose={() => setShowDeliveryFormModal(false)}
+        formType="DELIVERY"
+        prefill={{
+          vrm: deal?.vehicleId?.regCurrent,
+          make: deal?.vehicleId?.make,
+          model: deal?.vehicleId?.model,
+          vehicleId: deal?.vehicleId?._id || deal?.vehicleId,
+          dealId: dealId,
+          customer_first_name: deal?.customerId?.name?.split(" ")[0] || "",
+          customer_last_name: deal?.customerId?.name?.split(" ").slice(1).join(" ") || "",
+        }}
+        onSuccess={() => {
+          toast.success("Delivery form completed");
+          fetchDeal();
+          setShowDeliveryFormModal(false);
+        }}
       />
     </div>
   );

@@ -140,7 +140,7 @@ export default function DepositReceiptPage() {
             </div>
             {/* Bank Details in Header */}
             {snap.bankDetails?.accountNumber && (
-              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs">
                 <div>
                   <p className="text-slate-400">Account Name</p>
                   <p className="font-medium text-slate-700">{snap.bankDetails.accountName}</p>
@@ -160,7 +160,7 @@ export default function DepositReceiptPage() {
           {/* Details */}
           <div className="p-8 print:p-4 space-y-6 print:space-y-4">
             {/* Date and Receipt Info */}
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
               <div>
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Date</p>
                 <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(document.issuedAt)}</p>
@@ -185,8 +185,8 @@ export default function DepositReceiptPage() {
             {/* Vehicle Details */}
             <div>
               <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Vehicle</p>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full">
+              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                <table className="w-full min-w-[300px]">
                   <tbody className="divide-y divide-slate-100">
                     <tr>
                       <td className="px-4 py-3 text-slate-500 bg-slate-50 w-1/3">Registration</td>
@@ -208,14 +208,14 @@ export default function DepositReceiptPage() {
                         <td className="px-4 py-3 text-slate-900">{snap.vehicle.year}</td>
                       </tr>
                     )}
-                    {snap.vehicle?.firstRegisteredDate && (
-                      <tr>
-                        <td className="px-4 py-3 text-slate-500 bg-slate-50">First Registered</td>
-                        <td className="px-4 py-3 text-slate-900">
-                          {new Date(snap.vehicle.firstRegisteredDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                        </td>
-                      </tr>
-                    )}
+                    <tr>
+                      <td className="px-4 py-3 text-slate-500 bg-slate-50">Date of Registration</td>
+                      <td className="px-4 py-3 text-slate-900">
+                        {snap.vehicle?.firstRegisteredDate
+                          ? new Date(snap.vehicle.firstRegisteredDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                          : <span className="text-slate-400 italic">Not recorded</span>}
+                      </td>
+                    </tr>
                     {snap.vehicle?.colour && (
                       <tr>
                         <td className="px-4 py-3 text-slate-500 bg-slate-50">Colour</td>
@@ -228,12 +228,12 @@ export default function DepositReceiptPage() {
                         {snap.vehicle?.mileage ? `${snap.vehicle.mileage.toLocaleString()} miles` : <span className="text-slate-400 italic">Not recorded</span>}
                       </td>
                     </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-slate-500 bg-slate-50">VIN</td>
-                      <td className="px-4 py-3 text-slate-900 font-mono text-sm">
-                        {snap.vehicle?.vin || <span className="text-slate-400 italic font-sans">Not recorded</span>}
-                      </td>
-                    </tr>
+                    {snap.vehicle?.vin && (
+                      <tr>
+                        <td className="px-4 py-3 text-slate-500 bg-slate-50">VIN</td>
+                        <td className="px-4 py-3 text-slate-900 font-mono text-sm">{snap.vehicle.vin}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -243,8 +243,8 @@ export default function DepositReceiptPage() {
             {snap.addOns?.length > 0 && (
               <div>
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Add-ons Included</p>
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full">
+                <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                  <table className="w-full min-w-[400px]">
                     {snap.isVatRegistered !== false && (
                       <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                         <tr>
@@ -369,8 +369,8 @@ export default function DepositReceiptPage() {
             </div>
 
             {/* Summary */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden">
-              <table className="w-full">
+            <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[300px]">
                 <tbody className="divide-y divide-slate-100">
                   <tr>
                     <td className="px-4 py-3 text-slate-600">Vehicle Price</td>
@@ -618,12 +618,11 @@ export default function DepositReceiptPage() {
         @media print {
           @page {
             size: A4;
-            margin: 4mm;
+            margin: 10mm;
           }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            font-size: 8px !important;
           }
           .print\\:break-inside-avoid {
             break-inside: avoid;
@@ -636,79 +635,13 @@ export default function DepositReceiptPage() {
             break-inside: avoid;
             page-break-inside: avoid;
           }
-          /* Maximum spacing compression */
-          .print\\:p-6, .print\\:p-4, .p-3, .p-4, .p-5, .p-6, .p-8 {
-            padding: 0.2rem !important;
-          }
-          .print\\:space-y-6 > * + *, .space-y-6 > * + *, .space-y-4 > * + *, .space-y-3 > * + * {
-            margin-top: 0.15rem !important;
-          }
-          .mb-1, .mb-2, .mb-3, .mb-4, .mb-6 {
-            margin-bottom: 0.1rem !important;
-          }
-          .mt-1, .mt-2, .mt-3, .mt-4 {
-            margin-top: 0.1rem !important;
-          }
-          .pt-2, .pt-3, .pt-4, .pt-5, .pt-6 {
-            padding-top: 0.1rem !important;
-          }
-          .pb-2, .pb-4, .pb-6 {
-            padding-bottom: 0.1rem !important;
-          }
-          .gap-2, .gap-3, .gap-4, .gap-6, .gap-8 {
-            gap: 0.1rem !important;
-          }
-          /* Compact headers */
-          h1, .text-2xl {
-            font-size: 12px !important;
-            line-height: 1.2 !important;
-          }
-          h2, .text-xl {
-            font-size: 10px !important;
-            line-height: 1.2 !important;
-          }
-          .text-lg {
-            font-size: 9px !important;
-            line-height: 1.2 !important;
-          }
-          .text-3xl {
-            font-size: 14px !important;
-            line-height: 1.2 !important;
-          }
-          .text-sm {
-            font-size: 8px !important;
-            line-height: 1.2 !important;
-          }
-          .text-xs {
-            font-size: 7px !important;
-            line-height: 1.2 !important;
-          }
-          /* Compact table cells */
-          td, th {
-            padding: 0.1rem 0.2rem !important;
-            font-size: 8px !important;
-            line-height: 1.2 !important;
-          }
           /* Ensure tables and sections stay together */
           table {
             break-inside: avoid;
           }
-          /* Compact rounded boxes */
-          .rounded-xl, .rounded-2xl {
-            padding: 0.15rem !important;
-            border-radius: 3px !important;
-          }
-          .rounded-lg {
-            padding: 0.1rem !important;
-            border-radius: 2px !important;
-          }
-          /* Keep colored sections compact */
-          .bg-slate-50, .bg-emerald-50, .bg-purple-50, .bg-blue-50, .bg-orange-50 {
-            padding: 0.15rem !important;
-          }
-          /* Signature images - ensure they print and stay small */
+          /* Signature images - ensure they print */
           .signature-image {
-            max-height: 25px !important;
+            max-height: 40px !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             display: block !important;
@@ -717,15 +650,6 @@ export default function DepositReceiptPage() {
           img {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-          }
-          /* Grid compaction */
-          .grid-cols-2, .grid-cols-3 {
-            gap: 0.1rem !important;
-          }
-          /* Border compaction */
-          .border-b, .border-t {
-            margin-top: 0.1rem !important;
-            margin-bottom: 0.1rem !important;
           }
         }
       `}</style>

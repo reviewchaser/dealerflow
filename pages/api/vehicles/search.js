@@ -37,8 +37,12 @@ export default async function handler(req, res) {
     if (hasDelivery === "true") {
       const deliveryDeals = await Deal.find({
         dealerId,
-        status: { $in: ["DEPOSIT_TAKEN", "INVOICED"] },
-        "delivery.hasDelivery": true,
+        status: "INVOICED", // Only invoiced deals should appear for delivery
+        $or: [
+          { "delivery.amount": { $gt: 0 } },
+          { "delivery.amountGross": { $gt: 0 } },
+          { "delivery.isFree": true },
+        ],
       }).select("vehicleId").lean();
       deliveryVehicleIds = deliveryDeals.map(d => d.vehicleId);
       if (deliveryVehicleIds.length === 0) {

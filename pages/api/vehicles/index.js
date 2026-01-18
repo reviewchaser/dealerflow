@@ -9,6 +9,8 @@ import VehicleActivity from "@/models/VehicleActivity";
 import Deal from "@/models/Deal";
 import Dealer from "@/models/Dealer";
 import User from "@/models/User";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
 import { withDealerContext } from "@/libs/authContext";
 
 const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
@@ -94,7 +96,7 @@ async function handler(req, res, ctx) {
     const vehicleIds = vehicles.map(v => v._id);
 
     // Fetch all related data in parallel - scoped by dealerId
-    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery] = await Promise.all([
+    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allPdiSubmissions] = await Promise.all([
       VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
@@ -119,6 +121,17 @@ async function handler(req, res, ctx) {
           { "delivery.isFree": true },
         ],
       }).select("vehicleId delivery").lean(),
+      // Fetch PDI submissions for prep board badge - need to first get PDI form IDs
+      (async () => {
+        const pdiForms = await Form.find({ dealerId, type: "PDI" }).select("_id").lean();
+        if (pdiForms.length === 0) return [];
+        const pdiFormIds = pdiForms.map(f => f._id);
+        return FormSubmission.find({
+          dealerId,
+          formId: { $in: pdiFormIds },
+          linkedVehicleId: { $in: vehicleIds },
+        }).select("linkedVehicleId pdiIssues submittedAt status").lean();
+      })(),
     ]);
 
     // Create lookup maps
@@ -163,6 +176,24 @@ async function handler(req, res, ctx) {
       if (deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) {
         deliveryByVehicle[vid] = true;
       }
+    }
+
+    // Build PDI submissions lookup (for prep board badge and drawer)
+    const pdiByVehicle = {};
+    for (const submission of allPdiSubmissions) {
+      if (!submission.linkedVehicleId) continue;
+      const vid = submission.linkedVehicleId.toString();
+      // Calculate outstanding issues count
+      const outstandingIssues = (submission.pdiIssues || []).filter(
+        i => i.status !== "Complete"
+      ).length;
+      pdiByVehicle[vid] = {
+        id: submission._id.toString(),
+        submittedAt: submission.submittedAt,
+        status: submission.status,
+        issueCount: (submission.pdiIssues || []).length,
+        outstandingIssues,
+      };
     }
 
     // Build tasks lookup
@@ -241,6 +272,8 @@ async function handler(req, res, ctx) {
         vatScheme: vehicle.vatScheme || null,
         // Delivery badge for prep board
         hasDelivery: deliveryByVehicle[vid] || false,
+        // PDI submission info for prep board badge and drawer
+        pdiSubmission: pdiByVehicle[vid] || null,
       };
     });
 

@@ -12,6 +12,7 @@ import { MobileStageSelector } from "@/components/ui/PageShell";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 import VehicleImage from "@/components/VehicleImage";
 import ContactPicker from "@/components/ContactPicker";
+import InlineFormModal from "@/components/InlineFormModal";
 
 const COLUMNS = [
   { key: "in_stock", label: "In Stock", gradient: "from-slate-100/60", accent: "border-l-slate-400", accentBg: "bg-slate-400" },
@@ -86,7 +87,6 @@ export default function SalesPrep() {
   const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
   const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
   const [partsOrderForm, setPartsOrderForm] = useState({
-    supplierType: "EURO_CAR_PARTS",
     supplierName: "",
     orderRef: "",
     expectedAt: "",
@@ -125,6 +125,10 @@ export default function SalesPrep() {
     const hasTouch = window.matchMedia('(pointer: coarse)').matches;
     setIsTouchDevice(hasTouch);
   }, []);
+
+  // Inline form modals state
+  const [showPdiModal, setShowPdiModal] = useState(false);
+  const [showServiceReceiptModal, setShowServiceReceiptModal] = useState(false);
 
   // Issues state
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
@@ -824,7 +828,6 @@ export default function SalesPrep() {
     if (existingOrder) {
       setEditingPartsOrderId(existingOrder._id || existingOrder.id);
       setPartsOrderForm({
-        supplierType: existingOrder.supplierType || "EURO_CAR_PARTS",
         supplierName: existingOrder.supplierName || "",
         orderRef: existingOrder.orderRef || "",
         expectedAt: existingOrder.expectedAt ? existingOrder.expectedAt.split("T")[0] : "",
@@ -833,7 +836,6 @@ export default function SalesPrep() {
     } else {
       setEditingPartsOrderId(null);
       setPartsOrderForm({
-        supplierType: "EURO_CAR_PARTS",
         supplierName: "",
         orderRef: "",
         expectedAt: "",
@@ -848,7 +850,6 @@ export default function SalesPrep() {
     setPartsOrderTaskId(null);
     setEditingPartsOrderId(null);
     setPartsOrderForm({
-      supplierType: "EURO_CAR_PARTS",
       supplierName: "",
       orderRef: "",
       expectedAt: "",
@@ -860,8 +861,7 @@ export default function SalesPrep() {
     if (!partsOrderTaskId) return;
     try {
       const orderData = {
-        supplierType: partsOrderForm.supplierType,
-        ...(partsOrderForm.supplierType === "OTHER" && partsOrderForm.supplierName && { supplierName: partsOrderForm.supplierName }),
+        supplierName: partsOrderForm.supplierName || null,
         ...(partsOrderForm.orderRef && { orderRef: partsOrderForm.orderRef }),
         ...(partsOrderForm.expectedAt && { expectedAt: partsOrderForm.expectedAt }),
         ...(partsOrderForm.notes && { notes: partsOrderForm.notes }),
@@ -889,8 +889,7 @@ export default function SalesPrep() {
     try {
       const orderData = {
         orderId: editingPartsOrderId,
-        supplierType: partsOrderForm.supplierType,
-        supplierName: partsOrderForm.supplierType === "OTHER" ? partsOrderForm.supplierName : null,
+        supplierName: partsOrderForm.supplierName || null,
         orderRef: partsOrderForm.orderRef || null,
         expectedAt: partsOrderForm.expectedAt || null,
         notes: partsOrderForm.notes || null,
@@ -958,15 +957,7 @@ export default function SalesPrep() {
 
   // Helper to get supplier display name
   const getSupplierDisplay = (order) => {
-    const labels = {
-      EURO_CAR_PARTS: "Euro Car Parts",
-      TPS: "TPS",
-      MAIN_DEALER: "Main Dealer",
-      LOCAL_FACTOR: "Local Factor",
-      ONLINE: "Online",
-      OTHER: order.supplierName || "Other",
-    };
-    return labels[order.supplierType] || order.supplierType;
+    return order.supplierName || "Supplier not specified";
   };
 
   const updateTaskName = async (taskId, newName) => {
@@ -2956,6 +2947,19 @@ export default function SalesPrep() {
                                 Delivery
                               </span>
                             )}
+                            {/* PDI Badge - shows PDI status */}
+                            {vehicle.pdiSubmission ? (
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                                vehicle.pdiSubmission.outstandingIssues > 0
+                                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : "bg-green-50 text-green-700 border border-green-200"
+                              }`}>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                PDI {vehicle.pdiSubmission.outstandingIssues > 0 ? `(${vehicle.pdiSubmission.outstandingIssues})` : ""}
+                              </span>
+                            ) : null}
                           </div>
 
                           {/* Slick Progress Bar */}
@@ -3281,6 +3285,19 @@ export default function SalesPrep() {
                                 Delivery
                               </span>
                             )}
+                            {/* PDI Badge - shows PDI status */}
+                            {vehicle.pdiSubmission ? (
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                                vehicle.pdiSubmission.outstandingIssues > 0
+                                  ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                  : "bg-green-50 text-green-700 border border-green-200"
+                              }`}>
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                PDI {vehicle.pdiSubmission.outstandingIssues > 0 ? `(${vehicle.pdiSubmission.outstandingIssues})` : ""}
+                              </span>
+                            ) : null}
                           </div>
 
                           {/* Slick Progress Bar */}
@@ -3571,6 +3588,86 @@ export default function SalesPrep() {
                         }}
                       />
                     </label>
+                  </div>
+
+                  {/* Vehicle Documentation Section */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Vehicle Documentation
+                    </h3>
+                    <div className="space-y-4">
+                      {/* PDI Status */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-slate-600">Pre-Delivery Inspection</span>
+                          {selectedVehicle.pdiSubmission ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              selectedVehicle.pdiSubmission.outstandingIssues > 0
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-green-100 text-green-700"
+                            }`}>
+                              {selectedVehicle.pdiSubmission.outstandingIssues > 0
+                                ? `${selectedVehicle.pdiSubmission.outstandingIssues} issues`
+                                : "Complete"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                              Not completed
+                            </span>
+                          )}
+                        </div>
+                        {selectedVehicle.pdiSubmission ? (
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/forms?tab=submissions&viewSubmission=${selectedVehicle.pdiSubmission.id}`}
+                              className="btn btn-xs btn-outline flex-1"
+                            >
+                              View
+                            </Link>
+                            <Link
+                              href={`/forms?tab=submissions&editSubmission=${selectedVehicle.pdiSubmission.id}`}
+                              className="btn btn-xs btn-outline flex-1"
+                            >
+                              Modify
+                            </Link>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowPdiModal(true)}
+                            className="btn btn-xs btn-primary w-full"
+                          >
+                            Complete PDI
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Divider */}
+                      <div className="border-t border-slate-200"></div>
+
+                      {/* Service Receipt */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-slate-600">Service Receipt</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                            Optional
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowServiceReceiptModal(true)}
+                          className="btn btn-xs btn-outline w-full"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                          Add Service Receipt
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Identity Section */}
@@ -5115,35 +5212,16 @@ export default function SalesPrep() {
             <div className="p-4 space-y-4">
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-medium">Supplier</span>
+                  <span className="label-text font-medium">Supplier Name</span>
                 </label>
-                <select
-                  className="select select-bordered w-full"
-                  value={partsOrderForm.supplierType}
-                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierType: e.target.value })}
-                >
-                  <option value="EURO_CAR_PARTS">Euro Car Parts</option>
-                  <option value="TPS">TPS</option>
-                  <option value="MAIN_DEALER">Main Dealer</option>
-                  <option value="LOCAL_FACTOR">Local Factor</option>
-                  <option value="ONLINE">Online</option>
-                  <option value="OTHER">Other</option>
-                </select>
+                <input
+                  type="text"
+                  placeholder="e.g., Euro Car Parts, TPS, Main Dealer"
+                  className="input input-bordered w-full"
+                  value={partsOrderForm.supplierName}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
+                />
               </div>
-              {partsOrderForm.supplierType === "OTHER" && (
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-medium">Supplier Name</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter supplier name"
-                    className="input input-bordered w-full"
-                    value={partsOrderForm.supplierName}
-                    onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
-                  />
-                </div>
-              )}
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-medium">Order Reference (Optional)</span>
@@ -5667,6 +5745,44 @@ export default function SalesPrep() {
           </div>
         </Portal>
       )}
+
+      {/* Inline Form Modals */}
+      <InlineFormModal
+        isOpen={showPdiModal}
+        onClose={() => setShowPdiModal(false)}
+        formType="PDI"
+        prefill={{
+          vrm: selectedVehicle?.regCurrent,
+          make: selectedVehicle?.make,
+          model: selectedVehicle?.model,
+          mileage: selectedVehicle?.mileageCurrent,
+          colour: selectedVehicle?.colour,
+          vehicleId: selectedVehicle?.id,
+        }}
+        onSuccess={() => {
+          toast.success("PDI completed successfully");
+          fetchVehicles();
+          setShowPdiModal(false);
+        }}
+      />
+
+      <InlineFormModal
+        isOpen={showServiceReceiptModal}
+        onClose={() => setShowServiceReceiptModal(false)}
+        formType="SERVICE_RECEIPT"
+        prefill={{
+          vrm: selectedVehicle?.regCurrent,
+          make: selectedVehicle?.make,
+          model: selectedVehicle?.model,
+          mileage: selectedVehicle?.mileageCurrent,
+          vehicleId: selectedVehicle?.id,
+        }}
+        onSuccess={() => {
+          toast.success("Service receipt added");
+          fetchVehicles();
+          setShowServiceReceiptModal(false);
+        }}
+      />
     </DashboardLayout>
   );
 }

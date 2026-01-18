@@ -153,7 +153,7 @@ export default function InvoicePage() {
             </div>
             {/* Bank Details in Header */}
             {snap.bankDetails?.accountNumber && (
-              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+              <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs">
                 <div>
                   <p className="text-slate-400">Account Name</p>
                   <p className="font-medium text-slate-700">{snap.bankDetails.accountName}</p>
@@ -173,7 +173,7 @@ export default function InvoicePage() {
           {/* Details */}
           <div className="p-8 print:p-6 space-y-8 print:space-y-6">
             {/* Invoice Info Row */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
               <div>
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Invoice Date</p>
                 <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(document.issuedAt)}</p>
@@ -191,7 +191,7 @@ export default function InvoicePage() {
             </div>
 
             {/* Invoice To / Deliver To */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div className="bg-slate-50 rounded-xl p-5 print:bg-slate-50">
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-2">Invoice To</p>
                 <p className="text-lg font-bold text-slate-900">{invoiceTo?.name}</p>
@@ -227,8 +227,8 @@ export default function InvoicePage() {
             {/* Line Items */}
             <div>
               <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Items</p>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full">
+              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                <table className="w-full min-w-[500px]">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">Description</th>
@@ -244,12 +244,14 @@ export default function InvoicePage() {
                       <td className="px-4 py-3">
                         <p className="font-semibold text-slate-900">{snap.vehicle?.year} {snap.vehicle?.make} {snap.vehicle?.model}</p>
                         <p className="text-sm text-slate-500">
-                          {snap.vehicle?.regCurrent} | VIN: {snap.vehicle?.vin || <span className="italic text-slate-400">Not recorded</span>}
+                          {snap.vehicle?.regCurrent}{snap.vehicle?.vin && ` | VIN: ${snap.vehicle.vin}`}
                         </p>
                         <p className="text-sm text-slate-500">
                           {snap.vehicle?.colour && `${snap.vehicle.colour} | `}
                           Mileage: {snap.vehicle?.mileage ? `${snap.vehicle.mileage.toLocaleString()} miles` : <span className="italic text-slate-400">Not recorded</span>}
-                          {snap.vehicle?.firstRegisteredDate && ` | First Reg: ${new Date(snap.vehicle.firstRegisteredDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`}
+                          {" | "}Date of Reg: {snap.vehicle?.firstRegisteredDate
+                            ? new Date(snap.vehicle.firstRegisteredDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                            : <span className="italic text-slate-400">Not recorded</span>}
                         </p>
                       </td>
                       <td className="px-4 py-3 text-right text-slate-600">1</td>
@@ -293,6 +295,21 @@ export default function InvoicePage() {
                         </td>
                       </tr>
                     )}
+
+                    {/* Delivery Credit - if delivery was charged on deposit but removed */}
+                    {snap.deliveryCredit > 0 && (
+                      <tr className="bg-red-50">
+                        <td className="px-4 py-3 text-red-700">Less: Delivery Credit</td>
+                        <td className="px-4 py-3 text-right text-red-600">1</td>
+                        {showVatColumns && (
+                          <td className="px-4 py-3 text-right text-red-600">-{formatCurrency(snap.deliveryCredit)}</td>
+                        )}
+                        {showVatColumns && (
+                          <td className="px-4 py-3 text-right text-red-600">—</td>
+                        )}
+                        <td className="px-4 py-3 text-right font-semibold text-red-700">-{formatCurrency(snap.deliveryCredit)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -300,9 +317,9 @@ export default function InvoicePage() {
 
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-80">
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full">
+              <div className="w-full sm:w-80">
+                <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
+                  <table className="w-full min-w-[280px]">
                     <tbody className="divide-y divide-slate-100">
                       {showVatColumns && (
                         <>
@@ -476,7 +493,7 @@ export default function InvoicePage() {
             {snap.bankDetails?.accountNumber && (
               <div className="bg-blue-50 rounded-xl p-5 print:bg-blue-50">
                 <p className="text-sm text-blue-600 uppercase tracking-wide font-medium mb-3">Payment Details</p>
-                <div className="grid grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
                   <div>
                     <p className="text-blue-500">Account Name</p>
                     <p className="font-semibold text-blue-900">{snap.bankDetails.accountName}</p>
@@ -495,11 +512,11 @@ export default function InvoicePage() {
 
             {/* Payments Received - Individual breakdown */}
             {snap.payments?.length > 0 && (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
                 <div className="bg-emerald-50 px-4 py-2 border-b border-slate-200">
                   <p className="text-sm font-medium text-emerald-800">Payments Received</p>
                 </div>
-                <table className="w-full">
+                <table className="w-full min-w-[400px]">
                   <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                     <tr>
                       <th className="px-4 py-2 text-left font-medium">Type</th>
@@ -684,12 +701,11 @@ export default function InvoicePage() {
         @media print {
           @page {
             size: A4;
-            margin: 6mm;
+            margin: 10mm;
           }
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
-            font-size: 9px !important;
           }
           .print\\:break-inside-avoid {
             break-inside: avoid;
@@ -702,46 +718,9 @@ export default function InvoicePage() {
             break-inside: avoid;
             page-break-inside: avoid;
           }
-          /* Maximum spacing compression for A4 */
-          .print\\:p-6, .print\\:p-4, .p-3, .p-4, .p-5, .p-6, .p-8 {
-            padding: 0.15rem !important;
-          }
-          .print\\:space-y-6 > * + *, .space-y-6 > * + *, .space-y-4 > * + *, .space-y-3 > * + * {
-            margin-top: 0.1rem !important;
-          }
-          .mb-1, .mb-2, .mb-3, .mb-4, .mb-6 {
-            margin-bottom: 0.08rem !important;
-          }
-          .mt-1, .mt-2, .mt-3, .mt-4 {
-            margin-top: 0.08rem !important;
-          }
-          .pt-2, .pt-3, .pt-4, .pt-6 {
-            padding-top: 0.08rem !important;
-          }
-          .pb-2, .pb-4, .pb-6 {
-            padding-bottom: 0.08rem !important;
-          }
-          .gap-2, .gap-3, .gap-4, .gap-6, .gap-8 {
-            gap: 0.08rem !important;
-          }
-          /* Compact table cells */
-          td, th {
-            padding: 0.08rem 0.15rem !important;
-            font-size: 7px !important;
-            line-height: 1.15 !important;
-          }
-          /* Compact rounded boxes */
-          .rounded-xl, .rounded-2xl {
-            padding: 0.1rem !important;
-            border-radius: 2px !important;
-          }
-          .rounded-lg {
-            padding: 0.08rem !important;
-            border-radius: 2px !important;
-          }
           /* Signature images - ensure they print */
           .signature-image {
-            max-height: 20px !important;
+            max-height: 40px !important;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
             display: block !important;
@@ -751,43 +730,9 @@ export default function InvoicePage() {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
           }
-          /* Compact headers */
-          h1, .text-2xl {
-            font-size: 11px !important;
-            line-height: 1.15 !important;
-          }
-          h2, .text-xl {
-            font-size: 9px !important;
-            line-height: 1.15 !important;
-          }
-          .text-lg {
-            font-size: 8px !important;
-            line-height: 1.15 !important;
-          }
-          .text-sm {
-            font-size: 7px !important;
-            line-height: 1.15 !important;
-          }
-          .text-xs {
-            font-size: 6px !important;
-            line-height: 1.15 !important;
-          }
           /* Ensure tables stay together */
           table {
             break-inside: avoid;
-          }
-          /* Compact colored sections */
-          .bg-slate-50, .bg-emerald-50, .bg-purple-50, .bg-blue-50, .bg-orange-50 {
-            padding: 0.1rem !important;
-          }
-          /* Grid compaction */
-          .grid-cols-2, .grid-cols-3 {
-            gap: 0.1rem !important;
-          }
-          /* Border compaction */
-          .border-b, .border-t {
-            margin-top: 0.05rem !important;
-            margin-bottom: 0.05rem !important;
           }
         }
       `}</style>

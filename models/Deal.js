@@ -245,6 +245,8 @@ const dealSchema = new mongoose.Schema(
       // Delivery scheduling
       scheduledDate: { type: Date },
       scheduledCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
+      // Track original amount on deposit for credit calculation
+      originalAmountOnDeposit: { type: Number },
     },
 
     // === COLLECTION (for customer pickup) ===

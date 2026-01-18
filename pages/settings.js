@@ -64,6 +64,7 @@ export default function Settings() {
       type: "FREE",
       priceNet: 0,
       durationMonths: 3,
+      claimLimit: "",
       name: "Standard Warranty",
     },
   });
@@ -411,6 +412,7 @@ export default function Settings() {
           type: ss.defaultWarranty?.type || "FREE",
           priceNet: ss.defaultWarranty?.priceNet || 0,
           durationMonths: ss.defaultWarranty?.durationMonths || 3,
+          claimLimit: ss.defaultWarranty?.claimLimit || "",
           name: ss.defaultWarranty?.name || "Standard Warranty",
         },
       });
@@ -542,6 +544,7 @@ export default function Settings() {
             type: salesSettings.defaultWarranty?.type || "FREE",
             priceNet: parseFloat(salesSettings.defaultWarranty?.priceNet) || 0,
             durationMonths: parseInt(salesSettings.defaultWarranty?.durationMonths) || 3,
+            claimLimit: salesSettings.defaultWarranty?.claimLimit ? parseFloat(salesSettings.defaultWarranty.claimLimit) : null,
             name: salesSettings.defaultWarranty?.name || "Standard Warranty",
           },
         },
@@ -1380,6 +1383,27 @@ export default function Settings() {
                       <option value={24}>24 months</option>
                       <option value={36}>36 months</option>
                     </select>
+                  </div>
+
+                  {/* Claim Limit */}
+                  <div className="form-control">
+                    <label className="label"><span className="label-text">Claim Limit</span></label>
+                    <div className="relative w-40">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="input input-bordered input-sm w-full pl-7"
+                        value={salesSettings.defaultWarranty?.claimLimit || ""}
+                        onChange={(e) => setSalesSettings({
+                          ...salesSettings,
+                          defaultWarranty: { ...salesSettings.defaultWarranty, claimLimit: e.target.value }
+                        })}
+                        placeholder="No limit"
+                      />
+                    </div>
+                    <label className="label"><span className="label-text-alt text-base-content/50">Maximum total claim amount (leave blank for unlimited)</span></label>
                   </div>
 
                   <p className="text-xs text-base-content/50">

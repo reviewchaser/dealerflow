@@ -100,6 +100,14 @@ async function handler(req, res, ctx) {
     deal.status = "DEPOSIT_TAKEN";
   }
 
+  // Track original delivery amount for credit calculation if removed before invoicing
+  if (deal.delivery && !deal.delivery.originalAmountOnDeposit) {
+    const currentDeliveryAmount = deal.delivery.isFree ? 0 : (deal.delivery.amountGross || deal.delivery.amount || 0);
+    if (currentDeliveryAmount > 0 || deal.delivery.isFree) {
+      deal.delivery.originalAmountOnDeposit = currentDeliveryAmount;
+    }
+  }
+
   deal.updatedByUserId = userId;
   await deal.save();
 
@@ -140,8 +148,8 @@ async function handler(req, res, ctx) {
     return sum;
   }, 0);
 
-  // Calculate delivery amount
-  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
+  // Calculate delivery amount (use gross if available, otherwise amount)
+  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
 
   // Calculate grand total including add-ons and delivery
   const vehicleTotal = deal.vehiclePriceGross || 0;
@@ -189,12 +197,14 @@ async function handler(req, res, ctx) {
     })),
     addOnsNetTotal,
     addOnsVatTotal,
-    // Delivery
-    delivery: {
-      amount: deliveryAmount,
-      isFree: deal.delivery?.isFree || false,
-      notes: deal.delivery?.notes,
-    },
+    // Delivery - include full VAT breakdown
+    delivery: deal.delivery ? {
+      amountNet: deal.delivery.amountNet || deal.delivery.amount || 0,
+      vatAmount: deal.delivery.vatAmount || 0,
+      amountGross: deal.delivery.amountGross || deal.delivery.amount || 0,
+      isFree: deal.delivery.isFree || false,
+      notes: deal.delivery.notes,
+    } : null,
     // Finance selection
     financeSelection: deal.financeSelection?.isFinanced ? {
       isFinanced: true,
