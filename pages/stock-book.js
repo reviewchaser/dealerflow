@@ -105,6 +105,7 @@ export default function StockBook() {
   // Purchase info form state (includes vehicle details for editing)
   const [purchaseForm, setPurchaseForm] = useState({
     // Vehicle details
+    regCurrent: "",
     make: "",
     model: "",
     year: "",
@@ -124,6 +125,7 @@ export default function StockBook() {
     purchaseInvoiceRef: "",
     purchaseNotes: "",
   });
+  const [isDrawerVrmLoading, setIsDrawerVrmLoading] = useState(false);
 
   // Document upload modal state
   const [showAddDocumentModal, setShowAddDocumentModal] = useState(false);
@@ -263,6 +265,16 @@ export default function StockBook() {
       router.replace("/stock-book", undefined, { shallow: true });
     }
   }, [router.query.addVehicle, router]);
+
+  // Handle vehicle query param (deep link from Sales Wizard)
+  useEffect(() => {
+    const vehicleId = router.query.vehicle;
+    if (vehicleId && !isLoading && vehicles.length > 0) {
+      handleVehicleClick(vehicleId);
+      // Remove the query param from URL without reload
+      router.replace("/stock-book", undefined, { shallow: true });
+    }
+  }, [router.query.vehicle, isLoading, vehicles]);
 
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
@@ -457,6 +469,7 @@ export default function StockBook() {
 
       setPurchaseForm({
         // Vehicle details
+        regCurrent: data.regCurrent || "",
         make: data.make || "",
         model: data.model || "",
         year: data.year || "",
@@ -491,6 +504,58 @@ export default function StockBook() {
     setSelectedVehicleId(null);
   };
 
+  // VRM lookup in drawer
+  const handleDrawerVrmLookup = async () => {
+    if (!purchaseForm.regCurrent) {
+      toast.error("Please enter a registration number");
+      return;
+    }
+    setIsDrawerVrmLoading(true);
+    try {
+      const cleanVrm = purchaseForm.regCurrent.replace(/\s/g, "").toUpperCase();
+      // Call DVLA + MOT APIs in parallel
+      const [dvlaRes, motRes] = await Promise.all([
+        fetch("/api/dvla/vehicle-enquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registrationNumber: cleanVrm }),
+        }),
+        fetch(`/api/mot?vrm=${encodeURIComponent(cleanVrm)}`),
+      ]);
+
+      let updatedFields = { regCurrent: cleanVrm };
+
+      // Process DVLA response
+      if (dvlaRes.ok) {
+        const dvlaData = await dvlaRes.json();
+        if (dvlaData.make) updatedFields.make = dvlaData.make;
+        if (dvlaData.colour) updatedFields.colour = dvlaData.colour;
+        if (dvlaData.fuelType) updatedFields.fuelType = dvlaData.fuelType;
+        if (dvlaData.yearOfManufacture) updatedFields.year = dvlaData.yearOfManufacture.toString();
+      }
+
+      // Process MOT response (may have more details)
+      if (motRes.ok) {
+        const motData = await motRes.json();
+        if (motData.make && !updatedFields.make) updatedFields.make = motData.make;
+        if (motData.model) updatedFields.model = motData.model;
+        if (motData.primaryColour && !updatedFields.colour) updatedFields.colour = motData.primaryColour;
+        if (motData.fuelType && !updatedFields.fuelType) updatedFields.fuelType = motData.fuelType;
+        if (motData.firstUsedDate) {
+          updatedFields.firstRegisteredDate = new Date(motData.firstUsedDate).toISOString().split("T")[0];
+        }
+      }
+
+      setPurchaseForm((prev) => ({ ...prev, ...updatedFields }));
+      toast.success("Vehicle details updated from lookup");
+    } catch (error) {
+      console.error("[StockBook] VRM lookup error:", error);
+      toast.error("Failed to lookup vehicle");
+    } finally {
+      setIsDrawerVrmLoading(false);
+    }
+  };
+
   // Save purchase info
   const handleSavePurchaseInfo = async (e) => {
     e.preventDefault();
@@ -514,6 +579,7 @@ export default function StockBook() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           // Vehicle details
+          regCurrent: purchaseForm.regCurrent || undefined,
           make: purchaseForm.make || undefined,
           model: purchaseForm.model || undefined,
           year: purchaseForm.year ? parseInt(purchaseForm.year) : undefined,
@@ -1426,9 +1492,9 @@ export default function StockBook() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
               {/* Table Header */}
-              <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider rounded-t-xl overflow-hidden">
                 <div
                   className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
                   onClick={() => handleSort("stock")}
@@ -1690,6 +1756,36 @@ export default function StockBook() {
                   {/* Vehicle Details Section */}
                   <div className="border-b border-slate-200 pb-4">
                     <h3 className="text-sm font-semibold text-slate-700 mb-3">Vehicle Details</h3>
+                    {/* VRM with Lookup */}
+                    <div className="form-control mb-4">
+                      <label className="label py-1">
+                        <span className="label-text font-medium">Registration (VRM)</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={purchaseForm.regCurrent}
+                          onChange={(e) => setPurchaseForm({ ...purchaseForm, regCurrent: e.target.value.toUpperCase() })}
+                          className="input input-bordered input-sm flex-1 font-mono uppercase"
+                          placeholder="AB12 CDE"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDrawerVrmLookup}
+                          disabled={isDrawerVrmLoading}
+                          className="btn btn-sm btn-primary"
+                        >
+                          {isDrawerVrmLoading ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            "Lookup"
+                          )}
+                        </button>
+                      </div>
+                      <label className="label py-0.5">
+                        <span className="label-text-alt text-slate-400">Refresh vehicle details from DVLA/MOT</span>
+                      </label>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="form-control">
                         <label className="label py-1">

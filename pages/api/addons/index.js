@@ -58,6 +58,8 @@ async function handler(req, res, ctx) {
       costPrice,
       supplierId,
       displayOrder,
+      claimLimit,  // WARRANTY-specific
+      termMonths,  // WARRANTY-specific
     } = req.body;
 
     if (!name) {
@@ -79,6 +81,9 @@ async function handler(req, res, ctx) {
       costPrice,
       supplierId,
       displayOrder: displayOrder ?? 0,
+      // WARRANTY-specific fields
+      claimLimit: category === "WARRANTY" ? claimLimit : undefined,
+      termMonths: category === "WARRANTY" ? termMonths : undefined,
       createdByUserId: userId,
     });
 

@@ -108,6 +108,17 @@ const initialWizardData = {
     toBeConfirmed: false,
   },
 
+  // Warranty
+  warranty: {
+    included: false,
+    name: "",
+    durationMonths: 0,
+    claimLimit: null,
+    priceGross: 0,
+    isDefault: false,
+    addOnProductId: null,
+  },
+
   // Agreed work items (dealer commitments)
   requests: [],
 };
@@ -275,11 +286,12 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         const saved = localStorage.getItem(STORAGE_KEY);
         const dw = data.salesSettings?.defaultWarranty;
         if (!saved && dw?.enabled) {
+          const priceGross = dw.type === "PAID" ? (dw.priceGross || dw.priceNet || 0) : 0;
           const warrantyAddOn = {
             productId: `warranty_default_${Date.now()}`,
             name: dw.name || "Standard Warranty",
             qty: 1,
-            unitPriceNet: dw.type === "PAID" ? (dw.priceNet || 0) : 0,
+            unitPriceNet: priceGross, // Warranties are VAT exempt, so net = gross
             vatTreatment: "NO_VAT", // Warranties are typically VAT exempt
             category: "WARRANTY",
             isCustom: true,
@@ -289,6 +301,15 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           setWizardData(prev => ({
             ...prev,
             addOns: [...prev.addOns, warrantyAddOn],
+            warranty: {
+              included: true,
+              name: dw.name || "Standard Warranty",
+              durationMonths: dw.durationMonths || 3,
+              claimLimit: dw.claimLimit || null,
+              priceGross: priceGross,
+              isDefault: true,
+              addOnProductId: null,
+            },
           }));
         }
       }
@@ -600,6 +621,16 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
             type: r.type || "PREP",
             status: "REQUESTED",
           })),
+        // Warranty details
+        warranty: wizardData.warranty?.included ? {
+          included: true,
+          name: wizardData.warranty.name,
+          durationMonths: wizardData.warranty.durationMonths,
+          claimLimit: wizardData.warranty.claimLimit || null,
+          priceGross: wizardData.warranty.priceGross || 0,
+          isDefault: wizardData.warranty.isDefault || false,
+          addOnProductId: wizardData.warranty.addOnProductId || null,
+        } : undefined,
         // Part exchanges - embed in deal for display
         partExchanges: [
           ...(wizardData.partExchanges || []),
@@ -755,21 +786,56 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     const exists = wizardData.addOns.find(a => a.productId === productId);
 
     if (exists) {
-      setWizardData(prev => ({
-        ...prev,
-        addOns: prev.addOns.filter(a => a.productId !== productId),
-      }));
+      // Removing add-on
+      setWizardData(prev => {
+        const newAddOns = prev.addOns.filter(a => a.productId !== productId);
+        // If removing a WARRANTY add-on, check if we need to clear the warranty
+        if (product.category === "WARRANTY" && prev.warranty?.addOnProductId === productId) {
+          return {
+            ...prev,
+            addOns: newAddOns,
+            warranty: { ...initialWizardData.warranty },
+          };
+        }
+        return { ...prev, addOns: newAddOns };
+      });
     } else {
-      setWizardData(prev => ({
-        ...prev,
-        addOns: [...prev.addOns, {
+      // Adding add-on
+      setWizardData(prev => {
+        const newAddOn = {
           productId,
           name: product.name,
           qty: 1,
           unitPriceNet: product.defaultPriceNet || 0,
-          vatTreatment: "STANDARD",
-        }],
-      }));
+          vatTreatment: product.vatTreatment || "STANDARD",
+          category: product.category,
+        };
+
+        // If this is a WARRANTY add-on, update the warranty and supersede default
+        if (product.category === "WARRANTY") {
+          // Check if there's a default warranty already set
+          const hadDefaultWarranty = prev.warranty?.included && prev.warranty?.isDefault;
+          if (hadDefaultWarranty) {
+            toast("Third-party warranty replaces default warranty", { icon: "🔄" });
+          }
+
+          return {
+            ...prev,
+            addOns: [...prev.addOns, newAddOn],
+            warranty: {
+              included: true,
+              name: product.name,
+              durationMonths: product.termMonths || 12,
+              claimLimit: product.claimLimit || null,
+              priceGross: product.defaultPriceNet * (product.vatTreatment === "STANDARD" ? 1.2 : 1),
+              isDefault: false,
+              addOnProductId: productId,
+            },
+          };
+        }
+
+        return { ...prev, addOns: [...prev.addOns, newAddOn] };
+      });
     }
   };
 
@@ -916,6 +982,17 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                           {wizardData.vehicle.vatScheme === "VAT_QUALIFYING" ? "VAT Qualifying" : "Margin"}
                         </span>
                       </div>
+                      <a
+                        href={`/stock-book?vehicle=${wizardData.vehicle.id || wizardData.vehicle._id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                      >
+                        Edit in Stock Book
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
                     </div>
                     {/* PDI Warning - show if no PDI submission */}
                     {!wizardData.vehicle.pdiSubmission && (

@@ -314,6 +314,16 @@ const dealSchema = new mongoose.Schema(
     warrantyMonths: { type: Number },
     warrantyStartDate: { type: Date },
     warrantyEndDate: { type: Date },
+    // Structured warranty details (new)
+    warranty: {
+      included: { type: Boolean, default: false },
+      name: { type: String },
+      durationMonths: { type: Number },
+      claimLimit: { type: Number }, // null = unlimited
+      priceGross: { type: Number },
+      isDefault: { type: Boolean }, // true = dealer default, false = third-party add-on
+      addOnProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
+    },
 
     // Notes
     notes: { type: String },

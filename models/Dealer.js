@@ -166,8 +166,9 @@ const dealerSchema = new mongoose.Schema(
       defaultWarranty: {
         enabled: { type: Boolean, default: false },
         type: { type: String, enum: ["FREE", "PAID"], default: "FREE" },
-        priceNet: { type: Number, default: 0 },
+        priceGross: { type: Number, default: 0 }, // Changed from priceNet - warranties are VAT exempt so net=gross
         durationMonths: { type: Number, default: 3 },
+        claimLimit: { type: Number }, // Max claim amount (null = unlimited)
         name: { type: String, default: "Standard Warranty" },
         linkedProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
       },

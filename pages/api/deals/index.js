@@ -213,6 +213,35 @@ async function handler(req, res, ctx) {
       priceGross = priceNet + priceVat;
     }
 
+    // Auto-apply default warranty if enabled and no addOns provided
+    let dealAddOns = addOns || [];
+    let dealWarranty = null;
+    const dw = dealer?.salesSettings?.defaultWarranty;
+    if (dw?.enabled && (!addOns || addOns.length === 0)) {
+      const priceForWarranty = dw.type === "PAID" ? (dw.priceGross || dw.priceNet || 0) : 0;
+      const warrantyAddOn = {
+        addOnProductId: `warranty_default_${Date.now()}`,
+        name: dw.name || "Standard Warranty",
+        qty: 1,
+        unitPriceNet: priceForWarranty, // Warranties are VAT exempt, so net = gross
+        vatTreatment: "NO_VAT", // Warranties are typically VAT exempt
+        vatRate: 0,
+        category: "WARRANTY",
+        isCustom: true,
+        isDefaultWarranty: true,
+        durationMonths: dw.durationMonths || 3,
+      };
+      dealAddOns = [warrantyAddOn];
+      dealWarranty = {
+        included: true,
+        name: dw.name || "Standard Warranty",
+        durationMonths: dw.durationMonths || 3,
+        claimLimit: dw.claimLimit || null,
+        priceGross: priceForWarranty,
+        isDefault: true,
+      };
+    }
+
     // Create the deal
     const deal = await Deal.create({
       dealerId,
@@ -237,7 +266,8 @@ async function handler(req, res, ctx) {
       salesPersonId: userId,
       createdByUserId: userId,
       // Fields from SaleWizard
-      addOns: addOns || [],
+      addOns: dealAddOns,
+      warranty: dealWarranty,
       financeSelection: financeSelection || {},
       requests: requests || [],
       paymentType: paymentType || "CASH",

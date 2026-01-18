@@ -6,6 +6,7 @@ const ACTIVITY_TYPES = [
   "VEHICLE_CREATED",
   "VEHICLE_UPDATED",     // Meaningful field changes
   "STATUS_CHANGED",      // Kanban column move (VEHICLE_STAGE_MOVED)
+  "ADDED_TO_PREP_BOARD", // Vehicle added to prep board from stock book
   "LOCATION_CHANGED",
   "TYPE_CHANGED",        // STOCK -> COURTESY, FLEET_OTHER etc. (VEHICLE_TYPE_SET)
   "DETAILS_UPDATED",

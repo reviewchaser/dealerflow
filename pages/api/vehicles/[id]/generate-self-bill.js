@@ -73,7 +73,14 @@ async function handler(req, res, ctx) {
       console.warn(`[Self-Bill] VAT qualifying vehicle ${vehicle.regCurrent} but supplier ${supplier.displayName || supplier.companyName} has no VAT number`);
     }
 
-    // Fetch dealer for company details and numbering
+    // Delete any existing self-bill for this vehicle (allows regeneration)
+    await SalesDocument.deleteMany({
+      dealerId,
+      vehicleId: id,
+      type: "SELF_BILL_INVOICE",
+    });
+
+    // Fetch dealer for company details and numbering (increment after deletion)
     const dealer = await Dealer.findByIdAndUpdate(
       dealerId,
       { $inc: { "salesSettings.nextSelfBillNumber": 1 } },
@@ -87,22 +94,6 @@ async function handler(req, res, ctx) {
     const prefix = dealer.salesSettings?.selfBillPrefix || "SB";
     const selfBillNumber = dealer.salesSettings?.nextSelfBillNumber || 1;
     const documentNumber = `${prefix}${String(selfBillNumber).padStart(5, "0")}`;
-
-    // Check for existing self-bill for this vehicle
-    const existingDoc = await SalesDocument.findOne({
-      dealerId,
-      vehicleId: id,
-      type: "SELF_BILL_INVOICE",
-      status: { $ne: "VOID" },
-    });
-
-    if (existingDoc) {
-      return res.status(400).json({
-        error: "Self-billing invoice already exists for this vehicle",
-        existingDocumentId: existingDoc._id.toString(),
-        documentNumber: existingDoc.documentNumber,
-      });
-    }
 
     // Calculate gross (for VAT qualifying)
     const purchasePriceNet = vehicle.purchase.purchasePriceNet;

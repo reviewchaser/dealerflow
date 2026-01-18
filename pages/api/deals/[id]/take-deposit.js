@@ -186,7 +186,18 @@ async function handler(req, res, ctx) {
       address: customer.address,
     },
     vatScheme: deal.vatScheme,
+    vehiclePriceNet: deal.vehiclePriceNet || deal.vehiclePriceGross,
+    vehicleVatAmount: deal.vehicleVatAmount || 0,
     vehiclePriceGross: deal.vehiclePriceGross,
+    // Warranty details
+    warranty: deal.warranty?.included ? {
+      included: true,
+      name: deal.warranty.name,
+      durationMonths: deal.warranty.durationMonths,
+      claimLimit: deal.warranty.claimLimit,
+      priceGross: deal.warranty.priceGross,
+      isDefault: deal.warranty.isDefault,
+    } : null,
     // Include add-ons in deposit receipt
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,

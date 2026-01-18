@@ -347,10 +347,7 @@ export default function Sales() {
     });
 
     const totalRevenueDeals = revenueDeals.length;
-    const completeDeals = dealsWithProfit;
-    const coverage = totalRevenueDeals > 0
-      ? Math.round((completeDeals / totalRevenueDeals) * 100)
-      : 100;
+    const avgProfitPerDeal = dealsWithProfit > 0 ? totalProfit / dealsWithProfit : null;
 
     return {
       totalDeals: periodDeals.length,
@@ -362,8 +359,8 @@ export default function Sales() {
       totalProfit,
       dealsWithMissingSIV,
       dealsWithMissingSalePrice,
-      coverage,
-      completeDeals,
+      avgProfitPerDeal,
+      dealsWithProfit,
       totalRevenueDeals,
     };
   }, [deals, kpiPeriod, customFrom, customTo]);
@@ -596,24 +593,22 @@ export default function Sales() {
                 <p className="text-[10px] text-slate-400">gross margin</p>
               </div>
 
-              {/* Data Quality */}
-              <div className={`bg-white rounded-xl border px-4 py-3 ${
-                kpis.coverage === 100 ? "border-emerald-200" : "border-amber-200"
-              }`}>
-                <p className="text-xs text-slate-500 font-medium">Data Coverage</p>
-                {kpis.totalRevenueDeals > 0 ? (
+              {/* Avg Profit/Deal */}
+              <div className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+                <p className="text-xs text-slate-500 font-medium">Avg Profit/Deal</p>
+                {kpis.avgProfitPerDeal !== null ? (
                   <>
-                    <p className={`text-lg font-bold ${kpis.coverage === 100 ? "text-emerald-600" : "text-amber-600"}`}>
-                      {kpis.coverage}%
+                    <p className={`text-lg font-bold ${kpis.avgProfitPerDeal >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                      {formatCurrency(kpis.avgProfitPerDeal)}
                     </p>
                     <p className="text-[10px] text-slate-400">
-                      {kpis.completeDeals}/{kpis.totalRevenueDeals} with SIV
+                      {kpis.dealsWithProfit} deal{kpis.dealsWithProfit !== 1 ? "s" : ""} with SIV
                     </p>
                   </>
                 ) : (
                   <>
-                    <p className="text-lg font-bold text-slate-400">—</p>
-                    <p className="text-[10px] text-slate-400">no invoiced deals</p>
+                    <p className="text-lg font-bold text-slate-400">N/A</p>
+                    <p className="text-[10px] text-slate-400">no deals with SIV</p>
                   </>
                 )}
               </div>

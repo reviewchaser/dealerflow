@@ -38,6 +38,10 @@ const addOnProductSchema = new mongoose.Schema(
     costPrice: { type: Number }, // Dealer's cost
     supplierId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
 
+    // WARRANTY-specific fields
+    claimLimit: { type: Number }, // Max claim amount (null = unlimited)
+    termMonths: { type: Number }, // Duration in months
+
     // Display
     isActive: { type: Boolean, default: true },
     displayOrder: { type: Number, default: 0 },

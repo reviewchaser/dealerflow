@@ -159,6 +159,13 @@ export default function DealDrawer({
   const [addOnsLoading, setAddOnsLoading] = useState(false);
   const [addOnQty, setAddOnQty] = useState(1);
   const [addOnPrice, setAddOnPrice] = useState("");
+  const [showCustomAddOnForm, setShowCustomAddOnForm] = useState(false);
+  const [customAddOn, setCustomAddOn] = useState({
+    name: "",
+    unitPriceGross: "",
+    category: "OTHER",
+    vatTreatment: "STANDARD",
+  });
 
   // Agreed Work Items state
   const [showAgreedWorkModal, setShowAgreedWorkModal] = useState(false);
@@ -457,6 +464,75 @@ export default function DealDrawer({
       }
 
       toast.success("Add-on removed");
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Add custom add-on
+  const handleAddCustomAddOn = async () => {
+    if (!deal) return;
+
+    if (!customAddOn.name?.trim()) {
+      toast.error("Please enter a name for the add-on");
+      return;
+    }
+    if (!customAddOn.unitPriceGross || parseFloat(customAddOn.unitPriceGross) < 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const grossPrice = parseFloat(customAddOn.unitPriceGross) || 0;
+    const vatTreatment = customAddOn.vatTreatment || "STANDARD";
+
+    // Calculate net from gross based on VAT treatment
+    let netPrice;
+    if (vatTreatment === "STANDARD") {
+      // Standard VAT at 20%: net = gross / 1.2
+      netPrice = grossPrice / 1.2;
+    } else {
+      // EXEMPT or ZERO_RATED: no VAT, so net = gross
+      netPrice = grossPrice;
+    }
+
+    const customId = `custom_${Date.now()}`;
+    const newAddOn = {
+      addOnProductId: customId,
+      name: customAddOn.name.trim(),
+      qty: 1,
+      unitPriceNet: Math.round(netPrice * 100) / 100,
+      vatTreatment: vatTreatment,
+      vatRate: vatTreatment === "STANDARD" ? 0.2 : 0,
+      category: customAddOn.category || "OTHER",
+      isCustom: true,
+    };
+
+    setActionLoading("addon");
+    try {
+      const updatedAddOns = [...(deal.addOns || []), newAddOn];
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addOns: updatedAddOns }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to add custom add-on");
+      }
+
+      toast.success("Custom add-on added");
+      setShowCustomAddOnForm(false);
+      setCustomAddOn({
+        name: "",
+        unitPriceGross: "",
+        category: "OTHER",
+        vatTreatment: "STANDARD",
+      });
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -2185,6 +2261,155 @@ export default function DealDrawer({
                           </div>
                         </div>
 
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Delivery Section - For DRAFT and DEPOSIT_TAKEN */}
+                  {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17.414L5.586 15 4 16.586V19h2.414L8 17.414zM17 8l4-4m0 0l-4-4m4 4H3" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Delivery</h3>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={deal.delivery?.isFree || false}
+                            onChange={(e) => handleUpdateField({
+                              delivery: {
+                                ...deal.delivery,
+                                isFree: e.target.checked,
+                                amountGross: e.target.checked ? null : deal.delivery?.amountGross,
+                                amountNet: e.target.checked ? null : deal.delivery?.amountNet,
+                                vatAmount: e.target.checked ? null : deal.delivery?.vatAmount,
+                              }
+                            })}
+                            className="checkbox checkbox-sm checkbox-primary"
+                          />
+                          <span className="text-sm">Free Delivery</span>
+                        </label>
+                        {!deal.delivery?.isFree && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">£</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={deal.delivery?.amountGross || ""}
+                                onChange={(e) => {
+                                  const gross = e.target.value;
+                                  const vatRate = deal.vatRate || 0.2;
+                                  let net = "", vat = "";
+                                  if (gross) {
+                                    net = (parseFloat(gross) / (1 + vatRate)).toFixed(2);
+                                    vat = (parseFloat(gross) - parseFloat(net)).toFixed(2);
+                                  }
+                                  handleUpdateField({
+                                    delivery: {
+                                      ...deal.delivery,
+                                      amountGross: gross ? parseFloat(gross) : null,
+                                      amountNet: net ? parseFloat(net) : null,
+                                      vatAmount: vat ? parseFloat(vat) : null,
+                                      amount: gross ? parseFloat(gross) : null,
+                                    }
+                                  });
+                                }}
+                                placeholder="Amount (inc VAT)"
+                                className="input input-bordered input-sm w-40 pl-7"
+                              />
+                            </div>
+                            {deal.delivery?.amountGross > 0 && (
+                              <span className="text-xs text-slate-500">
+                                (Net: £{(deal.delivery?.amountNet || 0).toFixed(2)} + VAT: £{(deal.delivery?.vatAmount || 0).toFixed(2)})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-slate-500">
+                          Delivery charge is added to the total at invoicing
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Finance Selection Section - For DRAFT */}
+                  {deal.status === "DRAFT" && (
+                    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <h3 className="text-sm font-bold text-slate-800">Customer Finance</h3>
+                        </div>
+                      </div>
+                      <div className="p-4 space-y-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={deal.financeSelection?.isFinanced || false}
+                            onChange={(e) => handleUpdateField({
+                              financeSelection: {
+                                ...deal.financeSelection,
+                                isFinanced: e.target.checked,
+                                toBeConfirmed: !e.target.checked ? false : deal.financeSelection?.toBeConfirmed
+                              }
+                            })}
+                            className="checkbox checkbox-sm checkbox-primary"
+                          />
+                          <span className="text-sm">Customer is using finance</span>
+                        </label>
+                        {deal.financeSelection?.isFinanced && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={deal.financeSelection?.toBeConfirmed || false}
+                                onChange={(e) => handleUpdateField({
+                                  financeSelection: {
+                                    ...deal.financeSelection,
+                                    toBeConfirmed: e.target.checked,
+                                    financeCompanyId: e.target.checked ? "" : deal.financeSelection?.financeCompanyId
+                                  }
+                                })}
+                                className="checkbox checkbox-sm"
+                              />
+                              <span className="text-sm">To Be Confirmed (TBC)</span>
+                            </label>
+                            {!deal.financeSelection?.toBeConfirmed && (
+                              <ContactPicker
+                                value={deal.financeSelection?.financeCompanyId || ""}
+                                onChange={(contactId, contact) => {
+                                  handleUpdateField({
+                                    financeSelection: {
+                                      ...deal.financeSelection,
+                                      financeCompanyId: contactId || "",
+                                      financeCompanyName: contact?.displayName || contact?.companyName || ""
+                                    }
+                                  });
+                                }}
+                                filterTypeTags={["FINANCE"]}
+                                placeholder="Search or add finance company..."
+                                allowCreate={true}
+                              />
+                            )}
+                            {deal.financeSelection?.toBeConfirmed && (
+                              <p className="text-xs text-blue-700">
+                                Finance company will be confirmed before invoicing
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -3972,26 +4197,120 @@ export default function DealDrawer({
       {/* Add-on Picker Modal */}
       {showAddOnPicker && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddOnPicker(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowAddOnPicker(false); setShowCustomAddOnForm(false); }} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">Add Add-on</h3>
-              <button
-                onClick={() => setShowAddOnPicker(false)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowCustomAddOnForm(!showCustomAddOnForm)}
+                  className="btn btn-sm btn-outline gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Custom Item
+                </button>
+                <button
+                  onClick={() => { setShowAddOnPicker(false); setShowCustomAddOnForm(false); }}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
+              {/* Custom Add-on Form */}
+              {showCustomAddOnForm && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="font-medium text-blue-900">New Custom Add-on</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomAddOnForm(false)}
+                      className="btn btn-ghost btn-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="form-control">
+                      <label className="label py-0"><span className="label-text text-xs">Name *</span></label>
+                      <input
+                        type="text"
+                        value={customAddOn.name}
+                        onChange={(e) => setCustomAddOn(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g., Custom Alloy Wheels"
+                        className="input input-bordered input-sm w-full"
+                      />
+                    </div>
+                    <div className="form-control">
+                      <label className="label py-0"><span className="label-text text-xs">Price (Inc. VAT) *</span></label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">£</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={customAddOn.unitPriceGross}
+                          onChange={(e) => setCustomAddOn(prev => ({ ...prev, unitPriceGross: e.target.value }))}
+                          placeholder="0.00"
+                          className="input input-bordered input-sm w-full pl-7"
+                        />
+                      </div>
+                    </div>
+                    <div className="form-control">
+                      <label className="label py-0"><span className="label-text text-xs">Category</span></label>
+                      <select
+                        value={customAddOn.category}
+                        onChange={(e) => setCustomAddOn(prev => ({ ...prev, category: e.target.value }))}
+                        className="select select-bordered select-sm w-full"
+                      >
+                        <option value="WARRANTY">Warranty</option>
+                        <option value="PROTECTION">Protection</option>
+                        <option value="ACCESSORY">Accessory</option>
+                        <option value="COSMETIC">Cosmetic</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                    <div className="form-control">
+                      <label className="label py-0"><span className="label-text text-xs">VAT</span></label>
+                      <select
+                        value={customAddOn.vatTreatment}
+                        onChange={(e) => setCustomAddOn(prev => ({ ...prev, vatTreatment: e.target.value }))}
+                        className="select select-bordered select-sm w-full"
+                      >
+                        <option value="STANDARD">Standard (20%)</option>
+                        <option value="EXEMPT">VAT Exempt</option>
+                        <option value="ZERO">Zero-rated</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleAddCustomAddOn}
+                      disabled={actionLoading === "addon"}
+                      className="btn btn-sm bg-blue-600 hover:bg-blue-700 text-white border-none"
+                    >
+                      {actionLoading === "addon" ? (
+                        <span className="loading loading-spinner loading-sm"></span>
+                      ) : (
+                        "Add Custom Item"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {addOnsLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <span className="loading loading-spinner loading-md text-[#0066CC]"></span>
                 </div>
-              ) : availableAddOns.length === 0 ? (
+              ) : availableAddOns.length === 0 && !showCustomAddOnForm ? (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3999,7 +4318,7 @@ export default function DealDrawer({
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-slate-600">No add-on products available</p>
-                  <p className="text-xs text-slate-400 mt-1">Create add-on products in Settings first</p>
+                  <p className="text-xs text-slate-400 mt-1">Create add-on products in Settings or use "Custom Item"</p>
                 </div>
               ) : (
                 <div className="space-y-2">

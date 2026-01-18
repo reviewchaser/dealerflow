@@ -245,6 +245,7 @@ async function handler(req, res, ctx) {
         transmission: vehicle.transmission,
         colour: vehicle.colour,
         status: vehicle.status,
+        salesStatus: vehicle.salesStatus || "AVAILABLE", // Default to AVAILABLE if not set
         soldAt: vehicle.soldAt, // For "Sold X days" display
         locationId: locationData,
         motExpiryDate: vehicle.motExpiryDate,

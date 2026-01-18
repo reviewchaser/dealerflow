@@ -323,6 +323,15 @@ async function handler(req, res, ctx) {
     vehiclePriceNet: deal.vehiclePriceNet,
     vehicleVatAmount: deal.vehicleVatAmount,
     vehiclePriceGross: deal.vehiclePriceGross,
+    // Warranty details
+    warranty: deal.warranty?.included ? {
+      included: true,
+      name: deal.warranty.name,
+      durationMonths: deal.warranty.durationMonths,
+      claimLimit: deal.warranty.claimLimit,
+      priceGross: deal.warranty.priceGross,
+      isDefault: deal.warranty.isDefault,
+    } : null,
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,
       qty: a.qty || 1,

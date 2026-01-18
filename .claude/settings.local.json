@@ -49,7 +49,9 @@
       "WebFetch(domain:www.regcheck.org.uk)",
       "Bash(npx next lint:*)",
       "WebFetch(domain:www.gov.uk)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git show:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

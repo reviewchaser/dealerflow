@@ -20,7 +20,7 @@ export default function Settings() {
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
-  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD" });
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
   const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
 
   // Dealer branding state
@@ -237,19 +237,25 @@ export default function Settings() {
     if (!newAddOn.name) return toast.error("Product name required");
     if (!newAddOn.defaultPriceNet) return toast.error("Price required");
     try {
+      const payload = {
+        name: newAddOn.name,
+        defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
+        costPrice: newAddOn.costPrice ? parseFloat(newAddOn.costPrice) : undefined,
+        category: newAddOn.category,
+        vatTreatment: newAddOn.vatTreatment,
+      };
+      // Add WARRANTY-specific fields
+      if (newAddOn.category === "WARRANTY") {
+        if (newAddOn.termMonths) payload.termMonths = parseInt(newAddOn.termMonths);
+        if (newAddOn.claimLimit) payload.claimLimit = parseFloat(newAddOn.claimLimit);
+      }
       const res = await fetch("/api/addons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newAddOn.name,
-          defaultPriceNet: parseFloat(newAddOn.defaultPriceNet),
-          costPrice: newAddOn.costPrice ? parseFloat(newAddOn.costPrice) : undefined,
-          category: newAddOn.category,
-          vatTreatment: newAddOn.vatTreatment,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewAddOn({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD" });
+      setNewAddOn({ name: "", defaultPriceNet: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
       fetchAddOns();
       toast.success("Add-on product created");
     } catch (error) {
@@ -1265,6 +1271,41 @@ export default function Settings() {
                   <option value="ZERO">Zero-rated</option>
                 </select>
               </div>
+              {/* WARRANTY-specific fields */}
+              {newAddOn.category === "WARRANTY" && (
+                <div className="flex gap-2 items-end bg-base-100 rounded-lg p-3 border border-base-300">
+                  <div className="flex-1">
+                    <label className="label py-0 mb-1"><span className="label-text text-xs">Term (months)</span></label>
+                    <select
+                      className="select select-bordered select-sm w-full"
+                      value={newAddOn.termMonths}
+                      onChange={(e) => setNewAddOn({ ...newAddOn, termMonths: e.target.value })}
+                    >
+                      <option value="">Select term...</option>
+                      <option value="3">3 months</option>
+                      <option value="6">6 months</option>
+                      <option value="12">12 months</option>
+                      <option value="24">24 months</option>
+                      <option value="36">36 months</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="label py-0 mb-1"><span className="label-text text-xs">Claim Limit</span></label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 text-sm">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="input input-bordered input-sm w-full pl-7"
+                        placeholder="No limit"
+                        value={newAddOn.claimLimit}
+                        onChange={(e) => setNewAddOn({ ...newAddOn, claimLimit: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex justify-end">
                 <button type="submit" className="btn btn-primary btn-sm">Add Product</button>
               </div>
@@ -1322,7 +1363,7 @@ export default function Settings() {
                           checked={salesSettings.defaultWarranty?.type === "FREE"}
                           onChange={() => setSalesSettings({
                             ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "FREE", priceNet: 0 }
+                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "FREE", priceGross: 0 }
                           })}
                         />
                         <span className="text-sm">Free (included)</span>
@@ -1346,7 +1387,7 @@ export default function Settings() {
                   {/* Price (if paid) */}
                   {salesSettings.defaultWarranty?.type === "PAID" && (
                     <div className="form-control">
-                      <label className="label"><span className="label-text">Price (Net)</span></label>
+                      <label className="label"><span className="label-text">Price (Gross)</span></label>
                       <div className="relative w-40">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
                         <input
@@ -1354,14 +1395,15 @@ export default function Settings() {
                           step="0.01"
                           min="0"
                           className="input input-bordered input-sm w-full pl-7"
-                          value={salesSettings.defaultWarranty?.priceNet || ""}
+                          value={salesSettings.defaultWarranty?.priceGross || ""}
                           onChange={(e) => setSalesSettings({
                             ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, priceNet: e.target.value }
+                            defaultWarranty: { ...salesSettings.defaultWarranty, priceGross: e.target.value }
                           })}
                           placeholder="0.00"
                         />
                       </div>
+                      <label className="label"><span className="label-text-alt text-base-content/50">Warranties are VAT exempt</span></label>
                     </div>
                   )}
 

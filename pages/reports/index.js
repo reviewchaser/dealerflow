@@ -191,17 +191,30 @@ export default function ReportsPage() {
     let tradeCount = 0, retailCount = 0;
 
     invoicedDeals.forEach(deal => {
-      const salePrice = deal.vehiclePriceGross || 0;
+      const saleGross = deal.vehiclePriceGross || 0;
+      const saleVat = deal.vehicleVatAmount || 0;
       const costPrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
-      const profit = salePrice - costPrice;
+
+      // Calculate profit correctly based on VAT scheme
+      let profit = 0;
+      if (costPrice > 0) {
+        if (deal.vatScheme === "VAT_QUALIFYING") {
+          // VAT Qualifying: profit = net sale - net cost
+          const saleNet = deal.vehiclePriceNet || (saleGross - saleVat);
+          profit = saleNet - costPrice;
+        } else {
+          // Margin scheme: profit = gross sale - SIV (cost is already net)
+          profit = saleGross - costPrice;
+        }
+      }
 
       if (deal.saleType === "TRADE") {
-        tradeSales += salePrice;
+        tradeSales += saleGross;
         tradeProfit += profit;
         tradeCount++;
       } else {
         // RETAIL and EXPORT count as retail
-        retailSales += salePrice;
+        retailSales += saleGross;
         retailProfit += profit;
         retailCount++;
       }
@@ -564,6 +577,8 @@ export default function ReportsPage() {
     const allPayments = [];
 
     deals.forEach(deal => {
+      // Only include active/completed deals - exclude DRAFT and CANCELLED
+      if (!["INVOICED", "DELIVERED", "COMPLETED", "DEPOSIT_TAKEN"].includes(deal.status)) return;
       if (!deal.payments || deal.payments.length === 0) return;
 
       deal.payments.forEach(payment => {
@@ -580,6 +595,7 @@ export default function ReportsPage() {
           method: payment.method, // CARD, BANK_TRANSFER, CASH, FINANCE
           amount: payment.amount,
           reference: payment.reference,
+          dealStatus: deal.status,
         });
       });
     });
