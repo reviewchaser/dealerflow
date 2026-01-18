@@ -203,6 +203,10 @@ export default function StockBook() {
     addToVehiclePrep: false,
   });
 
+  // Prep restore modal state (for when re-adding vehicle to prep that was previously removed)
+  const [showPrepRestoreModal, setShowPrepRestoreModal] = useState(false);
+  const [prepRestoreVehicle, setPrepRestoreVehicle] = useState(null);
+
   // Load vehicles
   const fetchVehicles = useCallback(async () => {
     setIsLoading(true);
@@ -652,12 +656,12 @@ export default function StockBook() {
     }
   };
 
-  // Generate self-billing invoice
+  // Generate purchase invoice (self-billing invoice)
   const handleGenerateSelfBill = async (vehicle) => {
     const vehicleId = vehicle.id || vehicle._id;
 
     if (!hasPurchaseInfo(vehicle)) {
-      toast.error("Complete purchase info required before generating self-bill");
+      toast.error("Complete purchase info required before generating purchase invoice");
       return;
     }
 
@@ -673,20 +677,20 @@ export default function StockBook() {
 
       if (!res.ok) {
         if (data.existingDocumentId) {
-          toast.error(`Self-billing invoice already exists: ${data.documentNumber}`);
+          toast.error(`Purchase invoice already exists: ${data.documentNumber}`);
           return;
         }
-        throw new Error(data.error || "Failed to generate self-billing invoice");
+        throw new Error(data.error || "Failed to generate purchase invoice");
       }
 
-      toast.success(`Self-billing invoice ${data.documentNumber} generated`);
+      toast.success(`Purchase invoice ${data.documentNumber} generated`);
 
       // Open the generated document in a new tab
       if (data.shareUrl) {
         window.open(data.shareUrl, "_blank");
       }
     } catch (error) {
-      toast.error(error.message || "Could not generate self-billing invoice");
+      toast.error(error.message || "Could not generate purchase invoice");
     } finally {
       setIsGeneratingSelfBill(false);
     }
@@ -701,11 +705,28 @@ export default function StockBook() {
       return;
     }
 
+    // Check if vehicle was previously on prep board (has prepBoardRemovedAt)
+    if (vehicle.prepBoardRemovedAt) {
+      // Show modal asking to restore or create fresh
+      setPrepRestoreVehicle(vehicle);
+      setShowPrepRestoreModal(true);
+      return;
+    }
+
+    // Normal flow - add to prep board
+    await addVehicleToPrepBoard(vehicleId, false);
+  };
+
+  // Helper function to add vehicle to prep board
+  const addVehicleToPrepBoard = async (vehicleId, restorePrevious) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ showOnPrepBoard: true }),
+        body: JSON.stringify({
+          showOnPrepBoard: true,
+          prepBoardRemovedAt: null, // Clear the removed timestamp
+        }),
       });
 
       if (!res.ok) {
@@ -713,8 +734,20 @@ export default function StockBook() {
         throw new Error(errorData.error || "Failed to add to Prep Board");
       }
 
+      // If not restoring, delete old tasks and create fresh ones
+      if (!restorePrevious) {
+        // Delete existing tasks
+        await fetch(`/api/vehicles/${vehicleId}/tasks`, { method: "DELETE" });
+        // Create default tasks
+        await fetch(`/api/vehicles/${vehicleId}/tasks`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ createDefaults: true }),
+        });
+      }
+
       fetchVehicles();
-      toast.success("Vehicle added to Prep Board");
+      toast.success(restorePrevious ? "Prep card restored" : "Vehicle added to Prep Board");
     } catch (error) {
       toast.error(error.message || "Failed to add to Prep Board");
     }
@@ -1745,6 +1778,22 @@ export default function StockBook() {
               </button>
             </div>
 
+            {/* View Original Appraisal Button - if this vehicle came from a PX appraisal */}
+            {selectedVehicle?.sourceAppraisalId && (
+              <div className="mx-6 mb-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/appraisals?id=${selectedVehicle.sourceAppraisalId}`)}
+                  className="btn btn-sm btn-outline btn-primary gap-2 w-full"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  View Original Appraisal
+                </button>
+              </div>
+            )}
+
             {/* Drawer Content */}
             <div className="p-6 pb-12">
               {isDrawerLoading ? (
@@ -2262,8 +2311,9 @@ export default function StockBook() {
                     </button>
                   </div>
 
-                  {/* Quick Actions */}
-                  {selectedVehicle && hasPurchaseInfo(selectedVehicle) && (
+                  {/* Quick Actions - only for available stock (not ex-stock/sold vehicles) */}
+                  {selectedVehicle && hasPurchaseInfo(selectedVehicle) &&
+                   !["DELIVERED", "COMPLETED"].includes(selectedVehicle.salesStatus) && (
                     <div className="border-t border-slate-200 pt-4 mt-4">
                       <p className="text-sm font-medium text-slate-600 mb-3">Quick Actions</p>
                       <div className="flex flex-wrap gap-2">
@@ -2290,9 +2340,25 @@ export default function StockBook() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                           )}
-                          Generate Self-Bill
+                          Generate Purchase Invoice
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {/* View Deal button - only for ex-stock (sold) vehicles */}
+                  {selectedVehicle?.soldDealId && (
+                    <div className="border-t border-slate-200 pt-4 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/sales?dealId=${selectedVehicle.soldDealId}`)}
+                        className="btn btn-sm btn-outline gap-2 w-full"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        View Deal
+                      </button>
                     </div>
                   )}
                 </form>
@@ -2961,6 +3027,63 @@ export default function StockBook() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Prep Restore Modal - asks whether to restore previous prep card or create fresh */}
+      {showPrepRestoreModal && prepRestoreVehicle && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-2">Restore Previous Prep Card?</h3>
+            <p className="text-slate-600 mb-4">
+              This vehicle was previously on the Prep Board and was removed on{" "}
+              <span className="font-medium">
+                {new Date(prepRestoreVehicle.prepBoardRemovedAt).toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+              . Would you like to restore the previous tasks or start fresh?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  const vehicleId = prepRestoreVehicle.id || prepRestoreVehicle._id;
+                  setShowPrepRestoreModal(false);
+                  setPrepRestoreVehicle(null);
+                  await addVehicleToPrepBoard(vehicleId, true); // Restore previous
+                }}
+              >
+                Restore Previous Card
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={async () => {
+                  const vehicleId = prepRestoreVehicle.id || prepRestoreVehicle._id;
+                  setShowPrepRestoreModal(false);
+                  setPrepRestoreVehicle(null);
+                  await addVehicleToPrepBoard(vehicleId, false); // Create fresh
+                }}
+              >
+                Start Fresh (Delete Old Tasks)
+              </button>
+              <button
+                className="btn btn-ghost btn-sm mt-2"
+                onClick={() => {
+                  setShowPrepRestoreModal(false);
+                  setPrepRestoreVehicle(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black/50" onClick={() => {
+            setShowPrepRestoreModal(false);
+            setPrepRestoreVehicle(null);
+          }}></div>
         </div>
       )}
     </DashboardLayout>

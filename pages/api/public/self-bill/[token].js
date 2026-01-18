@@ -3,10 +3,10 @@ import SalesDocument from "@/models/SalesDocument";
 import crypto from "crypto";
 
 /**
- * Public Self-Billing Invoice API
+ * Public Purchase Invoice API
  * GET /api/public/self-bill/[token]
  *
- * Returns self-billing invoice data for public viewing (no auth required).
+ * Returns purchase invoice data for public viewing (no auth required).
  * Uses share token hash for lookup.
  */
 export default async function handler(req, res) {

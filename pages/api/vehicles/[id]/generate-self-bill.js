@@ -7,11 +7,10 @@ import { withDealerContext } from "@/libs/authContext";
 import { randomBytes, createHash } from "crypto";
 
 /**
- * Generate Self-Billing Invoice for a Vehicle Purchase
+ * Generate Purchase Invoice for a Vehicle Purchase
  * POST /api/vehicles/[id]/generate-self-bill
  *
- * Creates a self-billing invoice (purchase invoice) for a vehicle.
- * This is a VAT invoice issued by the buyer (dealer) on behalf of the seller (supplier).
+ * Creates a purchase invoice for a vehicle acquisition.
  *
  * Required:
  * - Vehicle must have purchase.purchasePriceNet (SIV)
@@ -185,8 +184,10 @@ async function handler(req, res, ctx) {
       createdByUserId: userId,
     });
 
-    // Build share URL
-    const baseUrl = process.env.NEXTAUTH_URL || "https://app.dealerhq.co.uk";
+    // Build share URL using request host (works in all environments)
+    const protocol = req.headers["x-forwarded-proto"] || (process.env.NODE_ENV === "development" ? "http" : "https");
+    const host = req.headers["x-forwarded-host"] || req.headers.host;
+    const baseUrl = `${protocol}://${host}`;
     const shareUrl = `${baseUrl}/public/self-bill/${shareToken}`;
 
     return res.status(201).json({
@@ -198,8 +199,8 @@ async function handler(req, res, ctx) {
       expiresAt: shareExpiresAt.toISOString(),
     });
   } catch (error) {
-    console.error("[Self-Bill API] Error:", error);
-    return res.status(500).json({ error: "Failed to generate self-billing invoice" });
+    console.error("[Purchase Invoice API] Error:", error);
+    return res.status(500).json({ error: "Failed to generate purchase invoice" });
   }
 }
 

@@ -88,7 +88,7 @@ export default function SelfBillPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-slate-900 mb-2">Self-Billing Invoice Not Found</h1>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Purchase Invoice Not Found</h1>
           <p className="text-slate-500">{error}</p>
         </div>
       </div>
@@ -101,15 +101,15 @@ export default function SelfBillPage() {
   return (
     <>
       <Head>
-        <title>Self-Billing Invoice {document.documentNumber} | DealerHQ</title>
+        <title>Purchase Invoice {document.documentNumber} | DealerHQ</title>
       </Head>
 
       {/* Print controls - hidden when printing */}
       <div className="print:hidden bg-slate-100 p-4 sticky top-0 z-10 border-b border-slate-200">
         <div className="max-w-[800px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-slate-900">Self-Billing Invoice</h1>
-            <p className="text-sm text-slate-500">Purchase invoice for vehicle acquisition</p>
+            <h1 className="text-lg font-bold text-slate-900">Purchase Invoice</h1>
+            <p className="text-sm text-slate-500">Invoice for vehicle acquisition</p>
           </div>
           <button
             onClick={handlePrint}
@@ -149,7 +149,7 @@ export default function SelfBillPage() {
                 </div>
               </div>
               <div className="text-right">
-                <h1 className="text-2xl font-bold text-slate-900">SELF-BILLING</h1>
+                <h1 className="text-2xl font-bold text-slate-900">PURCHASE</h1>
                 <h2 className="text-lg font-bold text-slate-700">INVOICE</h2>
                 <p className="text-slate-600 mt-1 text-base font-semibold">{document.documentNumber}</p>
                 <p className="text-slate-500 text-sm mt-1">{formatDate(document.issuedAt)}</p>
@@ -160,10 +160,10 @@ export default function SelfBillPage() {
             </div>
           </div>
 
-          {/* Self-Billing Notice */}
-          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 print:bg-amber-50">
-            <p className="text-amber-800 text-sm">
-              <strong>Self-Billing Invoice:</strong> This invoice is issued by the buyer ({snap.dealer?.companyName || snap.dealer?.name}) on behalf of the supplier under an agreed self-billing arrangement.
+          {/* Purchase Invoice Notice */}
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 print:bg-blue-50">
+            <p className="text-blue-800 text-sm">
+              <strong>Purchase Invoice:</strong> This invoice documents the purchase of the below vehicle by {snap.dealer?.companyName || snap.dealer?.name}.
             </p>
           </div>
 
@@ -310,14 +310,11 @@ export default function SelfBillPage() {
               </div>
             )}
 
-            {/* Self-Billing Agreement Reference */}
+            {/* Transaction Details */}
             <div className="bg-slate-50 rounded-xl p-5 print:break-inside-avoid">
-              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Self-Billing Agreement</p>
+              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Transaction Details</p>
               <p className="text-sm text-slate-600">
-                This self-billing invoice is issued under a self-billing agreement between {snap.dealer?.companyName || snap.dealer?.name} (the buyer) and {snap.supplier?.companyName || snap.supplier?.name} (the supplier).
-              </p>
-              <p className="text-sm text-slate-600 mt-2">
-                The supplier agrees not to issue their own VAT invoice for this transaction.
+                This purchase invoice documents the acquisition of the above vehicle by {snap.dealer?.companyName || snap.dealer?.name} from {snap.supplier?.companyName || snap.supplier?.name}.
               </p>
             </div>
 

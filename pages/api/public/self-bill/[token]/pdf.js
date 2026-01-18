@@ -4,10 +4,10 @@ import SalesDocument from "@/models/SalesDocument";
 import crypto from "crypto";
 
 /**
- * Self-Billing Invoice PDF Download API
+ * Purchase Invoice PDF Download API
  * GET /api/public/self-bill/[token]/pdf
  *
- * Generates and returns a PDF of the self-billing invoice using server-side rendering.
+ * Generates and returns a PDF of the purchase invoice using server-side rendering.
  */
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${protocol}://${host}`;
     const pdfUrl = `${baseUrl}/public/self-bill/${token}?render=html`;
 
-    console.log("Generating Self-Billing Invoice PDF from URL:", pdfUrl);
+    console.log("Generating Purchase Invoice PDF from URL:", pdfUrl);
 
     // Generate PDF from the public self-bill page
     const pdfBuffer = await generatePdf(pdfUrl);
@@ -57,7 +57,7 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `inline; filename="Self-Billing-Invoice-${document.documentNumber}.pdf"`
+      `inline; filename="Purchase-Invoice-${document.documentNumber}.pdf"`
     );
 
     return res.end(Buffer.from(pdfBuffer));
