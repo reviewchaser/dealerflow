@@ -23,13 +23,20 @@ const formatDate = (date) => {
 
 export default function SelfBillPage() {
   const router = useRouter();
-  const { token } = router.query;
+  const { token, render } = router.query;
   const [document, setDocument] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Redirect to PDF unless rendering for PDF generation
   useEffect(() => {
-    if (!token) return;
+    if (token && render !== "html") {
+      window.location.href = `/api/public/self-bill/${token}/pdf`;
+    }
+  }, [token, render]);
+
+  useEffect(() => {
+    if (!token || render !== "html") return;
 
     const fetchDocument = async () => {
       setIsLoading(true);
@@ -49,11 +56,20 @@ export default function SelfBillPage() {
     };
 
     fetchDocument();
-  }, [token]);
+  }, [token, render]);
 
   const handlePrint = () => {
     window.print();
   };
+
+  // Show loading while redirecting to PDF
+  if (!render || render !== "html") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="loading loading-spinner loading-lg text-blue-600"></div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
