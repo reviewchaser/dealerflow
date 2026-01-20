@@ -2087,7 +2087,7 @@ export default function Warranty() {
       {selectedCase && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="bg-black/40 absolute inset-0 backdrop-blur-sm" onClick={() => setSelectedCase(null)}></div>
-          <div className="relative bg-white w-full max-w-xl h-[100dvh] overflow-y-auto shadow-2xl">
+          <div className="relative bg-white w-full max-w-xl h-[100dvh] overflow-y-auto overflow-x-hidden shadow-2xl">
             {/* Modern Sticky Header */}
             <div
               className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-5 py-4 z-10"

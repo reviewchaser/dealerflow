@@ -1056,7 +1056,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                 <label className="block text-sm font-medium text-slate-700 mb-1">Title *</label>
                 <input
                   type="text"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-slate-900 bg-white"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
@@ -1069,7 +1069,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   <div className="flex gap-2 items-center">
                     <input
                       type="text"
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                      className="flex-1 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 bg-white"
                       placeholder="Category name"
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
@@ -1085,7 +1085,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   </div>
                 ) : (
                   <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 bg-white"
                     value={formData.categoryId}
                     onChange={(e) => {
                       if (e.target.value === "__add_new__") {
@@ -1120,7 +1120,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   <label className="block text-sm font-medium text-slate-700 mb-1">Start *</label>
                   <input
                     type="datetime-local"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 bg-white"
                     value={formData.startDatetime}
                     onChange={(e) => setFormData({ ...formData, startDatetime: e.target.value })}
                     required
@@ -1132,7 +1132,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-slate-900 bg-white"
                     value={formData.endDatetime}
                     onChange={(e) => setFormData({ ...formData, endDatetime: e.target.value })}
                     placeholder="Same as start"
@@ -1143,7 +1143,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
                 <textarea
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none text-slate-900 bg-white"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}

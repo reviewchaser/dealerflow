@@ -1052,7 +1052,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
 
       {/* Wizard Modal - Inline Popup */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] md:max-h-[85vh] flex flex-col">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[100dvh] md:max-h-[85vh] flex flex-col">
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
             <div>
@@ -2957,7 +2957,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           </div>
 
           {/* Footer */}
-          <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <div className="bg-white border-t border-slate-200 px-6 py-4 flex items-center justify-between shrink-0" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
             <button
               onClick={currentStep === 1 ? handleCancel : goBack}
               className="btn btn-ghost"

@@ -720,9 +720,14 @@ export default function StockBook() {
 
       toast.success(`Purchase invoice ${data.documentNumber} generated`);
 
-      // Open the generated document in a new tab
+      // Open the generated document - smart detection for mobile compatibility
       if (data.shareUrl) {
-        window.open(data.shareUrl, "_blank");
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.location.href = data.shareUrl;
+        } else {
+          window.open(data.shareUrl, "_blank");
+        }
       }
     } catch (error) {
       toast.error(error.message || "Could not generate purchase invoice");
@@ -1715,8 +1720,8 @@ export default function StockBook() {
                       </div>
 
                       {/* VRM */}
-                      <div className="col-span-1">
-                        <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-2 py-0.5 rounded border border-black/20 tracking-wide">
+                      <div className="col-span-1 min-w-0 overflow-hidden">
+                        <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-1.5 py-0.5 rounded border border-black/20 tracking-wide truncate block">
                           {vehicle.regCurrent}
                         </span>
                       </div>

@@ -471,7 +471,7 @@ export default function InlineFormModal({ isOpen, onClose, formType, prefill = {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[100dvh] md:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-base-200 flex items-center justify-between bg-gradient-to-r from-primary/5 to-transparent">
           <div>
@@ -615,7 +615,7 @@ export default function InlineFormModal({ isOpen, onClose, formType, prefill = {
 
         {/* Footer */}
         {!isLoading && (
-          <div className="px-6 py-4 border-t border-base-200 flex items-center justify-end gap-3 bg-base-50">
+          <div className="px-6 py-4 border-t border-base-200 flex items-center justify-end gap-3 bg-base-50" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
             <button
               type="button"
               onClick={onClose}
