@@ -54,8 +54,9 @@ async function handler(req, res, ctx) {
     const updateData = { ...req.body };
 
     // Check if trying to add to prep board when already there
+    // Allow re-adding delivered vehicles (for resale scenarios)
     const isAddingToPrepBoard = updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard !== true;
-    if (updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard === true) {
+    if (updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard === true && existingVehicle.status !== "delivered") {
       return res.status(400).json({ error: "Vehicle is already on the Prep Board" });
     }
 

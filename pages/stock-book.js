@@ -740,7 +740,8 @@ export default function StockBook() {
   const handleAddToPrepBoard = async (vehicle) => {
     const vehicleId = vehicle.id || vehicle._id;
 
-    if (vehicle.showOnPrepBoard === true) {
+    // Allow re-adding delivered vehicles (for resale scenarios)
+    if (vehicle.showOnPrepBoard === true && vehicle.status !== "delivered") {
       toast.error("Vehicle is already on the Prep Board");
       return;
     }

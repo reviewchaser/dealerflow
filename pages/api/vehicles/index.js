@@ -331,6 +331,9 @@ async function handler(req, res, ctx) {
         // Sold deal info (for ex-stock vehicles)
         soldDealId: vehicle.soldDealId ? vehicle.soldDealId.toString() : null,
         soldDeal: vehicle.soldDealId ? soldDealsById[vehicle.soldDealId.toString()] || null : null,
+        // Prep board visibility
+        showOnPrepBoard: vehicle.showOnPrepBoard,
+        prepBoardRemovedAt: vehicle.prepBoardRemovedAt,
       };
     });
 
