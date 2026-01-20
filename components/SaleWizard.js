@@ -1051,7 +1051,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" />
 
       {/* Wizard Modal - Inline Popup */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8">
+      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-0 md:p-8">
         <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[100dvh] md:max-h-[85vh] flex flex-col">
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
@@ -1093,7 +1093,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           </div>
 
           {/* Step Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {/* Step 1: Vehicle & Sale Type */}
             {currentStep === 1 && (
               <div className="space-y-6">

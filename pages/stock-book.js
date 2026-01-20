@@ -1686,12 +1686,12 @@ export default function StockBook() {
                 <div className="col-span-1 text-right">Sold</div>
                 <div className="col-span-1 text-center">VAT</div>
                 <div
-                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
+                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none min-w-0 truncate"
                   onClick={() => handleSort("purchased")}
                 >
-                  Purchased<SortIndicator field="purchased" />
+                  Purch'd<SortIndicator field="purchased" />
                 </div>
-                <div className="col-span-1">Seller</div>
+                <div className="col-span-1 min-w-0 truncate">Seller</div>
                 <div className="col-span-1 text-center">Status</div>
                 <div className="col-span-1 text-right">Actions</div>
               </div>

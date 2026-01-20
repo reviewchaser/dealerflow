@@ -66,6 +66,12 @@ export default function TeamSettings() {
   });
   const [creatingUser, setCreatingUser] = useState(false);
 
+  // Change password form
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [changePasswordTarget, setChangePasswordTarget] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+
   useEffect(() => {
     fetchTeamData();
   }, []);
@@ -263,6 +269,41 @@ export default function TeamSettings() {
     }
   };
 
+  // Change password for a team member
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    if (!newPassword || newPassword.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await fetch("/api/team/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: changePasswordTarget.userId,
+          newPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        toast.success("Password changed successfully");
+        setShowChangePasswordModal(false);
+        setChangePasswordTarget(null);
+        setNewPassword("");
+      } else {
+        toast.error(data.error || "Failed to change password");
+      }
+    } catch (error) {
+      toast.error("Failed to change password");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Head>
@@ -449,6 +490,19 @@ export default function TeamSettings() {
                             </option>
                           ))}
                         </select>
+                        <button
+                          className="btn btn-ghost btn-sm btn-square text-slate-400 hover:text-blue-500 hover:bg-blue-50"
+                          onClick={() => {
+                            setChangePasswordTarget({ userId: member.userId, name: member.name, role: member.role });
+                            setShowChangePasswordModal(true);
+                          }}
+                          disabled={member.role === "OWNER" && !isOwner}
+                          title="Change password"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                          </svg>
+                        </button>
                         <button
                           className="btn btn-ghost btn-sm btn-square text-slate-400 hover:text-red-500 hover:bg-red-50"
                           onClick={() => handleRemoveMember(member.id, member.name)}
@@ -668,6 +722,91 @@ export default function TeamSettings() {
             </form>
           </div>
           <div className="modal-backdrop" onClick={() => setShowCreateUserModal(false)} />
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showChangePasswordModal && changePasswordTarget && (
+        <div className="modal modal-open">
+          <div className="modal-box max-w-md">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-slate-900">Change Password</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChangePasswordModal(false);
+                  setChangePasswordTarget(null);
+                  setNewPassword("");
+                }}
+                className="btn btn-ghost btn-sm btn-circle"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleChangePassword}>
+              <div className="space-y-4">
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <p className="text-sm text-slate-600">
+                    Set a new password for <span className="font-semibold text-slate-900">{changePasswordTarget.name}</span>
+                  </p>
+                </div>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">New Password</span>
+                  </label>
+                  <input
+                    type="password"
+                    className="input input-bordered w-full"
+                    placeholder="Minimum 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    minLength={6}
+                    required
+                    autoFocus
+                  />
+                  <label className="label">
+                    <span className="label-text-alt text-slate-400">The user will need to use this password on their next login</span>
+                  </label>
+                </div>
+              </div>
+              <div className="modal-action">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setShowChangePasswordModal(false);
+                    setChangePasswordTarget(null);
+                    setNewPassword("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary gap-2"
+                  disabled={changingPassword || !newPassword || newPassword.length < 6}
+                >
+                  {changingPassword ? (
+                    <span className="loading loading-spinner loading-sm"></span>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      Change Password
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+          <div className="modal-backdrop" onClick={() => {
+            setShowChangePasswordModal(false);
+            setChangePasswordTarget(null);
+            setNewPassword("");
+          }} />
         </div>
       )}
     </DashboardLayout>

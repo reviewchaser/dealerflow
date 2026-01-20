@@ -176,7 +176,7 @@ const navigation = [
   // Management Section
   { name: "Appraisals", href: "/appraisals", Icon: ClipboardIcon, section: "management" },
   { name: "Contacts", href: "/contacts", Icon: UsersIcon, requiresPermission: "sales", section: "management" },
-  { name: "Reports", href: "/reports", Icon: ChartBarIcon, requiresPermission: "sales", section: "management" },
+  { name: "Reports", href: "/reports", Icon: ChartBarIcon, requiresPermission: "admin", section: "management" },
   { name: "Forms & Records", href: "/forms", Icon: DocumentTextIcon, section: "management" },
   { name: "Reviews", href: "/reviews", Icon: StarIcon, section: "management" },
   { name: "Calendar", href: "/calendar", Icon: CalendarIcon, section: "management" },
@@ -848,13 +848,15 @@ export default function DashboardLayout({ children }) {
                 </div>
               </label>
               <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-52">
-                <li>
-                  <Link href={getPath("/settings")} className="text-sm">
-                    <CogIcon className="w-4 h-4" />
-                    Settings
-                  </Link>
-                </li>
-                <div className="divider my-1"></div>
+                {hasClientPermission(userRole, "admin") && (
+                  <li>
+                    <Link href={getPath("/settings")} className="text-sm">
+                      <CogIcon className="w-4 h-4" />
+                      Settings
+                    </Link>
+                  </li>
+                )}
+                {hasClientPermission(userRole, "admin") && <div className="divider my-1"></div>}
                 <li>
                   <button
                     onClick={() => signOut({ callbackUrl: "/auth/signin" })}
@@ -901,7 +903,7 @@ export default function DashboardLayout({ children }) {
                     {hasClientPermission(userRole, "sales") && (
                       <li><Link href={getPath("/contacts")} className="text-sm py-2.5 rounded-xl">Contacts</Link></li>
                     )}
-                    {hasClientPermission(userRole, "sales") && (
+                    {hasClientPermission(userRole, "admin") && (
                       <li><Link href={getPath("/reports")} className="text-sm py-2.5 rounded-xl">Reports</Link></li>
                     )}
                     <li><Link href={getPath("/reviews")} className="text-sm py-2.5 rounded-xl">Reviews</Link></li>

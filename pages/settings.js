@@ -8,6 +8,11 @@ import useDealerRedirect from "@/hooks/useDealerRedirect";
 
 export default function Settings() {
   const { isRedirecting } = useDealerRedirect();
+
+  // Access control state
+  const [userRole, setUserRole] = useState(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+
   const [labels, setLabels] = useState([]);
   const [categories, setCategories] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -85,6 +90,27 @@ export default function Settings() {
     openai: null, // null = loading, true = configured, false = not configured
     dvla: null,
   });
+
+  // Check user's role for access control
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const res = await fetch("/api/dealers/memberships");
+        if (res.ok) {
+          const memberships = await res.json();
+          const membership = memberships?.[0];
+          setUserRole(membership?.role || null);
+        }
+      } catch (error) {
+        console.error("Failed to check user role:", error);
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+    if (!isRedirecting) {
+      checkAccess();
+    }
+  }, [isRedirecting]);
 
   // Load theme from localStorage on mount
   useEffect(() => {
@@ -671,15 +697,44 @@ export default function Settings() {
     }
   };
 
-  // Show loading while checking for dealer redirect
-  if (isRedirecting) {
+  // Show loading while checking for dealer redirect or access
+  if (isRedirecting || isCheckingAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
-          <p className="text-sm text-slate-500 font-medium">Loading...</p>
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <span className="loading loading-spinner loading-lg"></span>
         </div>
-      </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Access denied for non-OWNER/ADMIN users
+  if (!["OWNER", "ADMIN"].includes(userRole)) {
+    return (
+      <DashboardLayout>
+        <Head>
+          <title>Settings | DealerHQ</title>
+        </Head>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+            <p className="text-slate-600 mb-6">
+              Settings are only available to Owners and Admins. Please contact your dealership administrator if you need access.
+            </p>
+            <a
+              href="/dashboard"
+              className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+            >
+              Go to Dashboard
+            </a>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 
