@@ -1597,9 +1597,9 @@ export default function Warranty() {
           <span className="loading loading-spinner loading-lg"></span>
         </div>
       ) : (
-        <>
+        <div className="overflow-x-hidden">
           {/* Mobile Overview Strip */}
-          <div className="md:hidden mb-4">
+          <div className="md:hidden mb-4 overflow-x-hidden">
             {/* Stats Chips Row */}
             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               <div className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 text-xs font-medium">
@@ -2080,7 +2080,7 @@ export default function Warranty() {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Case Detail Drawer */}
@@ -2251,6 +2251,18 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Reg</span>
                       <p className="text-slate-900 mt-0.5">{selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</p>
                     </div>
+                    {selectedCase.mileageAtPurchase && (
+                      <div>
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Mileage at Purchase</span>
+                        <p className="text-slate-900 mt-0.5">{selectedCase.mileageAtPurchase.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {selectedCase.details?.mileage && (
+                      <div>
+                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Mileage</span>
+                        <p className="text-slate-900 mt-0.5">{Number(selectedCase.details.mileage).toLocaleString()}</p>
+                      </div>
+                    )}
                     {selectedCase.vehicleId && (
                       <>
                         <div className="col-span-2">
@@ -3615,7 +3627,7 @@ function AddCaseModal({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     customerName: "", customerEmail: "", customerPhone: "",
     vehicleReg: "", regAtPurchase: "", summary: "", priority: "normal",
-    warrantyType: "", mileage: "",
+    warrantyType: "", mileage: "", mileageAtPurchase: "",
     addressStreet: "", addressCity: "", addressPostcode: "",
     partsRequired: false, partsNotes: "",
     vehicleId: null, // linked vehicle ID
@@ -3665,6 +3677,7 @@ function AddCaseModal({ onClose, onSuccess }) {
       regAtPurchase: deal.vehicleId?.vrm || "",
       vehicleId: deal.vehicleId?._id || deal.vehicleId?.id || null,
       mileage: deal.snapshot?.vehicleMileage || deal.vehicleId?.mileage || "",
+      mileageAtPurchase: deal.deliveryMileage || deal.snapshot?.vehicleMileage || deal.vehicleId?.mileageCurrent || "",
       addressStreet: customer?.address?.street || "",
       addressCity: customer?.address?.city || "",
       addressPostcode: customer?.address?.postcode || "",
@@ -3705,6 +3718,7 @@ function AddCaseModal({ onClose, onSuccess }) {
         attachments: mediaAttachments,
         partsRequired: formData.partsRequired,
         partsNotes: formData.partsNotes,
+        mileageAtPurchase: formData.mileageAtPurchase || undefined,
         details: {
           mileage: formData.mileage,
           customerAddress: {
@@ -3889,6 +3903,17 @@ function AddCaseModal({ onClose, onSuccess }) {
             <input type="number" className="input input-bordered" placeholder="e.g. 45000"
               value={formData.mileage}
               onChange={(e) => setFormData({ ...formData, mileage: e.target.value })} />
+          </div>
+          <div className="form-control mt-3">
+            <label className="label"><span className="label-text">Mileage at Date of Purchase</span></label>
+            <input type="number" className="input input-bordered" placeholder="e.g. 35000"
+              value={formData.mileageAtPurchase}
+              onChange={(e) => setFormData({ ...formData, mileageAtPurchase: e.target.value })} />
+            {selectedDeal && formData.mileageAtPurchase && (
+              <p className="text-xs text-emerald-600 mt-1">
+                Mileage obtained from sale record matching this VRM
+              </p>
+            )}
           </div>
           <div className="form-control mt-3">
             <label className="label"><span className="label-text">Customer Address</span></label>

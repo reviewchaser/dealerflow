@@ -13,15 +13,18 @@ export default function Settings() {
   const [locations, setLocations] = useState([]);
   const [prepTasks, setPrepTasks] = useState([]);
   const [addOns, setAddOns] = useState([]);
-  const [financeCompanies, setFinanceCompanies] = useState([]);
   const [newLabel, setNewLabel] = useState({ name: "", colour: "#6366f1" });
   const [editingLabel, setEditingLabel] = useState(null);
   const [editLabelForm, setEditLabelForm] = useState({ name: "", colour: "#6366f1" });
   const [newCategory, setNewCategory] = useState({ name: "", colour: "#3b82f6" });
   const [newLocation, setNewLocation] = useState("");
   const [newPrepTask, setNewPrepTask] = useState("");
-  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
-  const [newFinanceCompany, setNewFinanceCompany] = useState({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
+  const [newAddOn, setNewAddOn] = useState({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", customTermMonths: "", claimLimit: "" });
+
+  // Warranty products state
+  const [warranties, setWarranties] = useState([]);
+  const [newWarranty, setNewWarranty] = useState({ name: "", description: "", priceGross: "", vatTreatment: "NO_VAT", termMonths: "", customTermMonths: "", claimLimit: "", costPrice: "" });
+  const [activeWarrantyTab, setActiveWarrantyTab] = useState("default");
 
   // Dealer branding state
   const [dealer, setDealer] = useState(null);
@@ -62,12 +65,14 @@ export default function Settings() {
     defaultWarranty: {
       enabled: false,
       type: "FREE",
-      priceNet: 0,
+      priceGross: 0,
       durationMonths: 3,
       claimLimit: "",
       name: "Standard Warranty",
+      description: "",
       vatApplicable: false,
     },
+    noWarrantyMessage: "Trade Terms - No warranty given or implied",
   });
   const [isSavingSales, setIsSavingSales] = useState(false);
   const [activeTermsTab, setActiveTermsTab] = useState("consumerInPerson");
@@ -117,7 +122,7 @@ export default function Settings() {
     fetchLocations();
     fetchPrepTasks();
     fetchAddOns();
-    fetchFinanceCompanies();
+    fetchWarranties();
     fetchDealer();
     fetchIntegrationStatus();
   }, []);
@@ -225,7 +230,7 @@ export default function Settings() {
   // Add-on products functions
   const fetchAddOns = async () => {
     try {
-      const res = await fetch("/api/addons?active=all");
+      const res = await fetch("/api/addons");
       const data = await res.json();
       setAddOns(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -247,7 +252,9 @@ export default function Settings() {
       };
       // Add WARRANTY-specific fields
       if (newAddOn.category === "WARRANTY") {
-        if (newAddOn.termMonths) payload.termMonths = parseInt(newAddOn.termMonths);
+        // Use customTermMonths if "custom" is selected, otherwise use preset termMonths
+        const termValue = newAddOn.termMonths === "custom" ? newAddOn.customTermMonths : newAddOn.termMonths;
+        if (termValue) payload.termMonths = parseInt(termValue);
         if (newAddOn.claimLimit) payload.claimLimit = parseFloat(newAddOn.claimLimit);
       }
       const res = await fetch("/api/addons", {
@@ -256,7 +263,7 @@ export default function Settings() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewAddOn({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", claimLimit: "" });
+      setNewAddOn({ name: "", defaultPriceGross: "", costPrice: "", category: "OTHER", vatTreatment: "STANDARD", termMonths: "", customTermMonths: "", claimLimit: "" });
       fetchAddOns();
       toast.success("Add-on product created");
     } catch (error) {
@@ -275,54 +282,53 @@ export default function Settings() {
     }
   };
 
-  // Finance companies functions
-  const fetchFinanceCompanies = async () => {
+  // Warranty products functions
+  const fetchWarranties = async () => {
     try {
-      const res = await fetch("/api/contacts?type=FINANCE&active=all");
+      const res = await fetch("/api/warranties");
       const data = await res.json();
-      setFinanceCompanies(Array.isArray(data) ? data : []);
+      setWarranties(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Failed to load finance companies:", error);
+      console.error("Failed to load warranties:", error);
     }
   };
 
-  const addFinanceCompany = async (e) => {
+  const addWarranty = async (e) => {
     e.preventDefault();
-    if (!newFinanceCompany.name) return toast.error("Company name required");
-    if (!newFinanceCompany.address?.trim()) return toast.error("Address is required");
-    if (!newFinanceCompany.contactPhone?.trim()) return toast.error("Phone number is required");
+    if (!newWarranty.name) return toast.error("Warranty name required");
     try {
-      const res = await fetch("/api/contacts", {
+      const termValue = newWarranty.termMonths === "custom" ? newWarranty.customTermMonths : newWarranty.termMonths;
+      const payload = {
+        name: newWarranty.name,
+        description: newWarranty.description,
+        priceGross: parseFloat(newWarranty.priceGross) || 0,
+        vatTreatment: newWarranty.vatTreatment,
+        termMonths: termValue ? parseInt(termValue) : undefined,
+        claimLimit: newWarranty.claimLimit ? parseFloat(newWarranty.claimLimit) : undefined,
+        costPrice: newWarranty.costPrice ? parseFloat(newWarranty.costPrice) : undefined,
+      };
+      const res = await fetch("/api/warranties", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          displayName: newFinanceCompany.name,
-          typeTags: ["FINANCE"],
-          financeSettings: {
-            contactPerson: newFinanceCompany.contactPerson,
-            contactEmail: newFinanceCompany.contactEmail,
-            contactPhone: newFinanceCompany.contactPhone,
-            address: newFinanceCompany.address,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to add");
-      setNewFinanceCompany({ name: "", contactPerson: "", contactEmail: "", contactPhone: "", address: "" });
-      fetchFinanceCompanies();
-      toast.success("Finance company added");
+      setNewWarranty({ name: "", description: "", priceGross: "", vatTreatment: "NO_VAT", termMonths: "", customTermMonths: "", claimLimit: "", costPrice: "" });
+      fetchWarranties();
+      toast.success("Warranty product created");
     } catch (error) {
-      toast.error("Failed to add finance company");
+      toast.error("Failed to add warranty");
     }
   };
 
-  const deleteFinanceCompany = async (contactId) => {
-    if (!confirm("Remove this finance company?")) return;
+  const deleteWarranty = async (warrantyId) => {
+    if (!confirm("Delete this warranty product?")) return;
     try {
-      await fetch(`/api/contacts/${contactId}`, { method: "DELETE" });
-      fetchFinanceCompanies();
-      toast.success("Finance company removed");
+      await fetch(`/api/warranties/${warrantyId}`, { method: "DELETE" });
+      fetchWarranties();
+      toast.success("Warranty deleted");
     } catch (error) {
-      toast.error("Failed to remove finance company");
+      toast.error("Failed to delete warranty");
     }
   };
 
@@ -417,12 +423,14 @@ export default function Settings() {
         defaultWarranty: {
           enabled: ss.defaultWarranty?.enabled || false,
           type: ss.defaultWarranty?.type || "FREE",
-          priceNet: ss.defaultWarranty?.priceNet || 0,
+          priceGross: ss.defaultWarranty?.priceGross || 0,
           durationMonths: ss.defaultWarranty?.durationMonths || 3,
           claimLimit: ss.defaultWarranty?.claimLimit || "",
           name: ss.defaultWarranty?.name || "Standard Warranty",
+          description: ss.defaultWarranty?.description || "",
           vatApplicable: ss.defaultWarranty?.vatApplicable || false,
         },
+        noWarrantyMessage: ss.noWarrantyMessage || "Trade Terms - No warranty given or implied",
       });
     } catch (error) {
       console.error("Failed to load dealer");
@@ -550,12 +558,14 @@ export default function Settings() {
           defaultWarranty: {
             enabled: salesSettings.defaultWarranty?.enabled || false,
             type: salesSettings.defaultWarranty?.type || "FREE",
-            priceNet: parseFloat(salesSettings.defaultWarranty?.priceNet) || 0,
+            priceGross: parseFloat(salesSettings.defaultWarranty?.priceGross) || 0,
             durationMonths: parseInt(salesSettings.defaultWarranty?.durationMonths) || 3,
             claimLimit: salesSettings.defaultWarranty?.claimLimit ? parseFloat(salesSettings.defaultWarranty.claimLimit) : null,
             name: salesSettings.defaultWarranty?.name || "Standard Warranty",
+            description: salesSettings.defaultWarranty?.description || "",
             vatApplicable: salesSettings.defaultWarranty?.vatApplicable || false,
           },
+          noWarrantyMessage: salesSettings.noWarrantyMessage || "Trade Terms - No warranty given or implied",
         },
       };
 
@@ -1280,18 +1290,39 @@ export default function Settings() {
                 <div className="flex gap-2 items-end bg-base-100 rounded-lg p-3 border border-base-300">
                   <div className="flex-1">
                     <label className="label py-0 mb-1"><span className="label-text text-xs">Term (months)</span></label>
-                    <select
-                      className="select select-bordered select-sm w-full"
-                      value={newAddOn.termMonths}
-                      onChange={(e) => setNewAddOn({ ...newAddOn, termMonths: e.target.value })}
-                    >
-                      <option value="">Select term...</option>
-                      <option value="3">3 months</option>
-                      <option value="6">6 months</option>
-                      <option value="12">12 months</option>
-                      <option value="24">24 months</option>
-                      <option value="36">36 months</option>
-                    </select>
+                    {newAddOn.termMonths === "custom" ? (
+                      <div className="flex gap-1">
+                        <input
+                          type="number"
+                          min="1"
+                          className="input input-bordered input-sm flex-1"
+                          placeholder="Months"
+                          value={newAddOn.customTermMonths || ""}
+                          onChange={(e) => setNewAddOn({ ...newAddOn, customTermMonths: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-square"
+                          onClick={() => setNewAddOn({ ...newAddOn, termMonths: "", customTermMonths: "" })}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="select select-bordered select-sm w-full"
+                        value={newAddOn.termMonths}
+                        onChange={(e) => setNewAddOn({ ...newAddOn, termMonths: e.target.value })}
+                      >
+                        <option value="">Select term...</option>
+                        <option value="3">3 months</option>
+                        <option value="6">6 months</option>
+                        <option value="12">12 months</option>
+                        <option value="24">24 months</option>
+                        <option value="36">36 months</option>
+                        <option value="custom">Custom...</option>
+                      </select>
+                    )}
                   </div>
                   <div className="flex-1">
                     <label className="label py-0 mb-1"><span className="label-text text-xs">Claim Limit</span></label>
@@ -1317,169 +1348,374 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Default Warranty */}
-        <div className="card bg-base-200">
+        {/* Warranty Management */}
+        <div className="card bg-base-200 lg:col-span-2">
           <div className="card-body">
-            <h2 className="card-title">Default Warranty</h2>
-            <p className="text-sm text-base-content/60">Configure a default warranty that can be auto-added to new sales</p>
+            <h2 className="card-title">Warranty Management</h2>
+            <p className="text-sm text-base-content/60">Configure warranties for your sales</p>
 
-            <div className="space-y-4 mt-4">
-              {/* Enable toggle */}
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="toggle toggle-primary"
-                  checked={salesSettings.defaultWarranty?.enabled || false}
-                  onChange={(e) => setSalesSettings({
-                    ...salesSettings,
-                    defaultWarranty: { ...salesSettings.defaultWarranty, enabled: e.target.checked }
-                  })}
-                />
-                <span className="text-sm font-medium">Include warranty by default in new sales</span>
-              </label>
+            {/* Tabs */}
+            <div className="tabs tabs-boxed mt-4">
+              <button
+                type="button"
+                className={`tab ${activeWarrantyTab === "default" ? "tab-active" : ""}`}
+                onClick={() => setActiveWarrantyTab("default")}
+              >
+                Default Warranty
+              </button>
+              <button
+                type="button"
+                className={`tab ${activeWarrantyTab === "thirdParty" ? "tab-active" : ""}`}
+                onClick={() => setActiveWarrantyTab("thirdParty")}
+              >
+                Third-Party Warranties
+              </button>
+              <button
+                type="button"
+                className={`tab ${activeWarrantyTab === "trade" ? "tab-active" : ""}`}
+                onClick={() => setActiveWarrantyTab("trade")}
+              >
+                Trade Terms
+              </button>
+            </div>
 
-              {salesSettings.defaultWarranty?.enabled && (
-                <div className="bg-base-100 rounded-xl p-4 space-y-4">
-                  {/* Warranty name */}
-                  <div className="form-control">
-                    <label className="label"><span className="label-text">Warranty Name</span></label>
+            {/* Default Warranty Tab */}
+            {activeWarrantyTab === "default" && (
+              <div className="space-y-4 mt-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary"
+                    checked={salesSettings.defaultWarranty?.enabled || false}
+                    onChange={(e) => setSalesSettings({
+                      ...salesSettings,
+                      defaultWarranty: { ...salesSettings.defaultWarranty, enabled: e.target.checked }
+                    })}
+                  />
+                  <span className="text-sm font-medium">Include warranty by default in new sales</span>
+                </label>
+
+                {salesSettings.defaultWarranty?.enabled && (
+                  <div className="bg-base-100 rounded-xl p-4 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label"><span className="label-text">Warranty Name</span></label>
+                        <input
+                          type="text"
+                          className="input input-bordered input-sm"
+                          value={salesSettings.defaultWarranty?.name || ""}
+                          onChange={(e) => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, name: e.target.value }
+                          })}
+                          placeholder="e.g., Standard Warranty"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label"><span className="label-text">Description</span></label>
+                        <input
+                          type="text"
+                          className="input input-bordered input-sm"
+                          value={salesSettings.defaultWarranty?.description || ""}
+                          onChange={(e) => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, description: e.target.value }
+                          })}
+                          placeholder="Covers mechanical breakdown"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-control">
+                      <label className="label"><span className="label-text">Type</span></label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="warrantyType"
+                            className="radio radio-primary radio-sm"
+                            checked={salesSettings.defaultWarranty?.type === "FREE"}
+                            onChange={() => setSalesSettings({
+                              ...salesSettings,
+                              defaultWarranty: { ...salesSettings.defaultWarranty, type: "FREE", priceGross: 0 }
+                            })}
+                          />
+                          <span className="text-sm">Free (included)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="warrantyType"
+                            className="radio radio-primary radio-sm"
+                            checked={salesSettings.defaultWarranty?.type === "PAID"}
+                            onChange={() => setSalesSettings({
+                              ...salesSettings,
+                              defaultWarranty: { ...salesSettings.defaultWarranty, type: "PAID" }
+                            })}
+                          />
+                          <span className="text-sm">Paid</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {salesSettings.defaultWarranty?.type === "PAID" && (
+                      <div className="form-control">
+                        <label className="label"><span className="label-text">Price (Gross)</span></label>
+                        <div className="relative w-40">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="input input-bordered input-sm w-full pl-7"
+                            value={salesSettings.defaultWarranty?.priceGross || ""}
+                            onChange={(e) => setSalesSettings({
+                              ...salesSettings,
+                              defaultWarranty: { ...salesSettings.defaultWarranty, priceGross: e.target.value }
+                            })}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="checkbox checkbox-primary checkbox-sm"
+                            checked={salesSettings.defaultWarranty?.vatApplicable || false}
+                            onChange={(e) => setSalesSettings({
+                              ...salesSettings,
+                              defaultWarranty: { ...salesSettings.defaultWarranty, vatApplicable: e.target.checked }
+                            })}
+                          />
+                          <span className="label-text text-sm">Charge VAT on warranty</span>
+                        </label>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label"><span className="label-text">Duration (months)</span></label>
+                        <select
+                          className="select select-bordered select-sm"
+                          value={salesSettings.defaultWarranty?.durationMonths || 3}
+                          onChange={(e) => setSalesSettings({
+                            ...salesSettings,
+                            defaultWarranty: { ...salesSettings.defaultWarranty, durationMonths: parseInt(e.target.value) }
+                          })}
+                        >
+                          <option value={1}>1 month</option>
+                          <option value={3}>3 months</option>
+                          <option value={6}>6 months</option>
+                          <option value={12}>12 months</option>
+                          <option value={24}>24 months</option>
+                          <option value={36}>36 months</option>
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label className="label"><span className="label-text">Claim Limit</span></label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="input input-bordered input-sm w-full pl-7"
+                            value={salesSettings.defaultWarranty?.claimLimit || ""}
+                            onChange={(e) => setSalesSettings({
+                              ...salesSettings,
+                              defaultWarranty: { ...salesSettings.defaultWarranty, claimLimit: e.target.value }
+                            })}
+                            placeholder="No limit"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={saveSalesSettings}
+                  className="btn btn-primary btn-sm"
+                  disabled={isSavingSales}
+                >
+                  {isSavingSales ? <span className="loading loading-spinner loading-sm"></span> : "Save Default Warranty"}
+                </button>
+              </div>
+            )}
+
+            {/* Third-Party Warranties Tab */}
+            {activeWarrantyTab === "thirdParty" && (
+              <div className="space-y-4 mt-4">
+                <p className="text-sm text-base-content/60">Create third-party warranty products that can be offered to customers at the point of sale.</p>
+
+                <div className="space-y-2">
+                  {warranties.length === 0 ? (
+                    <p className="text-sm text-base-content/50 text-center py-4">No third-party warranties created yet</p>
+                  ) : (
+                    warranties.map((warranty) => (
+                      <div key={warranty.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
+                        <div>
+                          <p className="font-medium">{warranty.name}</p>
+                          <p className="text-xs text-base-content/60">
+                            {warranty.termMonths ? `${warranty.termMonths} months` : "No term"} ·
+                            £{(warranty.priceGross || 0).toFixed(2)}
+                            {warranty.vatTreatment === "STANDARD" && " inc VAT"}
+                            {warranty.claimLimit && ` · Claim limit: £${warranty.claimLimit.toFixed(2)}`}
+                          </p>
+                          {warranty.description && (
+                            <p className="text-xs text-base-content/50 mt-1">{warranty.description}</p>
+                          )}
+                        </div>
+                        <button
+                          className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => deleteWarranty(warranty.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <form onSubmit={addWarranty} className="bg-base-100 rounded-xl p-4 space-y-3">
+                  <h4 className="font-medium text-sm">Add New Warranty</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <input
                       type="text"
                       className="input input-bordered input-sm"
-                      value={salesSettings.defaultWarranty?.name || ""}
-                      onChange={(e) => setSalesSettings({
-                        ...salesSettings,
-                        defaultWarranty: { ...salesSettings.defaultWarranty, name: e.target.value }
-                      })}
-                      placeholder="e.g., Standard Warranty"
+                      placeholder="Warranty name"
+                      value={newWarranty.name}
+                      onChange={(e) => setNewWarranty({ ...newWarranty, name: e.target.value })}
+                    />
+                    <input
+                      type="text"
+                      className="input input-bordered input-sm"
+                      placeholder="Description (optional)"
+                      value={newWarranty.description}
+                      onChange={(e) => setNewWarranty({ ...newWarranty, description: e.target.value })}
                     />
                   </div>
-
-                  {/* Warranty type */}
-                  <div className="form-control">
-                    <label className="label"><span className="label-text">Type</span></label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="warrantyType"
-                          className="radio radio-primary radio-sm"
-                          checked={salesSettings.defaultWarranty?.type === "FREE"}
-                          onChange={() => setSalesSettings({
-                            ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "FREE", priceGross: 0 }
-                          })}
-                        />
-                        <span className="text-sm">Free (included)</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="warrantyType"
-                          className="radio radio-primary radio-sm"
-                          checked={salesSettings.defaultWarranty?.type === "PAID"}
-                          onChange={() => setSalesSettings({
-                            ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, type: "PAID" }
-                          })}
-                        />
-                        <span className="text-sm">Paid</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Price (if paid) */}
-                  {salesSettings.defaultWarranty?.type === "PAID" && (
-                    <div className="form-control">
-                      <label className="label"><span className="label-text">Price (Gross)</span></label>
-                      <div className="relative w-40">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="input input-bordered input-sm w-full pl-7"
-                          value={salesSettings.defaultWarranty?.priceGross || ""}
-                          onChange={(e) => setSalesSettings({
-                            ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, priceGross: e.target.value }
-                          })}
-                          placeholder="0.00"
-                        />
-                      </div>
-                      {/* VAT Toggle */}
-                      <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="checkbox checkbox-primary checkbox-sm"
-                          checked={salesSettings.defaultWarranty?.vatApplicable || false}
-                          onChange={(e) => setSalesSettings({
-                            ...salesSettings,
-                            defaultWarranty: { ...salesSettings.defaultWarranty, vatApplicable: e.target.checked }
-                          })}
-                        />
-                        <span className="label-text text-sm">Charge VAT on warranty</span>
-                      </label>
-                      <label className="label"><span className="label-text-alt text-base-content/50">{salesSettings.defaultWarranty?.vatApplicable ? "VAT will be added to warranty price" : "Warranty is VAT exempt"}</span></label>
-                    </div>
-                  )}
-
-                  {/* Duration */}
-                  <div className="form-control">
-                    <label className="label"><span className="label-text">Duration (months)</span></label>
-                    <select
-                      className="select select-bordered select-sm w-40"
-                      value={salesSettings.defaultWarranty?.durationMonths || 3}
-                      onChange={(e) => setSalesSettings({
-                        ...salesSettings,
-                        defaultWarranty: { ...salesSettings.defaultWarranty, durationMonths: parseInt(e.target.value) }
-                      })}
-                    >
-                      <option value={1}>1 month</option>
-                      <option value={3}>3 months</option>
-                      <option value={6}>6 months</option>
-                      <option value={12}>12 months</option>
-                      <option value={24}>24 months</option>
-                      <option value={36}>36 months</option>
-                    </select>
-                  </div>
-
-                  {/* Claim Limit */}
-                  <div className="form-control">
-                    <label className="label"><span className="label-text">Claim Limit</span></label>
-                    <div className="relative w-40">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">£</span>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 text-sm">£</span>
                       <input
                         type="number"
                         step="0.01"
                         min="0"
                         className="input input-bordered input-sm w-full pl-7"
-                        value={salesSettings.defaultWarranty?.claimLimit || ""}
-                        onChange={(e) => setSalesSettings({
-                          ...salesSettings,
-                          defaultWarranty: { ...salesSettings.defaultWarranty, claimLimit: e.target.value }
-                        })}
-                        placeholder="No limit"
+                        placeholder="Price"
+                        value={newWarranty.priceGross}
+                        onChange={(e) => setNewWarranty({ ...newWarranty, priceGross: e.target.value })}
                       />
                     </div>
-                    <label className="label"><span className="label-text-alt text-base-content/50">Maximum total claim amount (leave blank for unlimited)</span></label>
+                    <select
+                      className="select select-bordered select-sm"
+                      value={newWarranty.vatTreatment}
+                      onChange={(e) => setNewWarranty({ ...newWarranty, vatTreatment: e.target.value })}
+                    >
+                      <option value="NO_VAT">No VAT</option>
+                      <option value="STANDARD">Standard VAT</option>
+                      <option value="EXEMPT">VAT Exempt</option>
+                    </select>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 text-sm">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="input input-bordered input-sm w-full pl-7"
+                        placeholder="Cost (optional)"
+                        value={newWarranty.costPrice || ""}
+                        onChange={(e) => setNewWarranty({ ...newWarranty, costPrice: e.target.value })}
+                      />
+                    </div>
+                    {newWarranty.termMonths === "custom" ? (
+                      <div className="flex gap-1">
+                        <input
+                          type="number"
+                          min="1"
+                          className="input input-bordered input-sm flex-1"
+                          placeholder="Months"
+                          value={newWarranty.customTermMonths || ""}
+                          onChange={(e) => setNewWarranty({ ...newWarranty, customTermMonths: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm btn-square"
+                          onClick={() => setNewWarranty({ ...newWarranty, termMonths: "", customTermMonths: "" })}
+                        >
+                          x
+                        </button>
+                      </div>
+                    ) : (
+                      <select
+                        className="select select-bordered select-sm"
+                        value={newWarranty.termMonths}
+                        onChange={(e) => setNewWarranty({ ...newWarranty, termMonths: e.target.value })}
+                      >
+                        <option value="">Term...</option>
+                        <option value="3">3 months</option>
+                        <option value="6">6 months</option>
+                        <option value="12">12 months</option>
+                        <option value="24">24 months</option>
+                        <option value="36">36 months</option>
+                        <option value="custom">Custom...</option>
+                      </select>
+                    )}
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50 text-sm">£</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        className="input input-bordered input-sm w-full pl-7"
+                        placeholder="Claim limit"
+                        value={newWarranty.claimLimit}
+                        onChange={(e) => setNewWarranty({ ...newWarranty, claimLimit: e.target.value })}
+                      />
+                    </div>
                   </div>
+                  <div className="flex justify-end">
+                    <button type="submit" className="btn btn-primary btn-sm">Add Warranty</button>
+                  </div>
+                </form>
+              </div>
+            )}
 
-                  <p className="text-xs text-base-content/50">
-                    When enabled, this warranty will be automatically added to new sales in the wizard. It can be removed or modified before taking deposit.
-                  </p>
+            {/* Trade Terms Tab */}
+            {activeWarrantyTab === "trade" && (
+              <div className="space-y-4 mt-4">
+                <p className="text-sm text-base-content/60">Configure the terms shown on documents when selling trade sale / no warranty.</p>
+
+                <div className="form-control">
+                  <label className="label"><span className="label-text font-medium">Trade Terms Text</span></label>
+                  <textarea
+                    className="textarea textarea-bordered min-h-[100px]"
+                    value={salesSettings.noWarrantyMessage || ""}
+                    onChange={(e) => setSalesSettings({
+                      ...salesSettings,
+                      noWarrantyMessage: e.target.value
+                    })}
+                    placeholder="Trade Terms - No warranty given or implied"
+                  />
+                  <label className="label"><span className="label-text-alt text-base-content/50">This text appears on invoices and receipts when "Trade Sale / No Warranty" is selected</span></label>
                 </div>
-              )}
 
-              <button
-                type="button"
-                onClick={saveSalesSettings}
-                className="btn btn-primary btn-sm"
-                disabled={isSavingSales}
-              >
-                {isSavingSales ? <span className="loading loading-spinner loading-sm"></span> : "Save Warranty Settings"}
-              </button>
-            </div>
+                <div className="alert alert-warning">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span className="text-sm">Trade sales should only be made to trade buyers. Consumer protection laws may still apply in some circumstances.</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={saveSalesSettings}
+                  className="btn btn-primary btn-sm"
+                  disabled={isSavingSales}
+                >
+                  {isSavingSales ? <span className="loading loading-spinner loading-sm"></span> : "Save Trade Terms"}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1487,73 +1723,14 @@ export default function Settings() {
         <div className="card bg-base-200">
           <div className="card-body">
             <h2 className="card-title">Finance Companies</h2>
-            <p className="text-sm text-base-content/60">Quick-add finance companies for part exchange settlements and customer finance</p>
-
-            <div className="space-y-2 mt-4">
-              {financeCompanies.length === 0 ? (
-                <p className="text-sm text-base-content/50 text-center py-4">No finance companies added yet</p>
-              ) : (
-                financeCompanies.map((fc) => (
-                  <div key={fc.id} className="flex items-center justify-between p-3 bg-base-100 rounded group">
-                    <div>
-                      <p className="font-medium">{fc.displayName || fc.name}</p>
-                      {fc.financeSettings?.contactPerson && (
-                        <p className="text-xs text-base-content/60">Contact: {fc.financeSettings.contactPerson}</p>
-                      )}
-                    </div>
-                    <button
-                      className="btn btn-xs btn-error btn-ghost opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={() => deleteFinanceCompany(fc.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))
-              )}
+            <p className="text-sm text-base-content/60">
+              Finance companies are managed in the Contacts page under the "Finance" tab.
+            </p>
+            <div className="mt-4">
+              <Link href="/contacts" className="btn btn-primary btn-sm">
+                Go to Contacts
+              </Link>
             </div>
-
-            <form onSubmit={addFinanceCompany} className="mt-4 space-y-3">
-              <input
-                type="text"
-                className="input input-bordered input-sm w-full"
-                placeholder="Company name (e.g. Santander, Black Horse) *"
-                value={newFinanceCompany.name}
-                onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, name: e.target.value })}
-              />
-              <input
-                type="text"
-                className="input input-bordered input-sm w-full"
-                placeholder="Address *"
-                value={newFinanceCompany.address}
-                onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, address: e.target.value })}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  className="input input-bordered input-sm"
-                  placeholder="Contact person"
-                  value={newFinanceCompany.contactPerson}
-                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactPerson: e.target.value })}
-                />
-                <input
-                  type="email"
-                  className="input input-bordered input-sm"
-                  placeholder="Contact email"
-                  value={newFinanceCompany.contactEmail}
-                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactEmail: e.target.value })}
-                />
-              </div>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="tel"
-                  className="input input-bordered input-sm flex-1"
-                  placeholder="Contact phone *"
-                  value={newFinanceCompany.contactPhone}
-                  onChange={(e) => setNewFinanceCompany({ ...newFinanceCompany, contactPhone: e.target.value })}
-                />
-                <button type="submit" className="btn btn-primary btn-sm">Add Company</button>
-              </div>
-            </form>
           </div>
         </div>
 

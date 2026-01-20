@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@auth/mongodb-adapter": "^3.11.1",
     "@aws-sdk/client-s3": "^3.958.0",
     "@aws-sdk/s3-request-presigner": "^3.958.0",
@@ -28,6 +29,7 @@
     "next-auth": "^4.24.7",
     "nodemailer": "^7.0.11",
     "openai": "^6.15.0",
+    "pdf-lib": "^1.17.1",
     "prop-types": "^15.8.1",
     "puppeteer-core": "^24.35.0",
     "qrcode.react": "^3.2.0",

@@ -57,8 +57,8 @@ export default function ContactPicker({
       const updatePosition = () => {
         const rect = containerRef.current.getBoundingClientRect();
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 4,
-          left: rect.left + window.scrollX,
+          top: rect.bottom + 4,
+          left: rect.left,
           width: rect.width,
         });
       };
@@ -87,6 +87,7 @@ export default function ContactPicker({
     addressLine2: "",
     town: "",
     postcode: "",
+    country: "United Kingdom",
     vatNumber: "",
     notes: "",
     typeTags: filterTypeTags.length > 0 ? filterTypeTags.map(t => t.toUpperCase()) : ["CUSTOMER"],
@@ -195,6 +196,7 @@ export default function ContactPicker({
           line2: createForm.addressLine2,
           town: createForm.town,
           postcode: createForm.postcode,
+          country: createForm.country,
         },
         vatNumber: createForm.vatNumber,
         notes: createForm.notes,
@@ -227,6 +229,7 @@ export default function ContactPicker({
         addressLine2: "",
         town: "",
         postcode: "",
+        country: "United Kingdom",
         vatNumber: "",
         notes: "",
         typeTags: filterTypeTags.length > 0 ? filterTypeTags.map(t => t.toUpperCase()) : ["CUSTOMER"],
@@ -334,33 +337,36 @@ export default function ContactPicker({
               </div>
 
               {/* Scrollable content */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* Contact Type */}
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCreateForm((p) => ({ ...p, contactType: "individual" }))}
-                    className={`flex-1 btn btn-sm ${createForm.contactType === "individual" ? "btn-primary" : "btn-ghost"}`}
-                  >
-                    Individual
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreateForm((p) => ({ ...p, contactType: "company" }))}
-                    className={`flex-1 btn btn-sm ${createForm.contactType === "company" ? "btn-primary" : "btn-ghost"}`}
-                  >
-                    Business
-                  </button>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Type</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCreateForm((p) => ({ ...p, contactType: "individual" }))}
+                      className={`flex-1 btn btn-sm ${createForm.contactType === "individual" ? "btn-primary" : "btn-ghost"}`}
+                    >
+                      Individual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateForm((p) => ({ ...p, contactType: "company" }))}
+                      className={`flex-1 btn btn-sm ${createForm.contactType === "company" ? "btn-primary" : "btn-ghost"}`}
+                    >
+                      Business
+                    </button>
+                  </div>
                 </div>
 
                 {/* Categories / Type Tags */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-500 mb-1">Categories</label>
-                  <div className="flex flex-wrap gap-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Categories</label>
+                  <div className="flex flex-wrap gap-2">
                     {[
                       { key: "CUSTOMER", label: "Customer" },
                       { key: "SUPPLIER", label: "Supplier" },
-                      { key: "FINANCE", label: "Finance" },
+                      { key: "FINANCE", label: "Finance Company" },
                     ].map(tag => (
                       <button
                         key={tag.key}
@@ -371,7 +377,7 @@ export default function ContactPicker({
                             ? p.typeTags.filter(t => t !== tag.key)
                             : [...p.typeTags, tag.key]
                         }))}
-                        className={`btn btn-xs ${createForm.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
+                        className={`btn btn-sm ${createForm.typeTags.includes(tag.key) ? "btn-primary" : "btn-ghost"}`}
                       >
                         {tag.label}
                       </button>
@@ -381,138 +387,155 @@ export default function ContactPicker({
 
                 {/* Name Fields */}
                 {createForm.contactType === "individual" ? (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={createForm.firstName}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, firstName: e.target.value }))}
+                        className="input input-bordered w-full"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={createForm.lastName}
+                        onChange={(e) => setCreateForm((p) => ({ ...p, lastName: e.target.value }))}
+                        className="input input-bordered w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
                     <input
                       type="text"
-                      placeholder="First name *"
-                      value={createForm.firstName}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, firstName: e.target.value }))}
-                      className="input input-bordered input-sm"
-                      required
-                    />
-                    <input
-                      type="text"
-                      placeholder="Last name *"
-                      value={createForm.lastName}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, lastName: e.target.value }))}
-                      className="input input-bordered input-sm"
+                      value={createForm.companyName}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
+                      className="input input-bordered w-full"
                       required
                     />
                   </div>
-                ) : (
-                  <input
-                    type="text"
-                    placeholder="Company name *"
-                    value={createForm.companyName}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
-                    className="input input-bordered input-sm w-full"
-                    required
-                  />
                 )}
 
                 {/* Company for individuals */}
                 {createForm.contactType === "individual" && (
-                  <input
-                    type="text"
-                    placeholder="Company (optional)"
-                    value={createForm.companyName}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
-                    className="input input-bordered input-sm w-full"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company (optional)</label>
+                    <input
+                      type="text"
+                      value={createForm.companyName}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, companyName: e.target.value }))}
+                      className="input input-bordered w-full"
+                    />
+                  </div>
                 )}
 
                 {/* Contact Details */}
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={createForm.email}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
-                    className="input input-bordered input-sm"
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Phone"
-                    value={createForm.phone}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
-                    className="input input-bordered input-sm"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={createForm.email}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, email: e.target.value }))}
+                      className="input input-bordered w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={createForm.phone}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, phone: e.target.value }))}
+                      className="input input-bordered w-full"
+                    />
+                  </div>
                 </div>
 
                 {/* Address */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-medium text-slate-500">Address</label>
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-slate-700">Address</label>
                   <input
                     type="text"
                     placeholder="Address Line 1"
                     value={createForm.addressLine1}
                     onChange={(e) => setCreateForm((p) => ({ ...p, addressLine1: e.target.value }))}
-                    className="input input-bordered input-sm w-full"
+                    className="input input-bordered w-full"
                   />
                   <input
                     type="text"
                     placeholder="Address Line 2"
                     value={createForm.addressLine2}
                     onChange={(e) => setCreateForm((p) => ({ ...p, addressLine2: e.target.value }))}
-                    className="input input-bordered input-sm w-full"
+                    className="input input-bordered w-full"
                   />
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <input
                       type="text"
                       placeholder="Town/City"
                       value={createForm.town}
                       onChange={(e) => setCreateForm((p) => ({ ...p, town: e.target.value }))}
-                      className="input input-bordered input-sm"
+                      className="input input-bordered w-full"
                     />
                     <input
                       type="text"
                       placeholder="Postcode"
                       value={createForm.postcode}
                       onChange={(e) => setCreateForm((p) => ({ ...p, postcode: e.target.value }))}
-                      className="input input-bordered input-sm"
+                      className="input input-bordered w-full"
                     />
                   </div>
                 </div>
 
                 {/* VAT Number - for companies */}
                 {createForm.contactType === "company" && (
-                  <input
-                    type="text"
-                    placeholder="VAT Number (e.g., GB123456789)"
-                    value={createForm.vatNumber}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, vatNumber: e.target.value }))}
-                    className="input input-bordered input-sm w-full"
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">VAT Number</label>
+                    <input
+                      type="text"
+                      value={createForm.vatNumber}
+                      onChange={(e) => setCreateForm((p) => ({ ...p, vatNumber: e.target.value }))}
+                      className="input input-bordered w-full"
+                      placeholder="GB123456789"
+                    />
+                  </div>
                 )}
 
                 {/* Notes */}
-                <textarea
-                  placeholder="Notes (optional)"
-                  value={createForm.notes}
-                  onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))}
-                  className="textarea textarea-bordered textarea-sm w-full"
-                  rows={2}
-                />
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes</label>
+                  <textarea
+                    value={createForm.notes}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, notes: e.target.value }))}
+                    className="textarea textarea-bordered w-full"
+                    rows={3}
+                  />
+                </div>
               </div>
 
               {/* Sticky footer */}
-              <div className="flex gap-2 p-4 pt-2 border-t border-slate-100 shrink-0">
+              <div className="flex gap-3 p-4 pt-4 border-t border-slate-100 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="btn btn-ghost btn-sm flex-1"
+                  className="btn btn-ghost flex-1"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="btn btn-primary btn-sm flex-1"
+                  className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
                 >
                   {isCreating ? (
-                    <span className="loading loading-spinner loading-xs"></span>
+                    <span className="loading loading-spinner loading-sm"></span>
                   ) : (
-                    "Create"
+                    "Create Contact"
                   )}
                 </button>
               </div>

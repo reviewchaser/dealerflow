@@ -42,7 +42,7 @@ async function handler(req, res, ctx) {
       customerName, customerEmail, customerPhone,
       addressStreet, addressCity, addressPostcode,
       vehicleReg, regAtPurchase, summary, details, source = "manual",
-      priority = "normal", warrantyType, attachments
+      priority = "normal", warrantyType, attachments, mileageAtPurchase
     } = req.body;
 
     if (!customerName) {
@@ -107,6 +107,7 @@ async function handler(req, res, ctx) {
       source,
       priority,
       regAtPurchase,
+      mileageAtPurchase: mileageAtPurchase ? Number(mileageAtPurchase) : undefined,
       customerAddress,
       warrantyType: warrantyType || undefined,
       boardStatus: "not_booked_in",

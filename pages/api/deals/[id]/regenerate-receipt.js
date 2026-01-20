@@ -1,21 +1,18 @@
 import connectMongo from "@/libs/mongoose";
 import Deal from "@/models/Deal";
-import Vehicle from "@/models/Vehicle";
 import Dealer from "@/models/Dealer";
 import SalesDocument from "@/models/SalesDocument";
 import Contact from "@/models/Contact";
 import User from "@/models/User";
-import DocumentCounter from "@/models/DocumentCounter";
-import crypto from "crypto";
 import { withDealerContext } from "@/libs/authContext";
 import { getSignedGetUrl } from "@/libs/r2Client";
 
 /**
- * Take Deposit API
- * POST /api/deals/[id]/take-deposit
+ * Regenerate Deposit Receipt API
+ * POST /api/deals/[id]/regenerate-receipt
  *
- * Records a deposit payment on a deal and generates a deposit receipt.
- * Transitions deal status to DEPOSIT_TAKEN.
+ * Refreshes the deposit receipt snapshot with current deal data.
+ * Preserves document number, share token, and payment info.
  */
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -31,23 +28,6 @@ async function handler(req, res, ctx) {
     return res.status(400).json({ error: "Invalid deal ID" });
   }
 
-  const {
-    amount,
-    method,
-    reference,
-    buyerSignature, // Base64 data URL
-    dealerSignature,
-    notes,
-  } = req.body;
-
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ error: "Deposit amount is required" });
-  }
-
-  if (!method) {
-    return res.status(400).json({ error: "Payment method is required" });
-  }
-
   // Get the deal
   const deal = await Deal.findOne({ _id: id, dealerId })
     .populate("vehicleId")
@@ -57,89 +37,46 @@ async function handler(req, res, ctx) {
     return res.status(404).json({ error: "Deal not found" });
   }
 
-  // Validate deal can receive deposit
-  if (deal.status === "CANCELLED") {
-    return res.status(400).json({ error: "Cannot take deposit on cancelled deal" });
-  }
-  if (deal.status === "COMPLETED") {
-    return res.status(400).json({ error: "Deal is already completed" });
-  }
+  // Find the existing deposit receipt
+  const existingDoc = await SalesDocument.findOne({
+    dealId: id,
+    dealerId,
+    type: "DEPOSIT_RECEIPT",
+    status: { $ne: "VOID" },
+  });
 
-  // Customer is required for deposit
-  if (!deal.soldToContactId) {
-    return res.status(400).json({ error: "Customer is required before taking deposit" });
+  if (!existingDoc) {
+    return res.status(404).json({ error: "No deposit receipt found for this deal" });
   }
 
   // Get dealer for settings
   const dealer = await Dealer.findById(dealerId);
 
-  // Allocate document number atomically
-  const defaultPrefix = dealer?.salesSettings?.depositReceiptPrefix || "DEP";
-  const { documentNumber } = await DocumentCounter.allocateNumber(
-    dealerId,
-    "DEPOSIT_RECEIPT",
-    defaultPrefix
-  );
+  // Debug: log deal data to understand what's being captured
+  console.log("[regenerate-receipt] Deal ID:", id);
+  console.log("[regenerate-receipt] Deal delivery:", JSON.stringify(deal.delivery, null, 2));
+  console.log("[regenerate-receipt] Deal warranty:", JSON.stringify(deal.warranty, null, 2));
 
-  // Add payment to deal
-  const payment = {
-    type: "DEPOSIT",
-    amount,
-    method,
-    paidAt: new Date(),
-    reference: reference || documentNumber,
-    notes,
-    isRefunded: false,
-  };
-
-  deal.payments.push(payment);
-  deal.depositTakenAt = deal.depositTakenAt || new Date();
-
-  // Transition status if this is the first deposit
-  if (deal.status === "DRAFT") {
-    deal.status = "DEPOSIT_TAKEN";
-  }
-
-  // Track original delivery amount for credit calculation if removed before invoicing
-  if (deal.delivery && !deal.delivery.originalAmountOnDeposit) {
-    const currentDeliveryAmount = deal.delivery.isFree ? 0 : (deal.delivery.amountGross || deal.delivery.amount || 0);
-    if (currentDeliveryAmount > 0 || deal.delivery.isFree) {
-      deal.delivery.originalAmountOnDeposit = currentDeliveryAmount;
-    }
-  }
-
-  deal.updatedByUserId = userId;
-  await deal.save();
-
-  // Update vehicle status - move to "Sold In Progress" on prep board
-  await Vehicle.findByIdAndUpdate(deal.vehicleId._id, {
-    salesStatus: "SOLD_IN_PROGRESS",
-    status: "live",
-    soldAt: new Date(),
-  });
-
-  // Create snapshot data for the document
   const customer = deal.soldToContactId;
   const vehicle = deal.vehicleId;
 
-  // Get the user who took the deposit
-  let takenByUser = null;
+  // Get the user who is regenerating
+  let regeneratedByUser = null;
   if (userId) {
-    takenByUser = await User.findById(userId).select("name email").lean();
+    regeneratedByUser = await User.findById(userId).select("name email").lean();
   }
 
-  // Get fresh signed URL for logo (7 days max for S3 signature v4)
+  // Get fresh signed URL for logo
   let logoUrl = dealer.logoUrl;
   if (dealer.logoKey) {
     try {
-      logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60); // 7 days max for S3 signature v4
+      logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60);
     } catch (logoError) {
-      console.warn("[take-deposit] Failed to generate logo URL:", logoError.message);
-      // Fall back to stored logoUrl
+      console.warn("[regenerate-receipt] Failed to generate logo URL:", logoError.message);
     }
   }
 
-  // Add-ons calculations (include if any add-ons exist on the deal)
+  // Add-ons calculations
   const addOnsNetTotal = (deal.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0);
   const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
     if (a.vatTreatment === "STANDARD") {
@@ -148,13 +85,13 @@ async function handler(req, res, ctx) {
     return sum;
   }, 0);
 
-  // Calculate delivery amount (use gross if available, otherwise amount)
+  // Calculate delivery amount
   const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
 
-  // Calculate warranty amount if warranty has a cost
+  // Calculate warranty amount
   const warrantyAmount = deal.warranty?.included && deal.warranty?.priceGross > 0 ? deal.warranty.priceGross : 0;
 
-  // Calculate grand total including add-ons, delivery and warranty
+  // Calculate grand total
   const vehicleTotal = deal.vehiclePriceGross || 0;
   const addOnsTotal = addOnsNetTotal + addOnsVatTotal;
   const grandTotal = vehicleTotal + addOnsTotal + deliveryAmount + warrantyAmount;
@@ -169,6 +106,12 @@ async function handler(req, res, ctx) {
   // Check if dealer is VAT registered
   const isVatRegistered = dealer?.salesSettings?.vatRegistered !== false;
 
+  // Get total deposits paid from deal payments
+  const totalDepositPaid = deal.payments
+    .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  // Build updated snapshot - preserve original payment info from existing snapshot
   const snapshotData = {
     vehicle: {
       regCurrent: vehicle.regCurrent,
@@ -197,7 +140,6 @@ async function handler(req, res, ctx) {
       const priceGross = deal.warranty.priceGross || 0;
       const vatTreatment = deal.warranty.vatTreatment || "NO_VAT";
       const vatRate = dealer?.salesSettings?.vatRate || 0.2;
-      // Calculate priceNet and vatAmount based on vatTreatment
       const priceNet = vatTreatment === "STANDARD" ? priceGross / (1 + vatRate) : priceGross;
       const vatAmount = vatTreatment === "STANDARD" ? priceGross - priceNet : 0;
       return {
@@ -220,9 +162,8 @@ async function handler(req, res, ctx) {
       type: "TRADE",
       tradeTermsText: deal.warranty.tradeTermsText || dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied",
     } : null,
-    // Message to show when no warranty included
     noWarrantyMessage: dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied",
-    // Include add-ons in deposit receipt
+    // Add-ons
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,
       description: a.description || null,
@@ -233,17 +174,11 @@ async function handler(req, res, ctx) {
     })),
     addOnsNetTotal,
     addOnsVatTotal,
-    // Delivery - only include if meaningful data exists (free or chargeable)
-    // DEBUG: Log delivery data to understand what's being captured
+    // Delivery - only include if meaningful data exists
+    // DEBUG: Log delivery data
     ...((() => {
-      const hasDelivery = deal.delivery && (
-        deal.delivery.isFree === true ||
-        parseFloat(deal.delivery.amountGross) > 0 ||
-        parseFloat(deal.delivery.amount) > 0
-      );
-      console.log("[take-deposit] Deal ID:", deal._id);
-      console.log("[take-deposit] Deal delivery:", JSON.stringify(deal.delivery, null, 2));
-      console.log("[take-deposit] Has delivery:", hasDelivery);
+      console.log("[regenerate-receipt] Deal ID:", deal._id);
+      console.log("[regenerate-receipt] Deal delivery:", JSON.stringify(deal.delivery, null, 2));
       return {};
     })()),
     delivery: (deal.delivery && (
@@ -263,7 +198,7 @@ async function handler(req, res, ctx) {
       financeCompanyName: financeCompanyName,
       toBeConfirmed: deal.financeSelection?.toBeConfirmed || false,
     } : null,
-    // Part Exchange(s) - multiple PX array takes precedence over legacy single PX
+    // Part Exchange(s)
     partExchanges: (deal.partExchanges && deal.partExchanges.length > 0)
       ? deal.partExchanges.map(px => ({
           vrm: px.vrm || null,
@@ -279,7 +214,7 @@ async function handler(req, res, ctx) {
           settlement: px.settlement || 0,
         }))
       : (deal.partExchangeAllowance > 0 ? [{
-          vrm: null, // Legacy doesn't store VRM inline
+          vrm: null,
           allowance: deal.partExchangeAllowance || 0,
           settlement: deal.partExchangeSettlement || 0,
         }] : []),
@@ -287,31 +222,25 @@ async function handler(req, res, ctx) {
     saleType: deal.saleType,
     buyerUse: deal.buyerUse,
     saleChannel: deal.saleChannel,
-    // VAT registration status
     isVatRegistered,
-    payments: [{
-      type: "DEPOSIT",
-      amount,
-      method,
-      paidAt: new Date(),
-      reference: reference || documentNumber,
-    }],
+    // Preserve original payment info from existing snapshot
+    payments: existingDoc.snapshotData?.payments || [],
     grandTotal,
-    totalPaid: amount,
-    balanceDue: grandTotal - amount,
+    totalPaid: totalDepositPaid,
+    balanceDue: grandTotal - totalDepositPaid,
     termsText: deal.termsSnapshotText || getTermsText(deal, dealer),
-    // Include agreed work items (requests)
+    // Agreed work items
     requests: (deal.requests || []).map(req => ({
       title: req.title,
       details: req.details,
       type: req.type,
       status: req.status,
     })),
-    // User who took the deposit
-    takenBy: takenByUser ? {
-      name: takenByUser.name,
-      email: takenByUser.email,
-    } : null,
+    // Preserve original takenBy from existing snapshot
+    takenBy: existingDoc.snapshotData?.takenBy ? {
+      name: existingDoc.snapshotData.takenBy.name,
+      email: existingDoc.snapshotData.takenBy.email,
+    } : { name: null, email: null },
     dealer: {
       name: dealer.name,
       companyName: dealer.companyName,
@@ -323,7 +252,7 @@ async function handler(req, res, ctx) {
       logoUrl: logoUrl,
     },
     bankDetails: dealer.salesSettings?.bankDetails || {},
-    // Include signature data if deal already has signatures
+    // Include signature data if deal has signatures
     signature: deal.signature?.customerSignedAt ? {
       customerSignedAt: deal.signature.customerSignedAt,
       customerSignerName: deal.signature.customerSignerName,
@@ -332,44 +261,16 @@ async function handler(req, res, ctx) {
     } : null,
   };
 
-  // Generate share token
-  const shareToken = crypto.randomBytes(32).toString("base64url");
-  const shareTokenHash = crypto.createHash("sha256").update(shareToken).digest("hex");
-
-  // Create sales document
-  const salesDoc = await SalesDocument.create({
-    dealerId,
-    dealId: deal._id,
-    type: "DEPOSIT_RECEIPT",
-    documentNumber,
-    status: "ISSUED",
-    issuedAt: new Date(),
-    snapshotData,
-    signature: {
-      required: deal.saleChannel === "IN_PERSON",
-      buyerSignatureImageKey: buyerSignature ? `signatures/${dealerId}/${deal._id}/buyer-${Date.now()}.png` : undefined,
-      dealerSignatureImageKey: dealerSignature ? `signatures/${dealerId}/${deal._id}/dealer-${Date.now()}.png` : undefined,
-      signedAt: (buyerSignature || dealerSignature) ? new Date() : undefined,
-    },
-    shareToken,
-    shareTokenHash,
-    shareExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-    createdByUserId: userId,
-  });
-
-  // TODO: If signatures provided, upload to R2 storage
+  // Update the existing document with new snapshot
+  existingDoc.snapshotData = snapshotData;
+  existingDoc.updatedAt = new Date();
+  await existingDoc.save();
 
   return res.status(200).json({
     success: true,
-    dealId: deal._id.toString(),
-    dealStatus: deal.status,
-    depositReceiptId: salesDoc._id.toString(),
-    documentNumber,
-    shareToken,
-    shareUrl: `${process.env.NEXTAUTH_URL || ""}/public/deposit-receipt/${shareToken}`,
-    totalDepositPaid: deal.payments
-      .filter(p => p.type === "DEPOSIT" && !p.isRefunded)
-      .reduce((sum, p) => sum + p.amount, 0),
+    message: "Deposit receipt regenerated successfully",
+    documentNumber: existingDoc.documentNumber,
+    shareUrl: `${process.env.NEXTAUTH_URL || ""}/public/deposit-receipt/${existingDoc.shareToken}`,
   });
 }
 
@@ -378,10 +279,8 @@ async function handler(req, res, ctx) {
  */
 function getTermsText(deal, dealer) {
   const terms = dealer?.salesSettings?.terms || {};
-  // Determine if business buyer using either buyerType or buyerUse field
   const isBusiness = deal.buyerType === "BUSINESS" || deal.buyerUse === "BUSINESS";
   const buyerType = isBusiness ? "business" : "consumer";
-  // Map sale channel: DISTANCE -> Distance, IN_PERSON -> InPerson
   const channel = deal.saleChannel === "DISTANCE" ? "Distance" : "InPerson";
   const key = `${buyerType}${channel}`;
   return terms[key] || terms.consumerInPerson || "";

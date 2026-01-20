@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
@@ -42,6 +43,7 @@ const REPORT_TABS = [
   { id: "profitable", label: "Profitable Models", icon: "trending" },
   { id: "payments", label: "Payments", icon: "cash" },
   { id: "warranty", label: "Warranty Costs", icon: "shield" },
+  { id: "staff", label: "Staff Performance", icon: "users" },
 ];
 
 // Profit & Loss filter options
@@ -49,18 +51,25 @@ const PL_FILTERS = [
   { id: "all", label: "All" },
   { id: "vehicles", label: "Vehicles" },
   { id: "addons", label: "Add-Ons" },
+  { id: "warranty", label: "Warranty" },
   { id: "delivery", label: "Delivery" },
 ];
 
 export default function ReportsPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const { isRedirecting } = useDealerRedirect();
   const [activeTab, setActiveTab] = useState("sales");
   const [deals, setDeals] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [aftercareCases, setAftercareCases] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const printRef = useRef(null);
+
+  // Access control state
+  const [userRole, setUserRole] = useState(null);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
 
   // Date range state
   const [periodType, setPeriodType] = useState("this_month");
@@ -117,10 +126,11 @@ export default function ReportsPage() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [dealsRes, vehiclesRes, aftercareRes] = await Promise.all([
+      const [dealsRes, vehiclesRes, aftercareRes, teamRes] = await Promise.all([
         fetch("/api/deals"),
         fetch("/api/vehicles"),
         fetch("/api/aftercare"),
+        fetch("/api/team/members"),
       ]);
 
       if (dealsRes.ok) {
@@ -135,6 +145,10 @@ export default function ReportsPage() {
         const data = await aftercareRes.json();
         setAftercareCases(data.cases || data || []);
       }
+      if (teamRes.ok) {
+        const data = await teamRes.json();
+        setTeamMembers(data || []);
+      }
     } catch (error) {
       console.error(error);
       toast.error("Failed to load report data");
@@ -143,11 +157,34 @@ export default function ReportsPage() {
     }
   }, []);
 
+  // Check user's role for access control
   useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const res = await fetch("/api/dealers/memberships");
+        if (res.ok) {
+          const memberships = await res.json();
+          // Get current dealer's membership (first one, or could match by dealerId)
+          const membership = memberships?.[0];
+          setUserRole(membership?.role || null);
+        }
+      } catch (error) {
+        console.error("Failed to check user role:", error);
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
     if (!isRedirecting) {
+      checkAccess();
+    }
+  }, [isRedirecting]);
+
+  useEffect(() => {
+    // Only fetch data if user has access (OWNER or ADMIN)
+    if (!isRedirecting && !isCheckingAccess && ["OWNER", "ADMIN"].includes(userRole)) {
       fetchData();
     }
-  }, [isRedirecting, fetchData]);
+  }, [isRedirecting, isCheckingAccess, userRole, fetchData]);
 
   const { from, to } = getPeriodDates();
 
@@ -174,6 +211,7 @@ export default function ReportsPage() {
     if (!from || !to) return {
       vehicles: { tradeSales: 0, retailSales: 0, totalSales: 0, tradeProfit: 0, retailProfit: 0, totalProfit: 0, tradeCount: 0, retailCount: 0, avgMargin: 0 },
       addons: { revenue: 0, cost: 0, profit: 0, count: 0 },
+      warranty: { revenue: 0, cost: 0, profit: 0, count: 0 },
       delivery: { total: 0, free: 0, paid: 0, revenue: 0 },
       combined: { totalSales: 0, totalProfit: 0 },
     };
@@ -241,6 +279,20 @@ export default function ReportsPage() {
 
     const addonsProfit = addonsRevenue - addonsCost;
 
+    // === WARRANTY PROFIT ===
+    let warrantyRevenue = 0, warrantyCost = 0, warrantyCount = 0;
+
+    invoicedDeals.forEach(deal => {
+      if (!deal.warranty || !deal.warranty.included) return;
+      const revenue = deal.warranty.priceGross || 0;
+      const cost = deal.warranty.costPrice || 0;
+      warrantyRevenue += revenue;
+      warrantyCost += cost;
+      warrantyCount++;
+    });
+
+    const warrantyProfit = warrantyRevenue - warrantyCost;
+
     // === DELIVERY PROFIT ===
     let deliveryTotal = 0, deliveryFree = 0, deliveryPaid = 0, deliveryRevenue = 0;
 
@@ -259,8 +311,8 @@ export default function ReportsPage() {
     });
 
     // === COMBINED ===
-    const combinedSales = totalSales + addonsRevenue + deliveryRevenue;
-    const combinedProfit = totalVehicleProfit + addonsProfit + deliveryRevenue; // Delivery has no cost
+    const combinedSales = totalSales + addonsRevenue + warrantyRevenue + deliveryRevenue;
+    const combinedProfit = totalVehicleProfit + addonsProfit + warrantyProfit + deliveryRevenue; // Delivery has no cost
 
     return {
       vehicles: {
@@ -270,6 +322,9 @@ export default function ReportsPage() {
       },
       addons: {
         revenue: addonsRevenue, cost: addonsCost, profit: addonsProfit, count: addonsCount,
+      },
+      warranty: {
+        revenue: warrantyRevenue, cost: warrantyCost, profit: warrantyProfit, count: warrantyCount,
       },
       delivery: {
         total: deliveryTotal, free: deliveryFree, paid: deliveryPaid, revenue: deliveryRevenue,
@@ -463,6 +518,114 @@ export default function ReportsPage() {
       avgPerCase: periodCases.length > 0 ? totalCost / periodCases.length : 0,
     };
   }, [aftercareCases, from, to]);
+
+  // ==================== STAFF PERFORMANCE ====================
+  const calculateStaffStats = useCallback(() => {
+    if (!from || !to) return { dealsByStaff: [], addonsByStaff: [], totalDeals: 0, totalAddons: 0 };
+
+    // Filter invoiced deals in the period
+    const invoicedDeals = deals.filter((deal) => {
+      if (!["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) return false;
+      if (!deal.invoicedAt) return false;
+      const invoiceDate = new Date(deal.invoicedAt);
+      return invoiceDate >= from && invoiceDate <= to;
+    });
+
+    // Group deals by salesperson
+    const dealStats = {};
+    invoicedDeals.forEach(deal => {
+      const salesPersonId = deal.salesPersonId || deal.createdByUserId || "unassigned";
+      const key = salesPersonId?.toString() || "unassigned";
+
+      if (!dealStats[key]) {
+        dealStats[key] = {
+          userId: key,
+          deals: 0,
+          revenue: 0,
+          profit: 0,
+        };
+      }
+
+      dealStats[key].deals++;
+      dealStats[key].revenue += deal.vehiclePriceGross || 0;
+
+      // Calculate profit
+      const costPrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
+      if (costPrice > 0) {
+        if (deal.vatScheme === "VAT_QUALIFYING") {
+          const saleNet = deal.vehiclePriceNet || ((deal.vehiclePriceGross || 0) - (deal.vehicleVatAmount || 0));
+          dealStats[key].profit += saleNet - costPrice;
+        } else {
+          dealStats[key].profit += (deal.vehiclePriceGross || 0) - costPrice;
+        }
+      }
+    });
+
+    // Group add-ons by soldByUserId
+    const addonStats = {};
+    invoicedDeals.forEach(deal => {
+      if (!deal.addOns || deal.addOns.length === 0) return;
+
+      deal.addOns.forEach(addon => {
+        const soldById = addon.soldByUserId || deal.salesPersonId || deal.createdByUserId || "unassigned";
+        const key = soldById?.toString() || "unassigned";
+
+        if (!addonStats[key]) {
+          addonStats[key] = {
+            userId: key,
+            count: 0,
+            revenue: 0,
+            cost: 0,
+            profit: 0,
+          };
+        }
+
+        const qty = addon.qty || 1;
+        const revenue = (addon.unitPriceNet || 0) * qty;
+        const cost = (addon.costPrice || 0) * qty;
+
+        addonStats[key].count += qty;
+        addonStats[key].revenue += revenue;
+        addonStats[key].cost += cost;
+        addonStats[key].profit += revenue - cost;
+      });
+    });
+
+    // Map user IDs to names
+    const getUserName = (userId) => {
+      if (userId === "unassigned") return "Unassigned";
+      const member = teamMembers.find(m => m.userId === userId || m.user?.id === userId || m.id === userId);
+      if (member) {
+        return member.user?.name || member.name || member.email || "Unknown";
+      }
+      return "Unknown";
+    };
+
+    // Convert to arrays with user names
+    const dealsByStaff = Object.values(dealStats)
+      .map(s => ({
+        ...s,
+        name: getUserName(s.userId),
+        avgDealValue: s.deals > 0 ? s.revenue / s.deals : 0,
+        avgProfit: s.deals > 0 ? s.profit / s.deals : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const addonsByStaff = Object.values(addonStats)
+      .map(s => ({
+        ...s,
+        name: getUserName(s.userId),
+        avgPerSale: s.count > 0 ? s.profit / s.count : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    return {
+      dealsByStaff,
+      addonsByStaff,
+      totalDeals: invoicedDeals.length,
+      totalAddons: addonsByStaff.reduce((sum, s) => sum + s.count, 0),
+    };
+  }, [deals, teamMembers, from, to]);
 
   // ==================== HMRC VAT DETAIL ====================
   const calculateVATDetail = useCallback(() => {
@@ -770,6 +933,7 @@ export default function ReportsPage() {
   const profitableModels = calculateProfitableModels();
   const paymentsData = calculatePayments();
   const warrantyCosts = calculateWarrantyCosts();
+  const staffStats = calculateStaffStats();
 
   // Export handlers
   const handleExportCSV = () => {
@@ -906,6 +1070,21 @@ export default function ReportsPage() {
         }
         filename = "profit-loss";
         break;
+      case "staff":
+        headers = ["Staff Member", "Deals", "Revenue", "Profit", "Avg Deal Value", "Avg Profit"];
+        rows = staffStats.dealsByStaff.map(s => [
+          s.name, s.deals, s.revenue.toFixed(2), s.profit.toFixed(2),
+          s.avgDealValue.toFixed(2), s.avgProfit.toFixed(2)
+        ]);
+        // Add add-ons section
+        rows.push([]);
+        rows.push(["ADD-ONS BY STAFF"]);
+        rows.push(["Staff Member", "Items Sold", "Revenue", "Cost", "Profit"]);
+        staffStats.addonsByStaff.forEach(s => {
+          rows.push([s.name, s.count, s.revenue.toFixed(2), s.cost.toFixed(2), s.profit.toFixed(2)]);
+        });
+        filename = "staff-performance";
+        break;
       default:
         toast.error("Export not available for this report");
         return;
@@ -927,11 +1106,41 @@ export default function ReportsPage() {
     window.print();
   };
 
-  if (isRedirecting) {
+  if (isRedirecting || isCheckingAccess) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center min-h-screen">
           <span className="loading loading-spinner loading-lg"></span>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Access denied for non-OWNER/ADMIN users
+  if (!["OWNER", "ADMIN"].includes(userRole)) {
+    return (
+      <DashboardLayout>
+        <Head>
+          <title>Reports | DealerHQ</title>
+        </Head>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 max-w-md text-center">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Access Restricted</h2>
+            <p className="text-slate-600 mb-6">
+              Reports are only available to Owners and Admins. Please contact your dealership administrator if you need access.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+            >
+              Go to Dashboard
+            </button>
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -1396,6 +1605,35 @@ export default function ReportsPage() {
                     </div>
                   )}
 
+                  {/* Warranty Section */}
+                  {(plFilter === "all" || plFilter === "warranty") && (
+                    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                      <div className="px-5 py-4 border-b border-slate-100">
+                        <h3 className="text-lg font-bold text-slate-900">Warranty Profit</h3>
+                      </div>
+                      <div className="p-5 space-y-3">
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Total Warranty Revenue (Gross):</span>
+                          <span className="font-semibold">{formatCurrency(profitLossData.warranty.revenue)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Total Warranty Cost:</span>
+                          <span className="font-semibold">{formatCurrency(profitLossData.warranty.cost)}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                          <span className="text-sm text-slate-600">Warranties Sold:</span>
+                          <span className="font-semibold">{profitLossData.warranty.count}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 bg-emerald-50 -mx-5 px-5">
+                          <span className="text-sm font-bold text-emerald-800">Warranty Net Profit:</span>
+                          <span className={`font-bold ${profitLossData.warranty.profit >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                            {formatCurrency(profitLossData.warranty.profit)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Delivery Section */}
                   {(plFilter === "all" || plFilter === "delivery") && (
                     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -1429,7 +1667,7 @@ export default function ReportsPage() {
                       <div className="flex justify-between items-center">
                         <div>
                           <p className="text-emerald-100 text-sm">Combined Total Net Profit</p>
-                          <p className="text-xs text-emerald-200 mt-1">Vehicles + Add-Ons + Delivery</p>
+                          <p className="text-xs text-emerald-200 mt-1">Vehicles + Add-Ons + Warranty + Delivery</p>
                         </div>
                         <p className="text-3xl font-bold">{formatCurrency(profitLossData.combined.totalProfit)}</p>
                       </div>
@@ -1765,6 +2003,145 @@ export default function ReportsPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Staff Performance Tab */}
+              {activeTab === "staff" && (
+                <div className="space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                      <p className="text-sm text-slate-500 font-medium">Total Deals</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalDeals}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                      <p className="text-sm text-slate-500 font-medium">Total Add-ons Sold</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.totalAddons}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+                      <p className="text-sm text-slate-500 font-medium">Team Members</p>
+                      <p className="text-2xl font-bold text-slate-900 mt-1">{staffStats.dealsByStaff.filter(s => s.userId !== "unassigned").length}</p>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-emerald-200 p-5">
+                      <p className="text-sm text-emerald-600 font-medium">Total Profit</p>
+                      <p className="text-2xl font-bold text-emerald-600 mt-1">
+                        {formatCurrency(staffStats.dealsByStaff.reduce((sum, s) => sum + s.profit, 0))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Deals by Salesperson */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h2 className="text-lg font-bold text-slate-900">Deals by Salesperson</h2>
+                      <p className="text-sm text-slate-500 mt-0.5">Vehicle sales performance for the selected period</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Staff Member</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Deals</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Revenue</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Profit</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Avg Deal Value</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Avg Profit</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {staffStats.dealsByStaff.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-5 py-6 text-center text-slate-500">No deals in this period</td>
+                            </tr>
+                          ) : (
+                            staffStats.dealsByStaff.map((staff, idx) => (
+                              <tr key={staff.userId} className={idx === 0 ? "bg-emerald-50" : ""}>
+                                <td className="px-5 py-3 text-sm font-medium text-slate-900">
+                                  {staff.name}
+                                  {idx === 0 && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Top</span>}
+                                </td>
+                                <td className="px-5 py-3 text-sm text-right">{staff.deals}</td>
+                                <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(staff.revenue)}</td>
+                                <td className={`px-5 py-3 text-sm text-right font-medium ${staff.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                  {formatCurrency(staff.profit)}
+                                </td>
+                                <td className="px-5 py-3 text-sm text-right">{formatCurrency(staff.avgDealValue)}</td>
+                                <td className={`px-5 py-3 text-sm text-right ${staff.avgProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                  {formatCurrency(staff.avgProfit)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        {staffStats.dealsByStaff.length > 0 && (
+                          <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                            <tr>
+                              <td className="px-5 py-3 font-semibold">Total</td>
+                              <td className="px-5 py-3 text-right font-semibold">{staffStats.dealsByStaff.reduce((sum, s) => sum + s.deals, 0)}</td>
+                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(staffStats.dealsByStaff.reduce((sum, s) => sum + s.revenue, 0))}</td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(staffStats.dealsByStaff.reduce((sum, s) => sum + s.profit, 0))}</td>
+                              <td colSpan={2}></td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Add-ons by Salesperson */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                    <div className="px-5 py-4 border-b border-slate-100">
+                      <h2 className="text-lg font-bold text-slate-900">Add-ons by Salesperson</h2>
+                      <p className="text-sm text-slate-500 mt-0.5">Additional products sold per staff member</p>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase px-5 py-3">Staff Member</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Items Sold</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Revenue (Net)</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Cost</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase px-5 py-3">Profit</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {staffStats.addonsByStaff.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="px-5 py-6 text-center text-slate-500">No add-ons sold in this period</td>
+                            </tr>
+                          ) : (
+                            staffStats.addonsByStaff.map((staff, idx) => (
+                              <tr key={staff.userId} className={idx === 0 ? "bg-purple-50" : ""}>
+                                <td className="px-5 py-3 text-sm font-medium text-slate-900">
+                                  {staff.name}
+                                  {idx === 0 && <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Top</span>}
+                                </td>
+                                <td className="px-5 py-3 text-sm text-right">{staff.count}</td>
+                                <td className="px-5 py-3 text-sm text-right font-medium">{formatCurrency(staff.revenue)}</td>
+                                <td className="px-5 py-3 text-sm text-right text-slate-500">{formatCurrency(staff.cost)}</td>
+                                <td className={`px-5 py-3 text-sm text-right font-medium ${staff.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                  {formatCurrency(staff.profit)}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                        {staffStats.addonsByStaff.length > 0 && (
+                          <tfoot className="bg-slate-50 border-t-2 border-slate-200">
+                            <tr>
+                              <td className="px-5 py-3 font-semibold">Total</td>
+                              <td className="px-5 py-3 text-right font-semibold">{staffStats.addonsByStaff.reduce((sum, s) => sum + s.count, 0)}</td>
+                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(staffStats.addonsByStaff.reduce((sum, s) => sum + s.revenue, 0))}</td>
+                              <td className="px-5 py-3 text-right font-semibold">{formatCurrency(staffStats.addonsByStaff.reduce((sum, s) => sum + s.cost, 0))}</td>
+                              <td className="px-5 py-3 text-right font-bold text-emerald-600">{formatCurrency(staffStats.addonsByStaff.reduce((sum, s) => sum + s.profit, 0))}</td>
+                            </tr>
+                          </tfoot>
+                        )}
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
             </>

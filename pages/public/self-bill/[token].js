@@ -28,9 +28,16 @@ export default function SelfBillPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Show HTML by default (more reliable than auto-redirecting to PDF)
+  // Auto-redirect to PDF endpoint (unless ?render=html is set for Puppeteer)
   useEffect(() => {
-    if (!token) return;
+    if (token && render !== "html") {
+      window.location.href = `/api/public/self-bill/${token}/pdf`;
+    }
+  }, [token, render]);
+
+  // Fetch document data (for HTML render mode)
+  useEffect(() => {
+    if (!token || render !== "html") return;
 
     const fetchDocument = async () => {
       setIsLoading(true);
@@ -50,7 +57,7 @@ export default function SelfBillPage() {
     };
 
     fetchDocument();
-  }, [token]);
+  }, [token, render]);
 
   const handlePrint = () => {
     window.print();
@@ -129,7 +136,7 @@ export default function SelfBillPage() {
       <div className="min-h-screen bg-slate-100 print:bg-white p-4 print:p-0">
         <div className="max-w-[800px] mx-auto bg-white shadow-xl print:shadow-none rounded-2xl print:rounded-none overflow-hidden">
           {/* Header with Logo */}
-          <div className="bg-white p-6 print:p-4 border-b border-slate-200">
+          <div className="bg-white p-6 print:p-2 border-b border-slate-200">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                 {snap.dealer?.logoUrl && (
@@ -163,38 +170,38 @@ export default function SelfBillPage() {
           </div>
 
           {/* Purchase Invoice Notice */}
-          <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 print:bg-blue-50">
-            <p className="text-blue-800 text-sm">
+          <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 print:px-3 print:py-1 print:bg-blue-50">
+            <p className="text-blue-800 text-sm print:text-[10px]">
               <strong>Purchase Invoice:</strong> This invoice documents the purchase of the below vehicle by {snap.dealer?.companyName || snap.dealer?.name}.
             </p>
           </div>
 
           {/* Details */}
-          <div className="p-8 print:p-6 space-y-8 print:space-y-6">
+          <div className="p-8 print:p-3 space-y-8 print:space-y-2">
             {/* Invoice Info Row */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-6 print:gap-2">
               <div>
-                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Invoice Date</p>
-                <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(document.issuedAt)}</p>
+                <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium">Invoice Date</p>
+                <p className="text-lg print:text-sm font-semibold text-slate-900 mt-1 print:mt-0">{formatDate(document.issuedAt)}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">Purchase Date</p>
-                <p className="text-lg font-semibold text-slate-900 mt-1">{formatDate(snap.purchase?.purchaseDate) || "—"}</p>
+                <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium">Purchase Date</p>
+                <p className="text-lg print:text-sm font-semibold text-slate-900 mt-1 print:mt-0">{formatDate(snap.purchase?.purchaseDate) || "—"}</p>
               </div>
               <div>
-                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium">VAT Treatment</p>
-                <p className="text-lg font-semibold text-slate-900 mt-1">
+                <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium">VAT Treatment</p>
+                <p className="text-lg print:text-sm font-semibold text-slate-900 mt-1 print:mt-0">
                   {isVatQualifying ? "Standard VAT" : snap.vatScheme === "MARGIN" ? "Margin Scheme" : "Zero-rated"}
                 </p>
               </div>
             </div>
 
             {/* Supplier (Seller) / Buyer (Dealer) */}
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6 print:gap-2">
               {/* Supplier - who we bought from */}
-              <div className="bg-slate-50 rounded-xl p-5 print:bg-slate-50">
-                <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-2">Supplier (Seller)</p>
-                <p className="text-lg font-bold text-slate-900">{snap.supplier?.companyName || snap.supplier?.name}</p>
+              <div className="bg-slate-50 rounded-xl p-5 print:p-2 print:bg-slate-50">
+                <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium mb-2 print:mb-0.5">Supplier (Seller)</p>
+                <p className="text-lg print:text-sm font-bold text-slate-900">{snap.supplier?.companyName || snap.supplier?.name}</p>
                 {snap.supplier?.companyName && snap.supplier?.name && (
                   <p className="text-slate-600">{snap.supplier.name}</p>
                 )}
@@ -218,9 +225,9 @@ export default function SelfBillPage() {
               </div>
 
               {/* Buyer - the dealer */}
-              <div className="bg-blue-50 rounded-xl p-5 print:bg-blue-50">
-                <p className="text-sm text-blue-600 uppercase tracking-wide font-medium mb-2">Buyer (Issuer)</p>
-                <p className="text-lg font-bold text-slate-900">{snap.dealer?.companyName || snap.dealer?.name}</p>
+              <div className="bg-blue-50 rounded-xl p-5 print:p-2 print:bg-blue-50">
+                <p className="text-sm print:text-[10px] text-blue-600 uppercase tracking-wide font-medium mb-2 print:mb-0.5">Buyer (Issuer)</p>
+                <p className="text-lg print:text-sm font-bold text-slate-900">{snap.dealer?.companyName || snap.dealer?.name}</p>
                 {snap.dealer?.address && (
                   <p className="text-slate-500 text-sm mt-1 whitespace-pre-line">{snap.dealer.address}</p>
                 )}
@@ -233,37 +240,37 @@ export default function SelfBillPage() {
 
             {/* Vehicle Details */}
             <div>
-              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Vehicle Details</p>
+              <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium mb-3 print:mb-1">Vehicle Details</p>
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="text-left px-4 py-3 text-sm font-semibold text-slate-600">Description</th>
-                      <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-24">Qty</th>
-                      {isVatQualifying && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">Net</th>}
-                      {isVatQualifying && <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-24">VAT</th>}
-                      <th className="text-right px-4 py-3 text-sm font-semibold text-slate-600 w-28">{isVatQualifying ? "Gross" : "Amount"}</th>
+                      <th className="text-left px-4 py-3 print:px-2 print:py-1 text-sm print:text-xs font-semibold text-slate-600">Description</th>
+                      <th className="text-right px-4 py-3 print:px-2 print:py-1 text-sm print:text-xs font-semibold text-slate-600 w-24 print:w-16">Qty</th>
+                      {isVatQualifying && <th className="text-right px-4 py-3 print:px-2 print:py-1 text-sm print:text-xs font-semibold text-slate-600 w-28 print:w-20">Net</th>}
+                      {isVatQualifying && <th className="text-right px-4 py-3 print:px-2 print:py-1 text-sm print:text-xs font-semibold text-slate-600 w-24 print:w-16">VAT</th>}
+                      <th className="text-right px-4 py-3 print:px-2 print:py-1 text-sm print:text-xs font-semibold text-slate-600 w-28 print:w-20">{isVatQualifying ? "Gross" : "Amount"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr>
-                      <td className="px-4 py-3">
-                        <p className="font-semibold text-slate-900">{snap.vehicle?.year} {snap.vehicle?.make} {snap.vehicle?.model}</p>
-                        <p className="text-sm text-slate-500">
+                      <td className="px-4 py-3 print:px-2 print:py-1">
+                        <p className="font-semibold text-slate-900 print:text-xs">{snap.vehicle?.year} {snap.vehicle?.make} {snap.vehicle?.model}</p>
+                        <p className="text-sm print:text-[10px] text-slate-500">
                           {snap.vehicle?.regCurrent} | VIN: {snap.vehicle?.vin || <span className="italic text-slate-400">Not recorded</span>}
                         </p>
-                        <p className="text-sm text-slate-500">
+                        <p className="text-sm print:text-[10px] text-slate-500">
                           {snap.vehicle?.colour && `${snap.vehicle.colour} | `}
                           Mileage: {snap.vehicle?.mileage ? `${snap.vehicle.mileage.toLocaleString()} miles` : <span className="italic text-slate-400">Not recorded</span>}
                         </p>
                         {snap.purchase?.purchaseInvoiceRef && (
-                          <p className="text-sm text-slate-400 mt-1">Ref: {snap.purchase.purchaseInvoiceRef}</p>
+                          <p className="text-sm print:text-[10px] text-slate-400 mt-1 print:mt-0">Ref: {snap.purchase.purchaseInvoiceRef}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right text-slate-600">1</td>
-                      {isVatQualifying && <td className="px-4 py-3 text-right text-slate-900">{formatCurrency(snap.purchase?.purchasePriceNet)}</td>}
-                      {isVatQualifying && <td className="px-4 py-3 text-right text-slate-600">{formatCurrency(snap.purchase?.purchaseVat)}</td>}
-                      <td className="px-4 py-3 text-right font-semibold text-slate-900">{formatCurrency(snap.purchase?.purchasePriceGross || snap.purchase?.purchasePriceNet)}</td>
+                      <td className="px-4 py-3 print:px-2 print:py-1 text-right text-slate-600 print:text-xs">1</td>
+                      {isVatQualifying && <td className="px-4 py-3 print:px-2 print:py-1 text-right text-slate-900 print:text-xs">{formatCurrency(snap.purchase?.purchasePriceNet)}</td>}
+                      {isVatQualifying && <td className="px-4 py-3 print:px-2 print:py-1 text-right text-slate-600 print:text-xs">{formatCurrency(snap.purchase?.purchaseVat)}</td>}
+                      <td className="px-4 py-3 print:px-2 print:py-1 text-right font-semibold text-slate-900 print:text-xs">{formatCurrency(snap.purchase?.purchasePriceGross || snap.purchase?.purchasePriceNet)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -272,25 +279,25 @@ export default function SelfBillPage() {
 
             {/* Totals */}
             <div className="flex justify-end">
-              <div className="w-72">
+              <div className="w-72 print:w-56">
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                   <table className="w-full">
                     <tbody className="divide-y divide-slate-100">
                       {isVatQualifying && (
                         <>
                           <tr>
-                            <td className="px-4 py-2 text-slate-600">Subtotal (Net)</td>
-                            <td className="px-4 py-2 text-right font-semibold text-slate-900">{formatCurrency(snap.subtotal)}</td>
+                            <td className="px-4 py-2 print:px-2 print:py-1 text-slate-600 print:text-xs">Subtotal (Net)</td>
+                            <td className="px-4 py-2 print:px-2 print:py-1 text-right font-semibold text-slate-900 print:text-xs">{formatCurrency(snap.subtotal)}</td>
                           </tr>
                           <tr>
-                            <td className="px-4 py-2 text-slate-600">VAT @ 20%</td>
-                            <td className="px-4 py-2 text-right font-semibold text-slate-900">{formatCurrency(snap.totalVat)}</td>
+                            <td className="px-4 py-2 print:px-2 print:py-1 text-slate-600 print:text-xs">VAT @ 20%</td>
+                            <td className="px-4 py-2 print:px-2 print:py-1 text-right font-semibold text-slate-900 print:text-xs">{formatCurrency(snap.totalVat)}</td>
                           </tr>
                         </>
                       )}
                       <tr className="bg-slate-800 text-white">
-                        <td className="px-4 py-3 font-semibold">Total Payable</td>
-                        <td className="px-4 py-3 text-right text-xl font-bold">{formatCurrency(snap.grandTotal)}</td>
+                        <td className="px-4 py-3 print:px-2 print:py-1 font-semibold print:text-xs">Total Payable</td>
+                        <td className="px-4 py-3 print:px-2 print:py-1 text-right text-xl print:text-sm font-bold">{formatCurrency(snap.grandTotal)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -300,35 +307,35 @@ export default function SelfBillPage() {
 
             {/* Margin Scheme Notice */}
             {snap.vatScheme === "MARGIN" && (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
-                <p className="text-slate-600 font-medium">This vehicle was purchased under the margin scheme. No VAT is shown.</p>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 print:p-1 text-center">
+                <p className="text-slate-600 font-medium print:text-[10px]">This vehicle was purchased under the margin scheme. No VAT is shown.</p>
               </div>
             )}
 
             {/* VAT Qualifying Notice */}
             {isVatQualifying && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
-                <p className="text-blue-800 font-medium">VAT Qualifying Purchase - Input VAT of {formatCurrency(snap.totalVat)} may be reclaimed.</p>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 print:p-1 text-center">
+                <p className="text-blue-800 font-medium print:text-[10px]">VAT Qualifying Purchase - Input VAT of {formatCurrency(snap.totalVat)} may be reclaimed.</p>
               </div>
             )}
 
             {/* Transaction Details */}
-            <div className="bg-slate-50 rounded-xl p-5 print:break-inside-avoid">
-              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Transaction Details</p>
-              <p className="text-sm text-slate-600">
+            <div className="bg-slate-50 rounded-xl p-5 print:p-2 print:break-inside-avoid">
+              <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium mb-3 print:mb-1">Transaction Details</p>
+              <p className="text-sm print:text-[10px] text-slate-600">
                 This purchase invoice documents the acquisition of the above vehicle by {snap.dealer?.companyName || snap.dealer?.name} from {snap.supplier?.companyName || snap.supplier?.name}.
               </p>
             </div>
 
-            {/* Signature Section - Dealer only */}
-            <div className="print:break-inside-avoid border-t border-slate-200 pt-6">
-              <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-4">Authorisation</p>
-              <div className="max-w-sm">
-                <p className="text-xs text-slate-600 mb-2">Authorised on behalf of {snap.dealer?.companyName || snap.dealer?.name}</p>
-                <div className="border-b-2 border-slate-300 pt-10">
+            {/* Signature Section - Compact for print */}
+            <div className="print:break-inside-avoid border-t border-slate-200 pt-6 print:pt-2">
+              <p className="text-sm print:text-[10px] text-slate-500 uppercase tracking-wide font-medium mb-4 print:mb-1">Authorisation</p>
+              <div className="max-w-sm print:max-w-full">
+                <p className="text-xs print:text-[9px] text-slate-600 mb-2 print:mb-1">Authorised on behalf of {snap.dealer?.companyName || snap.dealer?.name}</p>
+                <div className="print:hidden border-b-2 border-slate-300 pt-10">
                   <p className="text-xs text-slate-400 -mb-1">Signature</p>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="print:hidden grid grid-cols-2 gap-4 mt-4">
                   <div className="border-b border-slate-200 pt-4">
                     <p className="text-xs text-slate-400 -mb-1">Print Name</p>
                   </div>
@@ -336,18 +343,22 @@ export default function SelfBillPage() {
                     <p className="text-xs text-slate-400 -mb-1">Date</p>
                   </div>
                 </div>
+                {/* Print-only compact line */}
+                <p className="hidden print:block text-[9px] text-slate-500 border-t border-slate-300 pt-1 mt-1">
+                  Signature: __________________ Name: __________________ Date: __________________
+                </p>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="print:break-inside-avoid border-t border-slate-200 pt-4 text-center">
+            <div className="print:break-inside-avoid border-t border-slate-200 pt-4 print:pt-1 text-center">
               {snap.dealer?.companyNumber && (
-                <p className="text-xs text-slate-500">Company Registration: {snap.dealer.companyNumber}</p>
+                <p className="text-xs print:text-[8px] text-slate-500">Company Registration: {snap.dealer.companyNumber}</p>
               )}
               {snap.dealer?.vatNumber && (
-                <p className="text-xs text-slate-500">VAT Registration: {snap.dealer.vatNumber}</p>
+                <p className="text-xs print:text-[8px] text-slate-500">VAT Registration: {snap.dealer.vatNumber}</p>
               )}
-              <p className="text-xs text-slate-400 mt-2">This is a purchase document - not a sales invoice.</p>
+              <p className="text-xs print:text-[8px] text-slate-400 mt-2 print:mt-0">This is a purchase document - not a sales invoice.</p>
             </div>
           </div>
         </div>
@@ -357,7 +368,7 @@ export default function SelfBillPage() {
         @media print {
           @page {
             size: A4;
-            margin: 15mm 10mm;
+            margin: 8mm;
           }
           body {
             print-color-adjust: exact;
@@ -368,6 +379,9 @@ export default function SelfBillPage() {
           }
           .print\\:break-before-page {
             break-before: page;
+          }
+          table {
+            break-inside: avoid;
           }
         }
       `}</style>

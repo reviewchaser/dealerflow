@@ -246,29 +246,58 @@ export default function PublicForm({ form, fields, dealer }) {
 
     setIsLookingUp(true);
     try {
-      const res = await fetch("/api/dvla-lookup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleReg: vrm }),
-      });
-      const data = await res.json();
+      // Call both DVLA and DVSA MOT APIs in parallel for best coverage
+      // DVLA gives us make, colour, year. DVSA gives us make AND model reliably.
+      const cleanVrm = vrm.trim().toUpperCase().replace(/\s+/g, "");
 
-      if (res.ok && data.make) {
-        // Auto-fill related fields if they exist in the form
+      const [dvlaRes, motRes] = await Promise.allSettled([
+        fetch("/api/dvla-lookup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vehicleReg: cleanVrm }),
+        }),
+        fetch(`/api/public/mot-lookup?vrm=${encodeURIComponent(cleanVrm)}`),
+      ]);
+
+      let dvlaData = null;
+      let motData = null;
+
+      if (dvlaRes.status === "fulfilled" && dvlaRes.value.ok) {
+        dvlaData = await dvlaRes.value.json();
+      }
+      if (motRes.status === "fulfilled" && motRes.value.ok) {
+        motData = await motRes.value.json();
+      }
+
+      // Prefer DVSA MOT data for make/model as it's more reliable
+      const make = motData?.make || dvlaData?.make;
+      const model = motData?.model || dvlaData?.model;
+      const colour = motData?.primaryColour || dvlaData?.colour;
+      const year = motData?.manufactureYear || dvlaData?.year;
+      const fuelType = motData?.fuelType || dvlaData?.fuelType;
+
+      if (make) {
+        // Auto-fill related fields - support both naming conventions
         const updates = {};
-        if (data.make) updates.make = data.make;
-        if (data.model) updates.model = data.model;
-        if (data.year) updates.year = data.year;
-        if (data.colour) updates.colour = data.colour;
-        if (data.fuelType) updates.fuel_type = data.fuelType;
+        if (make) {
+          updates.make = make;
+          updates.vehicle_make = make;  // For warranty/aftersales forms
+        }
+        if (model) {
+          updates.model = model;
+          updates.vehicle_model = model;  // For warranty/aftersales forms
+        }
+        if (year) updates.year = year;
+        if (colour) updates.colour = colour;
+        if (fuelType) updates.fuel_type = fuelType;
 
         setFormData(prev => ({ ...prev, ...updates }));
-        toast.success(`Found: ${data.year || ""} ${data.make} ${data.model} - ${data.colour || ""}`);
+        toast.success(`Found: ${year || ""} ${make} ${model || ""} - ${colour || ""}`.trim().replace(/\s+/g, " "));
       } else {
         toast.error("Vehicle not found or lookup failed");
       }
     } catch (error) {
-      console.error("DVLA lookup error:", error);
+      console.error("VRM lookup error:", error);
       toast.error("Failed to lookup vehicle");
     } finally {
       setIsLookingUp(false);

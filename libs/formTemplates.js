@@ -381,7 +381,9 @@ For emergencies, contact: {dealer.companyPhone}`,
     visibility: "PUBLIC", // Fully public - customers can access
     isPublic: true, // Deprecated - kept for backward compat
     publicSlug: "aftersales-issue",
-    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.`,
+    introText: `Please fill out the form below in as much detail as possible. For warranty related issues for more information about what is and isn't covered please refer to your warranty information
+
+Please allow up to 48 hours for a response.`,
     vrmLookup: { enabled: true, statuses: ["SOLD", "DELIVERED"] },
     termsText: `• I understand that I can use this form to report an issue however, it may not be a claimable issue.
 • I understand it may take up to 48 hours to receive a response to this claim form, and not to report the issue again as this may delay the claim further.
@@ -391,8 +393,9 @@ For emergencies, contact: {dealer.companyPhone}`,
       { label: "Purchase Information", fieldName: "_section_purchase", type: "SECTION_HEADER", order: 1 },
       { label: "Registration at time of purchase", fieldName: "vrm", type: "TEXT", required: true, order: 2, vrmLookup: true },
       { label: "Purchase Date", fieldName: "purchase_date", type: "DATE", required: true, order: 3 },
-      { label: "Vehicle Make and Model", fieldName: "vehicle_make_model", type: "TEXT", required: false, order: 4 },
-      { label: "Exact Mileage", fieldName: "exact_mileage", type: "TEXT", required: true, order: 5, placeholder: "e.g. 23456" },
+      { label: "Vehicle Make", fieldName: "vehicle_make", type: "TEXT", required: false, order: 4 },
+      { label: "Vehicle Model", fieldName: "vehicle_model", type: "TEXT", required: false, order: 5 },
+      { label: "Exact Mileage", fieldName: "exact_mileage", type: "TEXT", required: true, order: 6, placeholder: "e.g. 23456" },
 
       // Section: Customer Details
       { label: "Customer Details", fieldName: "_section_customer", type: "SECTION_HEADER", order: 10 },
@@ -450,7 +453,9 @@ export const VALID_FORM_TYPES = ["PDI", "TEST_DRIVE", "WARRANTY_CLAIM", "COURTES
 // Default intro/terms text that can be customized per dealer
 export const DEFAULT_FORM_TEXT = {
   WARRANTY_CLAIM: {
-    introText: `Please fill out the form below in as much detail as possible. For more information about what is and isn't covered under your warranty please refer to your documentation.`,
+    introText: `Please fill out the form below in as much detail as possible. For warranty related issues for more information about what is and isn't covered please refer to your warranty information
+
+Please allow up to 48 hours for a response.`,
   },
   TEST_DRIVE: {
     termsText: `By signing this form, I confirm that:

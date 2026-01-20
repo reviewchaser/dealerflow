@@ -51,6 +51,12 @@ Rules:
 - `pages/public/invoice/[token].js` - Full breakdown with multiple PXs, delivery line, signature status block
 - `pages/public/deposit-receipt/[token].js` - Delivery charge line, signature status (distance sales: "no signature required")
 
+**Invoice PDF Page Constraint:**
+- Invoice page 1 MUST contain: Header through "Thank you for your business"
+- CSS class `.invoice-page-1` available with `max-height: 257mm` and `overflow: hidden` for print
+- Page 2 content (payments + T&Cs) uses `print:break-before-page` to force new page
+- Never allow page 1 content to overflow - shrink fonts/spacing if needed
+
 **E-Signature System:**
 - `components/SignatureCapture.js` - Modal with signature_pad for customer + dealer signatures
 - `pages/api/deals/[id]/sign.js` - Saves signatures to R2 storage, updates deal

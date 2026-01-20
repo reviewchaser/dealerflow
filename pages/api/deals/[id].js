@@ -1,6 +1,7 @@
 import connectMongo from "@/libs/mongoose";
 import Deal from "@/models/Deal";
 import Vehicle from "@/models/Vehicle";
+import Contact from "@/models/Contact";
 import VehicleIssue from "@/models/VehicleIssue";
 import PartExchange from "@/models/PartExchange";
 import { withDealerContext } from "@/libs/authContext";
@@ -80,6 +81,7 @@ async function handler(req, res, ctx) {
       notes,
       internalNotes,
       warrantyMonths,
+      warranty,
       deliveryAddress,
       delivery,
       termsKey,
@@ -114,6 +116,7 @@ async function handler(req, res, ctx) {
     if (notes !== undefined) updateData.notes = notes;
     if (internalNotes !== undefined) updateData.internalNotes = internalNotes;
     if (warrantyMonths !== undefined) updateData.warrantyMonths = warrantyMonths;
+    if (warranty !== undefined) updateData.warranty = warranty;
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
     if (termsKey !== undefined) updateData.termsKey = termsKey;
     if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
@@ -226,21 +229,62 @@ async function handler(req, res, ctx) {
 
     await deal.save();
 
-    // Only release the vehicle if the deal was NOT completed
-    // Completed deals mean the vehicle was already sold - it stays SOLD
-    if (!wasCompleted) {
+    // Track what we've done for the response
+    let vehicleRestored = null;
+    const pxVehiclesDeleted = [];
+    const pxVehiclesKept = [];
+
+    if (wasCompleted) {
+      // COMPLETED deal cancellation - restore vehicle and handle PX vehicles
+
+      // 1. Restore the sold vehicle back to stock
+      const soldVehicle = await Vehicle.findById(deal.vehicleId).lean();
+      if (soldVehicle) {
+        await Vehicle.findByIdAndUpdate(deal.vehicleId, {
+          salesStatus: "AVAILABLE",
+          status: "in_stock",
+          $unset: { soldDealId: 1, soldAt: 1 },
+        });
+        vehicleRestored = { id: soldVehicle._id.toString(), vrm: soldVehicle.regCurrent };
+      }
+
+      // 2. Find and handle PX vehicles created from this deal
+      const pxVehicles = await Vehicle.find({ sourceDealId: id }).lean();
+      for (const pxVehicle of pxVehicles) {
+        // Only delete if not already sold (AVAILABLE status)
+        if (pxVehicle.salesStatus === "AVAILABLE") {
+          await Vehicle.findByIdAndDelete(pxVehicle._id);
+          pxVehiclesDeleted.push({ id: pxVehicle._id.toString(), vrm: pxVehicle.regCurrent });
+        } else {
+          // Keep the vehicle but note why
+          pxVehiclesKept.push({
+            id: pxVehicle._id.toString(),
+            vrm: pxVehicle.regCurrent,
+            reason: `Already ${pxVehicle.salesStatus === "COMPLETED" ? "sold" : "in a deal"}`,
+          });
+        }
+      }
+    } else {
+      // Non-completed deal - just release the vehicle
       await Vehicle.findByIdAndUpdate(deal.vehicleId, {
         salesStatus: "AVAILABLE",
         status: "in_stock",
         $unset: { soldAt: 1 },
       });
+      const vehicle = await Vehicle.findById(deal.vehicleId).lean();
+      if (vehicle) {
+        vehicleRestored = { id: vehicle._id.toString(), vrm: vehicle.regCurrent };
+      }
     }
 
     return res.status(200).json({
       success: true,
       message: wasCompleted ? "Completed deal cancelled" : "Deal cancelled",
       dealId: id,
-      vehicleReleased: !wasCompleted,
+      vehicleReleased: true,
+      vehicleRestored,
+      pxVehiclesDeleted,
+      pxVehiclesKept,
     });
   }
 

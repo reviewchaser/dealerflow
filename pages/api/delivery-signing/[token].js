@@ -1,7 +1,9 @@
 import connectMongo from "@/libs/mongoose";
 import Deal from "@/models/Deal";
 import SalesDocument from "@/models/SalesDocument";
-import { uploadToR2 } from "@/libs/r2Client";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
+import { uploadToR2, getSignedGetUrl } from "@/libs/r2Client";
 import crypto from "crypto";
 
 /**
@@ -112,12 +114,15 @@ export default async function handler(req, res) {
       updates.deliveryNotes = deliveryNotes;
     }
 
-    // Upload customer signature to R2
+    // Upload customer signature to R2 and generate signed URL
+    let customerSignatureUrl = null;
     try {
       const customerKey = `signatures/${deal.dealerId}/${deal._id}/customer-delivery-${Date.now()}.png`;
       const customerBuffer = Buffer.from(customerSignature.split(",")[1], "base64");
       await uploadToR2(customerKey, customerBuffer, "image/png");
       updates["signature.customerSignatureImageKey"] = customerKey;
+      // Generate signed URL for the invoice PDF display (7 days)
+      customerSignatureUrl = await getSignedGetUrl(customerKey, 7 * 24 * 60 * 60);
     } catch (uploadError) {
       console.error("[delivery-signing] Signature upload error:", uploadError);
       // Continue even if upload fails - we still have the signed timestamp
@@ -149,19 +154,54 @@ export default async function handler(req, res) {
     // Update deal
     await Deal.findByIdAndUpdate(deal._id, { $set: updates });
 
-    // Update invoice snapshot with signature info
+    // Update invoice snapshot with signature info including image URL
+    const invoiceUpdate = {
+      "snapshotData.signature.customerSignedAt": now,
+      "snapshotData.signature.customerSignerName": customerName,
+    };
+    if (customerSignatureUrl) {
+      invoiceUpdate["snapshotData.signature.customerSignatureImageUrl"] = customerSignatureUrl;
+    }
     await SalesDocument.updateOne(
       {
         dealId: deal._id,
         type: "INVOICE",
       },
-      {
-        $set: {
-          "snapshotData.signature.customerSignedAt": now,
-          "snapshotData.signature.customerSignerName": customerName,
-        },
-      }
+      { $set: invoiceUpdate }
     );
+
+    // Create a form submission record for the delivery
+    try {
+      // Find or create delivery form type
+      let deliveryForm = await Form.findOne({ dealerId: deal.dealerId, type: "DELIVERY" });
+      if (!deliveryForm) {
+        deliveryForm = await Form.create({
+          dealerId: deal.dealerId,
+          name: "Vehicle Delivery",
+          type: "DELIVERY",
+          visibility: "INTERNAL",
+        });
+      }
+
+      // Create submission record
+      await FormSubmission.create({
+        formId: deliveryForm._id,
+        dealerId: deal.dealerId,
+        linkedVehicleId: deal.vehicleId,
+        submittedAt: now,
+        rawAnswers: {
+          vrm: invoice?.snapshotData?.vehicle?.regCurrent || null,
+          customerName,
+          deliveryMileage: deliveryMileage || null,
+          deliveryNotes: deliveryNotes || null,
+          signedViaDriverLink: true,
+        },
+        status: "actioned",
+      });
+    } catch (formError) {
+      console.error("[delivery-signing] FormSubmission creation error:", formError);
+      // Continue even if form creation fails - delivery is still confirmed
+    }
 
     return res.status(200).json({
       success: true,

@@ -172,6 +172,8 @@ const dealerSchema = new mongoose.Schema(
         name: { type: String, default: "Standard Warranty" },
         linkedProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
       },
+      // Message shown on PDFs when no warranty included
+      noWarrantyMessage: { type: String, default: "Trade Terms - No warranty given or implied" },
       // Legacy field - to be deprecated
       defaultWarrantyMonths: { type: Number, default: 3 },
     },

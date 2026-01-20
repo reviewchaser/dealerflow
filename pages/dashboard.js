@@ -553,8 +553,8 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
-                  {/* Filter Tabs */}
-                  <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                  {/* Filter Tabs - Desktop */}
+                  <div className="hidden md:flex items-center gap-1 bg-slate-100 rounded-lg p-1">
                     {Object.entries(ACTIVITY_FILTERS).map(([key, { label }]) => (
                       <button
                         key={key}
@@ -568,6 +568,18 @@ export default function Dashboard() {
                         {label}
                       </button>
                     ))}
+                  </div>
+                  {/* Filter Dropdown - Mobile */}
+                  <div className="md:hidden">
+                    <select
+                      value={activityFilter}
+                      onChange={(e) => setActivityFilter(e.target.value)}
+                      className="px-3 py-1.5 text-xs font-semibold bg-slate-100 border-0 rounded-lg focus:ring-2 focus:ring-[#0066CC]/20"
+                    >
+                      {Object.entries(ACTIVITY_FILTERS).map(([key, { label }]) => (
+                        <option key={key} value={key}>{label}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

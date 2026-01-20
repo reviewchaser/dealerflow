@@ -3,61 +3,82 @@ import Deal from "@/models/Deal";
 import { withDealerContext } from "@/libs/authContext";
 
 /**
- * Update Warranty API
  * POST /api/deals/[id]/update-warranty
+ * Update warranty details on a deal
  *
- * Updates the warranty details for a deal.
- * Only allowed when deal status is DEPOSIT_TAKEN (not yet invoiced).
+ * Body:
+ * - name: string
+ * - description: string
+ * - durationMonths: number
+ * - claimLimit: number (null for unlimited)
+ * - priceGross: number
+ * - priceNet: number
+ * - vatTreatment: string
+ * - vatAmount: number
+ * - type: string (DEFAULT, TRADE, THIRD_PARTY)
+ * - tradeTermsText: string (for TRADE type)
  */
 async function handler(req, res, ctx) {
-  await connectMongo();
-  const { dealerId, userId } = ctx;
-  const { id } = req.query;
-
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Validate ID format
-  if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
-    return res.status(400).json({ error: "Invalid deal ID" });
-  }
+  await connectMongo();
+  const { dealerId, userId } = ctx;
+  const { id } = req.query;
+  const {
+    name,
+    description,
+    durationMonths,
+    claimLimit,
+    priceGross,
+    priceNet,
+    vatTreatment,
+    vatAmount,
+    type,
+    tradeTermsText,
+  } = req.body;
 
-  // Get the deal
+  // Find deal
   const deal = await Deal.findOne({ _id: id, dealerId });
+
   if (!deal) {
     return res.status(404).json({ error: "Deal not found" });
   }
 
-  // Only allow editing in DEPOSIT_TAKEN status (before invoicing)
-  if (deal.status !== "DEPOSIT_TAKEN") {
-    return res.status(400).json({
-      error: "Warranty can only be edited before invoicing",
-      currentStatus: deal.status,
-    });
+  // Only allow updates in DRAFT or DEPOSIT_TAKEN status
+  if (!["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status)) {
+    return res.status(400).json({ error: "Cannot modify warranty after invoice generated" });
   }
 
-  // Extract warranty fields from request
-  const { name, durationMonths, claimLimit, priceGross } = req.body;
+  // Build warranty update
+  const warranty = deal.warranty || {};
 
-  // Validate that we have a warranty to edit
-  if (!deal.warranty?.included) {
-    return res.status(400).json({ error: "No warranty to edit on this deal" });
+  if (name !== undefined) warranty.name = name;
+  if (description !== undefined) warranty.description = description;
+  if (durationMonths !== undefined) warranty.durationMonths = durationMonths;
+  if (claimLimit !== undefined) warranty.claimLimit = claimLimit;
+  if (priceGross !== undefined) {
+    warranty.priceGross = priceGross;
+    // Default priceNet to priceGross if not specified (for VAT exempt warranties)
+    if (priceNet === undefined) {
+      warranty.priceNet = priceGross;
+    }
+  }
+  if (priceNet !== undefined) warranty.priceNet = priceNet;
+  if (vatTreatment !== undefined) warranty.vatTreatment = vatTreatment;
+  if (vatAmount !== undefined) warranty.vatAmount = vatAmount;
+  if (type !== undefined) warranty.type = type;
+  if (tradeTermsText !== undefined) warranty.tradeTermsText = tradeTermsText;
+
+  // Keep included flag consistent with type
+  if (type === "TRADE") {
+    warranty.included = false;
+  } else if (name || durationMonths) {
+    warranty.included = true;
   }
 
-  // Update warranty fields
-  deal.warranty = {
-    ...deal.warranty,
-    name: name || deal.warranty.name,
-    durationMonths: durationMonths !== null ? durationMonths : deal.warranty.durationMonths,
-    claimLimit: claimLimit !== null ? claimLimit : deal.warranty.claimLimit,
-    priceGross: priceGross !== undefined ? priceGross : deal.warranty.priceGross,
-    // Keep these fields unchanged
-    included: true,
-    isDefault: deal.warranty.isDefault,
-    addOnProductId: deal.warranty.addOnProductId,
-  };
-
+  deal.warranty = warranty;
   deal.updatedByUserId = userId;
   await deal.save();
 

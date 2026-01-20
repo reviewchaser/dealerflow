@@ -41,8 +41,13 @@ export default async function handler(req, res) {
     return res.status(410).json({ error: "This link has expired" });
   }
 
+  // DEBUG: Log what's in the snapshotData
+  console.log("[deposit-receipt-api] Document ID:", document._id);
+  console.log("[deposit-receipt-api] snapshotData.delivery:", JSON.stringify(document.snapshotData?.delivery, null, 2));
+  console.log("[deposit-receipt-api] snapshotData.warranty:", JSON.stringify(document.snapshotData?.warranty, null, 2));
+
   // Return document data (sanitize sensitive fields)
-  return res.status(200).json({
+  res.status(200).json({
     id: document._id.toString(),
     type: document.type,
     documentNumber: document.documentNumber,

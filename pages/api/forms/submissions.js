@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       if (vrm) {
         const vehicle = await Vehicle.findOne({
           regCurrent: vrm.toUpperCase().replace(/\s/g, ""),
-          dealerId: form.dealerId
+          dealerId: dealerId  // Use corrected dealerId variable, not form.dealerId
         });
 
         if (vehicle) {
@@ -422,6 +422,34 @@ export default async function handler(req, res) {
             case "SERVICE_RECEIPT":
               updates.serviceReceiptSubmissionId = submission._id;
               updates.serviceReceiptCompletedAt = new Date();
+              // Link to deal if dealId was passed in rawAnswers
+              try {
+                const dealId = rawAnswers._dealId;
+                let deal;
+                if (dealId) {
+                  deal = await Deal.findById(dealId);
+                } else {
+                  // Find deal by vehicleId (vehicle in active sale)
+                  deal = await Deal.findOne({
+                    dealerId,
+                    vehicleId: vehicle._id,
+                    status: { $in: ["DRAFT", "DEPOSIT_TAKEN", "INVOICED"] }
+                  });
+                }
+                if (deal) {
+                  // Add submission to deal's linkedSubmissionIds
+                  await Deal.findByIdAndUpdate(deal._id, {
+                    $addToSet: { linkedSubmissionIds: submission._id },
+                    serviceReceiptSubmissionId: submission._id,
+                  });
+                  // Also link the submission to the deal
+                  await FormSubmission.findByIdAndUpdate(submission._id, {
+                    linkedDealId: deal._id
+                  });
+                }
+              } catch (dealError) {
+                console.error("Error linking service receipt to deal:", dealError);
+              }
               break;
           }
 

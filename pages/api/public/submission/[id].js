@@ -3,6 +3,7 @@ import FormSubmission from "@/models/FormSubmission";
 import Form from "@/models/Form";
 import FormField from "@/models/FormField";
 import Dealer from "@/models/Dealer";
+import { FORM_TEMPLATES } from "@/libs/formTemplates";
 
 /**
  * Public Submission View API
@@ -41,9 +42,22 @@ export default async function handler(req, res) {
   }
 
   // Get form fields to format the response
-  const fields = await FormField.find({ formId: submission.formId._id })
+  let fields = await FormField.find({ formId: submission.formId._id })
     .sort({ order: 1 })
     .lean();
+
+  // Fallback to template fields if no FormField records exist
+  if (fields.length === 0 && submission.formId?.type) {
+    const template = FORM_TEMPLATES.find((t) => t.type === submission.formId.type);
+    if (template?.fields) {
+      fields = template.fields.map((f) => ({
+        name: f.fieldName,
+        label: f.label,
+        type: f.type,
+        order: f.order,
+      }));
+    }
+  }
 
   // Format answers with labels
   const formattedAnswers = fields.map((field) => {

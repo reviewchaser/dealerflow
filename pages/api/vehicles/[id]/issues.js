@@ -29,7 +29,7 @@ async function handler(req, res, ctx) {
 
   if (req.method === "POST") {
     try {
-      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails } = req.body;
+      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails, dealId, dealNumber } = req.body;
 
       if (!category || !subcategory || !description) {
         return res.status(400).json({ error: "Category, subcategory, and description are required" });
@@ -74,6 +74,8 @@ async function handler(req, res, ctx) {
         notes,
         partsRequired: partsRequired || false,
         partsDetails: partsDetails || null,
+        dealId: dealId || null,
+        dealNumber: dealNumber || null,
       });
 
       // Log activity to VehicleActivity (legacy)

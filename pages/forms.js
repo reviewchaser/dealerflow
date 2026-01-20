@@ -21,6 +21,7 @@ const FORM_TYPE_LABELS = {
   COURTESY_IN: "Courtesy Car In",
   SERVICE_RECEIPT: "Service Receipt",
   REVIEW_FEEDBACK: "Review & Feedback",
+  DELIVERY: "Vehicle Delivery",
   OTHER: "Other",
 };
 
@@ -33,6 +34,7 @@ const FORM_TYPE_STYLES = {
   COURTESY_IN: { bg: "bg-green-50", text: "text-green-600", accent: "border-green-500" },
   SERVICE_RECEIPT: { bg: "bg-teal-50", text: "text-teal-600", accent: "border-teal-500" },
   REVIEW_FEEDBACK: { bg: "bg-pink-50", text: "text-pink-600", accent: "border-pink-500" },
+  DELIVERY: { bg: "bg-purple-50", text: "text-purple-600", accent: "border-purple-500" },
   OTHER: { bg: "bg-slate-50", text: "text-slate-600", accent: "border-slate-500" },
 };
 
@@ -53,6 +55,8 @@ const FormTypeIcon = ({ type, size = "w-4 h-4" }) => {
       return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M9 14.25l6-6m4.5-3.493V21.75l-3.75-1.5-3.75 1.5-3.75-1.5-3.75 1.5V4.757c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0c1.1.128 1.907 1.077 1.907 2.185zM9.75 9h.008v.008H9.75V9zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm4.125 4.5h.008v.008h-.008V13.5zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>;
     case "REVIEW_FEEDBACK":
       return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>;
+    case "DELIVERY":
+      return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25m-8.25 0v-.958c0-.568.422-1.048.987-1.106a48.554 48.554 0 0110.026 0c.565.058.987.538.987 1.106v.958m-12 0h12M9 6.75V4.5m6 2.25V4.5" /></svg>;
     default:
       return <svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>;
   }
@@ -831,7 +835,7 @@ export default function Forms() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </label>
-              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                 {forms.length === 0 ? (
                   <li><span className="text-base-content/60 text-sm">No forms available</span></li>
                 ) : (
@@ -870,7 +874,7 @@ export default function Forms() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
               </label>
-              <ul tabIndex={0} className="dropdown-content z-20 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+              <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-base-100 rounded-box w-64 max-h-80 overflow-y-auto right-0" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                 {forms.length === 0 ? (
                   <li><span className="text-base-content/60 text-sm">No forms available</span></li>
                 ) : (
@@ -1546,7 +1550,7 @@ export default function Forms() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </label>
-                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-40 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+                        <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-white rounded-lg w-40 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                           <li>
                             <button onClick={async () => {
                               const subId = selectedSubmission.id || selectedSubmission._id;
@@ -1628,7 +1632,7 @@ export default function Forms() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                           </svg>
                         </label>
-                        <ul tabIndex={0} className="dropdown-content z-10 menu p-2 shadow-lg bg-white rounded-lg w-44 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+                        <ul tabIndex={0} className="dropdown-content z-50 menu p-2 shadow-lg bg-white rounded-lg w-44 border border-slate-200 right-0 md:right-auto" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
                           <li><button onClick={handleStartEdit}>Edit</button></li>
                           <li><button onClick={handleExportPdf}>Export PDF</button></li>
                           <li className="divider my-1"></li>
@@ -1791,7 +1795,7 @@ export default function Forms() {
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                           {Object.entries(submissionDetail.submission?.rawAnswers || {})
-                            .filter(([key]) => !key.startsWith('_') && !isExportDenied(key)) // Filter out internal and system fields
+                            .filter(([key]) => !key.startsWith('_') && !isExportDenied(key) && key !== 'pdi_issues') // Filter out internal, system fields, and pdi_issues (rendered separately)
                             .map(([key, value]) => {
                             const field = submissionDetail.fields?.find(f => f.fieldName === key);
                             const label = field?.label || key;
@@ -1831,6 +1835,41 @@ export default function Forms() {
                             );
                           })}
                         </div>
+
+                        {/* PDI Issues - Special rendering for nested photos */}
+                        {submissionDetail.submission?.rawAnswers?.pdi_issues &&
+                         Array.isArray(submissionDetail.submission.rawAnswers.pdi_issues) &&
+                         submissionDetail.submission.rawAnswers.pdi_issues.length > 0 && (
+                          <div className="mt-6 sm:col-span-2">
+                            <dt className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                              PDI Issues
+                            </dt>
+                            <dd className="space-y-3">
+                              {submissionDetail.submission.rawAnswers.pdi_issues.map((issue, idx) => (
+                                <div key={idx} className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="badge badge-sm badge-outline">{issue.category}</span>
+                                    {issue.subcategory && (
+                                      <span className="text-xs text-slate-500">{issue.subcategory}</span>
+                                    )}
+                                  </div>
+                                  {issue.description && (
+                                    <p className="text-sm text-slate-700 mb-2">{issue.description}</p>
+                                  )}
+                                  {issue.photos && issue.photos.length > 0 && (
+                                    <div className="mt-2">
+                                      <AttachmentField
+                                        value={issue.photos}
+                                        fieldName={`Issue ${idx + 1} Photos`}
+                                        thumbnailSize="sm"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </dd>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

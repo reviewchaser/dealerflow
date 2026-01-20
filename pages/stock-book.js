@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
+import { PageHint } from "@/components/ui";
 
 // Status tabs for filtering
 const STATUS_TABS = [
@@ -75,7 +76,7 @@ export default function StockBook() {
   const [hasSivFilter, setHasSivFilter] = useState("all");
   const [vatFilter, setVatFilter] = useState("all");
   const [sellerFilter, setSellerFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all"); // STOCK, COURTESY, FLEET_OTHER, all
+  const [typeFilter, setTypeFilter] = useState("STOCK"); // STOCK, COURTESY, FLEET_OTHER, all
   const [sellerSearch, setSellerSearch] = useState("");
   const [sellerFilterName, setSellerFilterName] = useState(""); // Display name of selected seller
   const [showSellerSuggestions, setShowSellerSuggestions] = useState(false);
@@ -102,6 +103,9 @@ export default function StockBook() {
   const [isDrawerLoading, setIsDrawerLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingSelfBill, setIsGeneratingSelfBill] = useState(false);
+
+  // Action menu state (for fixed positioning dropdown)
+  const [actionMenu, setActionMenu] = useState({ open: false, vehicleId: null, x: 0, y: 0 });
 
   // Purchase info form state (includes vehicle details for editing)
   const [purchaseForm, setPurchaseForm] = useState({
@@ -214,8 +218,8 @@ export default function StockBook() {
   const fetchVehicles = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch all STOCK type vehicles (not COURTESY or FLEET_OTHER)
-      const response = await fetch("/api/vehicles?type=STOCK&includeAll=1");
+      // Fetch all vehicles (filter by type is applied client-side)
+      const response = await fetch("/api/vehicles?includeAll=1");
       if (!response.ok) {
         throw new Error("Failed to fetch vehicles");
       }
@@ -282,6 +286,22 @@ export default function StockBook() {
       router.replace("/stock-book", undefined, { shallow: true });
     }
   }, [router.query.vehicle, isLoading, vehicles]);
+
+  // Close action menu on click outside or scroll
+  useEffect(() => {
+    if (!actionMenu.open) return;
+
+    const handleClickOutside = () => setActionMenu({ open: false, vehicleId: null, x: 0, y: 0 });
+    const handleScroll = () => setActionMenu({ open: false, vehicleId: null, x: 0, y: 0 });
+
+    document.addEventListener('click', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [actionMenu.open]);
 
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
@@ -1135,11 +1155,8 @@ export default function StockBook() {
       const newVehicle = await response.json();
       const vehicleId = newVehicle.id || newVehicle._id;
 
-      // If purchase info provided, save it
+      // If purchase info provided, save it (stock number is auto-assigned by POST /api/vehicles)
       if (addVehicleForm.purchasePriceNet || addVehicleForm.purchasedFromContactId) {
-        // Assign stock number
-        await fetch(`/api/vehicles/${vehicleId}/assign-stock-number`, { method: "POST" });
-
         // Update purchase info
         await fetch(`/api/vehicles/${vehicleId}`, {
           method: "PUT",
@@ -1245,8 +1262,13 @@ export default function StockBook() {
               <div>
                 <h1 className="text-xl md:text-2xl font-bold text-slate-900">Stock Book</h1>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  All vehicles from the Stock & Prep board will be shown here
+                  Your vehicle inventory - add vehicles here to make them available for sale
                 </p>
+                <div className="mt-1">
+                  <PageHint id="stock-book">
+                    This is your vehicle hub. Add purchase info to a vehicle to make it available in the Sales page. Send vehicles to the Prep board for preparation work before selling.
+                  </PageHint>
+                </div>
               </div>
 
               <div className="flex items-center gap-3">
@@ -1622,9 +1644,9 @@ export default function StockBook() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-visible">
+            <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
               {/* Table Header */}
-              <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider rounded-t-xl overflow-hidden">
+              <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider rounded-t-xl sticky top-0 min-w-[900px]">
                 <div
                   className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
                   onClick={() => handleSort("stock")}
@@ -1638,7 +1660,7 @@ export default function StockBook() {
                   VRM<SortIndicator field="vrm" />
                 </div>
                 <div
-                  className="col-span-2 cursor-pointer hover:text-slate-700 select-none"
+                  className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
                   onClick={() => handleSort("vehicle")}
                 >
                   Vehicle<SortIndicator field="vehicle" />
@@ -1656,6 +1678,7 @@ export default function StockBook() {
                 >
                   SIV<SortIndicator field="siv" />
                 </div>
+                <div className="col-span-1 text-right">Sold</div>
                 <div className="col-span-1 text-center">VAT</div>
                 <div
                   className="col-span-1 cursor-pointer hover:text-slate-700 select-none"
@@ -1668,8 +1691,8 @@ export default function StockBook() {
                 <div className="col-span-1 text-right">Actions</div>
               </div>
 
-              {/* Table Rows */}
-              <div className="divide-y divide-slate-100">
+              {/* Table Rows - min-width ensures horizontal scroll on mobile */}
+              <div className="divide-y divide-slate-100 min-w-[900px]">
                 {filteredVehicles.map((vehicle) => {
                   const days = getDaysInStock(vehicle.createdAt);
                   const hasInfo = hasPurchaseInfo(vehicle);
@@ -1685,33 +1708,33 @@ export default function StockBook() {
                       onClick={() => handleVehicleClick(vehicle.id || vehicle._id)}
                     >
                       {/* Stock # */}
-                      <div className="col-span-6 md:col-span-1">
+                      <div className="col-span-1">
                         <span className="text-sm font-medium text-slate-900">
                           {vehicle.stockNumber || "—"}
                         </span>
                       </div>
 
                       {/* VRM */}
-                      <div className="col-span-6 md:col-span-1">
+                      <div className="col-span-1">
                         <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-2 py-0.5 rounded border border-black/20 tracking-wide">
                           {vehicle.regCurrent}
                         </span>
                       </div>
 
                       {/* Vehicle */}
-                      <div className="col-span-12 md:col-span-2">
+                      <div className="col-span-1">
                         <p className="font-medium text-slate-900 truncate">
                           {vehicle.make} {vehicle.model}
                         </p>
                       </div>
 
                       {/* Year */}
-                      <div className="hidden md:block col-span-1">
+                      <div className="col-span-1">
                         <span className="text-sm text-slate-600">{vehicle.year || "—"}</span>
                       </div>
 
                       {/* Days in Stock */}
-                      <div className="hidden md:flex col-span-1 justify-center">
+                      <div className="col-span-1 flex justify-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           days > 90 ? "bg-red-100 text-red-700" :
                           days > 60 ? "bg-amber-100 text-amber-700" :
@@ -1722,7 +1745,7 @@ export default function StockBook() {
                       </div>
 
                       {/* SIV */}
-                      <div className="col-span-6 md:col-span-1 text-right">
+                      <div className="col-span-1 text-right">
                         <span className={`text-sm font-medium ${
                           vehicle.purchase?.purchasePriceNet ? "text-slate-900" : "text-slate-400"
                         }`}>
@@ -1730,8 +1753,17 @@ export default function StockBook() {
                         </span>
                       </div>
 
+                      {/* Sold Price */}
+                      <div className="col-span-1 text-right">
+                        <span className={`text-sm font-medium ${
+                          vehicle.soldDeal?.vehiclePriceGross ? "text-green-600" : "text-slate-400"
+                        }`}>
+                          {formatCurrency(vehicle.soldDeal?.vehiclePriceGross)}
+                        </span>
+                      </div>
+
                       {/* VAT Status */}
-                      <div className="hidden md:flex col-span-1 justify-center">
+                      <div className="col-span-1 flex justify-center">
                         {vehicle.vatScheme === "VAT_QUALIFYING" ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-700">
                             VAT Q
@@ -1744,7 +1776,7 @@ export default function StockBook() {
                       </div>
 
                       {/* Purchased Date */}
-                      <div className="hidden md:block col-span-1">
+                      <div className="col-span-1">
                         <span className="text-sm text-slate-600">
                           {vehicle.purchase?.purchaseDate
                             ? formatDate(vehicle.purchase.purchaseDate)
@@ -1753,14 +1785,14 @@ export default function StockBook() {
                       </div>
 
                       {/* Seller */}
-                      <div className="hidden md:block col-span-1">
+                      <div className="col-span-1">
                         <span className="text-sm text-slate-600 truncate block">
                           {sellerName || "—"}
                         </span>
                       </div>
 
                       {/* Status */}
-                      <div className="col-span-6 md:col-span-1 flex justify-center">
+                      <div className="col-span-1 flex justify-center">
                         {!hasInfo ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -1783,60 +1815,42 @@ export default function StockBook() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCreateSale(vehicle);
+                            if (vehicle.soldDealId) {
+                              router.push(`/sales?id=${vehicle.soldDealId}`);
+                            } else {
+                              handleCreateSale(vehicle);
+                            }
                           }}
                           className="btn btn-xs btn-ghost text-[#0066CC]"
-                          title="Create Sale"
+                          title={vehicle.soldDealId ? "View Deal" : "Create Sale"}
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            {vehicle.soldDealId ? (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            ) : (
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            )}
                           </svg>
                         </button>
-                        {/* Quick Actions Dropdown */}
-                        <div className="dropdown dropdown-end">
-                          <button
-                            tabIndex={0}
-                            onClick={(e) => e.stopPropagation()}
-                            className="btn btn-xs btn-ghost"
-                            title="More actions"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                            </svg>
-                          </button>
-                          <ul tabIndex={0} className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-48 z-50">
-                            {vehicle.showOnPrepBoard !== true && (
-                              <li>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddToPrepBoard(vehicle);
-                                  }}
-                                  className="text-sm"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                  </svg>
-                                  Add to Prep Board
-                                </button>
-                              </li>
-                            )}
-                            <li>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteVehicle(vehicle);
-                                }}
-                                className="text-sm text-error"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                                Delete Vehicle
-                              </button>
-                            </li>
-                          </ul>
-                        </div>
+                        {/* Quick Actions Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setActionMenu({
+                              open: true,
+                              vehicleId: vehicle.id || vehicle._id,
+                              x: rect.right - 192, // 192 = w-48 menu width
+                              y: rect.bottom + 4,
+                            });
+                          }}
+                          className="btn btn-xs btn-ghost"
+                          title="More actions"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   );
@@ -1847,6 +1861,50 @@ export default function StockBook() {
         </div>
       </div>
 
+      {/* Fixed Position Action Menu */}
+      {actionMenu.open && (
+        <div
+          className="fixed bg-white rounded-lg shadow-lg border border-slate-200 py-1 w-48 z-[9999]"
+          style={{ left: actionMenu.x, top: actionMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(() => {
+            const vehicle = vehicles.find(v => (v.id || v._id) === actionMenu.vehicleId);
+            if (!vehicle) return null;
+            return (
+              <>
+                {vehicle.showOnPrepBoard !== true && (
+                  <button
+                    onClick={() => {
+                      handleAddToPrepBoard(vehicle);
+                      setActionMenu({ open: false, vehicleId: null, x: 0, y: 0 });
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Add to Prep Board
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    handleDeleteVehicle(vehicle);
+                    setActionMenu({ open: false, vehicleId: null, x: 0, y: 0 });
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-error hover:bg-slate-100 flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete Vehicle
+                </button>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       {/* Purchase Info Drawer */}
       {isDrawerOpen && (
         <>
@@ -1854,7 +1912,7 @@ export default function StockBook() {
             className="fixed inset-0 bg-black/50 z-40"
             onClick={handleDrawerClose}
           />
-          <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto">
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-lg bg-white shadow-xl z-50 overflow-y-auto overscroll-contain h-[100dvh]">
             {/* Drawer Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
               <div>
@@ -1891,8 +1949,145 @@ export default function StockBook() {
               </div>
             )}
 
+            {/* Part Exchange Info Banner - if this vehicle was taken in part exchange */}
+            {selectedVehicle?.sourceDealId && (
+              <div className="mx-6 mb-2 mt-2">
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                  <p className="text-sm text-amber-800 mb-2">
+                    Vehicle taken in part exchange against <span className="font-mono font-semibold">{selectedVehicle.sourcePxVrm || "N/A"}</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/sales?id=${selectedVehicle.sourceDealId}`)}
+                    className="btn btn-sm btn-outline btn-warning gap-2 w-full"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Open Deal
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Sale Info Banner - if this vehicle was sold */}
+            {selectedVehicle?.soldDeal && (
+              <div className="mx-6 mb-2 mt-2">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-green-800">
+                      Sold for {formatCurrency(selectedVehicle.soldDeal.vehiclePriceGross)}
+                    </p>
+                    <span className="text-xs font-mono text-green-600">
+                      Deal #{selectedVehicle.soldDeal.dealNumber}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/sales?id=${selectedVehicle.soldDealId}`)}
+                    className="btn btn-sm btn-outline btn-success gap-2 w-full"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    View Sale
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Actions - for available stock (not sold/delivered/completed) */}
+            {selectedVehicle && hasPurchaseInfo(selectedVehicle) &&
+             !["DELIVERED", "COMPLETED"].includes(selectedVehicle.salesStatus) && (
+              <div className="mx-6 mb-2 mt-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-slate-500 mb-2">Quick Actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedVehicle?.soldDealId ? (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/sales?id=${selectedVehicle.soldDealId}`)}
+                        className="btn btn-sm btn-outline border-[#0066CC] text-[#0066CC] hover:bg-[#0066CC] hover:text-white"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        View Deal
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleCreateSale(selectedVehicle)}
+                        className="btn btn-sm btn-outline border-[#0066CC] text-[#0066CC] hover:bg-[#0066CC] hover:text-white"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Create Sale
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateSelfBill(selectedVehicle)}
+                      disabled={isGeneratingSelfBill}
+                      className="btn btn-sm btn-outline border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                    >
+                      {isGeneratingSelfBill ? (
+                        <span className="loading loading-spinner loading-xs mr-1"></span>
+                      ) : (
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                      Generate Purchase Invoice
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Actions - for ex-stock (sold/delivered/completed vehicles) */}
+            {selectedVehicle && ["DELIVERED", "COMPLETED"].includes(selectedVehicle.salesStatus) && (
+              <div className="mx-6 mb-2 mt-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-slate-500 mb-2">Quick Actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedVehicle?.soldDealId && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/sales?id=${selectedVehicle.soldDealId}`)}
+                        className="btn btn-sm btn-outline border-[#0066CC] text-[#0066CC] hover:bg-[#0066CC] hover:text-white"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        View Deal
+                      </button>
+                    )}
+                    {hasPurchaseInfo(selectedVehicle) && (
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateSelfBill(selectedVehicle)}
+                        disabled={isGeneratingSelfBill}
+                        className="btn btn-sm btn-outline border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white"
+                      >
+                        {isGeneratingSelfBill ? (
+                          <span className="loading loading-spinner loading-xs mr-1"></span>
+                        ) : (
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                        )}
+                        Generate Purchase Invoice
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Drawer Content */}
-            <div className="p-6 pb-12">
+            <div className="p-6 pb-24">
               {isDrawerLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <span className="loading loading-spinner loading-lg text-[#0066CC]"></span>
@@ -2421,57 +2616,6 @@ export default function StockBook() {
                       )}
                     </button>
                   </div>
-
-                  {/* Quick Actions - only for available stock (not ex-stock/sold vehicles) */}
-                  {selectedVehicle && hasPurchaseInfo(selectedVehicle) &&
-                   !["DELIVERED", "COMPLETED"].includes(selectedVehicle.salesStatus) && (
-                    <div className="border-t border-slate-200 pt-4 mt-4">
-                      <p className="text-sm font-medium text-slate-600 mb-3">Quick Actions</p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCreateSale(selectedVehicle)}
-                          className="btn btn-sm btn-outline border-[#0066CC] text-[#0066CC] hover:bg-[#0066CC] hover:text-white"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Create Sale
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateSelfBill(selectedVehicle)}
-                          disabled={isGeneratingSelfBill}
-                          className="btn btn-sm btn-outline border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white"
-                        >
-                          {isGeneratingSelfBill ? (
-                            <span className="loading loading-spinner loading-xs mr-1"></span>
-                          ) : (
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                          )}
-                          Generate Purchase Invoice
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* View Deal button - only for ex-stock (sold) vehicles */}
-                  {selectedVehicle?.soldDealId && (
-                    <div className="border-t border-slate-200 pt-4 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/sales?dealId=${selectedVehicle.soldDealId}`)}
-                        className="btn btn-sm btn-outline gap-2 w-full"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        View Deal
-                      </button>
-                    </div>
-                  )}
                 </form>
               )}
             </div>

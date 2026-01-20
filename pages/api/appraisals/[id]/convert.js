@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     console.log("Service History URL:", appraisal.serviceHistoryUrl);
     console.log("Other Documents:", appraisal.otherDocuments);
 
-    const { initialStatus = "in_stock" } = req.body;
+    const { initialStatus = "in_stock", createPrepTasks = true } = req.body;
 
     // Check for duplicate VRM within this dealer
     const normalizedReg = appraisal.vehicleReg?.toUpperCase().replace(/\s/g, "");
@@ -152,20 +152,32 @@ export default async function handler(req, res) {
       }
     }
 
-    // Create tasks - use prep template if selected, otherwise use defaults
-    if (appraisal.prepTemplateId) {
-      const templateTasks = await VehicleTaskTemplate.find({ groupId: appraisal.prepTemplateId }).sort({ order: 1 });
-      if (templateTasks.length > 0) {
-        for (const template of templateTasks) {
-          await VehicleTask.create({
-            vehicleId: vehicle._id,
-            name: template.name,
-            status: "pending",
-            source: "prep_template",
-          });
+    // Create tasks - only if createPrepTasks is true
+    if (createPrepTasks) {
+      if (appraisal.prepTemplateId) {
+        const templateTasks = await VehicleTaskTemplate.find({ groupId: appraisal.prepTemplateId }).sort({ order: 1 });
+        if (templateTasks.length > 0) {
+          for (const template of templateTasks) {
+            await VehicleTask.create({
+              vehicleId: vehicle._id,
+              name: template.name,
+              status: "pending",
+              source: "prep_template",
+            });
+          }
+        } else {
+          // Fallback to default tasks if template has no tasks
+          for (const taskName of DEFAULT_TASKS) {
+            await VehicleTask.create({
+              vehicleId: vehicle._id,
+              name: taskName,
+              status: "pending",
+              source: "system_default",
+            });
+          }
         }
       } else {
-        // Fallback to default tasks if template has no tasks
+        // No template selected, use default tasks
         for (const taskName of DEFAULT_TASKS) {
           await VehicleTask.create({
             vehicleId: vehicle._id,
@@ -174,16 +186,6 @@ export default async function handler(req, res) {
             source: "system_default",
           });
         }
-      }
-    } else {
-      // No template selected, use default tasks
-      for (const taskName of DEFAULT_TASKS) {
-        await VehicleTask.create({
-          vehicleId: vehicle._id,
-          name: taskName,
-          status: "pending",
-          source: "system_default",
-        });
       }
     }
 

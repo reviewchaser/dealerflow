@@ -109,11 +109,31 @@ const salesDocumentSchema = new mongoose.Schema(
       addOnsNetTotal: { type: Number },
       addOnsVatTotal: { type: Number },
 
-      // Delivery
+      // Delivery with full VAT breakdown
       delivery: {
-        amount: { type: Number },
+        amount: { type: Number },      // Legacy field
+        amountGross: { type: Number }, // Gross (inc VAT)
+        amountNet: { type: Number },   // Net (ex VAT)
+        vatAmount: { type: Number },   // VAT amount
         isFree: { type: Boolean },
         notes: { type: String },
+      },
+
+      // Warranty details
+      warranty: {
+        included: { type: Boolean },
+        type: { type: String },  // DEFAULT, TRADE, THIRD_PARTY
+        warrantyProductId: { type: mongoose.Schema.Types.ObjectId },
+        name: { type: String },
+        description: { type: String },
+        durationMonths: { type: Number },
+        claimLimit: { type: Number },
+        priceGross: { type: Number },
+        priceNet: { type: Number },
+        vatTreatment: { type: String },  // NO_VAT, STANDARD, EXEMPT
+        vatAmount: { type: Number },
+        tradeTermsText: { type: String },
+        isDefault: { type: Boolean },
       },
 
       // Finance selection (customer finance intention)

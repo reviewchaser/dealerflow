@@ -6,6 +6,8 @@ import Contact from "@/models/Contact";
 import SalesDocument from "@/models/SalesDocument";
 import PartExchange from "@/models/PartExchange";
 import DocumentCounter from "@/models/DocumentCounter";
+import FormSubmission from "@/models/FormSubmission";
+import Form from "@/models/Form";
 import crypto from "crypto";
 import { withDealerContext } from "@/libs/authContext";
 import { getSignedGetUrl } from "@/libs/r2Client";
@@ -118,12 +120,15 @@ async function handler(req, res, ctx) {
   });
 
   if (depositReceipt && deal.saleChannel !== "DISTANCE") {
-    // In-person sales require signature on deposit receipt before invoice
-    if (!deal.depositSignature?.customerSignedAt) {
+    // In-person sales require both signatures on deposit receipt before invoice
+    if (!deal.depositSignature?.customerSignedAt || !deal.depositSignature?.dealerSignedAt) {
+      const missing = [];
+      if (!deal.depositSignature?.customerSignedAt) missing.push("customer");
+      if (!deal.depositSignature?.dealerSignedAt) missing.push("dealer");
       return res.status(400).json({
-        error: "Deposit receipt must be signed before generating invoice",
+        error: `Deposit receipt must be signed by ${missing.join(" and ")} before generating invoice`,
         field: "depositSignature",
-        hint: "Please have the customer sign the deposit receipt first",
+        hint: `Please have the ${missing.join(" and ")} sign the deposit receipt first`,
       });
     }
   }
@@ -229,8 +234,20 @@ async function handler(req, res, ctx) {
     .filter(p => p.type === "FINANCE_ADVANCE")
     .reduce((sum, p) => sum + p.amount, 0);
 
-  // Part exchange net value
-  const pxNetValue = px ? (px.allowance || 0) - (px.settlement || 0) : 0;
+  // Part exchange net value - support both legacy single PX and new partExchanges[] array
+  let pxNetValue = 0;
+
+  // Legacy single PX (from deal.partExchangeId)
+  if (px) {
+    pxNetValue += (px.allowance || 0) - (px.settlement || 0);
+  }
+
+  // New partExchanges[] array
+  if (deal.partExchanges && deal.partExchanges.length > 0) {
+    for (const pxItem of deal.partExchanges) {
+      pxNetValue += (pxItem.allowance || 0) - (pxItem.settlement || 0);
+    }
+  }
 
   // Delivery amount (use gross if available, otherwise amount)
   const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
@@ -242,18 +259,21 @@ async function handler(req, res, ctx) {
     deliveryCredit = deal.delivery.originalAmountOnDeposit;
   }
 
+  // Calculate warranty amount if warranty has a cost
+  const warrantyAmount = deal.warranty?.included && deal.warranty?.priceGross > 0 ? deal.warranty.priceGross : 0;
+
   // Calculate grand total based on VAT scheme
   let subtotal, totalVat, grandTotal;
 
   if (deal.vatScheme === "VAT_QUALIFYING") {
     subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
     totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-    grandTotal = subtotal + totalVat + deliveryAmount - deliveryCredit;
+    grandTotal = subtotal + totalVat + deliveryAmount + warrantyAmount - deliveryCredit;
   } else {
     // Margin scheme - no VAT breakdown
     subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
     totalVat = 0;
-    grandTotal = subtotal + deliveryAmount - deliveryCredit;
+    grandTotal = subtotal + deliveryAmount + warrantyAmount - deliveryCredit;
   }
 
   const balanceDue = grandTotal - totalPaid - pxNetValue;
@@ -266,6 +286,42 @@ async function handler(req, res, ctx) {
     } catch (logoError) {
       console.warn("[generate-invoice] Failed to generate logo URL:", logoError.message);
       // Fall back to stored logoUrl
+    }
+  }
+
+  // Check if vehicle has a service receipt
+  let serviceReceiptInfo = null;
+  if (vehicle.serviceReceiptSubmissionId) {
+    const serviceReceipt = await FormSubmission.findById(vehicle.serviceReceiptSubmissionId)
+      .populate("formId", "name")
+      .lean();
+    if (serviceReceipt) {
+      serviceReceiptInfo = {
+        present: true,
+        completedAt: vehicle.serviceReceiptCompletedAt || serviceReceipt.createdAt,
+      };
+    }
+  }
+  // Also check by VRM match if no direct link
+  if (!serviceReceiptInfo && vehicle.regCurrent) {
+    const normalizedVrm = vehicle.regCurrent.toUpperCase().replace(/\s/g, "");
+    const serviceReceiptForm = await Form.findOne({ dealerId, type: "SERVICE_RECEIPT" }).lean();
+    if (serviceReceiptForm) {
+      const serviceReceipt = await FormSubmission.findOne({
+        formId: serviceReceiptForm._id,
+        dealerId,
+        $or: [
+          { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
+          { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm.replace(/(.{2,4})$/, " $1")}$`, "i") } },
+        ],
+        status: { $ne: "DELETED" },
+      }).sort({ createdAt: -1 }).lean();
+      if (serviceReceipt) {
+        serviceReceiptInfo = {
+          present: true,
+          completedAt: serviceReceipt.createdAt,
+        };
+      }
     }
   }
 
@@ -316,26 +372,36 @@ async function handler(req, res, ctx) {
     // Warranty details with VAT breakdown
     warranty: deal.warranty?.included ? (() => {
       const priceGross = deal.warranty.priceGross || 0;
-      const vatApplicable = dealer?.salesSettings?.defaultWarranty?.vatApplicable || false;
+      const vatTreatment = deal.warranty.vatTreatment || "NO_VAT";
       const vatRate = dealer?.salesSettings?.vatRate || 0.2;
-      // If VAT applicable: priceNet = priceGross / (1 + vatRate), vatAmount = priceGross - priceNet
-      // If VAT exempt: priceNet = priceGross, vatAmount = 0
-      const priceNet = vatApplicable ? priceGross / (1 + vatRate) : priceGross;
-      const vatAmount = vatApplicable ? priceGross - priceNet : 0;
+      // Calculate priceNet and vatAmount based on vatTreatment
+      const priceNet = vatTreatment === "STANDARD" ? priceGross / (1 + vatRate) : priceGross;
+      const vatAmount = vatTreatment === "STANDARD" ? priceGross - priceNet : 0;
       return {
         included: true,
+        type: deal.warranty.type || "DEFAULT",
+        warrantyProductId: deal.warranty.warrantyProductId || null,
         name: deal.warranty.name,
+        description: deal.warranty.description || "",
         durationMonths: deal.warranty.durationMonths,
         claimLimit: deal.warranty.claimLimit,
         priceGross,
         priceNet: Math.round(priceNet * 100) / 100,
+        vatTreatment,
         vatAmount: Math.round(vatAmount * 100) / 100,
-        vatApplicable,
+        tradeTermsText: deal.warranty.tradeTermsText || "",
         isDefault: deal.warranty.isDefault,
       };
-    })() : null,
+    })() : deal.warranty?.type === "TRADE" ? {
+      included: false,
+      type: "TRADE",
+      tradeTermsText: deal.warranty.tradeTermsText || dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied",
+    } : null,
+    // Message to show when no warranty included
+    noWarrantyMessage: dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied",
     addOns: (deal.addOns || []).map(a => ({
       name: a.name,
+      description: a.description || null,
       qty: a.qty || 1,
       unitPriceNet: a.unitPriceNet,
       vatTreatment: a.vatTreatment,
@@ -382,8 +448,12 @@ async function handler(req, res, ctx) {
       paidAt: p.paidAt,
       reference: p.reference,
     })),
-    // Delivery - include full VAT breakdown
-    delivery: deal.delivery ? {
+    // Delivery - only include if meaningful data exists (free or chargeable)
+    delivery: (deal.delivery && (
+      deal.delivery.isFree === true ||
+      parseFloat(deal.delivery.amountGross) > 0 ||
+      parseFloat(deal.delivery.amount) > 0
+    )) ? {
       amountNet: deal.delivery.amountNet || deal.delivery.amount || 0,
       vatAmount: deal.delivery.vatAmount || 0,
       amountGross: deal.delivery.amountGross || deal.delivery.amount || 0,
@@ -424,6 +494,8 @@ async function handler(req, res, ctx) {
       type: req.type,
       status: req.status,
     })),
+    // Service receipt status
+    serviceReceipt: serviceReceiptInfo,
   };
 
   // Generate share token

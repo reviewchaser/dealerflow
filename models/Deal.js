@@ -45,6 +45,8 @@ const dealAddOnSchema = new mongoose.Schema({
     default: "STANDARD",
   },
   vatRate: { type: Number, default: 0.2 },
+  costPrice: { type: Number }, // Cost price for margin tracking
+  soldByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Staff member who sold this add-on
 }, { _id: true });
 
 // Sales request subdocument
@@ -319,15 +321,31 @@ const dealSchema = new mongoose.Schema(
     warrantyMonths: { type: Number },
     warrantyStartDate: { type: Date },
     warrantyEndDate: { type: Date },
-    // Structured warranty details (new)
+    // Structured warranty details
     warranty: {
       included: { type: Boolean, default: false },
+      type: {
+        type: String,
+        enum: ["DEFAULT", "TRADE", "THIRD_PARTY"],
+        default: "DEFAULT",
+      },
+      warrantyProductId: { type: mongoose.Schema.Types.ObjectId, ref: "WarrantyProduct" },
       name: { type: String },
+      description: { type: String },
       durationMonths: { type: Number },
       claimLimit: { type: Number }, // null = unlimited
       priceGross: { type: Number },
-      isDefault: { type: Boolean }, // true = dealer default, false = third-party add-on
-      addOnProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" },
+      priceNet: { type: Number },
+      costPrice: { type: Number }, // Cost to dealer for profit tracking
+      vatTreatment: {
+        type: String,
+        enum: ["NO_VAT", "STANDARD", "EXEMPT"],
+        default: "NO_VAT",
+      },
+      vatAmount: { type: Number },
+      tradeTermsText: { type: String }, // For TRADE type - shown on PDFs
+      isDefault: { type: Boolean }, // true = dealer default (kept for backwards compat)
+      addOnProductId: { type: mongoose.Schema.Types.ObjectId, ref: "AddOnProduct" }, // Kept for backwards compat
     },
 
     // Notes
@@ -391,7 +409,9 @@ dealSchema.virtual("grandTotal").get(function () {
   // Use new amountGross if available, otherwise fall back to legacy amount field
   const deliveryAmount = this.delivery?.isFree ? 0 :
     (this.delivery?.amountGross || this.delivery?.amount || 0);
-  return vehicleGross + addOnsNet + addOnsVat + deliveryAmount;
+  // Include warranty price if applicable
+  const warrantyAmount = this.warranty?.included ? (this.warranty?.priceGross || 0) : 0;
+  return vehicleGross + addOnsNet + addOnsVat + deliveryAmount + warrantyAmount;
 });
 
 // Virtual: Calculate total PX net value (allowance - settlement)

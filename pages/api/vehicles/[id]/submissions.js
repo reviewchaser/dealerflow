@@ -37,7 +37,7 @@ async function handler(req, res, ctx) {
   const normalizedVrm = vehicle.regCurrent?.toUpperCase().replace(/\s/g, "");
 
   // Fetch submissions that are linked to this vehicle
-  // They could be linked via linkedVehicleId or via rawAnswers.vrm matching
+  // They could be linked via linkedVehicleId or via rawAnswers matching VRM field names
   const submissions = await FormSubmission.find({
     dealerId,
     $or: [
@@ -45,6 +45,11 @@ async function handler(req, res, ctx) {
       ...(normalizedVrm ? [
         { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
         { "rawAnswers.vrm": { $regex: new RegExp(`^${normalizedVrm.replace(/(.{2,4})$/, " $1")}$`, "i") } }, // With space variant
+        // Additional field names used in PDI and other forms:
+        { "rawAnswers.vehicle_reg": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
+        { "rawAnswers.registration": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
+        { "rawAnswers.vehicleRegistration": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
+        { "rawAnswers.reg": { $regex: new RegExp(`^${normalizedVrm}$`, "i") } },
       ] : []),
     ],
     status: { $ne: "DELETED" },

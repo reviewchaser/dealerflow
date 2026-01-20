@@ -6,6 +6,7 @@ import { useDealer } from "@/contexts/DealerContext";
 import { appPath } from "@/libs/appPath";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { Portal } from "@/components/ui/Portal";
+import HelpChat from "@/components/HelpChat";
 
 // Human-readable form type labels
 const FORM_TYPE_LABELS = {
@@ -1172,6 +1173,9 @@ export default function DashboardLayout({ children }) {
           </div>
         </Portal>
       )}
+
+      {/* Help Chat Widget */}
+      <HelpChat />
     </div>
   );
 }

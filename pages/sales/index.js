@@ -232,6 +232,33 @@ export default function Sales() {
     }
   };
 
+  // Cancel a deal
+  const handleCancelDeal = async (dealId, e) => {
+    e?.stopPropagation();
+    if (!confirm("Are you sure you want to cancel this deal? The vehicle will be returned to stock.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cancelReason: "Cancelled from sales list" }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to cancel deal");
+      }
+
+      toast.success("Deal cancelled");
+      fetchDeals();
+    } catch (error) {
+      console.error("[Sales] Cancel deal error:", error);
+      toast.error(error.message || "Could not cancel deal");
+    }
+  };
+
   // Filter vehicles by search
   const filteredVehicles = availableVehicles.filter((vehicle) => {
     if (!vehicleSearch) return true;
@@ -775,6 +802,16 @@ export default function Sales() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                   </svg>
                                   View Invoice
+                                </a>
+                              </li>
+                            )}
+                            {!["CANCELLED", "COMPLETED"].includes(deal.status) && (
+                              <li>
+                                <a onClick={(e) => handleCancelDeal(deal.id, e)} className="text-orange-600">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Cancel Deal
                                 </a>
                               </li>
                             )}

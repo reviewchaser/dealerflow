@@ -48,6 +48,8 @@ export default function CustomerPXForm() {
     conditionNotes: "",
     proposedPurchasePrice: "",
     interestedInVehicle: "",
+    onFinance: false,
+    outstandingFinanceAmount: "",
   });
 
   // Documents - No V5 for GDPR
@@ -353,7 +355,7 @@ export default function CustomerPXForm() {
                   name="customerName"
                   value={formData.customerName}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
@@ -365,7 +367,7 @@ export default function CustomerPXForm() {
                     name="customerPhone"
                     value={formData.customerPhone}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -376,7 +378,7 @@ export default function CustomerPXForm() {
                     name="customerEmail"
                     value={formData.customerEmail}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                 </div>
@@ -393,7 +395,7 @@ export default function CustomerPXForm() {
                 name="vehicleReg"
                 value={formData.vehicleReg}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-slate-200 rounded-lg text-xl font-mono uppercase text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-3 bg-white text-slate-900 border border-slate-200 rounded-lg text-xl font-mono uppercase text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="AB12 CDE"
                 required
               />
@@ -438,7 +440,7 @@ export default function CustomerPXForm() {
                 name="vin"
                 value={formData.vin}
                 onChange={(e) => setFormData({ ...formData, vin: e.target.value.toUpperCase() })}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
+                className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono uppercase"
                 maxLength={17}
               />
             </div>
@@ -451,7 +453,7 @@ export default function CustomerPXForm() {
                   name="vehicleMake"
                   value={formData.vehicleMake}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Ford"
                 />
               </div>
@@ -462,7 +464,7 @@ export default function CustomerPXForm() {
                   name="vehicleModel"
                   value={formData.vehicleModel}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Focus"
                 />
               </div>
@@ -473,7 +475,7 @@ export default function CustomerPXForm() {
                   name="vehicleYear"
                   value={formData.vehicleYear}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="2019"
                 />
               </div>
@@ -484,7 +486,7 @@ export default function CustomerPXForm() {
                   name="mileage"
                   value={formData.mileage}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="50000"
                   required
                 />
@@ -496,7 +498,7 @@ export default function CustomerPXForm() {
                   name="colour"
                   value={formData.colour}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Blue"
                 />
               </div>
@@ -506,7 +508,7 @@ export default function CustomerPXForm() {
                   name="fuelType"
                   value={formData.fuelType}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select...</option>
                   <option value="Petrol">Petrol</option>
@@ -525,8 +527,61 @@ export default function CustomerPXForm() {
                 name="dateOfRegistration"
                 value={formData.dateOfRegistration}
                 onChange={handleChange}
-                className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+          </div>
+
+          {/* Finance Status */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-lg font-semibold text-slate-900 mb-4">Finance Status</h2>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-slate-700">Is the vehicle on finance?</span>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="onFinance"
+                      checked={formData.onFinance === true}
+                      onChange={() => setFormData({ ...formData, onFinance: true })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-slate-700">Yes</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="onFinance"
+                      checked={formData.onFinance === false}
+                      onChange={() => setFormData({ ...formData, onFinance: false, outstandingFinanceAmount: "" })}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm text-slate-700">No</span>
+                  </label>
+                </div>
+              </div>
+              {formData.onFinance && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Settlement Amount
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">£</span>
+                    <input
+                      type="number"
+                      name="outstandingFinanceAmount"
+                      value={formData.outstandingFinanceAmount}
+                      onChange={handleChange}
+                      className="w-full pl-8 pr-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter the settlement figure"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Please provide the current outstanding finance amount
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -619,7 +674,7 @@ export default function CustomerPXForm() {
                     <select
                       value={newIssue.category}
                       onChange={(e) => setNewIssue({ ...newIssue, category: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select type...</option>
                       {ISSUE_CATEGORIES.map((cat) => (
@@ -632,7 +687,7 @@ export default function CustomerPXForm() {
                     <textarea
                       value={newIssue.description}
                       onChange={(e) => setNewIssue({ ...newIssue, description: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows={2}
                       placeholder="Describe the issue..."
                     />
@@ -794,7 +849,7 @@ export default function CustomerPXForm() {
               name="conditionNotes"
               value={formData.conditionNotes}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
               placeholder="Any other information about your vehicle..."
             />
@@ -812,7 +867,7 @@ export default function CustomerPXForm() {
                     name="proposedPurchasePrice"
                     value={formData.proposedPurchasePrice}
                     onChange={handleChange}
-                    className="w-full pl-12 pr-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-12 pr-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="What do you expect for your vehicle?"
                   />
                 </div>
@@ -824,7 +879,7 @@ export default function CustomerPXForm() {
                   name="interestedInVehicle"
                   value={formData.interestedInVehicle}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g. The blue BMW 3 Series, reg AB12 CDE"
                 />
               </div>

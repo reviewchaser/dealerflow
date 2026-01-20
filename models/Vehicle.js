@@ -119,6 +119,11 @@ const vehicleSchema = new mongoose.Schema(
     // Link to original appraisal if this vehicle was a part exchange
     sourceAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "Appraisal" },
 
+    // Link to deal this vehicle was part exchanged against (for PX vehicles)
+    sourceDealId: { type: mongoose.Schema.Types.ObjectId, ref: "Deal" },
+    // VRM of the vehicle this was part exchanged against
+    sourcePxVrm: { type: String },
+
     // Link to deal that sold this vehicle (for ex-stock viewing)
     soldDealId: { type: mongoose.Schema.Types.ObjectId, ref: "Deal" },
 

@@ -138,6 +138,7 @@ export default function DealDrawer({
   });
   const [linkedSubmissions, setLinkedSubmissions] = useState({ pdi: null, serviceReceipt: null });
   const [isGeneratingPack, setIsGeneratingPack] = useState(false);
+  const [isGeneratingHandover, setIsGeneratingHandover] = useState(false);
 
   // Deal details editing state
   const [isEditingPrice, setIsEditingPrice] = useState(false);
@@ -211,6 +212,7 @@ export default function DealDrawer({
   const [pxAppraisalSuggestions, setPxAppraisalSuggestions] = useState([]);
   const [pxAppraisalSearching, setPxAppraisalSearching] = useState(false);
   const [selectedPxAppraisal, setSelectedPxAppraisal] = useState(null);
+  const [editingPxIndex, setEditingPxIndex] = useState(null); // null = adding, number = editing index
 
   // Signature capture state (invoice)
   const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -247,15 +249,38 @@ export default function DealDrawer({
   });
   const [scheduleDeliveryLoading, setScheduleDeliveryLoading] = useState(false);
 
+  // Delivery amount input - local state to prevent reload on every keystroke
+  const [deliveryAmountInput, setDeliveryAmountInput] = useState("");
+
   // Edit warranty state
   const [showEditWarrantyModal, setShowEditWarrantyModal] = useState(false);
   const [warrantyEditForm, setWarrantyEditForm] = useState({
     name: "",
+    description: "",
     durationMonths: "",
     claimLimit: "",
     priceGross: "",
+    type: "DEFAULT",
   });
   const [warrantyEditLoading, setWarrantyEditLoading] = useState(false);
+
+  // Third-party warranty products state
+  const [warrantyProducts, setWarrantyProducts] = useState([]);
+  const [warrantyProductsLoading, setWarrantyProductsLoading] = useState(false);
+  const [showWarrantyPicker, setShowWarrantyPicker] = useState(false);
+
+  // Create new warranty form state
+  const [showNewWarrantyForm, setShowNewWarrantyForm] = useState(false);
+  const [newWarrantyForm, setNewWarrantyForm] = useState({
+    name: "",
+    description: "",
+    termMonths: "",
+    claimLimit: "",
+    priceGross: "",
+    costPrice: "",
+    vatTreatment: "NO_VAT",
+  });
+  const [savingWarranty, setSavingWarranty] = useState(false);
 
   // Schedule collection state
   const [showScheduleCollectionModal, setShowScheduleCollectionModal] = useState(false);
@@ -279,18 +304,12 @@ export default function DealDrawer({
   });
   const [takePaymentLoading, setTakePaymentLoading] = useState(false);
 
-  // Check if add-ons can be edited based on deal status and signature state
+  // Check if deal fields can be edited based on deal status
+  // Once invoice is generated, fields are locked until invoice is voided
   const canEditAddOns = () => {
     if (!deal) return false;
-    // Always allow for DRAFT and DEPOSIT_TAKEN
-    if (["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status)) return true;
-    // For INVOICED: allow if not fully signed (need BOTH signatures to lock)
-    if (deal.status === "INVOICED") {
-      const isFullySigned = deal.signature?.customerSignedAt && deal.signature?.dealerSignedAt;
-      return !isFullySigned;
-    }
-    // Not editable for DELIVERED, COMPLETED, CANCELLED
-    return false;
+    // Only allow editing in DRAFT and DEPOSIT_TAKEN
+    return ["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status);
   };
 
   // VRM Lookup for Part Exchange
@@ -791,6 +810,22 @@ export default function DealDrawer({
     }
   }, [isOpen, dealId]);
 
+  // Fetch linked submissions when deal is loaded
+  useEffect(() => {
+    if (deal?.vehicleId) {
+      fetchLinkedSubmissions();
+    }
+  }, [deal?.vehicleId]);
+
+  // Sync delivery amount input when deal changes
+  useEffect(() => {
+    if (deal?.delivery?.amountGross !== undefined) {
+      setDeliveryAmountInput(deal.delivery.amountGross?.toString() || "");
+    } else {
+      setDeliveryAmountInput("");
+    }
+  }, [deal?.id, deal?.delivery?.amountGross]);
+
   const fetchDeal = async () => {
     setIsLoading(true);
     setFetchError(null);
@@ -885,7 +920,194 @@ export default function DealDrawer({
         throw new Error(errData.error || "Failed to apply warranty");
       }
 
+      // Optimistic UI update - update local state immediately
+      setDeal(prev => ({
+        ...prev,
+        warranty: {
+          included: true,
+          name: defaultWarranty.name || "Standard Warranty",
+          durationMonths: defaultWarranty.durationMonths || 3,
+          claimLimit: defaultWarranty.claimLimit || null,
+          priceGross: defaultWarranty.priceGross || 0,
+          isDefault: true,
+        }
+      }));
+
       toast.success("Default warranty applied");
+      fetchDeal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.message || "Failed to apply warranty");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Remove warranty from the deal
+  const handleRemoveWarranty = async () => {
+    setActionLoading("removeWarranty");
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warranty: { included: false },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to remove warranty");
+      }
+
+      // Optimistic UI update
+      setDeal(prev => ({
+        ...prev,
+        warranty: { included: false }
+      }));
+
+      toast.success("Warranty removed");
+      fetchDeal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      toast.error(error.message || "Failed to remove warranty");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Fetch third-party warranty products
+  const fetchWarrantyProducts = async () => {
+    setWarrantyProductsLoading(true);
+    try {
+      const res = await fetch("/api/warranties?active=true");
+      if (!res.ok) throw new Error("Failed to fetch warranty products");
+      const data = await res.json();
+      setWarrantyProducts(data);
+    } catch (error) {
+      console.error("Failed to fetch warranty products:", error);
+    } finally {
+      setWarrantyProductsLoading(false);
+    }
+  };
+
+  // Create new warranty product and apply to deal
+  const handleCreateAndApplyWarranty = async () => {
+    if (!newWarrantyForm.name.trim()) {
+      toast.error("Warranty name is required");
+      return;
+    }
+
+    setSavingWarranty(true);
+    try {
+      // Create the warranty product
+      const createRes = await fetch("/api/warranties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newWarrantyForm.name.trim(),
+          description: newWarrantyForm.description.trim() || "",
+          termMonths: newWarrantyForm.termMonths ? parseInt(newWarrantyForm.termMonths) : null,
+          claimLimit: newWarrantyForm.claimLimit ? parseFloat(newWarrantyForm.claimLimit) : null,
+          priceGross: newWarrantyForm.priceGross ? parseFloat(newWarrantyForm.priceGross) : 0,
+          costPrice: newWarrantyForm.costPrice ? parseFloat(newWarrantyForm.costPrice) : null,
+          vatTreatment: newWarrantyForm.vatTreatment || "NO_VAT",
+          isActive: true,
+        }),
+      });
+
+      if (!createRes.ok) {
+        const errData = await createRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to create warranty");
+      }
+
+      const newWarranty = await createRes.json();
+
+      // Now apply it to the deal
+      const applyRes = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warranty: {
+            included: true,
+            name: newWarranty.name,
+            description: newWarranty.description || "",
+            durationMonths: newWarranty.termMonths || null,
+            claimLimit: newWarranty.claimLimit || null,
+            priceGross: newWarranty.priceGross || 0,
+            costPrice: newWarranty.costPrice || null,
+            type: "THIRD_PARTY",
+            warrantyProductId: newWarranty.id,
+          },
+        }),
+      });
+
+      if (!applyRes.ok) {
+        const errData = await applyRes.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to apply warranty to deal");
+      }
+
+      toast.success("Warranty created and applied");
+
+      // Reset form and close
+      setNewWarrantyForm({
+        name: "",
+        description: "",
+        termMonths: "",
+        claimLimit: "",
+        priceGross: "",
+        costPrice: "",
+        vatTreatment: "NO_VAT",
+      });
+      setShowNewWarrantyForm(false);
+      setShowWarrantyPicker(false);
+
+      // Refresh warranty products list and deal
+      fetchWarrantyProducts();
+      fetchDeal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      console.error("Error creating warranty:", error);
+      toast.error(error.message || "Failed to create warranty");
+    } finally {
+      setSavingWarranty(false);
+    }
+  };
+
+  // Apply third-party warranty to the deal
+  const handleApplyThirdPartyWarranty = async (warrantyProduct) => {
+    if (!warrantyProduct) {
+      toast.error("Please select a warranty product");
+      return;
+    }
+
+    setActionLoading("applyWarranty");
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warranty: {
+            included: true,
+            name: warrantyProduct.name,
+            description: warrantyProduct.description || "",
+            durationMonths: warrantyProduct.termMonths || null,
+            claimLimit: warrantyProduct.claimLimit || null,
+            priceGross: warrantyProduct.priceGross || 0,
+            costPrice: warrantyProduct.costPrice || null,
+            type: "THIRD_PARTY",
+            warrantyProductId: warrantyProduct.id,
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to apply warranty");
+      }
+
+      toast.success("Third-party warranty applied");
+      setShowWarrantyPicker(false);
       fetchDeal();
       if (onUpdate) onUpdate();
     } catch (error) {
@@ -948,6 +1170,39 @@ export default function DealDrawer({
     }
   };
 
+  // Download handover pack PDF directly
+  const handleDownloadHandoverPack = async () => {
+    if (!deal?._id) return;
+
+    setIsGeneratingHandover(true);
+    try {
+      const res = await fetch(`/api/deals/${deal._id}/generate-handover-pack`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to generate handover pack");
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const vrm = deal.vehicleId?.regCurrent?.replace(/\s/g, "") || "";
+      const dealNumber = deal.dealNumber || deal._id.toString().slice(-6);
+      a.download = `handover-pack-${vrm || dealNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Handover pack downloaded");
+    } catch (error) {
+      console.error("Handover pack error:", error);
+      toast.error(error.message || "Failed to generate handover pack");
+    } finally {
+      setIsGeneratingHandover(false);
+    }
+  };
+
   // Calculate totals
   const calculateTotals = () => {
     if (!deal) return {};
@@ -966,16 +1221,19 @@ export default function DealDrawer({
     // Calculate delivery amount
     const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
 
+    // Include warranty if applicable
+    const warrantyAmount = deal.warranty?.included && deal.warranty?.priceGross > 0 ? deal.warranty.priceGross : 0;
+
     let subtotal, totalVat, grandTotal;
 
     if (deal.vatScheme === "VAT_QUALIFYING") {
       subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
       totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-      grandTotal = subtotal + totalVat + deliveryAmount;
+      grandTotal = subtotal + totalVat + deliveryAmount + warrantyAmount;
     } else {
       subtotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal;
       totalVat = 0;
-      grandTotal = subtotal + deliveryAmount;
+      grandTotal = subtotal + deliveryAmount + warrantyAmount;
     }
 
     const totalPaid = (deal.payments || [])
@@ -1054,9 +1312,11 @@ export default function DealDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: warrantyEditForm.name,
+          description: warrantyEditForm.description || "",
           durationMonths: warrantyEditForm.durationMonths ? parseInt(warrantyEditForm.durationMonths) : null,
           claimLimit: warrantyEditForm.claimLimit ? parseFloat(warrantyEditForm.claimLimit) : null,
           priceGross: warrantyEditForm.priceGross ? parseFloat(warrantyEditForm.priceGross) : 0,
+          type: warrantyEditForm.type || "DEFAULT",
         }),
       });
 
@@ -1073,6 +1333,30 @@ export default function DealDrawer({
       toast.error(error.message);
     } finally {
       setWarrantyEditLoading(false);
+    }
+  };
+
+  // Regenerate deposit receipt with current deal data
+  const handleRegenerateReceipt = async () => {
+    setActionLoading("regenerate");
+    try {
+      const res = await fetch(`/api/deals/${dealId}/regenerate-receipt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to regenerate receipt");
+      }
+
+      toast.success("Deposit receipt regenerated with current deal data");
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -1173,6 +1457,136 @@ export default function DealDrawer({
       }
 
       toast.success("Part exchange removed");
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  // Edit Part Exchange - populate form with existing data
+  const handleEditPartExchange = (idx) => {
+    const px = deal.partExchanges[idx];
+    if (!px) return;
+
+    setPxForm({
+      vrm: px.vrm || "",
+      vin: px.vin || "",
+      make: px.make || "",
+      model: px.model || "",
+      year: px.year ? String(px.year) : "",
+      mileage: px.mileage ? String(px.mileage) : "",
+      colour: px.colour || "",
+      fuelType: px.fuelType || "",
+      allowance: px.allowance ? String(px.allowance) : "",
+      settlement: px.settlement ? String(px.settlement) : "",
+      sourceType: px.sourceType || "MANUAL",
+      sourceId: px.sourceId || null,
+      conditionNotes: px.conditionNotes || "",
+      vatQualifying: px.vatQualifying || false,
+      hasFinance: px.hasFinance || false,
+      financeCompanyContactId: px.financeCompanyContactId || "",
+      financeCompanyName: px.financeCompanyName || "",
+      hasSettlementInWriting: px.hasSettlementInWriting || false,
+    });
+    setEditingPxIndex(idx);
+    setShowPxModal(true);
+  };
+
+  // Update existing Part Exchange
+  const handleUpdatePartExchange = async () => {
+    if (editingPxIndex === null) return;
+
+    if (!pxForm.vrm) {
+      toast.error("Please enter a VRM");
+      return;
+    }
+    if (!pxForm.allowance || parseFloat(pxForm.allowance) <= 0) {
+      toast.error("Please enter a valid allowance amount");
+      return;
+    }
+
+    setPxLoading(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}/update-part-exchange`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          index: editingPxIndex,
+          vrm: pxForm.vrm,
+          vin: pxForm.vin || undefined,
+          make: pxForm.make,
+          model: pxForm.model,
+          year: pxForm.year ? parseInt(pxForm.year) : undefined,
+          mileage: pxForm.mileage ? parseInt(pxForm.mileage) : undefined,
+          colour: pxForm.colour,
+          fuelType: pxForm.fuelType || undefined,
+          allowance: parseFloat(pxForm.allowance),
+          settlement: pxForm.settlement ? parseFloat(pxForm.settlement) : 0,
+          conditionNotes: pxForm.conditionNotes || undefined,
+          vatQualifying: pxForm.vatQualifying || false,
+          hasFinance: pxForm.hasFinance || false,
+          financeCompanyContactId: pxForm.hasFinance ? pxForm.financeCompanyContactId : undefined,
+          financeCompanyName: pxForm.hasFinance ? pxForm.financeCompanyName : undefined,
+          hasSettlementInWriting: pxForm.hasSettlementInWriting || false,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update part exchange");
+      }
+
+      toast.success("Part exchange updated");
+      setShowPxModal(false);
+      setEditingPxIndex(null);
+      setPxForm({
+        vrm: "",
+        vin: "",
+        make: "",
+        model: "",
+        year: "",
+        mileage: "",
+        colour: "",
+        fuelType: "",
+        allowance: "",
+        settlement: "",
+        sourceType: "MANUAL",
+        sourceId: null,
+        conditionNotes: "",
+      });
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setPxLoading(false);
+    }
+  };
+
+  // Toggle settlement received status (can be done even after invoice generated)
+  const handleToggleSettlementReceived = async (pxIndex) => {
+    const px = deal.partExchanges?.[pxIndex];
+    if (!px) return;
+
+    const newValue = !px.hasSettlementInWriting;
+
+    try {
+      const res = await fetch(`/api/deals/${dealId}/update-part-exchange`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          index: pxIndex,
+          hasSettlementInWriting: newValue,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update settlement status");
+      }
+
+      toast.success(newValue ? "Settlement marked as received" : "Settlement status updated");
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -1448,7 +1862,7 @@ export default function DealDrawer({
       const vehicle = deal.vehicleId || {};
       const customer = deal.soldToContactId || deal.soldToContact || {};
       const customerName = customer.displayName || customer.name || "Customer";
-      const title = `Collection: ${vehicle.regCurrent || "Vehicle"} - ${customerName}`;
+      const title = `Handover: ${vehicle.regCurrent || "Vehicle"} to ${customerName}`;
 
       // Build description
       let description = `Vehicle: ${vehicle.make || ""} ${vehicle.model || ""} (${vehicle.regCurrent || ""})`;
@@ -1458,16 +1872,16 @@ export default function DealDrawer({
         description += `\n\nNotes: ${scheduleCollectionForm.notes}`;
       }
 
-      // First, try to find a "Collection" or "Sales" category
+      // First, try to find a "Handover", "Collection" or "Sales" category
       const catRes = await fetch("/api/calendar/categories");
       let categoryId = null;
       if (catRes.ok) {
         const categories = await catRes.json();
-        const collectionCategory = categories.find(c =>
-          c.name?.toLowerCase().includes("collection") || c.name?.toLowerCase().includes("sales")
+        const handoverCategory = categories.find(c =>
+          c.name?.toLowerCase().includes("handover") || c.name?.toLowerCase().includes("collection") || c.name?.toLowerCase().includes("sales")
         );
-        if (collectionCategory) {
-          categoryId = collectionCategory.id;
+        if (handoverCategory) {
+          categoryId = handoverCategory.id;
         }
       }
 
@@ -1503,7 +1917,7 @@ export default function DealDrawer({
         }),
       });
 
-      toast.success("Collection scheduled");
+      toast.success("Handover scheduled");
       setShowScheduleCollectionModal(false);
       setScheduleCollectionForm({ date: "", time: "", notes: "" });
       fetchDeal();
@@ -1571,7 +1985,7 @@ export default function DealDrawer({
 
   // Cancel scheduled collection
   const handleCancelScheduledCollection = async () => {
-    if (!confirm("Are you sure you want to cancel this scheduled collection?")) return;
+    if (!confirm("Are you sure you want to cancel this scheduled handover?")) return;
 
     setActionLoading("cancelCollection");
     try {
@@ -1588,10 +2002,10 @@ export default function DealDrawer({
           "collection.scheduledCalendarEventId": null,
         }),
       });
-      toast.success("Collection schedule cancelled");
+      toast.success("Handover schedule cancelled");
       fetchDeal();
     } catch (error) {
-      toast.error(error.message || "Failed to cancel collection");
+      toast.error(error.message || "Failed to cancel handover");
     } finally {
       setActionLoading(null);
     }
@@ -1735,17 +2149,32 @@ export default function DealDrawer({
     }
   };
 
-  const handleMarkCompleted = async () => {
+  const handleMarkCompleted = async (confirmWithoutSettlement = false) => {
     setActionLoading("completed");
     try {
       const res = await fetch(`/api/deals/${dealId}/mark-completed`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmWithoutSettlement }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to complete deal");
+        // Check if settlement confirmation is required
+        if (data.error === "SETTLEMENT_CONFIRMATION_REQUIRED" && data.needsConfirmation) {
+          const pxVrms = data.pxDetails?.map(px => px.vrm).join(", ") || "part exchange";
+          const confirmed = window.confirm(
+            `The following part exchanges have finance but settlement has not been received in writing:\n\n${pxVrms}\n\nAre you sure you want to complete this deal without written confirmation of the settlement figure?`
+          );
+          if (confirmed) {
+            setActionLoading(null);
+            return handleMarkCompleted(true);
+          }
+          setActionLoading(null);
+          return;
+        }
+        throw new Error(data.error || "Failed to complete deal");
       }
 
       toast.success("Deal completed");
@@ -1758,9 +2187,9 @@ export default function DealDrawer({
     }
   };
 
-  // Mark as collected (for customer pickups - no delivery)
+  // Mark as handed over (for customer pickups - no delivery)
   const handleMarkCollected = async () => {
-    if (!confirm("Mark this vehicle as collected by the customer?")) return;
+    if (!confirm("Mark this vehicle as handed over to the customer?")) return;
 
     setActionLoading("collected");
     try {
@@ -1768,16 +2197,16 @@ export default function DealDrawer({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deliveryNotes: "Customer collection",
+          deliveryNotes: "Customer handover",
         }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to mark as collected");
+        throw new Error(err.error || "Failed to mark as handed over");
       }
 
-      toast.success("Vehicle marked as collected");
+      toast.success("Vehicle handed over to customer");
       fetchDeal();
       onUpdate?.();
     } catch (error) {
@@ -2137,18 +2566,34 @@ export default function DealDrawer({
                 {/* Document buttons */}
                 <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
                   {documents.depositReceipt && (
-                    <a
-                      href={documents.depositReceipt.shareUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
-                      title="View Deposit Receipt"
-                    >
-                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span className="hidden md:inline">Receipt</span>
-                    </a>
+                    <>
+                      <a
+                        href={documents.depositReceipt.shareUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
+                        title="View Deposit Receipt"
+                      >
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span>Receipt</span>
+                      </a>
+                      <button
+                        onClick={handleRegenerateReceipt}
+                        disabled={actionLoading === "regenerate"}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-medium transition-colors"
+                        title="Regenerate receipt with current deal data"
+                      >
+                        {actionLoading === "regenerate" ? (
+                          <span className="loading loading-spinner loading-xs"></span>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                        )}
+                      </button>
+                    </>
                   )}
                   {documents.invoice && (
                     <a
@@ -2161,19 +2606,32 @@ export default function DealDrawer({
                       <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                      <span className="hidden md:inline">Invoice</span>
+                      <span>Invoice</span>
                     </a>
                   )}
                   {documents.invoice && (
                     <button
-                      onClick={handleOpenHandover}
-                      className="flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-xs font-medium transition-colors md:min-w-[70px] justify-center"
-                      title="Generate Handover Pack"
+                      onClick={handleDownloadHandoverPack}
+                      disabled={isGeneratingHandover || !deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt}
+                      className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors md:min-w-[70px] justify-center ${
+                        !deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                          : "bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
+                      }`}
+                      title={!deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt
+                        ? "Invoice must be signed by both parties"
+                        : "Download Handover Pack"
+                      }
                     >
-                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                      <span className="hidden md:inline">Handover</span>
+                      {isGeneratingHandover ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      )}
+                      <span className="md:hidden">{isGeneratingHandover ? "..." : "Pack"}</span>
+                      <span className="hidden md:inline">{isGeneratingHandover ? "Generating..." : "Handover Pack"}</span>
                     </button>
                   )}
                   <button
@@ -2244,6 +2702,15 @@ export default function DealDrawer({
               {/* Overview Tab */}
               {activeTab === "overview" && (
                 <div className="space-y-4">
+                  {/* Invoice Generated Banner - fields are locked */}
+                  {deal.status === "INVOICED" && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <p className="text-sm text-blue-700">
+                        <strong>Invoice Generated</strong> - To make changes, void the invoice first.
+                      </p>
+                    </div>
+                  )}
+
                   {/* Deal Readiness - Show for Draft deals */}
                   {deal.status === "DRAFT" && (() => {
                     const checks = getReadinessChecks();
@@ -2478,66 +2945,98 @@ export default function DealDrawer({
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 17.414L5.586 15 4 16.586V19h2.414L8 17.414zM17 8l4-4m0 0l-4-4m4 4H3" />
                             </svg>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-800">Delivery</h3>
+                          <h3 className="text-sm font-bold text-slate-800">Fulfilment</h3>
                         </div>
                       </div>
                       <div className="p-4 space-y-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={deal.delivery?.isFree || false}
-                            onChange={(e) => handleUpdateField({
-                              delivery: {
-                                ...deal.delivery,
-                                isFree: e.target.checked,
-                                amountGross: e.target.checked ? null : deal.delivery?.amountGross,
-                                amountNet: e.target.checked ? null : deal.delivery?.amountNet,
-                                vatAmount: e.target.checked ? null : deal.delivery?.vatAmount,
-                              }
+                        {/* Fulfilment method selector */}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateField({ delivery: null })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              !deal.delivery?.isFree && !deal.delivery?.amountGross
+                                ? "bg-purple-600 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            Collection
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateField({
+                              delivery: { isFree: true, amountGross: null, amountNet: null, vatAmount: null, amount: null }
                             })}
-                            className="checkbox checkbox-sm checkbox-primary"
-                          />
-                          <span className="text-sm">Free Delivery</span>
-                        </label>
-                        {!deal.delivery?.isFree && (
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              deal.delivery?.isFree
+                                ? "bg-purple-600 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            Free Delivery
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateField({
+                              delivery: { isFree: false, amountGross: deal.delivery?.amountGross || null, amountNet: deal.delivery?.amountNet || null, vatAmount: deal.delivery?.vatAmount || null }
+                            })}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                              deal.delivery?.isFree === false && deal.delivery?.amountGross !== undefined
+                                ? "bg-purple-600 text-white"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            }`}
+                          >
+                            Chargeable Delivery
+                          </button>
+                        </div>
+
+                        {/* Delivery amount - show only for chargeable */}
+                        {deal.delivery?.isFree === false && (
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">£</span>
                               <input
                                 type="number"
                                 step="0.01"
-                                value={deal.delivery?.amountGross || ""}
-                                onChange={(e) => {
-                                  const gross = e.target.value;
+                                value={deliveryAmountInput}
+                                onChange={(e) => setDeliveryAmountInput(e.target.value)}
+                                onBlur={() => {
+                                  const gross = deliveryAmountInput;
                                   const vatRate = deal.vatRate || 0.2;
                                   let net = "", vat = "";
                                   if (gross) {
                                     net = (parseFloat(gross) / (1 + vatRate)).toFixed(2);
                                     vat = (parseFloat(gross) - parseFloat(net)).toFixed(2);
                                   }
-                                  handleUpdateField({
-                                    delivery: {
-                                      ...deal.delivery,
-                                      amountGross: gross ? parseFloat(gross) : null,
-                                      amountNet: net ? parseFloat(net) : null,
-                                      vatAmount: vat ? parseFloat(vat) : null,
-                                      amount: gross ? parseFloat(gross) : null,
-                                    }
-                                  });
+                                  // Only save if value changed
+                                  const currentGross = deal.delivery?.amountGross;
+                                  const newGross = gross ? parseFloat(gross) : null;
+                                  if (currentGross !== newGross) {
+                                    handleUpdateField({
+                                      delivery: {
+                                        ...deal.delivery,
+                                        isFree: false,
+                                        amountGross: newGross,
+                                        amountNet: net ? parseFloat(net) : null,
+                                        vatAmount: vat ? parseFloat(vat) : null,
+                                        amount: newGross,
+                                      }
+                                    });
+                                  }
                                 }}
                                 placeholder="Amount (inc VAT)"
                                 className="input input-bordered input-sm w-40 pl-7"
                               />
                             </div>
-                            {deal.delivery?.amountGross > 0 && (
+                            {deliveryAmountInput && parseFloat(deliveryAmountInput) > 0 && (
                               <span className="text-xs text-slate-500">
-                                (Net: £{(deal.delivery?.amountNet || 0).toFixed(2)} + VAT: £{(deal.delivery?.vatAmount || 0).toFixed(2)})
+                                (Net: £{(parseFloat(deliveryAmountInput) / (1 + (deal.vatRate || 0.2))).toFixed(2)} + VAT: £{(parseFloat(deliveryAmountInput) - parseFloat(deliveryAmountInput) / (1 + (deal.vatRate || 0.2))).toFixed(2)})
                               </span>
                             )}
                           </div>
                         )}
                         <p className="text-xs text-slate-500">
-                          Delivery charge is added to the total at invoicing
+                          {deal.delivery?.isFree || deal.delivery?.amountGross ? "Delivery charge is added to the total at invoicing" : "Customer will collect the vehicle"}
                         </p>
                       </div>
                     </div>
@@ -2629,25 +3128,43 @@ export default function DealDrawer({
                           </div>
                           <h3 className="text-sm font-bold text-slate-800">Warranty</h3>
                         </div>
-                        {/* Edit button - only for DEPOSIT_TAKEN status */}
-                        {deal.status === "DEPOSIT_TAKEN" && deal.warranty?.included && (
-                          <button
-                            onClick={() => {
-                              setWarrantyEditForm({
-                                name: deal.warranty.name || "",
-                                durationMonths: deal.warranty.durationMonths || "",
-                                claimLimit: deal.warranty.claimLimit || "",
-                                priceGross: deal.warranty.priceGross || "",
-                              });
-                              setShowEditWarrantyModal(true);
-                            }}
-                            className="btn btn-ghost btn-xs"
-                          >
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                            Edit
-                          </button>
+                        {/* Edit and Remove buttons - only for DRAFT or DEPOSIT_TAKEN status */}
+                        {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && deal.warranty?.included && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => {
+                                setWarrantyEditForm({
+                                  name: deal.warranty.name || "",
+                                  description: deal.warranty.description || "",
+                                  durationMonths: deal.warranty.durationMonths || "",
+                                  claimLimit: deal.warranty.claimLimit || "",
+                                  priceGross: deal.warranty.priceGross || "",
+                                  type: deal.warranty.type || "DEFAULT",
+                                });
+                                setShowEditWarrantyModal(true);
+                              }}
+                              className="btn btn-ghost btn-xs"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              onClick={handleRemoveWarranty}
+                              disabled={actionLoading === "removeWarranty"}
+                              className="btn btn-ghost btn-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              {actionLoading === "removeWarranty" ? (
+                                <span className="loading loading-spinner loading-xs"></span>
+                              ) : (
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              )}
+                              Remove
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2655,13 +3172,24 @@ export default function DealDrawer({
                       {deal.warranty?.included ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-emerald-700">{deal.warranty.name || "Warranty"}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-emerald-700">{deal.warranty.name || "Warranty"}</span>
+                              {deal.warranty.type && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                                  deal.warranty.type === "DEFAULT" ? "bg-emerald-100 text-emerald-700" :
+                                  deal.warranty.type === "THIRD_PARTY" ? "bg-blue-100 text-blue-700" :
+                                  "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {deal.warranty.type === "DEFAULT" ? "Default" :
+                                   deal.warranty.type === "THIRD_PARTY" ? "Third Party" :
+                                   deal.warranty.type}
+                                </span>
+                              )}
+                            </div>
                             {deal.warranty.priceGross > 0 ? (
                               <span className="font-semibold text-emerald-700">{formatCurrency(deal.warranty.priceGross)}</span>
                             ) : (
-                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
-                                {deal.warranty.isDefault ? "Default" : "FREE"}
-                              </span>
+                              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">FREE</span>
                             )}
                           </div>
                           <div className="flex items-center gap-4 text-xs text-slate-500">
@@ -2674,38 +3202,205 @@ export default function DealDrawer({
                               <span>Unlimited claims</span>
                             )}
                           </div>
+                          {deal.warranty.description && (
+                            <p className="text-xs text-slate-500 mt-1">{deal.warranty.description}</p>
+                          )}
+                        </div>
+                      ) : deal.warranty?.type === "TRADE" ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-amber-700">Trade Sale / No Warranty</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">Trade</span>
+                          </div>
+                          {deal.warranty.tradeTermsText && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                              <p className="text-xs text-amber-700">{deal.warranty.tradeTermsText}</p>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="py-2">
                           <p className="text-sm text-slate-500 text-center">No warranty included</p>
-                          <p className="text-xs text-slate-400 mt-1 text-center">Add a warranty via the Add-ons tab</p>
-                          {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) &&
-                           dealer?.salesSettings?.defaultWarranty?.enabled && (
-                            <div className="mt-3 bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                              <p className="text-xs text-emerald-700 font-medium mb-2">Default Warranty Available:</p>
-                              <div className="text-xs text-emerald-600 space-y-1 mb-3">
-                                <p className="font-medium">{dealer.salesSettings.defaultWarranty.name || "Standard Warranty"}</p>
-                                <p>
-                                  {dealer.salesSettings.defaultWarranty.durationMonths || 3} months
-                                  {" • "}
-                                  {dealer.salesSettings.defaultWarranty.claimLimit
-                                    ? `Claim limit: ${formatCurrency(dealer.salesSettings.defaultWarranty.claimLimit)}`
-                                    : "Unlimited claims"}
-                                </p>
-                                <p>
-                                  {dealer.salesSettings.defaultWarranty.type === "PAID" && dealer.salesSettings.defaultWarranty.priceGross > 0
-                                    ? formatCurrency(dealer.salesSettings.defaultWarranty.priceGross)
-                                    : "FREE"}
-                                </p>
+                          {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                            <div className="mt-3 space-y-3">
+                              {/* Default Warranty Option */}
+                              {dealer?.salesSettings?.defaultWarranty?.enabled && (
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                                  <p className="text-xs text-emerald-700 font-medium mb-2">Default Warranty:</p>
+                                  <div className="text-xs text-emerald-600 space-y-1 mb-3">
+                                    <p className="font-medium">{dealer.salesSettings.defaultWarranty.name || "Standard Warranty"}</p>
+                                    <p>
+                                      {dealer.salesSettings.defaultWarranty.durationMonths || 3} months
+                                      {" • "}
+                                      {dealer.salesSettings.defaultWarranty.claimLimit
+                                        ? `Claim limit: ${formatCurrency(dealer.salesSettings.defaultWarranty.claimLimit)}`
+                                        : "Unlimited claims"}
+                                    </p>
+                                    <p>
+                                      {dealer.salesSettings.defaultWarranty.type === "PAID" && dealer.salesSettings.defaultWarranty.priceGross > 0
+                                        ? formatCurrency(dealer.salesSettings.defaultWarranty.priceGross)
+                                        : "FREE"}
+                                    </p>
+                                  </div>
+                                  <button
+                                    onClick={handleApplyDefaultWarranty}
+                                    disabled={actionLoading === "applyWarranty"}
+                                    className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    {actionLoading === "applyWarranty" ? "Applying..." : "Apply Default Warranty"}
+                                  </button>
+                                </div>
+                              )}
+
+                              {/* Third-Party Warranty Option */}
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <p className="text-xs text-blue-700 font-medium mb-2">Third-Party Warranty:</p>
+                                {!showWarrantyPicker ? (
+                                  <button
+                                    onClick={() => {
+                                      fetchWarrantyProducts();
+                                      setShowWarrantyPicker(true);
+                                    }}
+                                    disabled={actionLoading === "applyWarranty"}
+                                    className="w-full px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    Select Third-Party Warranty
+                                  </button>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {warrantyProductsLoading ? (
+                                      <div className="flex justify-center py-2">
+                                        <span className="loading loading-spinner loading-sm text-blue-500"></span>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                                        {warrantyProducts.map((wp) => (
+                                          <button
+                                            key={wp.id}
+                                            onClick={() => handleApplyThirdPartyWarranty(wp)}
+                                            disabled={actionLoading === "applyWarranty"}
+                                            className="w-full text-left p-2 bg-white border border-blue-100 rounded-lg hover:border-blue-300 transition-colors disabled:opacity-50"
+                                          >
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-xs font-medium text-slate-700">{wp.name}</span>
+                                              <span className="text-xs font-semibold text-blue-600">
+                                                {wp.priceGross > 0 ? formatCurrency(wp.priceGross) : "FREE"}
+                                              </span>
+                                            </div>
+                                            <div className="text-[10px] text-slate-500 mt-0.5">
+                                              {wp.termMonths && `${wp.termMonths} months`}
+                                              {wp.termMonths && wp.claimLimit && " • "}
+                                              {wp.claimLimit ? `Limit: ${formatCurrency(wp.claimLimit)}` : "Unlimited"}
+                                            </div>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Create New Warranty Form */}
+                                    {showNewWarrantyForm ? (
+                                      <div className="bg-white border border-blue-200 rounded-lg p-3 space-y-2">
+                                        <p className="text-xs font-medium text-blue-700 mb-2">Create New Warranty</p>
+                                        <input
+                                          type="text"
+                                          placeholder="Warranty Name *"
+                                          value={newWarrantyForm.name}
+                                          onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, name: e.target.value })}
+                                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                            type="number"
+                                            placeholder="Term (months)"
+                                            value={newWarrantyForm.termMonths}
+                                            onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, termMonths: e.target.value })}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <input
+                                            type="number"
+                                            placeholder="Claim Limit (£)"
+                                            value={newWarrantyForm.claimLimit}
+                                            onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, claimLimit: e.target.value })}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                            type="number"
+                                            placeholder="Price (£)"
+                                            value={newWarrantyForm.priceGross}
+                                            onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, priceGross: e.target.value })}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <input
+                                            type="number"
+                                            placeholder="Cost to Dealer (£)"
+                                            value={newWarrantyForm.costPrice}
+                                            onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, costPrice: e.target.value })}
+                                            className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                        </div>
+                                        <select
+                                          value={newWarrantyForm.vatTreatment}
+                                          onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, vatTreatment: e.target.value })}
+                                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        >
+                                          <option value="NO_VAT">No VAT</option>
+                                          <option value="STANDARD">Standard VAT (20%)</option>
+                                          <option value="EXEMPT">VAT Exempt</option>
+                                        </select>
+                                        <textarea
+                                          placeholder="Description (optional)"
+                                          value={newWarrantyForm.description}
+                                          onChange={(e) => setNewWarrantyForm({ ...newWarrantyForm, description: e.target.value })}
+                                          rows={2}
+                                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                        <div className="flex gap-2">
+                                          <button
+                                            onClick={handleCreateAndApplyWarranty}
+                                            disabled={savingWarranty || !newWarrantyForm.name.trim()}
+                                            className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50"
+                                          >
+                                            {savingWarranty ? "Saving..." : "Create & Apply"}
+                                          </button>
+                                          <button
+                                            onClick={() => setShowNewWarrantyForm(false)}
+                                            className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => setShowNewWarrantyForm(true)}
+                                        className="w-full px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                                      >
+                                        + Create New Warranty
+                                      </button>
+                                    )}
+
+                                    <p className="text-[10px] text-slate-400 text-center">
+                                      Manage warranties in <a href="/settings" className="text-blue-600 hover:underline">Settings</a>
+                                    </p>
+
+                                    <button
+                                      onClick={() => {
+                                        setShowWarrantyPicker(false);
+                                        setShowNewWarrantyForm(false);
+                                      }}
+                                      className="w-full px-3 py-1 text-xs text-slate-500 hover:text-slate-700"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                              <button
-                                onClick={handleApplyDefaultWarranty}
-                                disabled={actionLoading === "applyWarranty"}
-                                className="w-full px-3 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg transition-colors disabled:opacity-50"
-                              >
-                                {actionLoading === "applyWarranty" ? "Applying..." : "Apply This Warranty"}
-                              </button>
                             </div>
+                          )}
+                          {!["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                            <p className="text-xs text-slate-400 mt-1 text-center">Warranty can only be added before invoice</p>
                           )}
                         </div>
                       )}
@@ -2968,17 +3663,28 @@ export default function DealDrawer({
                                   </p>
                                 )}
                               </div>
-                              {/* Remove button - only in DRAFT or DEPOSIT_TAKEN */}
+                              {/* Edit and Remove buttons - only in DRAFT or DEPOSIT_TAKEN */}
                               {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
-                                <button
-                                  onClick={() => handleRemovePartExchange(idx)}
-                                  className="btn btn-ghost btn-xs text-red-500 hover:bg-red-50"
-                                  title="Remove PX"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => handleEditPartExchange(idx)}
+                                    className="btn btn-ghost btn-xs text-emerald-600 hover:bg-emerald-50"
+                                    title="Edit PX"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleRemovePartExchange(idx)}
+                                    className="btn btn-ghost btn-xs text-red-500 hover:bg-red-50"
+                                    title="Remove PX"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
                               )}
                             </div>
                             <div className="grid grid-cols-3 gap-3 mt-2">
@@ -3005,7 +3711,7 @@ export default function DealDrawer({
                             </div>
                             {/* Finance settlement info */}
                             {px.hasFinance && (
-                              <div className="mt-2 flex items-center gap-2 text-xs">
+                              <div className="mt-2 flex items-center gap-2 text-xs flex-wrap">
                                 <span className="text-blue-600">
                                   Finance: {px.financeCompanyName || "TBC"}
                                 </span>
@@ -3017,6 +3723,19 @@ export default function DealDrawer({
                                   <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">
                                     Settlement TBC
                                   </span>
+                                )}
+                                {/* Toggle settlement button - available for INVOICED/DELIVERED deals */}
+                                {["INVOICED", "DELIVERED"].includes(deal.status) && !px.hasSettlementInWriting && (
+                                  <button
+                                    onClick={() => handleToggleSettlementReceived(idx)}
+                                    className="btn btn-xs btn-outline btn-success gap-1"
+                                    title="Mark settlement as received in writing"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Mark Received
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -3512,7 +4231,11 @@ export default function DealDrawer({
                                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                   </svg>
-                                  {deal.signature?.customerSignedAt ? "Dealer Countersign" : "Sign in Showroom"}
+                                  {deal.signature?.customerSignedAt
+                                    ? "Dealer Countersign"
+                                    : (deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree)
+                                      ? "Sign Invoice"
+                                      : "Sign in Showroom"}
                                 </button>
 
                                 {/* Driver link - for third-party delivery */}
@@ -3555,7 +4278,7 @@ export default function DealDrawer({
                                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                         </svg>
-                                        Generate Driver Link
+                                        Generate Third-Party Driver Link
                                       </button>
                                     )}
                                   </>
@@ -3679,11 +4402,11 @@ export default function DealDrawer({
                           </div>
                         )}
 
-                        {/* Schedule Collection - when deal does NOT have delivery (customer collects) */}
+                        {/* Schedule Handover - when deal does NOT have delivery (customer collects) */}
                         {!(deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) && deal.status === "INVOICED" && (
                           <div className="space-y-2 pt-2 border-t border-slate-100">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-slate-700">Collection Schedule</span>
+                              <span className="text-sm font-medium text-slate-700">Handover Schedule</span>
                               {deal.collection?.scheduledDate ? (
                                 <span className="text-xs text-emerald-600 font-medium">Scheduled</span>
                               ) : (
@@ -3719,7 +4442,7 @@ export default function DealDrawer({
                                     Cancel
                                   </button>
                                 </div>
-                                {/* Mark as Collected - when collection is scheduled */}
+                                {/* Mark as Handed Over - when collection is scheduled */}
                                 <button
                                   onClick={handleMarkCollected}
                                   disabled={actionLoading}
@@ -3732,7 +4455,7 @@ export default function DealDrawer({
                                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                       </svg>
-                                      Mark as Collected
+                                      Mark as Handed Over
                                     </>
                                   )}
                                 </button>
@@ -3746,11 +4469,11 @@ export default function DealDrawer({
                                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
-                                Schedule Collection
+                                Schedule Handover
                               </button>
                             )}
 
-                            {/* Mark as Collected - quick option for immediate pickup */}
+                            {/* Mark as Handed Over - quick option for immediate pickup */}
                             <button
                               onClick={handleMarkCollected}
                               disabled={actionLoading}
@@ -3763,7 +4486,7 @@ export default function DealDrawer({
                                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                   </svg>
-                                  Mark as Collected
+                                  Mark as Handed Over
                                 </>
                               )}
                             </button>
@@ -3773,7 +4496,7 @@ export default function DealDrawer({
                         {/* Complete Deal */}
                         {deal.status === "DELIVERED" && (
                           <button
-                            onClick={handleMarkCompleted}
+                            onClick={() => handleMarkCompleted()}
                             disabled={actionLoading}
                             className="btn btn-sm w-full bg-emerald-500 hover:bg-emerald-600 text-white border-none"
                           >
@@ -3829,7 +4552,7 @@ export default function DealDrawer({
                       </div>
                       <div className="p-4">
                         <p className="text-xs text-slate-500 mb-3">
-                          This deal is completed. Cancelling will require a reason and will not release the vehicle.
+                          This deal is completed. Cancelling will restore the vehicle to stock and delete any part exchange vehicles that haven't been sold.
                         </p>
                         <button
                           onClick={() => handleCancelDeal()}
@@ -4016,9 +4739,14 @@ export default function DealDrawer({
                         </div>
                       )}
                       {deal.cancelledAt && (
-                        <div className="flex justify-between text-red-600">
-                          <span>Cancelled</span>
-                          <span>{formatDateTime(deal.cancelledAt)}</span>
+                        <div className="text-red-600">
+                          <div className="flex justify-between">
+                            <span>Cancelled</span>
+                            <span>{formatDateTime(deal.cancelledAt)}</span>
+                          </div>
+                          {deal.cancelReason && (
+                            <p className="text-sm text-red-500 mt-1">Reason: {deal.cancelReason}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -4766,8 +5494,24 @@ export default function DealDrawer({
             </div>
             <h3 className="text-lg font-bold text-slate-900 text-center mb-2">Cancel Completed Deal?</h3>
             <p className="text-sm text-slate-500 text-center mb-4">
-              This deal is marked as completed. Cancelling requires a reason for your records. The vehicle will remain marked as sold.
+              This deal is marked as completed. Cancelling will:
             </p>
+            <ul className="text-sm text-slate-600 mb-4 space-y-1 bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Restore <strong>{deal.vehicle?.regCurrent}</strong> to stock</span>
+              </li>
+              {deal.partExchanges?.length > 0 && (
+                <li className="flex items-start gap-2">
+                  <svg className="w-4 h-4 text-red-500 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span>Delete part exchange vehicle(s): <strong>{deal.partExchanges.map(px => px.vrm).join(", ")}</strong> (if not already sold)</span>
+                </li>
+              )}
+            </ul>
             <div className="mb-4">
               <label className="block text-sm font-medium text-slate-700 mb-1">Cancellation Reason *</label>
               <textarea
@@ -4904,12 +5648,12 @@ export default function DealDrawer({
       {/* Part Exchange Modal */}
       {showPxModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowPxModal(false)} />
+          <div className="absolute inset-0 bg-black/50" onClick={() => { setShowPxModal(false); setEditingPxIndex(null); }} />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-              <h3 className="text-lg font-bold text-slate-900">Add Part Exchange</h3>
+              <h3 className="text-lg font-bold text-slate-900">{editingPxIndex !== null ? "Edit Part Exchange" : "Add Part Exchange"}</h3>
               <button
-                onClick={() => setShowPxModal(false)}
+                onClick={() => { setShowPxModal(false); setEditingPxIndex(null); }}
                 className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-all"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5314,14 +6058,14 @@ export default function DealDrawer({
                 Cancel
               </button>
               <button
-                onClick={handleAddPartExchange}
+                onClick={editingPxIndex !== null ? handleUpdatePartExchange : handleAddPartExchange}
                 disabled={!pxForm.vrm || !pxForm.allowance || pxLoading}
                 className="btn bg-emerald-500 hover:bg-emerald-600 text-white border-none flex-1"
               >
                 {pxLoading ? (
                   <span className="loading loading-spinner loading-sm"></span>
                 ) : (
-                  "Add Part Exchange"
+                  editingPxIndex !== null ? "Update PX" : "Add Part Exchange"
                 )}
               </button>
             </div>
@@ -5604,12 +6348,12 @@ export default function DealDrawer({
         </div>
       )}
 
-      {/* Schedule Collection Modal */}
+      {/* Schedule Handover Modal */}
       {showScheduleCollectionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowScheduleCollectionModal(false)} />
           <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-slate-900 mb-4">Schedule Collection</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-4">Schedule Handover</h3>
 
             <div className="space-y-4">
               {/* Vehicle & Customer Info */}
@@ -5947,7 +6691,7 @@ export default function DealDrawer({
       {showDriverLinkModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold mb-4">Generate Driver Link</h3>
+            <h3 className="text-lg font-bold mb-4">Generate Third-Party Driver Link</h3>
             <p className="text-sm text-slate-600 mb-4">
               Create a secure link for your driver to capture customer signature on delivery.
             </p>
@@ -6033,6 +6777,19 @@ export default function DealDrawer({
                   onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, name: e.target.value }))}
                   className="input input-bordered w-full"
                   placeholder="e.g., 3 Month Warranty"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={warrantyEditForm.description || ""}
+                  onChange={(e) => setWarrantyEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  className="input input-bordered w-full"
+                  placeholder="Optional description"
                 />
               </div>
 

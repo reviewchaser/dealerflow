@@ -73,7 +73,7 @@ async function handler(req, res, ctx) {
     }
 
     const deals = await Deal.find(query)
-      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus stockNumber")
+      .populate("vehicleId", "regCurrent make model year primaryImageUrl status salesStatus stockNumber purchase")
       .populate("soldToContactId", "displayName email phone companyName")
       .populate("invoiceToContactId", "displayName companyName")
       .populate("salesPersonId", "name email")
@@ -95,6 +95,7 @@ async function handler(req, res, ctx) {
         status: d.vehicleId.status,
         salesStatus: d.vehicleId.salesStatus,
         stockNumber: d.vehicleId.stockNumber,
+        purchase: d.vehicleId.purchase,
       } : null,
       customer: d.soldToContactId ? {
         id: d.soldToContactId._id?.toString(),
@@ -148,6 +149,7 @@ async function handler(req, res, ctx) {
       deliveryAddress,
       // Fields from SaleWizard that were previously missing
       addOns,
+      warranty,
       financeSelection,
       requests,
       paymentType,
@@ -231,14 +233,15 @@ async function handler(req, res, ctx) {
       priceGross = priceNet + priceVat;
     }
 
-    // Auto-apply default warranty if enabled and no addOns provided
+    // Use warranty from request body if provided, otherwise apply default
     let dealAddOns = addOns || [];
-    let dealWarranty = null;
+    let dealWarranty = warranty || null;  // Use warranty from request
     const dw = dealer?.salesSettings?.defaultWarranty;
-    if (dw?.enabled && (!addOns || addOns.length === 0)) {
+    // Only apply default warranty if NO warranty was explicitly provided and no addOns
+    if (!warranty && dw?.enabled && (!addOns || addOns.length === 0)) {
       const priceForWarranty = dw.type === "PAID" ? (dw.priceGross || dw.priceNet || 0) : 0;
       const warrantyAddOn = {
-        addOnProductId: `warranty_default_${Date.now()}`,
+        // No addOnProductId - this is a dealer default warranty, not a product
         name: dw.name || "Standard Warranty",
         qty: 1,
         unitPriceNet: priceForWarranty, // Warranties are VAT exempt, so net = gross

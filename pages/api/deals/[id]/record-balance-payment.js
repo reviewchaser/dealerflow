@@ -67,34 +67,56 @@ async function handler(req, res, ctx) {
   // Get dealer for settings
   const dealer = await Dealer.findById(dealerId);
 
-  // Calculate current balance before payment
-  const addOnsNetTotal = (deal.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0);
-  const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
-    if (a.vatTreatment === "STANDARD") {
-      return sum + (a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2));
-    }
-    return sum;
-  }, 0);
+  // Get the latest invoice for this deal to use its snapshot values for consistency
+  const invoice = await SalesDocument.findOne({
+    dealId: deal._id,
+    type: "INVOICE",
+  }).sort({ createdAt: -1 });
 
-  const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amount || 0);
+  // Use invoice snapshot values if available for consistency, otherwise calculate
+  let grandTotal, pxNetValue;
 
-  let grandTotal;
-  if (deal.vatScheme === "VAT_QUALIFYING") {
-    const subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
-    const totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
-    grandTotal = subtotal + totalVat + deliveryAmount;
+  if (invoice?.snapshotData?.grandTotal) {
+    // Use the invoice's stored values - ensures consistency with what the invoice shows
+    grandTotal = invoice.snapshotData.grandTotal;
+    pxNetValue = invoice.snapshotData.partExchangeNet || 0;
   } else {
-    grandTotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal + deliveryAmount;
+    // Fallback: Calculate from deal data (should rarely happen for balance payments)
+    const addOnsNetTotal = (deal.addOns || []).reduce((sum, a) => sum + (a.unitPriceNet * (a.qty || 1)), 0);
+    const addOnsVatTotal = (deal.addOns || []).reduce((sum, a) => {
+      if (a.vatTreatment === "STANDARD") {
+        return sum + (a.unitPriceNet * (a.qty || 1) * (a.vatRate || 0.2));
+      }
+      return sum;
+    }, 0);
+
+    const deliveryAmount = deal.delivery?.isFree ? 0 : (deal.delivery?.amountGross || deal.delivery?.amount || 0);
+
+    // Include warranty if applicable (match generate-invoice.js logic)
+    const warrantyAmount = deal.warranty?.included && deal.warranty?.priceGross > 0 ? deal.warranty.priceGross : 0;
+
+    if (deal.vatScheme === "VAT_QUALIFYING") {
+      const subtotal = (deal.vehiclePriceNet || 0) + addOnsNetTotal;
+      const totalVat = (deal.vehicleVatAmount || 0) + addOnsVatTotal;
+      grandTotal = subtotal + totalVat + deliveryAmount + warrantyAmount;
+    } else {
+      grandTotal = (deal.vehiclePriceGross || 0) + addOnsNetTotal + addOnsVatTotal + deliveryAmount + warrantyAmount;
+    }
+
+    // Part exchange value - use new partExchanges array first, fall back to legacy
+    pxNetValue = 0;
+    if (deal.partExchanges && deal.partExchanges.length > 0) {
+      pxNetValue = deal.partExchanges.reduce((sum, px) => {
+        return sum + ((px.allowance || 0) - (px.settlement || 0));
+      }, 0);
+    } else if (deal.partExchangeId) {
+      pxNetValue = (deal.partExchangeAllowance || 0) - (deal.partExchangeSettlement || 0);
+    }
   }
 
   const totalPaidBefore = (deal.payments || [])
     .filter(p => !p.isRefunded)
     .reduce((sum, p) => sum + p.amount, 0);
-
-  // Part exchange value
-  const pxNetValue = deal.partExchangeId
-    ? (deal.partExchangeAllowance || 0) - (deal.partExchangeSettlement || 0)
-    : 0;
 
   const balanceBefore = grandTotal - totalPaidBefore - pxNetValue;
   const balanceAfter = balanceBefore - amount;
@@ -128,12 +150,7 @@ async function handler(req, res, ctx) {
       defaultPrefix
     );
 
-    // Get the latest invoice for this deal
-    const invoice = await SalesDocument.findOne({
-      dealId: deal._id,
-      type: "INVOICE",
-      status: "ISSUED",
-    }).sort({ createdAt: -1 });
+    // Invoice already fetched above for balance calculation
 
     const customer = deal.soldToContactId;
     const vehicle = deal.vehicleId;

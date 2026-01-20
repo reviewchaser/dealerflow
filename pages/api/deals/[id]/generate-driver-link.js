@@ -71,8 +71,8 @@ export default async function handler(req, res) {
     }
     await Deal.findByIdAndUpdate(deal._id, { $set: updateFields });
 
-    // Build the link
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    // Build the link - prefer PRODUCTION_URL for consistent links
+    const baseUrl = process.env.PRODUCTION_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
     const link = `${baseUrl}/public/delivery-signing/${token}`;
 
     res.status(200).json({

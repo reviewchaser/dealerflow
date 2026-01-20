@@ -22,6 +22,7 @@ const customerPXAppraisalSchema = new mongoose.Schema(
     conditionNotes: { type: String },
     // Match dealer appraisal fields
     proposedPurchasePrice: { type: Number },
+    onFinance: { type: Boolean, default: false },
     outstandingFinanceAmount: { type: Number },
     // Document URLs
     v5Url: { type: String },

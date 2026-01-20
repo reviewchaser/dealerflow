@@ -9,6 +9,7 @@ import VehicleActivity from "@/models/VehicleActivity";
 import Deal from "@/models/Deal";
 import Dealer from "@/models/Dealer";
 import User from "@/models/User";
+import Contact from "@/models/Contact";
 import FormSubmission from "@/models/FormSubmission";
 import Form from "@/models/Form";
 import { withDealerContext } from "@/libs/authContext";
@@ -95,8 +96,13 @@ async function handler(req, res, ctx) {
     // Get all vehicle IDs
     const vehicleIds = vehicles.map(v => v._id);
 
+    // Get sold vehicle IDs for fetching their selling deals
+    const soldVehicleIds = vehicles
+      .filter(v => v.soldDealId)
+      .map(v => v.soldDealId);
+
     // Fetch all related data in parallel - scoped by dealerId
-    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allPdiSubmissions] = await Promise.all([
+    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allSoldDeals, allPdiSubmissions] = await Promise.all([
       VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
@@ -121,6 +127,12 @@ async function handler(req, res, ctx) {
           { "delivery.isFree": true },
         ],
       }).select("vehicleId delivery").lean(),
+      // Fetch sold deals for ex-stock vehicles
+      soldVehicleIds.length > 0
+        ? Deal.find({ _id: { $in: soldVehicleIds } })
+            .select("dealNumber status vehiclePriceGross")
+            .lean()
+        : Promise.resolve([]),
       // Fetch PDI submissions for prep board badge - need to first get PDI form IDs
       (async () => {
         const pdiForms = await Form.find({ dealerId, type: "PDI" }).select("_id").lean();
@@ -196,6 +208,38 @@ async function handler(req, res, ctx) {
       };
     }
 
+    // Build sold deals lookup (by deal ID, for looking up by vehicle.soldDealId)
+    const soldDealsById = {};
+    for (const deal of allSoldDeals) {
+      soldDealsById[deal._id.toString()] = {
+        id: deal._id.toString(),
+        dealNumber: deal.dealNumber,
+        status: deal.status,
+        vehiclePriceGross: deal.vehiclePriceGross,
+      };
+    }
+
+    // Batch fetch supplier contacts for purchase info
+    const supplierContactIds = vehicles
+      .filter(v => v.purchase?.purchasedFromContactId)
+      .map(v => v.purchase.purchasedFromContactId);
+
+    const supplierContacts = supplierContactIds.length > 0
+      ? await Contact.find({ _id: { $in: supplierContactIds } })
+          .select("displayName companyName")
+          .lean()
+      : [];
+
+    // Create supplier lookup map
+    const suppliersById = {};
+    for (const c of supplierContacts) {
+      suppliersById[c._id.toString()] = {
+        _id: c._id,
+        displayName: c.displayName,
+        companyName: c.companyName,
+      };
+    }
+
     // Build tasks lookup
     for (const task of allTasks) {
       const vid = task.vehicleId.toString();
@@ -246,6 +290,7 @@ async function handler(req, res, ctx) {
         colour: vehicle.colour,
         status: vehicle.status,
         salesStatus: vehicle.salesStatus || "AVAILABLE", // Default to AVAILABLE if not set
+        stockNumber: vehicle.stockNumber,
         soldAt: vehicle.soldAt, // For "Sold X days" display
         locationId: locationData,
         motExpiryDate: vehicle.motExpiryDate,
@@ -268,13 +313,24 @@ async function handler(req, res, ctx) {
         labels: (vehicle.labels || []).map(labelId => labelsById[labelId.toString()]).filter(Boolean),
         // Include active deal info if available (for sales vehicle picker)
         activeDeal: activeDealByVehicle[vid] || null,
-        // Purchase info for SIV display
-        purchase: vehicle.purchase || null,
+        // Purchase info for SIV display (with populated supplier contact)
+        purchase: vehicle.purchase ? {
+          ...vehicle.purchase,
+          purchasedFromContactId: vehicle.purchase.purchasedFromContactId
+            ? suppliersById[vehicle.purchase.purchasedFromContactId.toString()] || vehicle.purchase.purchasedFromContactId
+            : null,
+        } : null,
         vatScheme: vehicle.vatScheme || null,
         // Delivery badge for prep board
         hasDelivery: deliveryByVehicle[vid] || false,
         // PDI submission info for prep board badge and drawer
         pdiSubmission: pdiByVehicle[vid] || null,
+        // PX source info (for vehicles taken in part exchange)
+        sourceDealId: vehicle.sourceDealId ? vehicle.sourceDealId.toString() : null,
+        sourcePxVrm: vehicle.sourcePxVrm || null,
+        // Sold deal info (for ex-stock vehicles)
+        soldDealId: vehicle.soldDealId ? vehicle.soldDealId.toString() : null,
+        soldDeal: vehicle.soldDealId ? soldDealsById[vehicle.soldDealId.toString()] || null : null,
       };
     });
 

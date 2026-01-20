@@ -1,14 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
+import { useSession } from "next-auth/react";
 import { toast } from "react-hot-toast";
 import ContactPicker from "@/components/ContactPicker";
 
 const STEPS = [
   { id: 1, title: "Vehicle & Sale Type" },
   { id: 2, title: "Customer & PX" },
-  { id: 3, title: "Pricing & Options" },
-  { id: 4, title: "Deposit" },
-  { id: 5, title: "Review" },
+  { id: 3, title: "Warranty" },
+  { id: 4, title: "Pricing & Options" },
+  { id: 5, title: "Deposit" },
+  { id: 6, title: "Review" },
 ];
 
 const STORAGE_KEY = "dealerhq_sale_wizard";
@@ -82,12 +84,12 @@ const initialWizardData = {
   // Multiple part exchanges array (max 2)
   partExchanges: [],
 
-  // Step 3: Pricing & Add-ons
+  // Step 4: Pricing & Add-ons
   salePriceGross: "",
   vatScheme: "MARGIN",
   addOns: [],
 
-  // Step 4: Deposit
+  // Step 5: Deposit
   wantsDeposit: false, // "Would customer like to leave a deposit?"
   depositAmount: "",
   depositMethod: "CARD",
@@ -112,12 +114,19 @@ const initialWizardData = {
   // Warranty
   warranty: {
     included: false,
+    type: null, // "DEFAULT", "TRADE", "THIRD_PARTY" - null = not selected
+    warrantyProductId: undefined,
     name: "",
+    description: "",
     durationMonths: 0,
-    claimLimit: null,
+    claimLimit: undefined,
     priceGross: 0,
+    priceNet: 0,
+    vatTreatment: "NO_VAT",
+    vatAmount: 0,
+    tradeTermsText: "",
     isDefault: false,
-    addOnProductId: null,
+    addOnProductId: undefined,
   },
 
   // Agreed work items (dealer commitments)
@@ -126,6 +135,7 @@ const initialWizardData = {
 
 export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
   const router = useRouter();
+  const { data: session } = useSession();
   const [currentStep, setCurrentStep] = useState(1);
   const [wizardData, setWizardData] = useState(initialWizardData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,6 +144,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
   const [vehicles, setVehicles] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [warranties, setWarranties] = useState([]); // Third-party warranty products
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [isLookingUpPx, setIsLookingUpPx] = useState(false);
@@ -167,6 +178,19 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     vatTreatment: "STANDARD",
   });
 
+  // Create new warranty form
+  const [showNewWarrantyForm, setShowNewWarrantyForm] = useState(false);
+  const [newWarrantyForm, setNewWarrantyForm] = useState({
+    name: "",
+    description: "",
+    termMonths: "",
+    claimLimit: "",
+    priceGross: "",
+    costPrice: "",
+    vatTreatment: "NO_VAT",
+  });
+  const [savingWarranty, setSavingWarranty] = useState(false);
+
   // Load saved state from localStorage
   useEffect(() => {
     if (isOpen) {
@@ -190,6 +214,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       fetchVehicles();
       fetchCustomers();
       fetchProducts();
+      fetchWarranties();
       fetchFinanceCompanies();
       fetchDealer();
     }
@@ -264,6 +289,92 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     }
   };
 
+  const fetchWarranties = async () => {
+    try {
+      const res = await fetch("/api/warranties");
+      if (res.ok) {
+        const data = await res.json();
+        setWarranties(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error("[SaleWizard] Failed to fetch warranties:", e);
+    }
+  };
+
+  // Create new third-party warranty
+  const handleCreateWarranty = async () => {
+    if (!newWarrantyForm.name?.trim()) {
+      toast.error("Warranty name is required");
+      return;
+    }
+
+    setSavingWarranty(true);
+    try {
+      const res = await fetch("/api/warranties", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newWarrantyForm.name.trim(),
+          description: newWarrantyForm.description?.trim() || "",
+          termMonths: parseInt(newWarrantyForm.termMonths) || null,
+          claimLimit: parseFloat(newWarrantyForm.claimLimit) || null,
+          priceGross: parseFloat(newWarrantyForm.priceGross) || 0,
+          costPrice: parseFloat(newWarrantyForm.costPrice) || null,
+          vatTreatment: newWarrantyForm.vatTreatment || "NO_VAT",
+          active: true,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create warranty");
+      }
+
+      const createdWarranty = await res.json();
+      toast.success("Warranty created");
+
+      // Refresh warranty list
+      await fetchWarranties();
+
+      // Auto-select the newly created warranty
+      setWizardData(prev => ({
+        ...prev,
+        warranty: {
+          included: true,
+          type: "THIRD_PARTY",
+          warrantyProductId: createdWarranty.id,
+          name: createdWarranty.name,
+          description: createdWarranty.description || "",
+          durationMonths: createdWarranty.termMonths || 0,
+          claimLimit: createdWarranty.claimLimit || undefined,
+          priceGross: createdWarranty.priceGross || 0,
+          priceNet: createdWarranty.priceNet || createdWarranty.priceGross || 0,
+          costPrice: createdWarranty.costPrice || undefined,
+          vatTreatment: createdWarranty.vatTreatment || "NO_VAT",
+          vatAmount: createdWarranty.vatAmount || 0,
+          tradeTermsText: "",
+          isDefault: false,
+        },
+      }));
+
+      // Reset form and close
+      setNewWarrantyForm({
+        name: "",
+        description: "",
+        termMonths: "",
+        claimLimit: "",
+        priceGross: "",
+        costPrice: "",
+        vatTreatment: "NO_VAT",
+      });
+      setShowNewWarrantyForm(false);
+    } catch (error) {
+      toast.error(error.message || "Failed to create warranty");
+    } finally {
+      setSavingWarranty(false);
+    }
+  };
+
   const fetchFinanceCompanies = async () => {
     try {
       const res = await fetch("/api/contacts?type=FINANCE");
@@ -283,33 +394,28 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         const data = await res.json();
         setDealer(data);
 
-        // Auto-add default warranty if enabled and this is a fresh wizard (no saved data)
+        // Auto-select default warranty if enabled and this is a fresh wizard (no saved data)
         const saved = localStorage.getItem(STORAGE_KEY);
         const dw = data.salesSettings?.defaultWarranty;
         if (!saved && dw?.enabled) {
-          const priceGross = dw.type === "PAID" ? (dw.priceGross || dw.priceNet || 0) : 0;
-          const warrantyAddOn = {
-            productId: `warranty_default_${Date.now()}`,
-            name: dw.name || "Standard Warranty",
-            qty: 1,
-            unitPriceNet: priceGross, // Warranties are VAT exempt, so net = gross
-            vatTreatment: "NO_VAT", // Warranties are typically VAT exempt
-            category: "WARRANTY",
-            isCustom: true,
-            isDefaultWarranty: true, // Flag to identify this is the default warranty
-            durationMonths: dw.durationMonths || 3,
-          };
+          const priceGross = dw.type === "PAID" ? (dw.priceGross || 0) : 0;
           setWizardData(prev => ({
             ...prev,
-            addOns: [...prev.addOns, warrantyAddOn],
             warranty: {
               included: true,
+              type: "DEFAULT",
+              warrantyProductId: undefined,
               name: dw.name || "Standard Warranty",
+              description: dw.description || "",
               durationMonths: dw.durationMonths || 3,
-              claimLimit: dw.claimLimit || null,
+              claimLimit: dw.claimLimit || undefined,
               priceGross: priceGross,
+              priceNet: priceGross, // Most warranties are VAT exempt
+              vatTreatment: dw.vatApplicable ? "STANDARD" : "NO_VAT",
+              vatAmount: 0,
+              tradeTermsText: "",
               isDefault: true,
-              addOnProductId: null,
+              addOnProductId: undefined,
             },
           }));
         }
@@ -593,21 +699,24 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         vehicleVatAmount,
         vehiclePriceGross: salePriceGross,
         addOns: wizardData.addOns.map(a => ({
-          productId: a.productId,
+          // Only include addOnProductId if it's a valid ObjectId (24 hex chars), not for custom add-ons
+          addOnProductId: (a.productId && /^[a-f0-9]{24}$/i.test(a.productId)) ? a.productId : undefined,
           name: a.name,
           qty: a.qty || 1,
           unitPriceNet: parseFloat(a.unitPriceNet) || 0,
           vatTreatment: a.vatTreatment || "STANDARD",
           vatRate: 0.2,
+          costPrice: a.costPrice ? parseFloat(a.costPrice) : undefined,
+          soldByUserId: session?.user?.id || undefined,
         })),
-        // Delivery with VAT breakdown
-        delivery: {
+        // Delivery - only include if free delivery or has chargeable amount
+        delivery: (wizardData.delivery?.isFree || parseFloat(wizardData.delivery?.amountGross) > 0) ? {
           amount: parseFloat(wizardData.delivery?.amountGross || wizardData.delivery?.amount) || 0,
           amountGross: parseFloat(wizardData.delivery?.amountGross) || 0,
           amountNet: parseFloat(wizardData.delivery?.amountNet) || 0,
           vatAmount: parseFloat(wizardData.delivery?.vatAmount) || 0,
           isFree: wizardData.delivery?.isFree || false,
-        },
+        } : undefined,
         // Finance selection
         financeSelection: wizardData.financeSelection?.isFinanced ? {
           isFinanced: true,
@@ -626,13 +735,26 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         // Warranty details
         warranty: wizardData.warranty?.included ? {
           included: true,
-          name: wizardData.warranty.name,
-          durationMonths: wizardData.warranty.durationMonths,
-          claimLimit: wizardData.warranty.claimLimit || null,
+          type: wizardData.warranty.type || "DEFAULT",
+          warrantyProductId: wizardData.warranty.warrantyProductId || undefined,
+          name: wizardData.warranty.name || "Standard Warranty",
+          description: wizardData.warranty.description || "",
+          durationMonths: wizardData.warranty.durationMonths || 0,
+          claimLimit: wizardData.warranty.claimLimit || undefined,
           priceGross: wizardData.warranty.priceGross || 0,
+          priceNet: wizardData.warranty.priceNet || wizardData.warranty.priceGross || 0,
+          vatTreatment: wizardData.warranty.vatTreatment || "NO_VAT",
+          vatAmount: wizardData.warranty.vatAmount || 0,
+          tradeTermsText: wizardData.warranty.tradeTermsText || "",
           isDefault: wizardData.warranty.isDefault || false,
-          addOnProductId: wizardData.warranty.addOnProductId || null,
-        } : undefined,
+          // Only include if valid ObjectId
+          addOnProductId: (wizardData.warranty.addOnProductId && /^[a-f0-9]{24}$/i.test(wizardData.warranty.addOnProductId))
+            ? wizardData.warranty.addOnProductId : undefined,
+        } : (wizardData.warranty?.type === "TRADE" ? {
+          included: false,
+          type: "TRADE",
+          tradeTermsText: wizardData.warranty.tradeTermsText || dealer?.salesSettings?.noWarrantyMessage || "",
+        } : undefined),
         // Part exchanges - embed in deal for display
         partExchanges: [
           ...(wizardData.partExchanges || []),
@@ -711,6 +833,26 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         });
       }
 
+      // Sync Agreed Work items to vehicle issues if syncToVehicle is enabled
+      for (const req of wizardData.requests) {
+        if ((req.syncToVehicle ?? true) && req.title?.trim()) {
+          await fetch(`/api/vehicles/${wizardData.vehicleId}/issues`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              category: req.type === "COSMETIC" ? "Cosmetic" : req.type === "PREP" ? "Mechanical" : "Other",
+              subcategory: "Customer Promise",
+              description: req.title.trim(),
+              actionNeeded: req.details?.trim() || `Agreed at sale: ${req.title.trim()}`,
+              priority: "high",
+              status: "Outstanding",
+              dealId: dealData.id,
+              dealNumber: dealData.dealNumber,
+            }),
+          });
+        }
+      }
+
       // Success
       toast.success("Deal created successfully!");
       localStorage.removeItem(STORAGE_KEY);
@@ -746,15 +888,18 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         }
         return !!wizardData.customerId;
       case 3:
+        // Warranty - always can proceed (warranty selection is optional)
+        return true;
+      case 4:
         // Pricing - requires sale price
         return wizardData.salePriceGross && parseFloat(wizardData.salePriceGross) > 0;
-      case 4:
+      case 5:
         // Deposit - if they want a deposit, amount is required
         if (wizardData.wantsDeposit) {
           return wizardData.depositAmount && parseFloat(wizardData.depositAmount) > 0;
         }
         return true; // No deposit is fine
-      case 5:
+      case 6:
         // Review - always can proceed
         return true;
       default:
@@ -826,9 +971,10 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
             addOns: [...prev.addOns, newAddOn],
             warranty: {
               included: true,
+              type: "THIRD_PARTY",
               name: product.name,
               durationMonths: product.termMonths || 12,
-              claimLimit: product.claimLimit || null,
+              claimLimit: product.claimLimit || undefined,
               priceGross: product.defaultPriceNet * (product.vatTreatment === "STANDARD" ? 1.2 : 1),
               isDefault: false,
               addOnProductId: productId,
@@ -1004,7 +1150,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                         </svg>
                         <div>
                           <p className="text-sm font-medium text-amber-800">PDI not completed for this vehicle</p>
-                          <p className="text-xs text-amber-600 mt-0.5">You can continue without PDI, but it&apos;s recommended to complete the inspection before sale.</p>
+                          <p className="text-xs text-amber-600 mt-0.5">You can continue without PDI. PDI can be completed from the Prep or Forms &amp; Records page and added to the deal later.</p>
                         </div>
                       </div>
                     )}
@@ -1028,7 +1174,10 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                         </div>
                       ) : filteredVehicles.length === 0 ? (
                         <div className="text-center py-8 text-slate-500">
-                          No available vehicles with purchase info
+                          <p>No available vehicles with purchase info</p>
+                          <a href="/stock-book" className="text-[#0066CC] hover:underline mt-2 inline-block">
+                            Go to Stock Book →
+                          </a>
                         </div>
                       ) : (
                         filteredVehicles.slice(0, 10).map((v) => (
@@ -1492,7 +1641,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               step="0.01"
                               value={wizardData.px.allowance}
                               onChange={(e) => setWizardData(prev => ({ ...prev, px: { ...prev.px, allowance: e.target.value } }))}
-                              placeholder="Allowance *"
+                              placeholder={wizardData.px.vatQualifying ? "Allowance (inc VAT) *" : "Allowance *"}
                               className="input input-bordered input-sm"
                             />
                             <input
@@ -1605,8 +1754,404 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
               </div>
             )}
 
-            {/* Step 3: Pricing & Add-ons */}
+            {/* Step 3: Warranty */}
             {currentStep === 3 && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold">Warranty Selection</h3>
+                <p className="text-sm text-slate-500">Choose the warranty option for this sale.</p>
+
+                {/* Warranty Type Selection */}
+                <div className="space-y-3">
+                  {/* Default Warranty Option */}
+                  {dealer?.salesSettings?.defaultWarranty?.enabled && (
+                    <label className={`block p-4 border rounded-xl cursor-pointer transition-colors ${
+                      wizardData.warranty?.type === "DEFAULT" ? "border-emerald-500 bg-emerald-50" : "border-slate-200 hover:border-slate-300"
+                    }`}>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="radio"
+                          name="warrantyType"
+                          checked={wizardData.warranty?.type === "DEFAULT"}
+                          onChange={() => {
+                            const dw = dealer.salesSettings.defaultWarranty;
+                            const priceGross = dw.type === "PAID" ? (dw.priceGross || 0) : 0;
+                            setWizardData(prev => ({
+                              ...prev,
+                              warranty: {
+                                included: true,
+                                type: "DEFAULT",
+                                warrantyProductId: undefined,
+                                name: dw.name || "Standard Warranty",
+                                description: dw.description || "",
+                                durationMonths: dw.durationMonths || 3,
+                                claimLimit: dw.claimLimit || undefined,
+                                priceGross: priceGross,
+                                priceNet: priceGross,
+                                vatTreatment: dw.vatApplicable ? "STANDARD" : "NO_VAT",
+                                vatAmount: 0,
+                                tradeTermsText: "",
+                                isDefault: true,
+                              },
+                            }));
+                          }}
+                          className="radio radio-primary mt-0.5"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{dealer.salesSettings.defaultWarranty.name || "Standard Warranty"}</span>
+                            <span className="text-emerald-600 font-semibold">
+                              {dealer.salesSettings.defaultWarranty.type === "PAID"
+                                ? formatCurrency(dealer.salesSettings.defaultWarranty.priceGross || 0)
+                                : "FREE"}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-500 mt-1">
+                            {dealer.salesSettings.defaultWarranty.durationMonths} months
+                            {dealer.salesSettings.defaultWarranty.claimLimit
+                              ? ` · Up to ${formatCurrency(dealer.salesSettings.defaultWarranty.claimLimit)}`
+                              : " · Unlimited claims"}
+                          </p>
+                          {dealer.salesSettings.defaultWarranty.description && (
+                            <p className="text-xs text-slate-400 mt-1">{dealer.salesSettings.defaultWarranty.description}</p>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  )}
+
+                  {/* Trade Sale / No Warranty Option */}
+                  <label className={`block p-4 border rounded-xl cursor-pointer transition-colors ${
+                    wizardData.warranty?.type === "TRADE" ? "border-amber-500 bg-amber-50" : "border-slate-200 hover:border-slate-300"
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="radio"
+                        name="warrantyType"
+                        checked={wizardData.warranty?.type === "TRADE"}
+                        onChange={() => {
+                          setWizardData(prev => ({
+                            ...prev,
+                            warranty: {
+                              included: false,
+                              type: "TRADE",
+                              warrantyProductId: undefined,
+                              name: "",
+                              description: "",
+                              durationMonths: 0,
+                              claimLimit: undefined,
+                              priceGross: 0,
+                              priceNet: 0,
+                              vatTreatment: "NO_VAT",
+                              vatAmount: 0,
+                              tradeTermsText: dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied",
+                              isDefault: false,
+                            },
+                          }));
+                        }}
+                        className="radio radio-warning mt-0.5"
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium">Trade Sale / No Warranty</span>
+                        <p className="text-sm text-slate-500 mt-1">
+                          Vehicle sold without warranty coverage.
+                        </p>
+                        {wizardData.warranty?.type === "TRADE" && (
+                          <div className="mt-3 p-3 bg-amber-100 rounded-lg">
+                            <p className="text-xs font-medium text-amber-800">Trade Terms:</p>
+                            <p className="text-xs text-amber-700 mt-1">
+                              {dealer?.salesSettings?.noWarrantyMessage || "Trade Terms - No warranty given or implied"}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Third-Party Warranties */}
+                  {warranties.length > 0 && (
+                    <>
+                      <div className="text-sm font-medium text-slate-600 mt-4 mb-2">Third-Party Warranties</div>
+                      {warranties.map(w => (
+                        <label key={w.id} className={`block p-4 border rounded-xl cursor-pointer transition-colors ${
+                          wizardData.warranty?.warrantyProductId === w.id ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
+                        }`}>
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="radio"
+                              name="warrantyType"
+                              checked={wizardData.warranty?.warrantyProductId === w.id}
+                              onChange={() => {
+                                setWizardData(prev => ({
+                                  ...prev,
+                                  warranty: {
+                                    included: true,
+                                    type: "THIRD_PARTY",
+                                    warrantyProductId: w.id,
+                                    name: w.name,
+                                    description: w.description || "",
+                                    durationMonths: w.termMonths || 0,
+                                    claimLimit: w.claimLimit || undefined,
+                                    priceGross: w.priceGross || 0,
+                                    priceNet: w.priceNet || w.priceGross || 0,
+                                    costPrice: w.costPrice || undefined,
+                                    vatTreatment: w.vatTreatment || "NO_VAT",
+                                    vatAmount: w.vatAmount || 0,
+                                    tradeTermsText: "",
+                                    isDefault: false,
+                                  },
+                                }));
+                              }}
+                              className="radio radio-primary mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{w.name}</span>
+                                <span className="text-blue-600 font-semibold">
+                                  {formatCurrency(w.priceGross || 0)}
+                                  {w.vatTreatment === "STANDARD" && <span className="text-xs font-normal ml-1">inc VAT</span>}
+                                </span>
+                              </div>
+                              <p className="text-sm text-slate-500 mt-1">
+                                {w.termMonths ? `${w.termMonths} months` : "Term varies"}
+                                {w.claimLimit ? ` · Up to ${formatCurrency(w.claimLimit)}` : " · Unlimited claims"}
+                              </p>
+                              {w.description && (
+                                <p className="text-xs text-slate-400 mt-1">{w.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Create New Third-Party Warranty */}
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    {!showNewWarrantyForm ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowNewWarrantyForm(true)}
+                        className="btn btn-sm btn-ghost w-full border border-dashed border-slate-300 text-slate-500 hover:text-blue-600 hover:border-blue-300"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Create New Third-Party Warranty
+                      </button>
+                    ) : (
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-sm font-medium text-blue-800">New Third-Party Warranty</h4>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewWarrantyForm(false)}
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="col-span-2">
+                            <label className="text-xs text-slate-600">Name *</label>
+                            <input
+                              type="text"
+                              value={newWarrantyForm.name}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g. Premium 12 Month Warranty"
+                              className="input input-bordered input-sm w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-600">Term (months)</label>
+                            <input
+                              type="number"
+                              value={newWarrantyForm.termMonths}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, termMonths: e.target.value }))}
+                              placeholder="12"
+                              className="input input-bordered input-sm w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-600">Claim Limit (£)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={newWarrantyForm.claimLimit}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, claimLimit: e.target.value }))}
+                              placeholder="Optional"
+                              className="input input-bordered input-sm w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-600">Price (Gross)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={newWarrantyForm.priceGross}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, priceGross: e.target.value }))}
+                              placeholder="0.00"
+                              className="input input-bordered input-sm w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-600">Cost to Dealer</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={newWarrantyForm.costPrice}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, costPrice: e.target.value }))}
+                              placeholder="Optional"
+                              className="input input-bordered input-sm w-full mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-600">VAT Treatment</label>
+                            <select
+                              value={newWarrantyForm.vatTreatment}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, vatTreatment: e.target.value }))}
+                              className="select select-bordered select-sm w-full mt-1"
+                            >
+                              <option value="NO_VAT">No VAT (Exempt)</option>
+                              <option value="STANDARD">Standard VAT</option>
+                              <option value="EXEMPT">Exempt</option>
+                            </select>
+                          </div>
+                          <div className="col-span-2">
+                            <label className="text-xs text-slate-600">Description</label>
+                            <textarea
+                              value={newWarrantyForm.description}
+                              onChange={(e) => setNewWarrantyForm(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="Optional description..."
+                              rows={2}
+                              className="textarea textarea-bordered textarea-sm w-full mt-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={handleCreateWarranty}
+                            disabled={savingWarranty || !newWarrantyForm.name?.trim()}
+                            className="btn btn-sm btn-primary flex-1"
+                          >
+                            {savingWarranty ? <span className="loading loading-spinner loading-xs"></span> : "Create & Select"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowNewWarrantyForm(false)}
+                            className="btn btn-sm btn-ghost"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-xs text-slate-400 text-center mt-2">
+                      Default and third-party warranties can be managed in Settings.
+                    </p>
+                  </div>
+
+                  {/* No warranty selected prompt */}
+                  {!wizardData.warranty?.type && (
+                    <div className="text-center py-6 text-slate-400">
+                      <p>Select a warranty option above</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warranty details editing (for DEFAULT and THIRD_PARTY) */}
+                {wizardData.warranty?.included && (wizardData.warranty?.type === "DEFAULT" || wizardData.warranty?.type === "THIRD_PARTY") && (
+                  <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                    <h4 className="font-medium text-sm text-slate-600">Warranty Details (Editable)</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="form-control">
+                        <label className="label py-1"><span className="label-text text-xs">Warranty Name</span></label>
+                        <input
+                          type="text"
+                          value={wizardData.warranty?.name || ""}
+                          onChange={(e) => setWizardData(prev => ({
+                            ...prev,
+                            warranty: { ...prev.warranty, name: e.target.value }
+                          }))}
+                          className="input input-bordered input-sm"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1"><span className="label-text text-xs">Price (Gross)</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={wizardData.warranty?.priceGross || ""}
+                          onChange={(e) => setWizardData(prev => ({
+                            ...prev,
+                            warranty: {
+                              ...prev.warranty,
+                              priceGross: parseFloat(e.target.value) || 0,
+                              priceNet: parseFloat(e.target.value) || 0,
+                            }
+                          }))}
+                          className="input input-bordered input-sm"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1"><span className="label-text text-xs">Duration (months)</span></label>
+                        <select
+                          value={wizardData.warranty?.durationMonths || ""}
+                          onChange={(e) => setWizardData(prev => ({
+                            ...prev,
+                            warranty: { ...prev.warranty, durationMonths: parseInt(e.target.value) || 0 }
+                          }))}
+                          className="select select-bordered select-sm"
+                        >
+                          <option value="">Select...</option>
+                          <option value="1">1 month</option>
+                          <option value="3">3 months</option>
+                          <option value="6">6 months</option>
+                          <option value="12">12 months</option>
+                          <option value="24">24 months</option>
+                          <option value="36">36 months</option>
+                        </select>
+                      </div>
+                      <div className="form-control">
+                        <label className="label py-1"><span className="label-text text-xs">Claim Limit</span></label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={wizardData.warranty?.claimLimit || ""}
+                          onChange={(e) => setWizardData(prev => ({
+                            ...prev,
+                            warranty: { ...prev.warranty, claimLimit: e.target.value ? parseFloat(e.target.value) : null }
+                          }))}
+                          className="input input-bordered input-sm"
+                          placeholder="Unlimited"
+                        />
+                      </div>
+                    </div>
+                    <div className="form-control">
+                      <label className="label py-1"><span className="label-text text-xs">Description</span></label>
+                      <input
+                        type="text"
+                        value={wizardData.warranty?.description || ""}
+                        onChange={(e) => setWizardData(prev => ({
+                          ...prev,
+                          warranty: { ...prev.warranty, description: e.target.value }
+                        }))}
+                        className="input input-bordered input-sm"
+                        placeholder="Optional description"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 4: Pricing & Add-ons */}
+            {currentStep === 4 && (
               <div className="space-y-6">
                 {/* Pricing */}
                 <div>
@@ -1637,63 +2182,61 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                   </div>
                 </div>
 
-                {/* Default Warranty Info Banner */}
-                {wizardData.warranty?.included && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                        <div>
-                          <p className="font-semibold text-emerald-900">{wizardData.warranty.name || "Warranty"} Included</p>
-                          <div className="text-sm text-emerald-700 flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                            {wizardData.warranty.durationMonths > 0 && (
-                              <span>{wizardData.warranty.durationMonths} months</span>
-                            )}
-                            {wizardData.warranty.claimLimit ? (
-                              <span>Claim limit: £{wizardData.warranty.claimLimit.toLocaleString()}</span>
-                            ) : (
-                              <span>Unlimited claims</span>
-                            )}
-                            {wizardData.warranty.priceGross > 0 && (
-                              <span className="font-medium">£{wizardData.warranty.priceGross.toLocaleString()}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      {wizardData.warranty.isDefault && (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">Default</span>
-                      )}
-                    </div>
-                    <p className="text-xs text-emerald-600 mt-2">Other warranties can be selected as Add-Ons below to replace this default.</p>
-                  </div>
-                )}
-
-                {/* Delivery */}
+                {/* Fulfilment Method */}
                 <div>
-                  <h3 className="text-lg font-semibold mb-3">Delivery</h3>
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={wizardData.delivery?.isFree || false}
-                        onChange={(e) => setWizardData(prev => ({
+                  <h3 className="text-lg font-semibold mb-3">Fulfilment</h3>
+                  <div className="space-y-3">
+                    {/* Fulfilment type selector */}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWizardData(prev => ({
                           ...prev,
-                          delivery: {
-                            ...prev.delivery,
-                            isFree: e.target.checked,
-                            amountGross: e.target.checked ? "" : prev.delivery?.amountGross,
-                            amountNet: "",
-                            vatAmount: "",
-                            amount: "",
-                          }
+                          fulfilmentMethod: "COLLECTION",
+                          delivery: null,
                         }))}
-                        className="checkbox checkbox-sm checkbox-primary"
-                      />
-                      <span className="text-sm">Free Delivery</span>
-                    </label>
-                    {!wizardData.delivery?.isFree && (
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          wizardData.fulfilmentMethod === "COLLECTION" || (!wizardData.fulfilmentMethod && !wizardData.delivery?.isFree && !wizardData.delivery?.amountGross)
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        Collection
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWizardData(prev => ({
+                          ...prev,
+                          fulfilmentMethod: "FREE_DELIVERY",
+                          delivery: { isFree: true, amountGross: "", amountNet: "", vatAmount: "", amount: "" },
+                        }))}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          wizardData.fulfilmentMethod === "FREE_DELIVERY" || wizardData.delivery?.isFree
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        Free Delivery
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWizardData(prev => ({
+                          ...prev,
+                          fulfilmentMethod: "CHARGEABLE_DELIVERY",
+                          delivery: { isFree: false, amountGross: prev.delivery?.amountGross || "", amountNet: prev.delivery?.amountNet || "", vatAmount: prev.delivery?.vatAmount || "", amount: prev.delivery?.amountGross || "" },
+                        }))}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          wizardData.fulfilmentMethod === "CHARGEABLE_DELIVERY" || (!wizardData.delivery?.isFree && wizardData.delivery?.amountGross)
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        Chargeable Delivery
+                      </button>
+                    </div>
+
+                    {/* Delivery amount input - only show for chargeable delivery */}
+                    {(wizardData.fulfilmentMethod === "CHARGEABLE_DELIVERY" || (!wizardData.delivery?.isFree && wizardData.delivery?.amountGross)) && (
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -1712,17 +2255,17 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                               ...prev,
                               delivery: {
                                 ...prev.delivery,
+                                isFree: false,
                                 amountGross: gross,
                                 amountNet: net,
                                 vatAmount: vat,
-                                amount: gross, // Legacy field
+                                amount: gross,
                               }
                             }));
                           }}
                           placeholder={dealer?.salesSettings?.vatRegistered !== false ? "Amount (inc VAT)" : "Amount"}
                           className="input input-bordered input-sm w-40"
                         />
-                        {/* Show VAT breakdown if dealer is VAT registered and amount entered */}
                         {dealer?.salesSettings?.vatRegistered !== false && wizardData.delivery?.amountGross && (
                           <span className="text-xs text-slate-500">
                             (Net: £{wizardData.delivery?.amountNet || "0.00"} + VAT: £{wizardData.delivery?.vatAmount || "0.00"})
@@ -1731,7 +2274,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">Delivery can be added or modified later before invoicing</p>
+                  <p className="text-xs text-slate-500 mt-2">Fulfilment method can be changed later before invoicing</p>
                 </div>
 
                 {/* Customer Finance Selection */}
@@ -1991,7 +2534,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                           ...prev,
                           requests: [
                             ...prev.requests,
-                            { title: "", details: "", type: "PREP", status: "REQUESTED" }
+                            { title: "", details: "", type: "PREP", status: "REQUESTED", syncToVehicle: true }
                           ]
                         }));
                       }}
@@ -2065,6 +2608,19 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                                   className="input input-bordered input-sm w-full"
                                 />
                               </div>
+                              <label className="flex items-center gap-2 text-sm text-slate-600 mt-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={req.syncToVehicle ?? true}
+                                  onChange={(e) => {
+                                    const newReqs = [...wizardData.requests];
+                                    newReqs[idx].syncToVehicle = e.target.checked;
+                                    setWizardData(prev => ({ ...prev, requests: newReqs }));
+                                  }}
+                                  className="checkbox checkbox-sm checkbox-primary"
+                                />
+                                Add to vehicle prep list
+                              </label>
                             </div>
                             <button
                               type="button"
@@ -2087,8 +2643,8 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
               </div>
             )}
 
-            {/* Step 4: Deposit */}
-            {currentStep === 4 && (
+            {/* Step 5: Deposit */}
+            {currentStep === 5 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">Deposit</h3>
 
@@ -2190,8 +2746,8 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
               </div>
             )}
 
-            {/* Step 5: Review */}
-            {currentStep === 5 && (
+            {/* Step 6: Review */}
+            {currentStep === 6 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">Review & Confirm</h3>
 
@@ -2289,16 +2845,51 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                   </div>
                 )}
 
-                {/* Delivery Summary */}
-                {(wizardData.delivery?.isFree || wizardData.delivery?.amountGross) && (
-                  <div className="bg-purple-50 rounded-xl p-4">
-                    <h4 className="text-sm font-semibold text-purple-700 mb-2">DELIVERY</h4>
-                    <p className="font-medium text-purple-900">
-                      {wizardData.delivery?.isFree
+                {/* Fulfilment Summary */}
+                <div className="bg-purple-50 rounded-xl p-4">
+                  <h4 className="text-sm font-semibold text-purple-700 mb-2">FULFILMENT</h4>
+                  <p className="font-medium text-purple-900">
+                    {wizardData.fulfilmentMethod === "COLLECTION" || (!wizardData.delivery?.isFree && !wizardData.delivery?.amountGross)
+                      ? "Collection"
+                      : wizardData.delivery?.isFree
                         ? "Free Delivery"
-                        : formatCurrency(wizardData.delivery.amountGross)
-                      }
-                    </p>
+                        : `Delivery: ${formatCurrency(wizardData.delivery?.amountGross)}`
+                    }
+                  </p>
+                </div>
+
+                {/* Warranty Summary */}
+                {wizardData.warranty?.type && (
+                  <div className={`rounded-xl p-4 ${
+                    wizardData.warranty.type === "TRADE"
+                      ? "bg-amber-50"
+                      : "bg-emerald-50"
+                  }`}>
+                    <h4 className={`text-sm font-semibold mb-2 ${
+                      wizardData.warranty.type === "TRADE" ? "text-amber-700" : "text-emerald-700"
+                    }`}>WARRANTY</h4>
+                    {wizardData.warranty.type === "TRADE" ? (
+                      <div>
+                        <p className="font-medium text-amber-900">Trade Sale / No Warranty</p>
+                        <p className="text-xs text-amber-700 mt-1">{wizardData.warranty.tradeTermsText}</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-medium text-emerald-900">{wizardData.warranty.name}</p>
+                        <p className="text-sm text-emerald-700">
+                          {wizardData.warranty.durationMonths} months
+                          {wizardData.warranty.claimLimit ? ` · Up to ${formatCurrency(wizardData.warranty.claimLimit)}` : " · Unlimited claims"}
+                        </p>
+                        {wizardData.warranty.priceGross > 0 && (
+                          <p className="text-sm font-medium text-emerald-900 mt-1">
+                            {formatCurrency(wizardData.warranty.priceGross)}
+                          </p>
+                        )}
+                        {wizardData.warranty.priceGross === 0 && (
+                          <p className="text-sm font-medium text-emerald-600 mt-1">FREE</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

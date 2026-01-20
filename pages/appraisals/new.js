@@ -343,7 +343,7 @@ export default function NewAppraisal() {
             <div className="card bg-base-200">
               <div className="card-body">
                 <h2 className="card-title">Vehicle Details</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Make</span>
@@ -890,7 +890,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
       <div className="modal-box max-w-2xl">
         <h3 className="font-bold text-lg mb-4">Add Issue</h3>
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="form-control">
               <label className="label">
                 <span className="label-text">Category *</span>

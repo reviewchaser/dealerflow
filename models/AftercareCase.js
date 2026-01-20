@@ -33,6 +33,7 @@ const aftercareCaseSchema = new mongoose.Schema(
     details: { type: Object }, // text or json
     regAtPurchase: { type: String }, // reg at time of purchase if different
     currentReg: { type: String }, // current reg if vehicle was re-registered
+    mileageAtPurchase: { type: Number }, // Mileage when vehicle was sold to customer
 
     // Customer address - captured from public form
     customerAddress: {

@@ -28,11 +28,16 @@ export default function DepositReceiptPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Only auto-redirect to PDF if explicitly requested via render=pdf
-  // By default, show the HTML version (better UX, more reliable)
-
+  // Auto-redirect to PDF endpoint (unless ?render=html is set for Puppeteer)
   useEffect(() => {
-    if (!token) return;
+    if (token && render !== "html") {
+      window.location.href = `/api/public/deposit-receipt/${token}/pdf`;
+    }
+  }, [token, render]);
+
+  // Fetch document data (for HTML render mode)
+  useEffect(() => {
+    if (!token || render !== "html") return;
 
     const fetchDocument = async () => {
       setIsLoading(true);
@@ -52,7 +57,7 @@ export default function DepositReceiptPage() {
     };
 
     fetchDocument();
-  }, [token]);
+  }, [token, render]);
 
   const handlePrint = () => {
     window.print();
@@ -283,29 +288,56 @@ export default function DepositReceiptPage() {
               </div>
             </div>
 
-            {/* Warranty - show if included */}
-            {snap.warranty?.included && (
+            {/* Warranty - show if included or has warranty data (for older deals) */}
+            {(snap.warranty?.included || (snap.warranty?.name && snap.warranty?.type !== "TRADE")) ? (
               <div className="bg-emerald-50 rounded-lg p-3 print:p-1.5 print:rounded border border-emerald-200">
                 <div className="print:flex print:items-center print:justify-between">
-                  <p className="text-xs text-emerald-700 uppercase tracking-wide font-medium mb-1 print:mb-0 print:text-[10px]">Warranty Included</p>
-                  <p className="font-semibold text-emerald-900 print:text-xs">{snap.warranty.name || "Warranty"}</p>
+                  <div className="flex items-center gap-2 mb-1 print:mb-0">
+                    <p className="text-xs text-emerald-700 uppercase tracking-wide font-medium print:text-[10px]">Warranty Included</p>
+                    {snap.warranty?.type && (
+                      <span className={`text-[10px] print:text-[8px] px-1.5 py-0.5 rounded-full font-medium ${
+                        snap.warranty?.type === "DEFAULT" ? "bg-emerald-100 text-emerald-700" :
+                        snap.warranty?.type === "THIRD_PARTY" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {snap.warranty?.type === "DEFAULT" ? "Default" :
+                         snap.warranty?.type === "THIRD_PARTY" ? "Third Party" : snap.warranty?.type}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-semibold text-emerald-900 print:text-xs">{snap.warranty?.name || "Warranty"}</p>
                 </div>
+                {snap.warranty?.description && (
+                  <p className="text-xs text-emerald-600 mt-0.5 print:hidden">{snap.warranty?.description}</p>
+                )}
                 <div className="text-sm text-emerald-700 mt-1 print:mt-0 print:text-[10px] flex flex-wrap gap-x-4 gap-y-0.5 print:gap-x-2">
-                  {snap.warranty.durationMonths && (
-                    <span>{snap.warranty.durationMonths} months</span>
+                  {snap.warranty?.durationMonths && (
+                    <span>{snap.warranty?.durationMonths} months</span>
                   )}
-                  {snap.warranty.claimLimit ? (
-                    <span>Claim limit: {formatCurrency(snap.warranty.claimLimit)}</span>
+                  {snap.warranty?.claimLimit ? (
+                    <span>Claim limit: {formatCurrency(snap.warranty?.claimLimit)}</span>
                   ) : (
                     <span>Unlimited claims</span>
                   )}
-                  {snap.warranty.priceGross > 0 && (
-                    <span className="font-medium">{formatCurrency(snap.warranty.priceGross)}</span>
+                  {snap.warranty?.priceGross > 0 && (
+                    <span className="font-medium">{formatCurrency(snap.warranty?.priceGross)}</span>
                   )}
-                  {snap.warranty.priceGross === 0 && !snap.warranty.isDefault && (
+                  {snap.warranty?.priceGross === 0 && (
                     <span className="text-emerald-600">FREE</span>
                   )}
                 </div>
+              </div>
+            ) : snap.warranty?.type === "TRADE" ? (
+              <div className="bg-amber-50 rounded-lg p-3 print:p-1.5 print:rounded border border-amber-200">
+                <div className="flex items-center gap-2 mb-1 print:mb-0">
+                  <p className="text-xs text-amber-700 uppercase tracking-wide font-medium print:text-[10px]">Trade Sale</p>
+                  <span className="text-[10px] print:text-[8px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">No Warranty</span>
+                </div>
+                <p className="text-amber-800 font-medium print:text-xs">{snap.warranty?.tradeTermsText || snap.noWarrantyMessage || "Trade Terms - No warranty given or implied"}</p>
+              </div>
+            ) : (
+              <div className="bg-amber-50 rounded-lg p-3 print:p-1.5 print:rounded border border-amber-200">
+                <p className="text-xs text-amber-700 uppercase tracking-wide font-medium mb-1 print:mb-0 print:text-[10px]">Warranty</p>
+                <p className="text-amber-800 font-medium print:text-xs">{snap.noWarrantyMessage || "Trade Terms - No warranty given or implied"}</p>
               </div>
             )}
 
@@ -356,8 +388,8 @@ export default function DepositReceiptPage() {
               </div>
             )}
 
-            {/* Warranty (if included with cost) - hide for print, total shown in summary */}
-            {snap.warranty?.included && snap.warranty?.priceGross > 0 && (
+            {/* Warranty (if included) - hide for print, total shown in summary */}
+            {snap.warranty?.included && (
               <div className="print:hidden">
                 <p className="text-sm text-slate-500 uppercase tracking-wide font-medium mb-3">Warranty Included</p>
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -376,25 +408,35 @@ export default function DepositReceiptPage() {
                       {snap.isVatRegistered !== false ? (
                         <tr>
                           <td className="px-4 py-3 text-slate-900">
-                            {snap.warranty.name || "Warranty"} ({snap.warranty.durationMonths || 3} months)
+                            <div>
+                              {snap.warranty?.name || "Warranty"} ({snap.warranty?.durationMonths || 3} months)
+                              {snap.warranty?.description && (
+                                <span className="text-slate-500 text-xs ml-2">- {snap.warranty?.description}</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right text-slate-600">
-                            {formatCurrency(snap.warranty.priceNet || snap.warranty.priceGross)}
+                            {formatCurrency(snap.warranty?.priceNet || snap.warranty?.priceGross)}
                           </td>
                           <td className="px-4 py-3 text-right text-slate-600">
-                            {snap.warranty.vatApplicable ? formatCurrency(snap.warranty.vatAmount || 0) : "Exempt"}
+                            {snap.warranty?.vatTreatment === "STANDARD" ? formatCurrency(snap.warranty?.vatAmount || 0) : "Exempt"}
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                            {formatCurrency(snap.warranty.priceGross)}
+                            {snap.warranty?.priceGross > 0 ? formatCurrency(snap.warranty?.priceGross) : "FREE"}
                           </td>
                         </tr>
                       ) : (
                         <tr>
                           <td className="px-4 py-3 text-slate-900">
-                            {snap.warranty.name || "Warranty"} ({snap.warranty.durationMonths || 3} months)
+                            <div>
+                              {snap.warranty?.name || "Warranty"} ({snap.warranty?.durationMonths || 3} months)
+                              {snap.warranty?.description && (
+                                <span className="text-slate-500 text-xs ml-2">- {snap.warranty?.description}</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                            {formatCurrency(snap.warranty.priceGross)}
+                            {snap.warranty?.priceGross > 0 ? formatCurrency(snap.warranty?.priceGross) : "FREE"}
                           </td>
                         </tr>
                       )}
@@ -471,8 +513,8 @@ export default function DepositReceiptPage() {
                             <span>Gross: {formatCurrency(px.allowance)}</span>
                           </div>
                         )}
-                        {/* Hide extra details for print */}
-                        <div className="text-xs text-slate-600 mt-1 print:hidden">
+                        {/* PX details - visible in print */}
+                        <div className="text-xs text-slate-600 mt-1 print:text-[10px]">
                           {px.year && <span>{px.year}</span>}
                           {px.colour && <span> • {px.colour}</span>}
                           {px.mileage && <span> • {px.mileage.toLocaleString()} miles</span>}
@@ -556,6 +598,32 @@ export default function DepositReceiptPage() {
                           </td>
                         </tr>
                       )}
+                      {/* Warranty - show if included or has warranty data (for older deals) */}
+                      {(snap.warranty?.included || (snap.warranty?.name && snap.warranty?.type !== "TRADE")) && (
+                        <tr>
+                          <td className="px-4 py-3 print:px-2 print:py-1 text-slate-600">
+                            {snap.warranty?.name || "Warranty"}
+                            {snap.warranty?.durationMonths && ` (${snap.warranty?.durationMonths} months)`}
+                          </td>
+                          {showVatColumns && (
+                            <>
+                              <td className="px-4 py-3 print:px-2 print:py-1 text-right text-slate-900">
+                                {snap.warranty?.priceGross > 0 ? formatCurrency(snap.warranty?.priceNet || snap.warranty?.priceGross) : "—"}
+                              </td>
+                              <td className="px-4 py-3 print:px-2 print:py-1 text-right text-slate-600">
+                                {snap.warranty?.priceGross > 0 && snap.warranty?.vatTreatment === "STANDARD"
+                                  ? formatCurrency(snap.warranty?.vatAmount || 0)
+                                  : "—"}
+                              </td>
+                            </>
+                          )}
+                          <td className="px-4 py-3 print:px-2 print:py-1 text-right font-semibold text-slate-900">
+                            {snap.warranty?.priceGross > 0 ? formatCurrency(snap.warranty?.priceGross) : (
+                              <span className="text-emerald-600">Included</span>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                       {/* Delivery */}
                       {(snap.delivery?.amountGross > 0 || snap.delivery?.amount > 0 || snap.delivery?.isFree) && (
                         <tr>
@@ -616,21 +684,6 @@ export default function DepositReceiptPage() {
                 </div>
               );
             })()}
-
-            {/* Agreed Work Items - hide for print */}
-            {snap.requests?.length > 0 && (
-              <div className="print:hidden bg-orange-50 rounded-lg p-3 border border-orange-200">
-                <p className="text-xs text-orange-700 uppercase tracking-wide font-medium mb-1">Agreed Work</p>
-                <ul className="space-y-0.5">
-                  {snap.requests.map((req, idx) => (
-                    <li key={idx} className="flex items-start gap-1 text-sm">
-                      <span className="text-orange-600 shrink-0">•</span>
-                      <span className="text-slate-900">{req.title}{req.details && ` - ${req.details}`}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
 
             {/* Taken By - hide for print */}
             {snap.takenBy && (
@@ -740,11 +793,51 @@ export default function DepositReceiptPage() {
             </div>
           </div>
 
-          {/* Terms & Conditions - separate page if present */}
-          {snap.termsText && (
-            <div className="p-8 print:p-6 print:break-before-page border-t border-slate-200">
-              <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
-              <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+          {/* Page 2: Agreed Work + Add-ons + Terms & Conditions */}
+          {(snap.requests?.length > 0 || snap.addOns?.length > 0 || snap.termsText) && (
+            <div className="print:break-before-page">
+              {/* Agreed Work Items */}
+              {snap.requests?.length > 0 && (
+                <div className="p-8 print:p-6 border-t border-slate-200">
+                  <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-4 print:text-xs">Agreed Work</p>
+                  <div className="bg-orange-50 rounded-lg p-4 print:p-3 border border-orange-200">
+                    <ul className="space-y-2 print:space-y-1">
+                      {snap.requests.map((req, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-sm print:text-xs">
+                          <span className="text-orange-500 mt-0.5">•</span>
+                          <span className="text-slate-800">{req.title}{req.details && `: ${req.details}`}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* Add-ons Included */}
+              {snap.addOns?.length > 0 && (
+                <div className="p-8 print:p-6 border-t border-slate-200">
+                  <p className="text-sm text-indigo-700 uppercase tracking-wide font-medium mb-4 print:text-xs">Add-ons Included</p>
+                  <div className="space-y-3 print:space-y-2">
+                    {snap.addOns.map((addon, idx) => (
+                      <div key={idx} className="flex justify-between items-start border-b border-slate-100 pb-2 print:pb-1">
+                        <div>
+                          <p className="font-medium text-slate-800 text-sm print:text-xs">{addon.name}</p>
+                          {addon.description && <p className="text-xs text-slate-600 print:text-[10px]">{addon.description}</p>}
+                        </div>
+                        <p className="font-semibold text-slate-900 text-sm print:text-xs">{formatCurrency(addon.unitPriceNet * (addon.qty || 1))}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Terms & Conditions */}
+              {snap.termsText && (
+                <div className="p-8 print:p-6 border-t border-slate-200">
+                  <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
+                  <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+                </div>
+              )}
             </div>
           )}
         </div>

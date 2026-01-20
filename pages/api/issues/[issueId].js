@@ -3,6 +3,7 @@ import VehicleIssue from "@/models/VehicleIssue";
 import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
+import Deal from "@/models/Deal";
 import { withDealerContext } from "@/libs/authContext";
 import { logIssuePartsOrdered, logIssuePartsReceived, logIssueResolved } from "@/libs/activityLogger";
 
@@ -49,6 +50,9 @@ async function handler(req, res, ctx) {
           updates.status = statusMap[lowerStatus] || updates.status;
         }
       }
+
+      // Track if issue is being resolved
+      const wasComplete = issue.status === "Complete";
 
       // If status is being set to Complete, add completedAt timestamp
       if (updates.status === "Complete" && !updates.completedAt) {
@@ -111,6 +115,25 @@ async function handler(req, res, ctx) {
             userId,
             userName: actorName,
           });
+
+          // Auto-complete any linked deal requests when issue is resolved
+          if (!wasComplete) {
+            try {
+              await Deal.updateMany(
+                { "requests.linkToIssueId": issueId },
+                {
+                  $set: {
+                    "requests.$[elem].status": "DONE",
+                    "requests.$[elem].completedAt": new Date(),
+                  },
+                },
+                { arrayFilters: [{ "elem.linkToIssueId": issueId }] }
+              );
+            } catch (dealErr) {
+              console.error("[issues] Failed to auto-complete linked deal requests:", dealErr.message);
+              // Don't fail the issue update, just log the error
+            }
+          }
         }
       } else if (Object.keys(updates).length > 1) {
         // Log general update if other fields changed (not just status)
