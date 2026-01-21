@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import connectMongo from "@/libs/mongoose";
 import Appraisal from "@/models/Appraisal";
 import AppraisalIssue from "@/models/AppraisalIssue";
@@ -117,8 +118,24 @@ export default async function handler(req, res) {
     }
 
     // Transfer issues from AppraisalIssue to VehicleIssue
-    const appraisalIssues = await AppraisalIssue.find({ appraisalId: appraisal._id });
-    console.log(`Found ${appraisalIssues.length} issues to transfer for appraisal ${appraisal._id}`);
+    // Use explicit ObjectId conversion to ensure proper matching
+    const appraisalObjectId = new mongoose.Types.ObjectId(appraisal._id.toString());
+    console.log(`[Issue Transfer] Searching for issues with appraisalId: ${appraisalObjectId}`);
+
+    const appraisalIssues = await AppraisalIssue.find({ appraisalId: appraisalObjectId });
+    console.log(`[Issue Transfer] Found ${appraisalIssues.length} issues to transfer`);
+
+    if (appraisalIssues.length > 0) {
+      console.log(`[Issue Transfer] Issues found:`, appraisalIssues.map(i => ({
+        id: i._id.toString(),
+        category: i.category,
+        description: i.description?.substring(0, 50)
+      })));
+    }
+
+    let transferredCount = 0;
+    let failedCount = 0;
+
     for (const issue of appraisalIssues) {
       // Build description - include fault codes if present
       let description = issue.description || "";
@@ -146,11 +163,24 @@ export default async function handler(req, res) {
           notes: issue.notes || "",
           createdByUserId: issue.createdByUserId,
         });
+        transferredCount++;
       } catch (issueError) {
-        console.error("Failed to transfer issue:", issueError.message, issue);
-        // Continue with other issues even if one fails
+        failedCount++;
+        console.error(`[Issue Transfer] Failed to transfer issue ${issue._id}:`, issueError.message);
+        console.error(`[Issue Transfer] Issue data:`, JSON.stringify({
+          category: issue.category,
+          subcategory: issue.subcategory,
+          description: issue.description,
+          status: issue.status
+        }));
       }
     }
+
+    console.log(`[Issue Transfer] Complete: ${transferredCount} transferred, ${failedCount} failed`);
+
+    // Verify issues were created
+    const createdIssues = await VehicleIssue.find({ vehicleId: vehicle._id }).lean();
+    console.log(`[Issue Transfer] Verification: ${createdIssues.length} VehicleIssue records exist for vehicle ${vehicle._id}`);
 
     // Create tasks - only if createPrepTasks is true
     if (createPrepTasks) {

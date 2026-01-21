@@ -102,7 +102,7 @@ async function handler(req, res, ctx) {
       .map(v => v.soldDealId);
 
     // Fetch all related data in parallel - scoped by dealerId
-    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allSoldDeals, allPdiSubmissions] = await Promise.all([
+    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allDealsNotViewed, allSoldDeals, allPdiSubmissions] = await Promise.all([
       VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
@@ -127,6 +127,13 @@ async function handler(req, res, ctx) {
           { "delivery.isFree": true },
         ],
       }).select("vehicleId delivery").lean(),
+      // Fetch deals where buyer has not seen vehicle (for prep board badge)
+      Deal.find({
+        dealerId,
+        vehicleId: { $in: vehicleIds },
+        status: { $nin: ["CANCELLED", "COMPLETED"] },
+        buyerHasSeenVehicle: { $ne: true },
+      }).select("vehicleId buyerHasSeenVehicle").lean(),
       // Fetch sold deals for ex-stock vehicles
       soldVehicleIds.length > 0
         ? Deal.find({ _id: { $in: soldVehicleIds } })
@@ -188,6 +195,13 @@ async function handler(req, res, ctx) {
       if (deal.delivery?.amount > 0 || deal.delivery?.amountGross > 0 || deal.delivery?.isFree) {
         deliveryByVehicle[vid] = true;
       }
+    }
+
+    // Build buyer not viewed lookup (for prep board badge)
+    const notViewedByVehicle = {};
+    for (const deal of allDealsNotViewed) {
+      const vid = deal.vehicleId.toString();
+      notViewedByVehicle[vid] = true;
     }
 
     // Build PDI submissions lookup (for prep board badge and drawer)
@@ -323,6 +337,8 @@ async function handler(req, res, ctx) {
         vatScheme: vehicle.vatScheme || null,
         // Delivery badge for prep board
         hasDelivery: deliveryByVehicle[vid] || false,
+        // Buyer has not seen vehicle badge for prep board
+        buyerHasNotSeenVehicle: notViewedByVehicle[vid] || false,
         // PDI submission info for prep board badge and drawer
         pdiSubmission: pdiByVehicle[vid] || null,
         // PX source info (for vehicles taken in part exchange)

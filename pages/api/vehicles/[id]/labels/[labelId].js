@@ -15,34 +15,37 @@ async function handler(req, res, ctx) {
       return res.status(405).json({ error: "Method not allowed" });
     }
 
-    // Verify vehicle belongs to this dealer
-    const vehicle = await Vehicle.findOne({ _id: id, dealerId });
-    if (!vehicle) return res.status(404).json({ error: "Vehicle not found" });
+    // Verify vehicle belongs to this dealer (use lean to avoid Mongoose defaults)
+    const existingVehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
+    if (!existingVehicle) return res.status(404).json({ error: "Vehicle not found" });
 
     // Verify label exists
     const label = await VehicleLabel.findById(labelId);
     if (!label) return res.status(404).json({ error: "Label not found" });
 
-    // Initialize labels array if it doesn't exist
-    if (!vehicle.labels) vehicle.labels = [];
-
-    // Toggle label - remove if exists, add if not
-    const labelIndex = vehicle.labels.findIndex(
-      (l) => l.toString() === labelId
-    );
+    // Check if label is already on the vehicle
+    const existingLabels = existingVehicle.labels || [];
+    const hasLabel = existingLabels.some(l => l.toString() === labelId);
 
     let action;
-    if (labelIndex > -1) {
-      // Remove label
-      vehicle.labels.splice(labelIndex, 1);
+    let updateOperation;
+
+    if (hasLabel) {
+      // Remove label using atomic $pull
       action = "removed";
+      updateOperation = { $pull: { labels: labelId } };
     } else {
-      // Add label
-      vehicle.labels.push(labelId);
+      // Add label using atomic $addToSet (prevents duplicates)
       action = "added";
+      updateOperation = { $addToSet: { labels: labelId } };
     }
 
-    await vehicle.save();
+    // Use findOneAndUpdate to atomically update ONLY the labels field
+    // This prevents Mongoose from applying schema defaults to other fields like showOnPrepBoard
+    await Vehicle.findOneAndUpdate(
+      { _id: id, dealerId },
+      updateOperation
+    );
 
     // Get actor name for activity logging
     const actor = await User.findById(userId).lean();
@@ -52,8 +55,8 @@ async function handler(req, res, ctx) {
     await logLabelsUpdated({
       dealerId,
       vehicleId: id,
-      vehicleReg: vehicle.regCurrent,
-      vehicleMakeModel: `${vehicle.make || ""} ${vehicle.model || ""}`.trim(),
+      vehicleReg: existingVehicle.regCurrent,
+      vehicleMakeModel: `${existingVehicle.make || ""} ${existingVehicle.model || ""}`.trim(),
       action,
       labelName: label.name,
       userId,

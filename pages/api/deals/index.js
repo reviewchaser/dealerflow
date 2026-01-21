@@ -155,6 +155,7 @@ async function handler(req, res, ctx) {
       paymentType,
       delivery,
       partExchanges,
+      buyerHasSeenVehicle,
     } = req.body;
 
     // Validate required fields
@@ -294,6 +295,7 @@ async function handler(req, res, ctx) {
       paymentType: paymentType || "CASH",
       delivery: delivery || {},
       partExchanges: partExchanges || [],
+      buyerHasSeenVehicle: buyerHasSeenVehicle || false,
     });
 
     // Update vehicle status
