@@ -371,6 +371,9 @@ dealSchema.index({ dealerId: 1, status: 1 });
 dealSchema.index({ dealerId: 1, createdAt: -1 });
 dealSchema.index({ dealerId: 1, soldToContactId: 1 });
 dealSchema.index({ dealerId: 1, salesPersonId: 1 });
+// Performance indexes for dashboard stats (queries by completedAt)
+dealSchema.index({ dealerId: 1, completedAt: -1 });
+dealSchema.index({ dealerId: 1, status: 1, completedAt: -1 });
 
 // Virtual: Calculate total deposit paid
 dealSchema.virtual("totalDepositPaid").get(function () {

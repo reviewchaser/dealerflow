@@ -18,7 +18,7 @@ const COLUMNS = [
   { key: "in_stock", label: "In Stock", gradient: "from-slate-100/60", accent: "border-l-slate-400", accentBg: "bg-slate-400" },
   { key: "live", label: "Sold In Progress", gradient: "from-cyan-100/60", accent: "border-l-cyan-400", accentBg: "bg-cyan-400" },
   { key: "reserved", label: "Completed", gradient: "from-emerald-100/60", accent: "border-l-emerald-400", accentBg: "bg-emerald-400" },
-  { key: "delivered", label: "Delivered", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
+  { key: "delivered", label: "Handed Over", gradient: "from-teal-100/60", accent: "border-l-teal-400", accentBg: "bg-teal-400" },
 ];
 
 const ISSUE_SUBCATEGORIES = {
@@ -600,7 +600,8 @@ export default function SalesPrep() {
         body: JSON.stringify({ status: newStatus }),
       });
       fetchVehicles();
-      toast.success(`Moved to ${newStatus.replace("_", " ")}`);
+      const columnLabel = COLUMNS.find(col => col.key === newStatus)?.label || newStatus.replace("_", " ");
+      toast.success(`Moved to ${columnLabel}`);
     } catch (error) {
       toast.error("Failed to update");
     }
@@ -1058,6 +1059,14 @@ export default function SalesPrep() {
   };
 
   const updateIssue = async (issueId, updates) => {
+    // Handle both id and _id formats
+    const resolvedId = typeof issueId === 'object' ? (issueId.id || issueId._id || issueId) : issueId;
+    if (!resolvedId) {
+      console.error("[updateIssue] No issue ID provided");
+      toast.error("Issue ID not found");
+      return;
+    }
+
     // Optimistic update
     const previousVehicle = selectedVehicle;
     const previousVehicles = vehicles;
@@ -1065,7 +1074,7 @@ export default function SalesPrep() {
     // Update selectedVehicle optimistically
     if (selectedVehicle) {
       const updatedIssues = selectedVehicle.issues?.map(issue =>
-        issue.id === issueId ? { ...issue, ...updates } : issue
+        (issue.id || issue._id) === resolvedId ? { ...issue, ...updates } : issue
       );
       setSelectedVehicle({ ...selectedVehicle, issues: updatedIssues });
     }
@@ -1076,25 +1085,30 @@ export default function SalesPrep() {
         ? {
             ...v,
             issues: v.issues?.map(issue =>
-              issue.id === issueId ? { ...issue, ...updates } : issue
+              (issue.id || issue._id) === resolvedId ? { ...issue, ...updates } : issue
             ),
           }
         : v
     ));
 
     try {
-      const res = await fetch(`/api/issues/${issueId}`, {
+      const res = await fetch(`/api/issues/${resolvedId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
-      if (!res.ok) throw new Error("Failed to update issue");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("[updateIssue] API error:", errorData);
+        throw new Error(errorData.error || "Failed to update issue");
+      }
 
       // Background refresh
       fetchVehicles();
     } catch (error) {
       // Rollback on error
-      toast.error("Failed to update issue");
+      console.error("[updateIssue] Error:", error);
+      toast.error(error.message || "Failed to update issue");
       setSelectedVehicle(previousVehicle);
       setVehicles(previousVehicles);
     }
@@ -1122,12 +1136,17 @@ export default function SalesPrep() {
   // Save edited issue
   const saveEditedIssue = async (photoUrls = []) => {
     if (!editingIssue) return;
+    const issueId = editingIssue.id || editingIssue._id;
+    if (!issueId) {
+      toast.error("Issue ID not found");
+      return;
+    }
     try {
       const updates = {
         ...issueForm,
         photos: [...(issueForm.photos || []), ...photoUrls],
       };
-      await updateIssue(editingIssue.id, updates);
+      await updateIssue(issueId, updates);
       setShowAddIssueModal(false);
       setEditingIssue(null);
       setIssueForm({
@@ -1562,6 +1581,7 @@ export default function SalesPrep() {
   const handleVrmSearchChange = (value) => {
     const normalized = value.toUpperCase();
     setVrmSearch(normalized);
+    setVrmFilter(normalized.trim()); // Live filtering as user types
     setVrmSelectedIndex(-1); // Reset selection on input change
 
     // Show dropdown when 2+ characters
@@ -4822,13 +4842,7 @@ export default function SalesPrep() {
                                 </p>
                                 <div className="flex flex-wrap gap-2">
                                   {issue.photos.map((photo, idx) => (
-                                    <a key={idx} href={photo} target="_blank" rel="noopener noreferrer" className="group">
-                                      <img
-                                        src={photo}
-                                        alt={`Issue photo ${idx + 1}`}
-                                        className="w-16 h-16 object-cover rounded-xl border-2 border-slate-200 group-hover:border-[#0066CC] group-hover:scale-105 transition-all"
-                                      />
-                                    </a>
+                                    <IssuePhoto key={idx} photoKey={photo} idx={idx} />
                                   ))}
                                 </div>
                               </div>
@@ -5795,6 +5809,70 @@ export default function SalesPrep() {
   );
 }
 
+// Component to display issue photos with signed URL fetching
+function IssuePhoto({ photoKey, idx }) {
+  const [signedUrl, setSignedUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    const fetchSignedUrl = async () => {
+      try {
+        const res = await fetch(`/api/uploads/signed-get?key=${encodeURIComponent(photoKey)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSignedUrl(data.signedUrl);
+        } else {
+          setHasError(true);
+        }
+      } catch (err) {
+        console.error("[IssuePhoto] Error fetching signed URL:", err);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSignedUrl();
+  }, [photoKey]);
+
+  const handleClick = () => {
+    if (signedUrl) {
+      window.open(signedUrl, "_blank");
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-16 h-16 bg-slate-100 rounded-xl border-2 border-slate-200 flex items-center justify-center animate-pulse">
+        <div className="w-6 h-6 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (hasError || !signedUrl) {
+    return (
+      <div className="w-16 h-16 bg-slate-100 rounded-xl border-2 border-slate-200 flex items-center justify-center">
+        <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="group focus:outline-none"
+    >
+      <img
+        src={signedUrl}
+        alt={`Issue photo ${idx + 1}`}
+        className="w-16 h-16 object-cover rounded-xl border-2 border-slate-200 group-hover:border-[#0066CC] group-hover:scale-105 transition-all cursor-pointer"
+      />
+    </button>
+  );
+}
 
 function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing = false }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -5830,11 +5908,13 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
         method: "POST",
         body: formData,
       });
-      if (res.ok) {
-        const data = await res.json();
-        // Store S3 key (permanent) if available, otherwise use URL (for local dev)
-        uploadedUrls.push(data.key || data.url);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Photo could not be uploaded");
       }
+      const data = await res.json();
+      // Store S3 key (permanent) if available, otherwise use URL (for local dev)
+      uploadedUrls.push(data.key || data.url);
     }
     return uploadedUrls;
   };
@@ -5852,6 +5932,9 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
       }
       // Pass photo URLs/keys to onSubmit
       await onSubmit(photoUrls);
+    } catch (error) {
+      setIsUploadingPhotos(false);
+      toast.error(error.message || "Failed to upload photo");
     } finally {
       setIsLoading(false);
     }
@@ -6044,6 +6127,29 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
             {/* Photo Upload */}
             <div className="form-control col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Photos</label>
+              {/* Existing photos (when editing) */}
+              {issueForm.photos?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-slate-500 mb-2">Existing photos:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {issueForm.photos.map((photo, idx) => (
+                      <div key={idx} className="relative">
+                        <IssuePhoto photoKey={photo} idx={idx} />
+                        <button
+                          type="button"
+                          onClick={() => setIssueForm({
+                            ...issueForm,
+                            photos: issueForm.photos.filter((_, i) => i !== idx)
+                          })}
+                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <input
                 type="file"
                 accept="image/*"
@@ -6093,7 +6199,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
                   <span className="loading loading-spinner loading-sm"></span>
                   <span>{isUploadingPhotos ? "Uploading photos..." : "Saving..."}</span>
                 </>
-              ) : "Add Issue"}
+              ) : isEditing ? "Save Changes" : "Add Issue"}
             </button>
           </div>
         </form>

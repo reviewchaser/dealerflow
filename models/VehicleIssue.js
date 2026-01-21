@@ -6,7 +6,13 @@ const vehicleIssueSchema = new mongoose.Schema(
     vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle", required: true },
     category: {
       type: String,
-      enum: ["Cosmetic", "Mechanical", "Electrical", "Other"],
+      enum: [
+        // Legacy capitalized values
+        "Cosmetic", "Mechanical", "Electrical", "Other",
+        // New lowercase values from prep board form
+        "mechanical", "electrical", "bodywork", "interior",
+        "tyres", "mot", "service", "fault_codes", "other"
+      ],
       required: true
     },
     subcategory: { type: String, required: true },
@@ -28,7 +34,12 @@ const vehicleIssueSchema = new mongoose.Schema(
     location: { type: String }, // e.g. "Front Left", "Rear Bumper", "Interior Dashboard"
     status: {
       type: String,
-      enum: ["Outstanding", "Ordered", "In Progress", "Complete"],
+      enum: [
+        // Capitalized values
+        "Outstanding", "Ordered", "In Progress", "Complete",
+        // Lowercase values from form
+        "outstanding", "ordered", "in_progress", "complete"
+      ],
       default: "Outstanding"
     },
     notes: { type: String },

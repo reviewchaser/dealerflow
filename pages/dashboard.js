@@ -208,6 +208,8 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const { isRedirecting } = useDealerRedirect();
   const { dealerSlug } = useDealer(); // Get dealer slug for tenant-aware links
+  // Get slug from URL immediately for parallel fetch (before dealer context resolves)
+  const slugFromUrl = router.query.dealerSlug;
   const getPath = (path) => appPath(dealerSlug, path); // Helper for tenant-aware paths
   const [stats, setStats] = useState(null);
   const [forms, setForms] = useState([]);
@@ -283,10 +285,10 @@ export default function Dashboard() {
     },
   };
 
-  // Only fetch stats after redirect check is complete (prevents double fetch)
+  // Fetch stats immediately when slug is available from URL (parallel with dealer context)
   useEffect(() => {
-    // Skip if we're still checking for redirects or going to redirect
-    if (isRedirecting) return;
+    // Wait for router to be ready with the slug
+    if (!slugFromUrl) return;
 
     const safeJsonParse = async (res) => {
       const contentType = res.headers.get("content-type") || "";
@@ -297,7 +299,8 @@ export default function Dashboard() {
       return res.json();
     };
 
-    fetch("/api/dashboard/stats")
+    // Pass slug directly to API for parallel fetch (bypasses waiting for dealer context)
+    fetch(`/api/dashboard/stats?slug=${encodeURIComponent(slugFromUrl)}`)
       .then(async (res) => {
         if (res.status === 403) return { error: "No dealer context" };
         if (!res.ok) return { error: "Failed to fetch stats" };
@@ -320,7 +323,7 @@ export default function Dashboard() {
         setForms([]);
         setIsLoading(false);
       });
-  }, [isRedirecting]);
+  }, [slugFromUrl]);
 
   const handleFormClick = (form) => {
     if (form.isPublic && form.publicSlug) {

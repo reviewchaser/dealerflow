@@ -741,7 +741,8 @@ export default function StockBook() {
     const vehicleId = vehicle.id || vehicle._id;
 
     // Allow re-adding delivered vehicles (for resale scenarios)
-    if (vehicle.showOnPrepBoard === true && vehicle.status !== "delivered") {
+    // Check !== false to match prep board filter logic (includes undefined/null)
+    if (vehicle.showOnPrepBoard !== false && vehicle.status !== "delivered") {
       toast.error("Vehicle is already on the Prep Board");
       return;
     }
@@ -1722,7 +1723,7 @@ export default function StockBook() {
 
                       {/* VRM */}
                       <div className="col-span-1 min-w-0 overflow-hidden">
-                        <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-1.5 py-0.5 rounded border border-black/20 tracking-wide truncate block">
+                        <span className="font-mono text-sm font-bold text-black bg-[#F7D117] px-1.5 py-0.5 rounded border border-black/20 tracking-wide truncate block text-center">
                           {vehicle.regCurrent}
                         </span>
                       </div>

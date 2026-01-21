@@ -49,6 +49,12 @@ const PUBLIC_ROUTES = [
   '/px',
 ];
 
+// Routes that require auth but NOT dealer context (e.g., platform admin)
+const AUTH_ONLY_ROUTES = [
+  '/admin',
+  '/api/admin',
+];
+
 // API routes that should receive x-dealer-slug header when in /app context
 const TENANT_AWARE_API_ROUTES = [
   '/api/vehicles',
@@ -88,6 +94,24 @@ export async function middleware(request) {
   );
 
   if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  // Check if this is an auth-only route (requires login but not dealer context)
+  const isAuthOnlyRoute = AUTH_ONLY_ROUTES.some(route =>
+    pathname === route || pathname.startsWith(route + '/')
+  );
+
+  if (isAuthOnlyRoute) {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+
+    if (!token) {
+      const signInUrl = new URL('/auth/signin', request.url);
+      signInUrl.searchParams.set('callbackUrl', pathname);
+      return NextResponse.redirect(signInUrl);
+    }
+
+    // User is authenticated - let them through (API will check SUPER_ADMIN role)
     return NextResponse.next();
   }
 

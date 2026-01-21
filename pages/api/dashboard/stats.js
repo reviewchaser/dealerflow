@@ -16,6 +16,7 @@ import ActivityLog from "@/models/ActivityLog";
 import VehicleLocation from "@/models/VehicleLocation";
 import PartExchange from "@/models/PartExchange";
 import CustomerPXAppraisal from "@/models/CustomerPXAppraisal";
+import Dealer from "@/models/Dealer";
 import { requireDealerContext } from "@/libs/authContext";
 
 // Default empty stats object for safe responses
@@ -50,7 +51,21 @@ const DEFAULT_STATS = {
 export default async function handler(req, res) {
   await connectMongo();
 
-  // Try to get dealer context - if it fails, return safe defaults
+  // Check if slug is provided for parallel fetch optimization
+  const { slug } = req.query;
+
+  if (slug) {
+    // Fast path: resolve dealer directly from slug (for parallel fetch from dashboard)
+    const dealer = await Dealer.findOne({ slug }).select("_id").lean();
+    if (!dealer) {
+      console.log("[Dashboard Stats] Invalid slug, returning defaults");
+      return res.status(200).json(DEFAULT_STATS);
+    }
+    // Pass dealerId directly without full context resolution
+    return handleStats(req, res, { dealerId: dealer._id });
+  }
+
+  // Standard path: use full dealer context (for backwards compatibility)
   let ctx;
   try {
     ctx = await requireDealerContext(req, res);

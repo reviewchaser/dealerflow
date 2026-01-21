@@ -37,18 +37,28 @@ export default async function handler(req, res) {
     }
 
     // Validate key format and extract dealerId from path
-    // Expected format: vehicles/<dealerId>/<vehicleId>/<filename>
     const keyParts = key.split("/");
-    if (keyParts.length < 4 || keyParts[0] !== "vehicles") {
+
+    // Allow two formats:
+    // 1. vehicles/<dealerId>/<vehicleId>/<filename> - tenant-scoped
+    // 2. uploads/<filename> - generic uploads (still requires auth)
+    if (keyParts[0] === "vehicles") {
+      // Tenant-scoped format - validate dealer access
+      if (keyParts.length < 4) {
+        return res.status(400).json({ error: "Invalid key format" });
+      }
+      const keyDealerId = keyParts[1];
+      if (keyDealerId !== dealerId) {
+        console.log("[SignedGet] Access denied - dealer mismatch:", { keyDealerId, userDealerId: dealerId });
+        return res.status(403).json({ error: "Access denied" });
+      }
+    } else if (keyParts[0] === "uploads") {
+      // Generic uploads - authentication required but no tenant validation
+      if (keyParts.length < 2) {
+        return res.status(400).json({ error: "Invalid key format" });
+      }
+    } else {
       return res.status(400).json({ error: "Invalid key format" });
-    }
-
-    const keyDealerId = keyParts[1];
-
-    // Security: Verify the user has access to this dealer's files
-    if (keyDealerId !== dealerId) {
-      console.log("[SignedGet] Access denied - dealer mismatch:", { keyDealerId, userDealerId: dealerId });
-      return res.status(403).json({ error: "Access denied" });
     }
 
     // Parse and validate expiresIn

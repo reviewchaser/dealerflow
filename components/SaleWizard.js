@@ -1048,11 +1048,11 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40" />
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[60]" />
 
       {/* Wizard Modal - Inline Popup */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-0 md:p-8">
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[100dvh] md:max-h-[85vh] flex flex-col">
+      <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:p-8">
+        <div className="relative bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-3xl h-[100dvh] md:h-auto md:max-h-[85vh] flex flex-col">
           {/* Header */}
           <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0">
             <div>

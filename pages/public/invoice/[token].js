@@ -160,7 +160,7 @@ export default function InvoicePage() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                 {snap.dealer?.logoUrl && (
-                  <div className="bg-white p-2 rounded border border-slate-100 shrink-0">
+                  <div className="shrink-0">
                     <img
                       src={snap.dealer.logoUrl}
                       alt={snap.dealer.companyName || snap.dealer.name}
@@ -775,7 +775,7 @@ export default function InvoicePage() {
               {snap.termsText && (
                 <div className="p-8 print:p-6 border-t border-slate-200">
                   <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
-                  <div className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+                  <div className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
                 </div>
               )}
             </div>

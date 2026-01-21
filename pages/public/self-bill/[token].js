@@ -140,7 +140,7 @@ export default function SelfBillPage() {
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                 {snap.dealer?.logoUrl && (
-                  <div className="bg-white p-2 rounded border border-slate-100 shrink-0">
+                  <div className="shrink-0">
                     <img
                       src={snap.dealer.logoUrl}
                       alt={snap.dealer.companyName || snap.dealer.name}
