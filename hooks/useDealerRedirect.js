@@ -50,6 +50,12 @@ export default function useDealerRedirect() {
     async function checkForTenantRedirect() {
       hasChecked.current = true;
 
+      // SUPER_ADMIN users should go to /admin, not dealer routes
+      if (session?.user?.platformRole === "SUPER_ADMIN") {
+        router.replace("/admin");
+        return;
+      }
+
       try {
         const res = await fetch("/api/dealers/memberships");
 

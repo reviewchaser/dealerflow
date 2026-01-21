@@ -589,16 +589,15 @@ export default function DealDrawer({
         fetchAddOnProducts();
       }
 
-      const customId = catalogueProductId || `custom_${Date.now()}`;
       const newAddOn = {
-        addOnProductId: customId,
+        // Only include addOnProductId if it's a valid ObjectId (24 hex chars)
+        addOnProductId: (catalogueProductId && /^[a-f0-9]{24}$/i.test(catalogueProductId)) ? catalogueProductId : undefined,
         name: customAddOn.name.trim(),
         qty: 1,
         unitPriceNet: Math.round(netPrice * 100) / 100,
         vatTreatment: vatTreatment,
         vatRate: vatTreatment === "STANDARD" ? 0.2 : 0,
         category: customAddOn.category || "OTHER",
-        isCustom: !customAddOn.saveToCatalogue,
       };
 
       const updatedAddOns = [...(deal.addOns || []), newAddOn];

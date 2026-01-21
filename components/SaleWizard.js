@@ -142,16 +142,13 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
 
   // Data fetching
   const [vehicles, setVehicles] = useState([]);
-  const [customers, setCustomers] = useState([]);
   const [products, setProducts] = useState([]);
   const [warranties, setWarranties] = useState([]); // Third-party warranty products
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [isLookingUpPx, setIsLookingUpPx] = useState(false);
 
   // Search states
   const [vehicleSearch, setVehicleSearch] = useState("");
-  const [customerSearch, setCustomerSearch] = useState("");
   const [addOnSearch, setAddOnSearch] = useState("");
 
   // Appraisal search for PX
@@ -212,7 +209,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
 
       // Load all required data
       fetchVehicles();
-      fetchCustomers();
       fetchProducts();
       fetchWarranties();
       fetchFinanceCompanies();
@@ -259,21 +255,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       console.error("[SaleWizard] Failed to fetch vehicles:", e);
     } finally {
       setIsLoadingVehicles(false);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    setIsLoadingCustomers(true);
-    try {
-      const res = await fetch("/api/contacts?type=CUSTOMER");
-      if (res.ok) {
-        const data = await res.json();
-        setCustomers(Array.isArray(data) ? data : data.contacts || []);
-      }
-    } catch (e) {
-      console.error("[SaleWizard] Failed to fetch customers:", e);
-    } finally {
-      setIsLoadingCustomers(false);
     }
   };
 
@@ -606,19 +587,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       );
   }, [vehicles, vehicleSearch]);
 
-  // Filter customers
-  const filteredCustomers = useMemo(() => {
-    if (!customerSearch) return customers;
-    const q = customerSearch.toLowerCase();
-    return customers.filter(c =>
-      c.displayName?.toLowerCase().includes(q) ||
-      c.firstName?.toLowerCase().includes(q) ||
-      c.lastName?.toLowerCase().includes(q) ||
-      c.email?.toLowerCase().includes(q) ||
-      c.phone?.includes(q)
-    );
-  }, [customers, customerSearch]);
-
   // Filter add-ons
   const filteredAddOns = useMemo(() => {
     if (!addOnSearch) return products;
@@ -650,31 +618,8 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
     setIsSubmitting(true);
 
     try {
-      // Create customer if new
-      let customerId = wizardData.customerId;
-      if (wizardData.isNewCustomer && !customerId) {
-        const customerRes = await fetch("/api/contacts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            firstName: wizardData.newCustomer.firstName,
-            lastName: wizardData.newCustomer.lastName,
-            displayName: `${wizardData.newCustomer.firstName} ${wizardData.newCustomer.lastName}`.trim(),
-            email: wizardData.newCustomer.email,
-            phone: wizardData.newCustomer.phone,
-            address: wizardData.newCustomer.address,
-            type: "CUSTOMER",
-          }),
-        });
-
-        if (!customerRes.ok) {
-          const err = await customerRes.json();
-          throw new Error(err.error || "Failed to create customer");
-        }
-
-        const newCustomer = await customerRes.json();
-        customerId = newCustomer.id || newCustomer._id;
-      }
+      // Customer is already created via ContactPicker
+      const customerId = wizardData.customerId;
 
       // Build deal payload
       const salePriceGross = parseFloat(wizardData.salePriceGross) || 0;
@@ -874,18 +819,7 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       case 1:
         return !!wizardData.vehicleId;
       case 2:
-        // New customer requires name, contact, and address
-        if (wizardData.isNewCustomer) {
-          const nc = wizardData.newCustomer;
-          return (
-            nc.firstName &&
-            nc.lastName &&
-            (nc.email || nc.phone) &&
-            nc.address?.line1 &&
-            nc.address?.town &&
-            nc.address?.postcode
-          );
-        }
+        // Customer selection is handled via ContactPicker
         return !!wizardData.customerId;
       case 3:
         // Warranty - always can proceed (warranty selection is optional)
@@ -914,16 +848,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
       vehicleId: vehicle.id || vehicle._id,
       vehicle,
       vatScheme: vehicle.vatScheme || "MARGIN",
-    }));
-  };
-
-  // Select customer
-  const selectCustomer = (customer) => {
-    setWizardData(prev => ({
-      ...prev,
-      customerId: customer.id || customer._id,
-      customer,
-      isNewCustomer: false,
     }));
   };
 
@@ -1267,177 +1191,20 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                 {/* Customer Selection */}
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Customer</h3>
-
-                  {wizardData.customer ? (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{wizardData.customer.displayName || `${wizardData.customer.firstName} ${wizardData.customer.lastName}`}</p>
-                          <p className="text-sm text-slate-500">{wizardData.customer.email} | {wizardData.customer.phone}</p>
-                        </div>
-                        <button
-                          onClick={() => setWizardData(prev => ({ ...prev, customerId: null, customer: null }))}
-                          className="btn btn-sm btn-ghost"
-                        >
-                          Change
-                        </button>
-                      </div>
-                    </div>
-                  ) : wizardData.isNewCustomer ? (
-                    <div className="border border-slate-200 rounded-xl p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">New Customer</h4>
-                        <button
-                          onClick={() => setWizardData(prev => ({ ...prev, isNewCustomer: false, newCustomer: initialWizardData.newCustomer }))}
-                          className="btn btn-sm btn-ghost"
-                        >
-                          Select Existing
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <input
-                          type="text"
-                          value={wizardData.newCustomer.firstName}
-                          onChange={(e) => setWizardData(prev => ({ ...prev, newCustomer: { ...prev.newCustomer, firstName: e.target.value } }))}
-                          placeholder="First Name *"
-                          className="input input-bordered"
-                        />
-                        <input
-                          type="text"
-                          value={wizardData.newCustomer.lastName}
-                          onChange={(e) => setWizardData(prev => ({ ...prev, newCustomer: { ...prev.newCustomer, lastName: e.target.value } }))}
-                          placeholder="Last Name *"
-                          className="input input-bordered"
-                        />
-                        <input
-                          type="email"
-                          value={wizardData.newCustomer.email}
-                          onChange={(e) => setWizardData(prev => ({ ...prev, newCustomer: { ...prev.newCustomer, email: e.target.value } }))}
-                          placeholder="Email"
-                          className="input input-bordered"
-                        />
-                        <input
-                          type="tel"
-                          value={wizardData.newCustomer.phone}
-                          onChange={(e) => setWizardData(prev => ({ ...prev, newCustomer: { ...prev.newCustomer, phone: e.target.value } }))}
-                          placeholder="Phone"
-                          className="input input-bordered"
-                        />
-                      </div>
-
-                      {/* Address Fields */}
-                      <div className="pt-3 border-t border-slate-200">
-                        <p className="text-sm font-medium text-slate-600 mb-3">Address</p>
-                        <div className="space-y-3">
-                          <input
-                            type="text"
-                            value={wizardData.newCustomer.address?.line1 || ""}
-                            onChange={(e) => setWizardData(prev => ({
-                              ...prev,
-                              newCustomer: {
-                                ...prev.newCustomer,
-                                address: { ...prev.newCustomer.address, line1: e.target.value }
-                              }
-                            }))}
-                            placeholder="Address Line 1 *"
-                            className="input input-bordered w-full"
-                          />
-                          <input
-                            type="text"
-                            value={wizardData.newCustomer.address?.line2 || ""}
-                            onChange={(e) => setWizardData(prev => ({
-                              ...prev,
-                              newCustomer: {
-                                ...prev.newCustomer,
-                                address: { ...prev.newCustomer.address, line2: e.target.value }
-                              }
-                            }))}
-                            placeholder="Address Line 2"
-                            className="input input-bordered w-full"
-                          />
-                          <div className="grid grid-cols-2 gap-3">
-                            <input
-                              type="text"
-                              value={wizardData.newCustomer.address?.town || ""}
-                              onChange={(e) => setWizardData(prev => ({
-                                ...prev,
-                                newCustomer: {
-                                  ...prev.newCustomer,
-                                  address: { ...prev.newCustomer.address, town: e.target.value }
-                                }
-                              }))}
-                              placeholder="Town/City *"
-                              className="input input-bordered"
-                            />
-                            <input
-                              type="text"
-                              value={wizardData.newCustomer.address?.county || ""}
-                              onChange={(e) => setWizardData(prev => ({
-                                ...prev,
-                                newCustomer: {
-                                  ...prev.newCustomer,
-                                  address: { ...prev.newCustomer.address, county: e.target.value }
-                                }
-                              }))}
-                              placeholder="County"
-                              className="input input-bordered"
-                            />
-                          </div>
-                          <input
-                            type="text"
-                            value={wizardData.newCustomer.address?.postcode || ""}
-                            onChange={(e) => setWizardData(prev => ({
-                              ...prev,
-                              newCustomer: {
-                                ...prev.newCustomer,
-                                address: { ...prev.newCustomer.address, postcode: e.target.value.toUpperCase() }
-                              }
-                            }))}
-                            placeholder="Postcode *"
-                            className="input input-bordered w-40"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex gap-2 mb-3">
-                        <input
-                          type="text"
-                          value={customerSearch}
-                          onChange={(e) => setCustomerSearch(e.target.value)}
-                          placeholder="Search customers..."
-                          className="input input-bordered flex-1"
-                        />
-                        <button
-                          onClick={() => setWizardData(prev => ({ ...prev, isNewCustomer: true }))}
-                          className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
-                        >
-                          + New
-                        </button>
-                      </div>
-                      <div className="border border-slate-200 rounded-xl max-h-36 overflow-y-auto divide-y">
-                        {isLoadingCustomers ? (
-                          <div className="flex justify-center py-6">
-                            <span className="loading loading-spinner loading-md text-[#0066CC]"></span>
-                          </div>
-                        ) : filteredCustomers.length === 0 ? (
-                          <div className="text-center py-6 text-slate-500">No customers found</div>
-                        ) : (
-                          filteredCustomers.slice(0, 8).map((c) => (
-                            <button
-                              key={c.id || c._id}
-                              onClick={() => selectCustomer(c)}
-                              className="w-full text-left px-4 py-2 hover:bg-slate-50"
-                            >
-                              <p className="font-medium">{c.displayName || `${c.firstName} ${c.lastName}`}</p>
-                              <p className="text-sm text-slate-500">{c.email} {c.phone && `| ${c.phone}`}</p>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  )}
+                  <ContactPicker
+                    value={wizardData.customerId}
+                    onChange={(contactId, contact) => {
+                      setWizardData(prev => ({
+                        ...prev,
+                        customerId: contactId,
+                        customer: contact,
+                        isNewCustomer: false
+                      }));
+                    }}
+                    placeholder="Search or add customer..."
+                    filterTypeTags={["customer"]}
+                    allowCreate={true}
+                  />
                 </div>
 
                 {/* Part Exchange */}
@@ -2770,8 +2537,6 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                   <h4 className="text-sm font-semibold text-slate-500 mb-2">CUSTOMER</h4>
                   {wizardData.customer ? (
                     <p className="font-medium">{wizardData.customer.displayName}</p>
-                  ) : wizardData.isNewCustomer ? (
-                    <p className="font-medium">{wizardData.newCustomer.firstName} {wizardData.newCustomer.lastName} (New)</p>
                   ) : (
                     <p className="text-slate-500">No customer selected</p>
                   )}

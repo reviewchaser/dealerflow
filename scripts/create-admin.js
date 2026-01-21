@@ -38,6 +38,7 @@ async function createAdmin() {
         role: "SUPER_ADMIN",
         status: "ACTIVE",
         passwordHash,
+        defaultDealerId: null, // SUPER_ADMIN has no dealer
         updatedAt: new Date(),
       },
       $setOnInsert: {
@@ -50,8 +51,17 @@ async function createAdmin() {
   console.log("Admin account created/updated:", ADMIN_EMAIL);
   console.log("Role:", result.role);
 
+  // Clean up any dealer memberships for this admin user
+  const adminUserId = result._id;
+  const membershipDeleteResult = await db.collection("dealermemberships").deleteMany({
+    userId: adminUserId,
+  });
+  if (membershipDeleteResult.deletedCount > 0) {
+    console.log(`Cleaned up ${membershipDeleteResult.deletedCount} dealer membership(s) for admin user.`);
+  }
+
   await mongoose.disconnect();
-  console.log("\nDone! You can now log in at /admin");
+  console.log("\nDone! Sign out and sign back in at /admin");
 }
 
 createAdmin().catch(err => {

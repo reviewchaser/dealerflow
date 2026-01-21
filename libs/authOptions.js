@@ -121,6 +121,10 @@ export const authOptions = {
           console.error("[Redirect Callback] Error:", error);
         }
       }
+      // If redirecting to /admin, allow it
+      if (url === `${baseUrl}/admin` || url === "/admin" || url.startsWith("/admin")) {
+        return `${baseUrl}/admin`;
+      }
       // Allow relative URLs
       if (url.startsWith("/")) {
         return `${baseUrl}${url}`;
@@ -148,8 +152,19 @@ export const authOptions = {
           const Dealer = (await import("@/models/Dealer")).default;
           const User = (await import("@/models/User")).default;
 
-          // Get user's default dealer or first active membership
+          // Get user's platform role
           const userDoc = await User.findById(token.sub);
+          token.platformRole = userDoc?.role || "USER";
+
+          // SUPER_ADMIN users don't need dealer context
+          if (userDoc?.role === "SUPER_ADMIN") {
+            token.dealerId = null;
+            token.role = null;
+            token.dealerSlug = null;
+            return token;
+          }
+
+          // Get user's default dealer or first active membership
           let membership = null;
 
           if (userDoc?.defaultDealerId) {
@@ -190,6 +205,7 @@ export const authOptions = {
         session.user.id = token.sub;
         session.user.dealerId = token.dealerId || null;
         session.user.role = token.role || null;
+        session.user.platformRole = token.platformRole || "USER";
       }
       return session;
     },

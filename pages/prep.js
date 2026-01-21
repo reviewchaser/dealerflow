@@ -87,6 +87,7 @@ export default function SalesPrep() {
   const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
   const [partsOrderTaskId, setPartsOrderTaskId] = useState(null);
   const [partsOrderForm, setPartsOrderForm] = useState({
+    supplierType: "EURO_CAR_PARTS",
     supplierName: "",
     orderRef: "",
     expectedAt: "",
@@ -851,6 +852,7 @@ export default function SalesPrep() {
     setPartsOrderTaskId(null);
     setEditingPartsOrderId(null);
     setPartsOrderForm({
+      supplierType: "EURO_CAR_PARTS",
       supplierName: "",
       orderRef: "",
       expectedAt: "",
@@ -862,6 +864,7 @@ export default function SalesPrep() {
     if (!partsOrderTaskId) return;
     try {
       const orderData = {
+        supplierType: partsOrderForm.supplierType,
         supplierName: partsOrderForm.supplierName || null,
         ...(partsOrderForm.orderRef && { orderRef: partsOrderForm.orderRef }),
         ...(partsOrderForm.expectedAt && { expectedAt: partsOrderForm.expectedAt }),
@@ -890,6 +893,7 @@ export default function SalesPrep() {
     try {
       const orderData = {
         orderId: editingPartsOrderId,
+        supplierType: partsOrderForm.supplierType,
         supplierName: partsOrderForm.supplierName || null,
         orderRef: partsOrderForm.orderRef || null,
         expectedAt: partsOrderForm.expectedAt || null,
@@ -1348,6 +1352,13 @@ export default function SalesPrep() {
     if (mobileActiveColumn === "all") {
       setMobileActiveColumn("in_stock");
     }
+  };
+
+  // Close drawer and clear filters to prevent vehicles from disappearing
+  const closeDrawer = () => {
+    setSelectedVehicle(null);
+    setVrmFilter("");
+    clearFilters();
   };
 
   const getFilteredVehicles = (vehicleList) => {
@@ -2044,7 +2055,7 @@ export default function SalesPrep() {
                   ref={vrmSearchInputRef}
                   type="text"
                   placeholder="Search VRM, make, model..."
-                  className="input input-sm input-bordered pl-9 pr-8 w-40 sm:w-56 font-mono uppercase"
+                  className="input input-sm input-bordered pl-9 pr-8 w-40 sm:w-56 font-mono uppercase text-base"
                   value={vrmSearch}
                   onChange={(e) => handleVrmSearchChange(e.target.value)}
                   onFocus={() => {
@@ -3387,7 +3398,7 @@ export default function SalesPrep() {
           className="fixed inset-0 z-50 flex justify-end"
           style={{ touchAction: "pan-y", overscrollBehavior: "contain" }}
         >
-          <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={() => setSelectedVehicle(null)}></div>
+          <div className="bg-black/50 absolute inset-0 hidden md:block" onClick={closeDrawer}></div>
           <div
             className="relative bg-white w-full md:max-w-3xl flex flex-col"
             style={{
@@ -3402,7 +3413,7 @@ export default function SalesPrep() {
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Back button on mobile */}
-                  <button className="md:hidden btn btn-ghost btn-sm btn-circle shrink-0" onClick={() => setSelectedVehicle(null)}>
+                  <button className="md:hidden btn btn-ghost btn-sm btn-circle shrink-0" onClick={closeDrawer}>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
@@ -3467,7 +3478,7 @@ export default function SalesPrep() {
                             prepBoardRemovedAt: new Date().toISOString(),
                           }),
                         });
-                        setSelectedVehicle(null);
+                        closeDrawer();
                         fetchVehicles();
                         toast.success("Vehicle removed from Prep Board");
                       }
@@ -3478,7 +3489,7 @@ export default function SalesPrep() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </button>
-                  <button className="hidden md:flex btn btn-ghost btn-sm" onClick={() => setSelectedVehicle(null)}>
+                  <button className="hidden md:flex btn btn-ghost btn-sm" onClick={closeDrawer}>
                     ✕
                   </button>
                 </div>
@@ -4470,14 +4481,30 @@ export default function SalesPrep() {
                     </div>
                   )}
 
-                  {selectedVehicle.notes && (
-                    <div className="card bg-base-200">
-                      <div className="card-body p-4">
-                        <h3 className="font-semibold mb-2">Notes</h3>
-                        <p className="text-sm whitespace-pre-wrap">{selectedVehicle.notes}</p>
-                      </div>
-                    </div>
-                  )}
+                  {/* Vehicle Notes Section */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Notes
+                    </h3>
+                    <textarea
+                      className="textarea textarea-bordered w-full text-sm"
+                      rows={4}
+                      placeholder="Add notes about this vehicle..."
+                      value={selectedVehicle.notes || ""}
+                      onChange={(e) => setSelectedVehicle({ ...selectedVehicle, notes: e.target.value })}
+                      onBlur={async () => {
+                        await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ notes: selectedVehicle.notes }),
+                        });
+                        fetchVehicles();
+                      }}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -5234,16 +5261,35 @@ export default function SalesPrep() {
             <div className="p-4 space-y-4">
               <div className="form-control">
                 <label className="label">
-                  <span className="label-text font-medium">Supplier Name</span>
+                  <span className="label-text font-medium">Supplier Type</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g., Euro Car Parts, TPS, Main Dealer"
-                  className="input input-bordered w-full"
-                  value={partsOrderForm.supplierName}
-                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
-                />
+                <select
+                  className="select select-bordered w-full"
+                  value={partsOrderForm.supplierType}
+                  onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierType: e.target.value })}
+                >
+                  <option value="EURO_CAR_PARTS">Euro Car Parts</option>
+                  <option value="TPS">TPS</option>
+                  <option value="MAIN_DEALER">Main Dealer</option>
+                  <option value="LOCAL_FACTOR">Local Factor</option>
+                  <option value="ONLINE">Online</option>
+                  <option value="OTHER">Other</option>
+                </select>
               </div>
+              {partsOrderForm.supplierType === "OTHER" && (
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text font-medium">Supplier Name</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter supplier name"
+                    className="input input-bordered w-full"
+                    value={partsOrderForm.supplierName}
+                    onChange={(e) => setPartsOrderForm({ ...partsOrderForm, supplierName: e.target.value })}
+                  />
+                </div>
+              )}
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-medium">Order Reference (Optional)</span>

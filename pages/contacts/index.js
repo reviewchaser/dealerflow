@@ -482,7 +482,7 @@ export default function Contacts() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col">
             <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900">
                 {editingContact ? "Edit Contact" : "New Contact"}
@@ -497,7 +497,9 @@ export default function Contacts() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveContact} className="p-6 space-y-4">
+            <form onSubmit={handleSaveContact} className="flex-1 flex flex-col overflow-hidden">
+              {/* Scrollable form content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {/* Contact Type */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Type</label>
@@ -542,52 +544,73 @@ export default function Contacts() {
 
               {/* Name Fields */}
               {formData.contactType === "individual" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
-                    <input
-                      type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))}
-                      className="input input-bordered w-full"
-                      required
-                    />
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))}
+                        className="input input-bordered w-full"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))}
+                        className="input input-bordered w-full"
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Last Name</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company (optional)</label>
                     <input
                       type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))}
+                      value={formData.companyName}
+                      onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
                       className="input input-bordered w-full"
-                      required
                     />
                   </div>
-                </div>
+                </>
               ) : (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
-                    className="input input-bordered w-full"
-                    required
-                  />
-                </div>
-              )}
-
-              {/* Company Name for Individuals */}
-              {formData.contactType === "individual" && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Company (optional)</label>
-                  <input
-                    type="text"
-                    value={formData.companyName}
-                    onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
-                    className="input input-bordered w-full"
-                  />
-                </div>
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+                    <input
+                      type="text"
+                      value={formData.companyName}
+                      onChange={(e) => setFormData(p => ({ ...p, companyName: e.target.value }))}
+                      className="input input-bordered w-full"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">First Name (optional)</label>
+                      <input
+                        type="text"
+                        value={formData.firstName}
+                        onChange={(e) => setFormData(p => ({ ...p, firstName: e.target.value }))}
+                        className="input input-bordered w-full"
+                        placeholder="Contact person"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Last Name (optional)</label>
+                      <input
+                        type="text"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData(p => ({ ...p, lastName: e.target.value }))}
+                        className="input input-bordered w-full"
+                      />
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Contact Details */}
@@ -672,8 +695,10 @@ export default function Contacts() {
                 />
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4 border-t border-slate-100">
+              </div>
+
+              {/* Sticky Actions */}
+              <div className="shrink-0 flex gap-3 p-6 pt-4 border-t border-slate-100 bg-white">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

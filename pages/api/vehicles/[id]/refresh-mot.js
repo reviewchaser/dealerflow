@@ -1,5 +1,7 @@
 import { withDealerContext } from "@/libs/authContext";
 import Vehicle from "@/models/Vehicle";
+import VehicleLabel from "@/models/VehicleLabel";
+import VehicleLabelAssignment from "@/models/VehicleLabelAssignment";
 
 // In-memory token cache (shared with mot.js via module)
 let cachedToken = null;
@@ -117,8 +119,9 @@ async function handler(req, res, { dealerId }) {
       }))
     }));
 
-    // Find most recent MOT expiry
+    // Find most recent MOT expiry and test result
     let motExpiry = null;
+    let latestTestResult = null;
     if (dvsaVehicle.motTests && dvsaVehicle.motTests.length > 0) {
       const sortedTests = [...dvsaVehicle.motTests].sort((a, b) =>
         new Date(b.completedDate) - new Date(a.completedDate)
@@ -127,6 +130,7 @@ async function handler(req, res, { dealerId }) {
       if (latestTest.expiryDate) {
         motExpiry = new Date(latestTest.expiryDate);
       }
+      latestTestResult = latestTest.testResult;
     }
 
     // Update vehicle with MOT data
@@ -136,10 +140,57 @@ async function handler(req, res, { dealerId }) {
       motHistoryFetchedAt: new Date(),
     });
 
+    // Auto-manage "MOT Failed" label based on latest test result
+    const MOT_FAILED_LABEL_NAME = "MOT Failed";
+    const MOT_FAILED_LABEL_COLOUR = "#ef4444"; // red-500
+
+    if (latestTestResult === "FAILED") {
+      // Find or create the "MOT Failed" label for this dealer
+      let motFailedLabel = await VehicleLabel.findOne({
+        dealerId,
+        name: MOT_FAILED_LABEL_NAME,
+      });
+
+      if (!motFailedLabel) {
+        motFailedLabel = await VehicleLabel.create({
+          dealerId,
+          name: MOT_FAILED_LABEL_NAME,
+          colour: MOT_FAILED_LABEL_COLOUR,
+        });
+      }
+
+      // Check if vehicle already has this label
+      const existingAssignment = await VehicleLabelAssignment.findOne({
+        vehicleId: id,
+        vehicleLabelId: motFailedLabel._id,
+      });
+
+      if (!existingAssignment) {
+        await VehicleLabelAssignment.create({
+          vehicleId: id,
+          vehicleLabelId: motFailedLabel._id,
+        });
+      }
+    } else if (latestTestResult === "PASSED") {
+      // Remove "MOT Failed" label if it exists
+      const motFailedLabel = await VehicleLabel.findOne({
+        dealerId,
+        name: MOT_FAILED_LABEL_NAME,
+      });
+
+      if (motFailedLabel) {
+        await VehicleLabelAssignment.deleteOne({
+          vehicleId: id,
+          vehicleLabelId: motFailedLabel._id,
+        });
+      }
+    }
+
     return res.status(200).json({
       success: true,
       motHistoryCount: motHistory.length,
       motExpiry: motExpiry ? motExpiry.toISOString() : null,
+      latestTestResult,
     });
   } catch (error) {
     console.error("[refresh-mot] Error:", error.message);
