@@ -49,6 +49,8 @@ const vehicleSchema = new mongoose.Schema(
     },
     // Track when vehicle was removed from prep board (for restore option)
     prepBoardRemovedAt: { type: Date },
+    // Manual priority order on prep board (lower = higher priority)
+    prepBoardOrder: { type: Number, default: 0 },
     // Whether vehicle is advertised online
     isAdvertised: {
       type: Boolean,

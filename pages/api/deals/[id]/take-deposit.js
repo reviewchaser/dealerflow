@@ -330,6 +330,8 @@ async function handler(req, res, ctx) {
       dealerSignedAt: deal.signature.dealerSignedAt,
       dealerSignerName: deal.signature.dealerSignerName,
     } : null,
+    // Deal notes (e.g., finance advance info)
+    notes: deal.notes || null,
   };
 
   // Generate share token

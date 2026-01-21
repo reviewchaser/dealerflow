@@ -76,12 +76,18 @@ export default function SalesPrep() {
   const [isLookingUpDrawer, setIsLookingUpDrawer] = useState(false);
   const [draggedCard, setDraggedCard] = useState(null);
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
+  const [draggedPriorityIndex, setDraggedPriorityIndex] = useState(null);
+  const [dragOverPriorityIndex, setDragOverPriorityIndex] = useState(null);
   const [newTaskName, setNewTaskName] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [showMotDetails, setShowMotDetails] = useState(false);
   const [isRefreshingMot, setIsRefreshingMot] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
+
+  // Task drag-and-drop state
+  const [draggedTaskIndex, setDraggedTaskIndex] = useState(null);
+  const [dragOverTaskIndex, setDragOverTaskIndex] = useState(null);
 
   // Parts ordering state
   const [showPartsOrderModal, setShowPartsOrderModal] = useState(false);
@@ -608,6 +614,19 @@ export default function SalesPrep() {
     }
   };
 
+  // Update vehicle prep board order (for priority sorting)
+  const updateVehiclePrepOrder = async (vehicleId, newOrder) => {
+    try {
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prepBoardOrder: newOrder }),
+      });
+    } catch (error) {
+      console.error("Failed to update prep order:", error);
+    }
+  };
+
   // Refresh MOT data from DVSA
   const refreshMotData = async (vehicleId) => {
     setIsRefreshingMot(true);
@@ -1023,6 +1042,20 @@ export default function SalesPrep() {
     }
   };
 
+  // Reorder tasks (for drag-and-drop)
+  const reorderTasks = async (taskIds) => {
+    if (!selectedVehicle?.id) return;
+    try {
+      await fetch(`/api/vehicles/${selectedVehicle.id}/tasks/reorder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds }),
+      });
+    } catch (error) {
+      console.error("Failed to reorder tasks:", error);
+    }
+  };
+
   // Issue functions
   const addIssue = async (photoUrls = []) => {
     if (!issueForm.category || !issueForm.subcategory || !issueForm.description) {
@@ -1410,6 +1443,10 @@ export default function SalesPrep() {
           const now = new Date();
           return expiry < now;
         }
+        if (filter === "mot_failed") {
+          const motHistory = vehicle.motHistory || [];
+          return motHistory.length > 0 && motHistory[0].testResult === "FAILED";
+        }
 
         // Sale type filters
         if (filter === "trade_only") return vehicle.saleType === "TRADE";
@@ -1496,6 +1533,11 @@ export default function SalesPrep() {
           const nameA = `${a.make || ""} ${a.model || ""}`.toLowerCase();
           const nameB = `${b.make || ""} ${b.model || ""}`.toLowerCase();
           return nameA.localeCompare(nameB);
+        case "priority":
+          // Sort by prepBoardOrder (lower = higher priority), fallback to createdAt
+          const orderA = a.prepBoardOrder ?? (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+          const orderB = b.prepBoardOrder ?? (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+          return orderA - orderB;
         default:
           return daysB - daysA;
       }
@@ -1550,6 +1592,10 @@ export default function SalesPrep() {
         if (!v.motExpiryDate) return false;
         const expiry = new Date(v.motExpiryDate);
         return expiry < new Date();
+      }
+      if (filter === "mot_failed") {
+        const motHistory = v.motHistory || [];
+        return motHistory.length > 0 && motHistory[0].testResult === "FAILED";
       }
       if (filter === "trade_only") return v.saleType === "TRADE";
       if (filter === "retail_only") return v.saleType === "RETAIL" || !v.saleType;
@@ -1982,7 +2028,19 @@ export default function SalesPrep() {
     }
   };
 
-  const getMOTStatus = (motExpiryDate) => {
+  const getMOTStatus = (vehicle) => {
+    const { motExpiryDate, motHistory } = vehicle || {};
+
+    // Check if last MOT test failed (highest priority)
+    if (motHistory?.length > 0 && motHistory[0].testResult === "FAILED") {
+      return {
+        type: "failed",
+        label: "MOT Failed",
+        days: null,
+        class: "bg-red-50 text-red-700 border border-red-200"
+      };
+    }
+
     if (!motExpiryDate) {
       return { type: "unknown", label: "Unknown", days: null, class: "bg-slate-100 text-slate-500 border border-slate-200" };
     }
@@ -2305,6 +2363,7 @@ export default function SalesPrep() {
                             {[
                               { key: "mot_expired", label: "MOT Expired" },
                               { key: "mot_due_soon", label: "MOT Due Soon" },
+                              { key: "mot_failed", label: "MOT Failed" },
                             ].map(filter => {
                               const isActive = activeFilters.includes(filter.key);
                               const count = getFilterCount(filter.key);
@@ -2547,6 +2606,7 @@ export default function SalesPrep() {
                     {[
                       { key: "mot_expired", label: "MOT Expired" },
                       { key: "mot_due_soon", label: "MOT Due Soon" },
+                      { key: "mot_failed", label: "MOT Failed" },
                     ].map(filter => {
                       const isActive = activeFilters.includes(filter.key);
                       const count = getFilterCount(filter.key);
@@ -2717,7 +2777,8 @@ export default function SalesPrep() {
                   </svg>
                   <span className="text-xs font-medium">
                     {columnSortOptions[mobileActiveColumn] === "newest_first" ? "Newest" :
-                     columnSortOptions[mobileActiveColumn] === "alphabetical" ? "A-Z" : "Oldest"}
+                     columnSortOptions[mobileActiveColumn] === "alphabetical" ? "A-Z" :
+                     columnSortOptions[mobileActiveColumn] === "priority" ? "Priority" : "Oldest"}
                   </span>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -2758,6 +2819,19 @@ export default function SalesPrep() {
                       A-Z (Make/Model)
                     </button>
                   </li>
+                  {mobileActiveColumn === "live" && (
+                    <li>
+                      <button
+                        className={`rounded-lg py-2.5 ${columnSortOptions[mobileActiveColumn] === "priority" ? "active bg-slate-100" : ""}`}
+                        onClick={() => setColumnSortOptions(prev => ({ ...prev, [mobileActiveColumn]: "priority" }))}
+                      >
+                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                        Priority (Drag to reorder)
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </div>
               {/* Mobile Archive toggle - only for delivered column */}
@@ -2816,7 +2890,7 @@ export default function SalesPrep() {
                   {columnVehicles.map((vehicle) => {
                     const tasks = vehicle.tasks || [];
                     const completedTasks = tasks.filter(t => t.status === "done").length;
-                    const motStatus = getMOTStatus(vehicle.motExpiryDate);
+                    const motStatus = getMOTStatus(vehicle);
                     const issueCounts = getActiveIssuesByCategory(vehicle.issues);
                     const duration = getVehicleDuration(vehicle);
 
@@ -2911,6 +2985,14 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 MOT {motStatus.label}
+                              </span>
+                            )}
+                            {motStatus?.type === "failed" && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT Failed
                               </span>
                             )}
                             {motStatus?.type === "due_soon" && (
@@ -3089,7 +3171,8 @@ export default function SalesPrep() {
                       </svg>
                       <span className="text-xs">
                         {columnSortOptions[col.key] === "newest_first" ? "Newest" :
-                         columnSortOptions[col.key] === "alphabetical" ? "A-Z" : "Oldest"}
+                         columnSortOptions[col.key] === "alphabetical" ? "A-Z" :
+                         columnSortOptions[col.key] === "priority" ? "Priority" : "Oldest"}
                       </span>
                     </label>
                     <ul tabIndex={0} className="dropdown-content z-30 menu p-2 shadow-lg bg-white rounded-xl w-44 mt-2">
@@ -3117,6 +3200,16 @@ export default function SalesPrep() {
                           Alphabetical (Make/Model)
                         </button>
                       </li>
+                      {col.key === "live" && (
+                        <li>
+                          <button
+                            className={`rounded-lg ${columnSortOptions[col.key] === "priority" ? "active bg-slate-100" : ""}`}
+                            onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "priority" }))}
+                          >
+                            Priority (Drag to reorder)
+                          </button>
+                        </li>
+                      )}
                     </ul>
                   </div>
                   {/* Archive toggle - only for delivered column */}
@@ -3136,12 +3229,13 @@ export default function SalesPrep() {
 
                 {/* Cards Container */}
                 <div className="space-y-3">
-                  {columnVehicles.map((vehicle) => {
+                  {columnVehicles.map((vehicle, cardIndex) => {
                     const tasks = vehicle.tasks || [];
                     const completedTasks = tasks.filter(t => t.status === "done").length;
-                    const motStatus = getMOTStatus(vehicle.motExpiryDate);
+                    const motStatus = getMOTStatus(vehicle);
                     const issueCounts = getActiveIssuesByCategory(vehicle.issues);
                     const duration = getVehicleDuration(vehicle);
+                    const isPrioritySort = col.key === "live" && columnSortOptions[col.key] === "priority";
 
                     // Issue category styling with icons
                     const issueCategoryStyles = {
@@ -3172,10 +3266,53 @@ export default function SalesPrep() {
                       <div
                         key={vehicle.id}
                         draggable
-                        onDragStart={(e) => handleDragStart(e, vehicle)}
-                        onDrag={handleDrag}
-                        onDragEnd={handleDragEnd}
-                        className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border border-slate-100/50 overflow-hidden ${draggedCard?.id === vehicle.id ? "opacity-40 scale-95" : ""}`}
+                        onDragStart={(e) => {
+                          if (isPrioritySort) {
+                            setDraggedPriorityIndex(cardIndex);
+                            e.dataTransfer.effectAllowed = "move";
+                          } else {
+                            handleDragStart(e, vehicle);
+                          }
+                        }}
+                        onDrag={isPrioritySort ? undefined : handleDrag}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (isPrioritySort && draggedPriorityIndex !== null && draggedPriorityIndex !== cardIndex) {
+                            setDragOverPriorityIndex(cardIndex);
+                          }
+                        }}
+                        onDragLeave={() => isPrioritySort && setDragOverPriorityIndex(null)}
+                        onDrop={async (e) => {
+                          e.preventDefault();
+                          if (isPrioritySort && draggedPriorityIndex !== null && draggedPriorityIndex !== cardIndex) {
+                            // Reorder the vehicles
+                            const reordered = [...columnVehicles];
+                            const [moved] = reordered.splice(draggedPriorityIndex, 1);
+                            reordered.splice(cardIndex, 0, moved);
+                            // Update prepBoardOrder for all affected vehicles
+                            for (let i = 0; i < reordered.length; i++) {
+                              await updateVehiclePrepOrder(reordered[i].id, i);
+                            }
+                            fetchVehicles();
+                          }
+                          setDraggedPriorityIndex(null);
+                          setDragOverPriorityIndex(null);
+                        }}
+                        onDragEnd={() => {
+                          if (isPrioritySort) {
+                            setDraggedPriorityIndex(null);
+                            setDragOverPriorityIndex(null);
+                          } else {
+                            handleDragEnd();
+                          }
+                        }}
+                        className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border border-slate-100/50 overflow-hidden ${
+                          draggedCard?.id === vehicle.id ? "opacity-40 scale-95" : ""
+                        } ${
+                          isPrioritySort && draggedPriorityIndex === cardIndex ? "opacity-40 scale-95" : ""
+                        } ${
+                          isPrioritySort && dragOverPriorityIndex === cardIndex ? "border-t-4 border-t-cyan-400" : ""
+                        }`}
                         onClick={() => openVehicleDrawer(vehicle)}
                       >
                         {/* Vehicle Thumbnail */}
@@ -3250,6 +3387,14 @@ export default function SalesPrep() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                 </svg>
                                 MOT {motStatus.label}
+                              </span>
+                            )}
+                            {motStatus?.type === "failed" && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700 border border-red-200">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                MOT Failed
                               </span>
                             )}
                             {motStatus?.type === "due_soon" && (
@@ -4535,9 +4680,56 @@ export default function SalesPrep() {
                   <div className="card-body p-4">
                     <h3 className="font-semibold mb-3">Prep Checklist</h3>
                     <div className="space-y-2">
-                      {selectedVehicle.tasks?.map((task) => (
-                        <div key={task.id} className="p-2 rounded hover:bg-base-300 group">
+                      {[...(selectedVehicle.tasks || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((task, index) => (
+                        <div
+                          key={task.id}
+                          className={`p-2 rounded hover:bg-base-300 group cursor-grab active:cursor-grabbing ${
+                            draggedTaskIndex === index ? "opacity-40" : ""
+                          } ${dragOverTaskIndex === index ? "border-t-2 border-primary" : ""}`}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedTaskIndex(index);
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            if (draggedTaskIndex !== null && draggedTaskIndex !== index) {
+                              setDragOverTaskIndex(index);
+                            }
+                          }}
+                          onDragLeave={() => setDragOverTaskIndex(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (draggedTaskIndex !== null && draggedTaskIndex !== index) {
+                              const sortedTasks = [...(selectedVehicle.tasks || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                              const reordered = [...sortedTasks];
+                              const [moved] = reordered.splice(draggedTaskIndex, 1);
+                              reordered.splice(index, 0, moved);
+                              const newTaskIds = reordered.map(t => t.id || t._id);
+                              // Update locally first for immediate feedback
+                              setSelectedVehicle({
+                                ...selectedVehicle,
+                                tasks: reordered.map((t, i) => ({ ...t, order: i })),
+                              });
+                              reorderTasks(newTaskIds);
+                            }
+                            setDraggedTaskIndex(null);
+                            setDragOverTaskIndex(null);
+                          }}
+                          onDragEnd={() => {
+                            setDraggedTaskIndex(null);
+                            setDragOverTaskIndex(null);
+                          }}
+                        >
                           <div className="flex items-center gap-2">
+                            {/* Drag handle */}
+                            <span className="text-base-content/30 hover:text-base-content/60 cursor-grab active:cursor-grabbing" title="Drag to reorder">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <circle cx="9" cy="6" r="1.5" /><circle cx="15" cy="6" r="1.5" />
+                                <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+                                <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+                              </svg>
+                            </span>
                             <select
                               className="select select-bordered select-xs"
                               value={task.status || "pending"}

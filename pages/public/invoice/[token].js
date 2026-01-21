@@ -707,75 +707,98 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          {/* Page 2: Payments Received + Add-ons + Terms & Conditions */}
-          {(snap.payments?.length > 0 || snap.addOns?.length > 0 || snap.termsText) && (
+          {/* Page 2: Deal Notes + Payments Received + Add-ons + Terms & Conditions */}
+          {(snap.notes || snap.payments?.length > 0 || snap.addOns?.length > 0 || snap.termsText) && (
             <div className="print:break-before-page">
-              {/* Payments Received - Individual breakdown */}
-              {snap.payments?.length > 0 && (
+              {/* Deal Notes - TOP of Page 2 */}
+              {snap.notes && (
                 <div className="p-8 print:p-6">
-                  <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto">
-                    <div className="bg-emerald-50 px-4 py-2 border-b border-slate-200">
-                      <p className="text-sm font-medium text-emerald-800">Payments Received</p>
-                    </div>
-                    <table className="w-full min-w-[400px]">
-                      <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
-                        <tr>
-                          <th className="px-4 py-2 text-left font-medium">Type</th>
-                          <th className="px-4 py-2 text-left font-medium">Method</th>
-                          <th className="px-4 py-2 text-left font-medium">Date</th>
-                          <th className="px-4 py-2 text-right font-medium">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {snap.payments.map((payment, idx) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-2 text-slate-900 capitalize">
-                              {(payment.type || "Payment").replace(/_/g, " ").toLowerCase()}
-                            </td>
-                            <td className="px-4 py-2 text-slate-600">
-                              {payment.method?.replace(/_/g, " ") || "—"}
-                            </td>
-                            <td className="px-4 py-2 text-slate-600 text-sm">
-                              {payment.paidAt ? new Date(payment.paidAt).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
-                            </td>
-                            <td className="px-4 py-2 text-right font-semibold text-emerald-600">{formatCurrency(payment.amount)}</td>
-                          </tr>
-                        ))}
-                        <tr className="bg-emerald-50">
-                          <td colSpan="3" className="px-4 py-2 font-medium text-emerald-800">Total Paid</td>
-                          <td className="px-4 py-2 text-right font-bold text-emerald-700">
-                            {formatCurrency(snap.payments.reduce((sum, p) => sum + (p.amount || 0), 0))}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                  <p className="text-sm text-blue-700 uppercase tracking-wide font-medium mb-2">Deal Notes</p>
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 text-sm text-slate-800 whitespace-pre-line">
+                    {snap.notes}
                   </div>
                 </div>
               )}
 
-              {/* Add-ons Included */}
-              {snap.addOns?.length > 0 && (
-                <div className="p-8 print:p-6 border-t border-slate-200">
-                  <p className="text-sm text-indigo-700 uppercase tracking-wide font-medium mb-4 print:text-xs">Add-ons Included</p>
-                  <div className="space-y-3 print:space-y-2">
-                    {snap.addOns.map((addon, idx) => (
-                      <div key={idx} className="flex justify-between items-start border-b border-slate-100 pb-2 print:pb-1">
-                        <div>
-                          <p className="font-medium text-slate-800 text-sm print:text-xs">{addon.name}</p>
-                          {addon.description && <p className="text-xs text-slate-600 print:text-[10px]">{addon.description}</p>}
+              {/* Payments + Add-ons - 2 column layout */}
+              {(snap.payments?.length > 0 || snap.addOns?.length > 0) && (
+                <div className="p-8 print:p-6 grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6">
+                  {/* Left Column: Payments Received */}
+                  {snap.payments?.length > 0 && (
+                    <div>
+                      <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="bg-emerald-50 px-4 py-2 border-b border-slate-200">
+                          <p className="text-sm font-medium text-emerald-800">Payments Received</p>
                         </div>
-                        <p className="font-semibold text-slate-900 text-sm print:text-xs">{formatCurrency(addon.unitPriceNet * (addon.qty || 1))}</p>
+                        <table className="w-full">
+                          <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium print:text-[10px]">Type</th>
+                              <th className="px-3 py-2 text-left font-medium print:text-[10px]">Method</th>
+                              <th className="px-3 py-2 text-right font-medium print:text-[10px]">Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {snap.payments.map((payment, idx) => (
+                              <tr key={idx}>
+                                <td className="px-3 py-2 text-slate-900 capitalize text-sm print:text-xs">
+                                  {(payment.type || "Payment").replace(/_/g, " ").toLowerCase()}
+                                </td>
+                                <td className="px-3 py-2 text-slate-600 text-sm print:text-xs">
+                                  {payment.method?.replace(/_/g, " ") || "—"}
+                                </td>
+                                <td className="px-3 py-2 text-right font-semibold text-emerald-600 text-sm print:text-xs">{formatCurrency(payment.amount)}</td>
+                              </tr>
+                            ))}
+                            <tr className="bg-emerald-50">
+                              <td colSpan="2" className="px-3 py-2 font-medium text-emerald-800 text-sm print:text-xs">Total Paid</td>
+                              <td className="px-3 py-2 text-right font-bold text-emerald-700 text-sm print:text-xs">
+                                {formatCurrency(snap.payments.reduce((sum, p) => sum + (p.amount || 0), 0))}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Right Column: Add-ons Included */}
+                  {snap.addOns?.length > 0 && (
+                    <div>
+                      <p className="text-sm text-indigo-700 uppercase tracking-wide font-medium mb-3 print:text-xs">Add-ons Included</p>
+                      <div className="bg-indigo-50 rounded-lg p-4 print:p-3 border border-indigo-200">
+                        <div className="space-y-2 print:space-y-1">
+                          {snap.addOns.map((addon, idx) => {
+                            const netAmount = addon.unitPriceNet * (addon.qty || 1);
+                            const vatAmount = addon.vatTreatment === "STANDARD" ? netAmount * (addon.vatRate || 0.2) : 0;
+                            const grossAmount = netAmount + vatAmount;
+                            return (
+                              <div key={idx} className="flex justify-between items-start border-b border-indigo-100 pb-2 print:pb-1 last:border-0">
+                                <div>
+                                  <p className="font-medium text-slate-800 text-sm print:text-xs">{addon.name}</p>
+                                  {addon.description && <p className="text-xs text-slate-600 print:text-[10px]">{addon.description}</p>}
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-slate-900 text-sm print:text-xs">{formatCurrency(grossAmount)}</p>
+                                  <p className="text-xs text-indigo-600 print:text-[10px]">{addon.vatTreatment === "STANDARD" ? "inc VAT" : "no VAT"}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Terms & Conditions */}
+              {/* Terms & Conditions - 2 column layout */}
               {snap.termsText && (
                 <div className="p-8 print:p-6 border-t border-slate-200">
                   <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
-                  <div className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+                  <div className="text-[10px] text-slate-600 leading-relaxed columns-2 gap-6 print:columns-2 whitespace-pre-line">
+                    {snap.termsText}
+                  </div>
                 </div>
               )}
             </div>

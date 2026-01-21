@@ -93,6 +93,7 @@ const initialWizardData = {
   wantsDeposit: false, // "Would customer like to leave a deposit?"
   depositAmount: "",
   depositMethod: "CARD",
+  notes: "", // Deal notes (e.g., finance advance info)
 
   // Delivery
   delivery: {
@@ -668,6 +669,8 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
           financeCompanyContactId: wizardData.financeSelection.financeCompanyId || undefined,
           toBeConfirmed: wizardData.financeSelection.toBeConfirmed || false,
         } : undefined,
+        // Deal notes (e.g., finance advance info)
+        notes: wizardData.notes?.trim() || undefined,
         // Agreed work items
         requests: (wizardData.requests || [])
           .filter(r => r.title?.trim())
@@ -2492,6 +2495,25 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                     </div>
                   </div>
                 )}
+
+                {/* Deal Notes */}
+                <div className="bg-white border border-slate-200 rounded-xl p-5">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text font-medium">Deal Notes (optional)</span>
+                    </label>
+                    <textarea
+                      value={wizardData.notes || ""}
+                      onChange={(e) => setWizardData(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="e.g., Finance advance required: £X,XXX"
+                      className="textarea textarea-bordered w-full"
+                      rows={3}
+                    />
+                    <label className="label">
+                      <span className="label-text-alt text-slate-500">These notes will appear on invoices and deposit receipts</span>
+                    </label>
+                  </div>
+                </div>
 
                 {/* Info box */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">

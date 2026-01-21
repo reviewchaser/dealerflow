@@ -43,6 +43,7 @@ export default async function handler(req, res) {
 
   // DEBUG: Log what's in the snapshotData
   console.log("[deposit-receipt-api] Document ID:", document._id);
+  console.log("[deposit-receipt-api] snapshotData.notes:", document.snapshotData?.notes);
   console.log("[deposit-receipt-api] snapshotData.delivery:", JSON.stringify(document.snapshotData?.delivery, null, 2));
   console.log("[deposit-receipt-api] snapshotData.warranty:", JSON.stringify(document.snapshotData?.warranty, null, 2));
 

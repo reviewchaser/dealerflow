@@ -4,6 +4,7 @@ import Dealer from "@/models/Dealer";
 import SalesDocument from "@/models/SalesDocument";
 import Contact from "@/models/Contact";
 import User from "@/models/User";
+import Vehicle from "@/models/Vehicle";
 import { withDealerContext } from "@/libs/authContext";
 import { getSignedGetUrl } from "@/libs/r2Client";
 
@@ -54,6 +55,7 @@ async function handler(req, res, ctx) {
 
   // Debug: log deal data to understand what's being captured
   console.log("[regenerate-receipt] Deal ID:", id);
+  console.log("[regenerate-receipt] Deal notes:", deal.notes);
   console.log("[regenerate-receipt] Deal delivery:", JSON.stringify(deal.delivery, null, 2));
   console.log("[regenerate-receipt] Deal warranty:", JSON.stringify(deal.warranty, null, 2));
 
@@ -259,6 +261,8 @@ async function handler(req, res, ctx) {
       dealerSignedAt: deal.signature.dealerSignedAt,
       dealerSignerName: deal.signature.dealerSignerName,
     } : null,
+    // Deal notes (e.g., finance advance info)
+    notes: deal.notes || null,
   };
 
   // Update the existing document with new snapshot

@@ -278,13 +278,13 @@ export default function PXAppraisalForm() {
               <div className="card bg-base-100 shadow-xl">
                 <div className="card-body">
                   <h2 className="card-title">Vehicle Registration</h2>
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 items-center">
                     <input
                       type="text"
                       name="vehicleReg"
                       value={formData.vehicleReg}
                       onChange={handleChange}
-                      className="input input-bordered flex-1 uppercase text-xl font-mono"
+                      className="w-48 h-12 px-4 uppercase text-xl font-bold tracking-wider text-center rounded border-2 border-black bg-[#F7D117] text-black placeholder:text-black/40"
                       placeholder="AB12 CDE"
                       required
                     />

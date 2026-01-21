@@ -793,49 +793,76 @@ export default function DepositReceiptPage() {
             </div>
           </div>
 
-          {/* Page 2: Agreed Work + Add-ons + Terms & Conditions */}
-          {(snap.requests?.length > 0 || snap.addOns?.length > 0 || snap.termsText) && (
+          {/* Page 2: Deal Notes + Agreed Work + Add-ons + Terms & Conditions */}
+          {(snap.notes || snap.requests?.length > 0 || snap.addOns?.length > 0 || snap.termsText) && (
             <div className="print:break-before-page">
-              {/* Agreed Work Items */}
-              {snap.requests?.length > 0 && (
-                <div className="p-8 print:p-6 border-t border-slate-200">
-                  <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-4 print:text-xs">Agreed Work</p>
-                  <div className="bg-orange-50 rounded-lg p-4 print:p-3 border border-orange-200">
-                    <ul className="space-y-2 print:space-y-1">
-                      {snap.requests.map((req, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm print:text-xs">
-                          <span className="text-orange-500 mt-0.5">•</span>
-                          <span className="text-slate-800">{req.title}{req.details && `: ${req.details}`}</span>
-                        </li>
-                      ))}
-                    </ul>
+              {/* Deal Notes - TOP of Page 2 */}
+              {snap.notes && (
+                <div className="p-8 print:p-6">
+                  <p className="text-sm text-blue-700 uppercase tracking-wide font-medium mb-2">Deal Notes</p>
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 text-sm text-slate-800 whitespace-pre-line">
+                    {snap.notes}
                   </div>
                 </div>
               )}
 
-              {/* Add-ons Included */}
-              {snap.addOns?.length > 0 && (
-                <div className="p-8 print:p-6 border-t border-slate-200">
-                  <p className="text-sm text-indigo-700 uppercase tracking-wide font-medium mb-4 print:text-xs">Add-ons Included</p>
-                  <div className="space-y-3 print:space-y-2">
-                    {snap.addOns.map((addon, idx) => (
-                      <div key={idx} className="flex justify-between items-start border-b border-slate-100 pb-2 print:pb-1">
-                        <div>
-                          <p className="font-medium text-slate-800 text-sm print:text-xs">{addon.name}</p>
-                          {addon.description && <p className="text-xs text-slate-600 print:text-[10px]">{addon.description}</p>}
-                        </div>
-                        <p className="font-semibold text-slate-900 text-sm print:text-xs">{formatCurrency(addon.unitPriceNet * (addon.qty || 1))}</p>
+              {/* Agreed Work + Add-ons - 2 column layout */}
+              {(snap.requests?.length > 0 || snap.addOns?.length > 0) && (
+                <div className="p-8 print:p-6 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-6">
+                  {/* Left Column: Agreed Work Items */}
+                  {snap.requests?.length > 0 && (
+                    <div>
+                      <p className="text-sm text-orange-700 uppercase tracking-wide font-medium mb-3 print:text-xs">Agreed Work</p>
+                      <div className="bg-orange-50 rounded-lg p-4 print:p-3 border border-orange-200">
+                        <ul className="space-y-2 print:space-y-1">
+                          {snap.requests.map((req, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm print:text-xs">
+                              <span className="text-orange-500 mt-0.5">•</span>
+                              <span className="text-slate-800">{req.title}{req.details && `: ${req.details}`}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Right Column: Add-ons Included */}
+                  {snap.addOns?.length > 0 && (
+                    <div>
+                      <p className="text-sm text-indigo-700 uppercase tracking-wide font-medium mb-3 print:text-xs">Add-ons Included</p>
+                      <div className="bg-indigo-50 rounded-lg p-4 print:p-3 border border-indigo-200">
+                        <div className="space-y-2 print:space-y-1">
+                          {snap.addOns.map((addon, idx) => {
+                            const netAmount = addon.unitPriceNet * (addon.qty || 1);
+                            const vatAmount = addon.vatTreatment === "STANDARD" ? netAmount * (addon.vatRate || 0.2) : 0;
+                            const grossAmount = netAmount + vatAmount;
+                            return (
+                              <div key={idx} className="flex justify-between items-start border-b border-indigo-100 pb-2 print:pb-1 last:border-0">
+                                <div>
+                                  <p className="font-medium text-slate-800 text-sm print:text-xs">{addon.name}</p>
+                                  {addon.description && <p className="text-xs text-slate-600 print:text-[10px]">{addon.description}</p>}
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-slate-900 text-sm print:text-xs">{formatCurrency(grossAmount)}</p>
+                                  <p className="text-xs text-indigo-600 print:text-[10px]">{addon.vatTreatment === "STANDARD" ? "inc VAT" : "no VAT"}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Terms & Conditions */}
+              {/* Terms & Conditions - 2 column layout */}
               {snap.termsText && (
                 <div className="p-8 print:p-6 border-t border-slate-200">
                   <p className="text-sm text-slate-600 uppercase tracking-wide font-medium mb-4">Terms & Conditions</p>
-                  <div className="text-[10px] text-slate-600 whitespace-pre-line leading-relaxed">{snap.termsText}</div>
+                  <div className="text-[10px] text-slate-600 leading-relaxed columns-2 gap-6 print:columns-2 whitespace-pre-line">
+                    {snap.termsText}
+                  </div>
                 </div>
               )}
             </div>

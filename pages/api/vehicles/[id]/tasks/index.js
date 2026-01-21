@@ -22,7 +22,7 @@ async function handler(req, res, ctx) {
     }
 
     if (req.method === "GET") {
-      const tasks = await VehicleTask.find({ vehicleId: id }).sort({ createdAt: 1 }).lean();
+      const tasks = await VehicleTask.find({ vehicleId: id }).sort({ order: 1, createdAt: 1 }).lean();
       return res.status(200).json(tasks);
     }
 
@@ -30,12 +30,17 @@ async function handler(req, res, ctx) {
       const { name, notes } = req.body;
       if (!name) return res.status(400).json({ error: "Task name required" });
 
+      // Get max order value for this vehicle's tasks
+      const maxOrderTask = await VehicleTask.findOne({ vehicleId: id }).sort({ order: -1 }).lean();
+      const nextOrder = (maxOrderTask?.order ?? -1) + 1;
+
       const task = await VehicleTask.create({
         vehicleId: id,
         name,
         notes,
         status: "pending",
         source: "manual",
+        order: nextOrder,
       });
 
       // Log activity

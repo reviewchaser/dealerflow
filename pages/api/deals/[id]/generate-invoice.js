@@ -496,6 +496,8 @@ async function handler(req, res, ctx) {
     })),
     // Service receipt status
     serviceReceipt: serviceReceiptInfo,
+    // Deal notes (e.g., finance advance info)
+    notes: deal.notes || null,
   };
 
   // Generate share token

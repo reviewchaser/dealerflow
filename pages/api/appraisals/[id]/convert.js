@@ -49,7 +49,7 @@ export default async function handler(req, res) {
     console.log("Service History URL:", appraisal.serviceHistoryUrl);
     console.log("Other Documents:", appraisal.otherDocuments);
 
-    const { initialStatus = "in_stock", createPrepTasks = true } = req.body;
+    const { initialStatus = "in_stock", createPrepTasks = true, showOnPrepBoard = true } = req.body;
 
     // Check for duplicate VRM within this dealer
     const normalizedReg = appraisal.vehicleReg?.toUpperCase().replace(/\s/g, "");
@@ -83,6 +83,7 @@ export default async function handler(req, res) {
       notes: appraisal.conditionNotes,
       type: "STOCK",
       saleType: "RETAIL",
+      showOnPrepBoard: showOnPrepBoard, // Control whether vehicle appears on prep board
       // Transfer document URLs directly to vehicle fields
       v5Url: appraisal.v5Url || null,
       serviceHistoryUrl: appraisal.serviceHistoryUrl || null,

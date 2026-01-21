@@ -147,6 +147,11 @@ export default function DealDrawer({
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReasonInput, setCancelReasonInput] = useState("");
 
+  // Notes editing state
+  const [notesInput, setNotesInput] = useState("");
+  const [notesModified, setNotesModified] = useState(false);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
   // Delivery confirmation modal state
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState({
@@ -837,6 +842,10 @@ export default function DealDrawer({
       const data = await res.json();
       setDeal(data);
 
+      // Initialize notes input
+      setNotesInput(data.notes || "");
+      setNotesModified(false);
+
       // Check if deal has an active driver link and restore state
       if (data.signature?.driverLinkToken && data.signature?.driverLinkExpiresAt) {
         const expiry = new Date(data.signature.driverLinkExpiresAt);
@@ -1332,6 +1341,34 @@ export default function DealDrawer({
       toast.error(error.message);
     } finally {
       setWarrantyEditLoading(false);
+    }
+  };
+
+  // Save deal notes
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true);
+    try {
+      const res = await fetch(`/api/deals/${dealId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          notes: notesInput.trim() || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to save notes");
+      }
+
+      toast.success("Notes saved");
+      setNotesModified(false);
+      fetchDeal();
+      onUpdate?.();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsSavingNotes(false);
     }
   };
 
@@ -4754,25 +4791,45 @@ export default function DealDrawer({
                     </div>
                   </div>
 
-                  {/* Notes */}
-                  {(deal.notes || deal.internalNotes) && (
+                  {/* Deal Notes */}
+                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-slate-800">Deal Notes</h3>
+                        {notesModified && (
+                          <button
+                            onClick={handleSaveNotes}
+                            disabled={isSavingNotes}
+                            className="btn btn-xs btn-primary"
+                          >
+                            {isSavingNotes ? "Saving..." : "Save"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <textarea
+                        value={notesInput}
+                        onChange={(e) => {
+                          setNotesInput(e.target.value);
+                          setNotesModified(e.target.value !== (deal.notes || ""));
+                        }}
+                        placeholder="e.g., Finance advance required: £X,XXX"
+                        className="textarea textarea-bordered w-full text-sm"
+                        rows={3}
+                      />
+                      <p className="text-xs text-slate-500 mt-2">These notes will appear on invoices and deposit receipts</p>
+                    </div>
+                  </div>
+
+                  {/* Internal Notes (read-only for now) */}
+                  {deal.internalNotes && (
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                       <div className="px-4 py-3 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
-                        <h3 className="text-sm font-bold text-slate-800">Notes</h3>
+                        <h3 className="text-sm font-bold text-slate-800">Internal Notes</h3>
                       </div>
-                      <div className="p-4 space-y-3">
-                        {deal.notes && (
-                          <div>
-                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Customer Notes</span>
-                            <p className="text-sm text-slate-700 mt-1">{deal.notes}</p>
-                          </div>
-                        )}
-                        {deal.internalNotes && (
-                          <div>
-                            <span className="text-xs font-medium text-slate-400 uppercase tracking-wide">Internal Notes</span>
-                            <p className="text-sm text-slate-700 mt-1">{deal.internalNotes}</p>
-                          </div>
-                        )}
+                      <div className="p-4">
+                        <p className="text-sm text-slate-700">{deal.internalNotes}</p>
                       </div>
                     </div>
                   )}

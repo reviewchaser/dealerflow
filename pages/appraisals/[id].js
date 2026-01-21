@@ -41,6 +41,7 @@ export default function AppraisalDetail() {
   const [issues, setIssues] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
+  const [addToPrepBoard, setAddToPrepBoard] = useState(true);
 
   // Issue modal state
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -110,7 +111,10 @@ export default function AppraisalDetail() {
       const res = await fetch(`/api/appraisals/${id}/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initialStatus: "in_stock" }),
+        body: JSON.stringify({
+          initialStatus: "in_stock",
+          showOnPrepBoard: addToPrepBoard,
+        }),
       });
       if (!res.ok) {
         const error = await res.json();
@@ -119,8 +123,13 @@ export default function AppraisalDetail() {
         }
         throw new Error(error.error || "Failed to convert");
       }
-      toast.success("Vehicle created!");
-      router.push("/prep");
+      if (addToPrepBoard) {
+        toast.success("Vehicle added to Stock Book and Prep Board!");
+        router.push("/prep");
+      } else {
+        toast.success("Vehicle added to Stock Book!");
+        router.push("/stock-book");
+      }
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -441,7 +450,7 @@ export default function AppraisalDetail() {
         <div className="lg:col-span-2 space-y-6">
           {/* Vehicle Details */}
           <Card>
-            <CardHeader title="Vehicle Details" icon="🚗" />
+            <CardHeader title="Vehicle Details" icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>} />
             <CardContent>
               <KeyValueGrid cols={2}>
                 <KeyValue label="Make" value={appraisal.vehicleMake} />
@@ -457,7 +466,7 @@ export default function AppraisalDetail() {
 
           {/* Condition Notes */}
           <Card>
-            <CardHeader title="Condition Notes" icon="📝" />
+            <CardHeader title="Condition Notes" icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
             <CardContent>
               <p className="whitespace-pre-wrap text-slate-700">{appraisal.conditionNotes || "No notes recorded"}</p>
             </CardContent>
@@ -467,7 +476,7 @@ export default function AppraisalDetail() {
           <Card>
             <CardHeader
               title="Issues & Damage"
-              icon="⚠️"
+              icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>}
               subtitle={totalEstimatedCost > 0 ? `Total est. repair: £${totalEstimatedCost.toLocaleString()}` : undefined}
               action={
                 <button
@@ -542,7 +551,7 @@ export default function AppraisalDetail() {
           {/* Legacy Damage Photos - show if existing */}
           {appraisal.damagePhotos && appraisal.damagePhotos.length > 0 && (
             <Card>
-              <CardHeader title="Legacy Damage Photos" icon="📷" subtitle="Consider creating issues for these photos" />
+              <CardHeader title="Legacy Damage Photos" icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} subtitle="Consider creating issues for these photos" />
               <CardContent>
                 <PhotoGallery photos={appraisal.damagePhotos} thumbnailSize="lg" />
               </CardContent>
@@ -552,19 +561,9 @@ export default function AppraisalDetail() {
           {/* Fault Code Photos - show if existing */}
           {appraisal.faultCodePhotos && appraisal.faultCodePhotos.length > 0 && (
             <Card>
-              <CardHeader title="Fault Code Photos" icon="🔧" />
+              <CardHeader title="Fault Code Photos" icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
               <CardContent>
                 <PhotoGallery photos={appraisal.faultCodePhotos} thumbnailSize="lg" />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* AI Hints */}
-          {appraisal.aiHintText && (
-            <Card variant="accent">
-              <CardHeader title="AI Suggestions" icon="🤖" />
-              <CardContent>
-                <p className="whitespace-pre-wrap text-sm text-slate-700">{appraisal.aiHintText}</p>
               </CardContent>
             </Card>
           )}
@@ -572,7 +571,7 @@ export default function AppraisalDetail() {
           {/* Seller Info */}
           {appraisal.contactId && (
             <Card>
-              <CardHeader title="Seller Information" icon="👤" />
+              <CardHeader title="Seller Information" icon={<svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>} />
               <CardContent>
                 <KeyValueGrid cols={3}>
                   <KeyValue label="Name" value={appraisal.contactId?.name} />
@@ -591,6 +590,15 @@ export default function AppraisalDetail() {
             <CardContent className="space-y-4">
               {(appraisal.decision === "pending" || appraisal.decision === "reviewed") && !appraisal.vehicleId && (
                 <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm checkbox-primary"
+                      checked={addToPrepBoard}
+                      onChange={(e) => setAddToPrepBoard(e.target.checked)}
+                    />
+                    <span className="text-sm text-slate-700">Also add to Prep Board</span>
+                  </label>
                   <button
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
                     onClick={handleConvert}
@@ -606,7 +614,7 @@ export default function AppraisalDetail() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     )}
-                    Convert to Stock
+                    Add to Stock Book
                   </button>
                   <button
                     className="w-full px-4 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
@@ -620,20 +628,19 @@ export default function AppraisalDetail() {
                   >
                     Decline
                   </button>
-                  <p className="text-xs text-slate-500 text-center">Converting will create a vehicle and default prep tasks.</p>
                 </div>
               )}
 
               {appraisal.decision === "converted" || appraisal.vehicleId ? (
                 <div className="space-y-3">
                   <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 text-center">
-                    Vehicle added to stock
+                    Vehicle added to Stock Book
                   </div>
                   <Link
-                    href="/prep"
+                    href="/stock-book"
                     className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg bg-[#0066CC] text-white hover:bg-[#0055BB] transition-colors"
                   >
-                    View in Vehicle Prep
+                    View in Stock Book
                   </Link>
                 </div>
               ) : null}

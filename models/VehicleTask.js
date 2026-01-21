@@ -99,6 +99,7 @@ const vehicleTaskSchema = new mongoose.Schema(
       default: "manual"
     },
     completedAt: { type: Date },
+    order: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
