@@ -1,31 +1,55 @@
 import mongoose from "mongoose";
 
-// Connection options for better reliability with MongoDB Atlas on Vercel
+// Connection options optimized for serverless (Vercel) + MongoDB Atlas Flex tier
+// Flex tier has limited connections - keep pool small to avoid exhaustion
 const connectionOptions = {
-  maxPoolSize: 10,
-  minPoolSize: 1,
-  serverSelectionTimeoutMS: 15000,
-  socketTimeoutMS: 45000,
+  maxPoolSize: 1, // Reduced from 10 - serverless functions are short-lived
+  minPoolSize: 0, // Allow pool to fully close when idle
+  maxIdleTimeMS: 10000, // Close idle connections after 10 seconds
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 30000,
   connectTimeoutMS: 10000,
   retryWrites: true,
   retryReads: true,
 };
 
+// Cache connection promise to reuse across hot reloads in development
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectMongo = async () => {
-  // Already connected or connecting
-  if (mongoose.connection.readyState >= 1) {
-    return;
+  // Return cached connection if available
+  if (cached.conn) {
+    return cached.conn;
   }
-  try {
-    await mongoose.connect(
+
+  // If already connecting, wait for that promise
+  if (cached.promise) {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  }
+
+  // Create new connection
+  cached.promise = mongoose
+    .connect(
       process.env.MONGODB_URI || "mongodb://localhost:27017/dealerflow",
       connectionOptions
-    );
-    console.log("✅ MongoDB Connected");
-  } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
-    throw error;
-  }
+    )
+    .then((mongoose) => {
+      console.log("✅ MongoDB Connected (poolSize: 1)");
+      return mongoose;
+    })
+    .catch((error) => {
+      cached.promise = null; // Reset on error so next call retries
+      console.error("❌ MongoDB connection error:", error);
+      throw error;
+    });
+
+  cached.conn = await cached.promise;
+  return cached.conn;
 };
 
 export default connectMongo;
