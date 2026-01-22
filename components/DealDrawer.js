@@ -5957,7 +5957,7 @@ export default function DealDrawer({
                     {/* Settlement Amount */}
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Settlement Amount <span className="text-red-500">*</span>
+                        Settlement Amount
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">£</span>
