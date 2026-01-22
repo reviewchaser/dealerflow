@@ -2825,8 +2825,10 @@ export default function SalesPrep() {
                 />
               </div>
               {/* Mobile Sort Button */}
-              <div className="dropdown dropdown-end">
-                <label tabIndex={0} className="btn btn-sm gap-1.5 bg-white border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl h-10 px-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-1">Sort</label>
+                <div className="dropdown dropdown-end">
+                  <label tabIndex={0} className="flex items-center gap-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 rounded-xl px-4 py-3 cursor-pointer">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                   </svg>
@@ -2887,7 +2889,8 @@ export default function SalesPrep() {
                       </button>
                     </li>
                   )}
-                </ul>
+                  </ul>
+                </div>
               </div>
               {/* Mobile Archive toggle - only for delivered column */}
               {mobileActiveColumn === "delivered" && (

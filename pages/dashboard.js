@@ -629,9 +629,9 @@ export default function Dashboard() {
                     <p className="text-xs text-slate-500">Latest updates across your dealership</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full md:w-auto">
                   {/* VRM Search */}
-                  <div className="relative">
+                  <div className="relative flex-1 md:flex-initial">
                     <div className="relative">
                       <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -646,7 +646,7 @@ export default function Dashboard() {
                         }}
                         onFocus={() => setShowVrmSuggestions(true)}
                         onBlur={() => setTimeout(() => setShowVrmSuggestions(false), 150)}
-                        className="w-32 md:w-40 pl-8 pr-8 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20 focus:border-[#0066CC]"
+                        className="w-full md:w-40 pl-8 pr-8 py-1.5 text-xs font-mono bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20 focus:border-[#0066CC]"
                       />
                       {vrmSearch && (
                         <button
@@ -697,11 +697,11 @@ export default function Dashboard() {
                     ))}
                   </div>
                   {/* Filter Dropdown - Mobile */}
-                  <div className="md:hidden">
+                  <div className="md:hidden flex-1">
                     <select
                       value={activityFilter}
                       onChange={(e) => setActivityFilter(e.target.value)}
-                      className="px-3 py-1.5 text-xs font-semibold bg-slate-100 border-0 rounded-lg focus:ring-2 focus:ring-[#0066CC]/20"
+                      className="w-full px-3 py-1.5 text-xs font-semibold bg-slate-100 border-0 rounded-lg focus:ring-2 focus:ring-[#0066CC]/20"
                     >
                       {Object.entries(ACTIVITY_FILTERS).map(([key, { label }]) => (
                         <option key={key} value={key}>{label}</option>
@@ -791,9 +791,9 @@ export default function Dashboard() {
 
                     const handleClick = () => {
                       if (event.dealId) {
-                        router.push(getPath(`/deals?id=${event.dealId}`));
+                        router.push(getPath(`/sales?id=${event.dealId}`));
                       } else if (event.vehicleId) {
-                        router.push(getPath(`/prep?vehicle=${event.vehicleId}`));
+                        router.push(getPath(`/prep?vehicleId=${event.vehicleId}`));
                       }
                     };
 
