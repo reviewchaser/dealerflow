@@ -984,6 +984,9 @@ async function handleStats(req, res, ctx) {
 
   const recentActivity = deduped.slice(0, 20);
 
+  // Cache for 30s, allow stale responses while revalidating for 60s more
+  res.setHeader('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+
   return res.status(200).json({
     appraisals: { total: totalAppraisals, pending: pendingAppraisals },
     vehicles: {
