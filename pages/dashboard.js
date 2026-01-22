@@ -220,6 +220,9 @@ export default function Dashboard() {
   const [activityFilter, setActivityFilter] = useState("all");
   // VRM search for activity feed
   const [vrmSearch, setVrmSearch] = useState("");
+  // My Tasks (personal notifications)
+  const [myTasks, setMyTasks] = useState([]);
+  const [myTasksLoading, setMyTasksLoading] = useState(false);
   const [vrmSuggestions, setVrmSuggestions] = useState([]);
   const [showVrmSuggestions, setShowVrmSuggestions] = useState(false);
 
@@ -323,7 +326,40 @@ export default function Dashboard() {
         setForms([]);
         setIsLoading(false);
       });
+
+    // Fetch personal notifications (My Tasks)
+    setMyTasksLoading(true);
+    fetch("/api/notifications?unreadOnly=true")
+      .then(async (res) => {
+        if (!res.ok) return { notifications: [] };
+        return res.json();
+      })
+      .then((data) => {
+        setMyTasks(data.notifications || []);
+        setMyTasksLoading(false);
+      })
+      .catch((err) => {
+        console.error("Notifications fetch error:", err);
+        setMyTasks([]);
+        setMyTasksLoading(false);
+      });
   }, [slugFromUrl]);
+
+  // Dismiss a notification (mark as read)
+  const dismissTask = async (notificationId) => {
+    try {
+      const res = await fetch(`/api/notifications/${notificationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: true }),
+      });
+      if (res.ok) {
+        setMyTasks(prev => prev.filter(t => t.id !== notificationId));
+      }
+    } catch (error) {
+      console.error("Failed to dismiss task:", error);
+    }
+  };
 
   const handleFormClick = (form) => {
     if (form.isPublic && form.publicSlug) {
@@ -489,6 +525,88 @@ export default function Dashboard() {
               variant="gradient"
             />
           </div>
+
+          {/* My Tasks - Personal Notifications */}
+          {myTasks.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden mb-6">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">My Tasks</h2>
+                    <p className="text-xs text-slate-500">Issues assigned to you</p>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-sm font-semibold rounded-full">
+                  {myTasks.length}
+                </span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {myTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors"
+                  >
+                    {/* Dismiss checkbox */}
+                    <button
+                      onClick={() => dismissTask(task.id)}
+                      className="flex-shrink-0 w-5 h-5 rounded border-2 border-slate-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors group"
+                      title="Mark as done"
+                    >
+                      <svg className="w-3 h-3 text-transparent group-hover:text-green-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
+
+                    {/* Task content - clickable to navigate */}
+                    <Link
+                      href={getPath(`/prep?vrm=${task.vehicle?.regCurrent || ""}`)}
+                      className="flex-1 min-w-0"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono text-sm font-bold text-slate-900">
+                          {task.vehicle?.regCurrent || "Unknown"}
+                        </span>
+                        <span className="text-slate-400">-</span>
+                        <span className="text-sm text-slate-600 truncate">
+                          {task.vehicle?.make} {task.vehicle?.model}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
+                          {task.issue?.category || "Issue"}
+                        </span>
+                        <span className="text-sm text-slate-500 truncate">
+                          {task.issue?.description || task.message}
+                        </span>
+                      </div>
+                      {task.assignedBy && (
+                        <p className="text-xs text-slate-400 mt-1">
+                          Assigned by {task.assignedBy} - {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                        </p>
+                      )}
+                    </Link>
+
+                    {/* Priority indicator */}
+                    {task.issue?.status && (
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                        task.issue.status === "Outstanding" ? "bg-red-100 text-red-700" :
+                        task.issue.status === "In Progress" ? "bg-blue-100 text-blue-700" :
+                        task.issue.status === "Ordered" ? "bg-amber-100 text-amber-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {task.issue.status}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Activity Feed */}
           {stats?.activityFeed?.length > 0 && (

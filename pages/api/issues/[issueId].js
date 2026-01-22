@@ -2,6 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import VehicleIssue from "@/models/VehicleIssue";
 import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
+import Notification from "@/models/Notification";
 import User from "@/models/User";
 import Deal from "@/models/Deal";
 import { withDealerContext } from "@/libs/authContext";
@@ -187,6 +188,37 @@ async function handler(req, res, ctx) {
           userId,
           userName: actorName,
         });
+      }
+
+      // Create notifications for newly assigned users
+      if (updates.assignedToUserIds && Array.isArray(updates.assignedToUserIds)) {
+        const previousAssignees = (issue.assignedToUserIds || []).map(id => id.toString());
+        const newAssignees = updates.assignedToUserIds.filter(
+          id => !previousAssignees.includes(id.toString())
+        );
+
+        if (newAssignees.length > 0) {
+          const vehicleDisplay = `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}`.trim();
+          const descriptionSnippet = issue.description.length > 50
+            ? issue.description.substring(0, 50) + "..."
+            : issue.description;
+
+          for (const assignedUserId of newAssignees) {
+            // Don't notify yourself
+            if (assignedUserId.toString() === userId) continue;
+
+            await Notification.create({
+              dealerId,
+              userId: assignedUserId,
+              type: "ISSUE_ASSIGNED",
+              title: "You've been assigned to an issue",
+              message: `${vehicleDisplay}: ${issue.category} - ${descriptionSnippet}`,
+              relatedVehicleId: issue.vehicleId,
+              relatedIssueId: issue._id,
+              isRead: false,
+            });
+          }
+        }
       }
 
       // Transform _id to id

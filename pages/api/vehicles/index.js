@@ -350,6 +350,8 @@ async function handler(req, res, ctx) {
         // Prep board visibility
         showOnPrepBoard: vehicle.showOnPrepBoard,
         prepBoardRemovedAt: vehicle.prepBoardRemovedAt,
+        // Advertised status for KPI bar
+        isAdvertised: vehicle.isAdvertised || false,
       };
     });
 

@@ -799,17 +799,43 @@ export default function StockBook() {
   const handleDeleteVehicle = async (vehicle) => {
     const vehicleId = vehicle.id || vehicle._id;
 
+    // Initial confirmation
     if (!confirm("Delete this vehicle permanently?\n\nThis cannot be undone.")) return;
 
     try {
-      const res = await fetch(`/api/vehicles/${vehicleId}`, {
+      // Call DELETE - API will check for deals first
+      const checkRes = await fetch(`/api/vehicles/${vehicleId}`, {
         method: "DELETE",
       });
 
-      if (!res.ok) throw new Error("Failed to delete vehicle");
+      if (!checkRes.ok) throw new Error("Failed to delete vehicle");
 
-      fetchVehicles();
-      toast.success("Vehicle deleted");
+      const checkData = await checkRes.json();
+
+      // If vehicle has associated deals, show enhanced confirmation
+      if (checkData.hasDeals) {
+        const dealList = checkData.deals
+          .map(d => `• Deal #${d.dealNumber} (${d.status})`)
+          .join("\n");
+
+        const confirmMsg = `⚠️ This vehicle has ${checkData.deals.length} associated deal(s) that will also be deleted:\n\n${dealList}\n\nThis will remove all sales records, invoices, and receipts for these deals.\n\nAre you sure you want to continue?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        // User confirmed, delete with cascade
+        const deleteRes = await fetch(`/api/vehicles/${vehicleId}?confirmDealDeletion=true`, {
+          method: "DELETE",
+        });
+
+        if (!deleteRes.ok) throw new Error("Failed to delete vehicle");
+
+        fetchVehicles();
+        toast.success(`Vehicle and ${checkData.deals.length} deal(s) deleted`);
+      } else {
+        // No deals - vehicle was already deleted
+        fetchVehicles();
+        toast.success("Vehicle deleted");
+      }
     } catch (error) {
       toast.error(error.message || "Failed to delete vehicle");
     }
@@ -2370,32 +2396,26 @@ export default function StockBook() {
                     </label>
                     <select
                       value={purchaseForm.purchasedFromContactId}
-                      onChange={(e) => setPurchaseForm({ ...purchaseForm, purchasedFromContactId: e.target.value })}
+                      onChange={(e) => {
+                        if (e.target.value === "__NEW__") {
+                          setAddContactSource("drawer");
+                          setShowAddContactModal(true);
+                          e.target.value = purchaseForm.purchasedFromContactId || "";
+                        } else {
+                          setPurchaseForm({ ...purchaseForm, purchasedFromContactId: e.target.value });
+                        }
+                      }}
                       className="select select-bordered w-full"
                       required
                     >
                       <option value="">Select a seller...</option>
+                      <option value="__NEW__">+ Add new contact</option>
                       {contacts.map((contact) => (
                         <option key={contact.id || contact._id} value={contact.id || contact._id}>
                           {contact.displayName || contact.companyName}
                         </option>
                       ))}
                     </select>
-                    <label className="label">
-                      <span className="label-text-alt text-slate-400">
-                        Don&apos;t see the seller?{" "}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAddContactSource("drawer");
-                            setShowAddContactModal(true);
-                          }}
-                          className="text-[#0066CC] hover:underline"
-                        >
-                          Add a new contact
-                        </button>
-                      </span>
-                    </label>
                   </div>
 
                   {/* Purchase Date */}
@@ -2637,10 +2657,10 @@ export default function StockBook() {
             className="fixed inset-0 bg-black/50 z-40"
             onClick={() => setShowAddVehicleModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
+            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
-              <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
+              <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900">Add Vehicle to Stock Book</h2>
                   <p className="text-sm text-slate-500">Enter vehicle and purchase details</p>
@@ -2656,19 +2676,19 @@ export default function StockBook() {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <form onSubmit={handleAddVehicle} className="space-y-6">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6" style={{ WebkitOverflowScrolling: "touch" }}>
+                <form id="add-vehicle-form" onSubmit={handleAddVehicle} className="space-y-6">
                   {/* VRM Lookup */}
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text font-medium">Registration (VRM) *</span>
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-3 items-center">
                       <input
                         type="text"
                         value={addVehicleForm.regCurrent}
                         onChange={(e) => setAddVehicleForm({ ...addVehicleForm, regCurrent: e.target.value.toUpperCase() })}
-                        className="input input-bordered flex-1 font-mono font-bold uppercase"
+                        className="w-full sm:w-48 h-12 px-4 uppercase text-xl font-bold tracking-wider text-center rounded border-2 border-black bg-[#F7D117] text-black placeholder:text-black/40"
                         placeholder="AB12 CDE"
                         required
                       />
@@ -2676,7 +2696,7 @@ export default function StockBook() {
                         type="button"
                         onClick={handleAddVehicleVrmLookup}
                         disabled={isLookingUp}
-                        className="btn bg-slate-700 hover:bg-slate-800 text-white border-none"
+                        className="btn btn-primary w-full sm:w-auto"
                       >
                         {isLookingUp ? (
                           <span className="loading loading-spinner loading-sm"></span>
@@ -2921,31 +2941,25 @@ export default function StockBook() {
                         </label>
                         <select
                           value={addVehicleForm.purchasedFromContactId}
-                          onChange={(e) => setAddVehicleForm({ ...addVehicleForm, purchasedFromContactId: e.target.value })}
+                          onChange={(e) => {
+                            if (e.target.value === "__NEW__") {
+                              setAddContactSource("addVehicle");
+                              setShowAddContactModal(true);
+                              e.target.value = addVehicleForm.purchasedFromContactId || "";
+                            } else {
+                              setAddVehicleForm({ ...addVehicleForm, purchasedFromContactId: e.target.value });
+                            }
+                          }}
                           className="select select-bordered w-full"
                         >
                           <option value="">Select a seller...</option>
+                          <option value="__NEW__">+ Add new contact</option>
                           {contacts.map((contact) => (
                             <option key={contact.id || contact._id} value={contact.id || contact._id}>
                               {contact.displayName || contact.companyName}
                             </option>
                           ))}
                         </select>
-                        <label className="label">
-                          <span className="label-text-alt text-slate-400">
-                            Don&apos;t see the seller?{" "}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setAddContactSource("addVehicle");
-                                setShowAddContactModal(true);
-                              }}
-                              className="text-[#0066CC] hover:underline"
-                            >
-                              Add a new contact
-                            </button>
-                          </span>
-                        </label>
                       </div>
 
                       {/* Purchase Date & Invoice Ref */}
@@ -3036,28 +3050,32 @@ export default function StockBook() {
                     </label>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-3 pt-4 border-t border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddVehicleModal(false)}
-                      className="btn btn-ghost flex-1"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isAddingVehicle}
-                      className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
-                    >
-                      {isAddingVehicle ? (
-                        <span className="loading loading-spinner loading-sm"></span>
-                      ) : (
-                        addVehicleForm.addToVehiclePrep ? "Add & Go to Prep" : "Add Vehicle"
-                      )}
-                    </button>
-                  </div>
                 </form>
+              </div>
+
+              {/* Sticky Footer - Action Buttons */}
+              <div className="shrink-0 border-t border-slate-200 bg-white px-4 md:px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddVehicleModal(false)}
+                    className="btn btn-ghost flex-1"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('add-vehicle-form').requestSubmit()}
+                    disabled={isAddingVehicle}
+                    className="btn bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
+                  >
+                    {isAddingVehicle ? (
+                      <span className="loading loading-spinner loading-sm"></span>
+                    ) : (
+                      addVehicleForm.addToVehiclePrep ? "Add & Go to Prep" : "Add Vehicle"
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

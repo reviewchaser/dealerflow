@@ -286,7 +286,7 @@ export default function DealerBuyingForm() {
                   type="text"
                   required
                   placeholder="AB12 CDE"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase font-mono text-xl text-center"
+                  className="w-full h-12 px-4 uppercase text-xl font-bold tracking-wider text-center rounded border-2 border-black bg-[#F7D117] text-black placeholder:text-black/40"
                   value={formData.vehicleReg}
                   onChange={(e) => setFormData({ ...formData, vehicleReg: e.target.value.toUpperCase() })}
                 />

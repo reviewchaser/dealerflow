@@ -7,6 +7,9 @@ import VehicleDocument from "@/models/VehicleDocument";
 import VehicleLocation from "@/models/VehicleLocation";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
+import Deal from "@/models/Deal";
+import SalesDocument from "@/models/SalesDocument";
+import PartExchange from "@/models/PartExchange";
 import { withDealerContext } from "@/libs/authContext";
 import { logVehicleLocationChange, logVehicleStatusChange } from "@/libs/activityLogger";
 
@@ -229,16 +232,44 @@ async function handler(req, res, ctx) {
   }
 
   if (req.method === "DELETE") {
+    const { confirmDealDeletion } = req.query;
+
     // Ensure vehicle belongs to this dealer
     const vehicle = await Vehicle.findOne({ _id: id, dealerId });
     if (!vehicle) return res.status(404).json({ error: "Not found" });
 
+    // Check for associated deals
+    const deals = await Deal.find({ vehicleId: id, dealerId }).lean();
+
+    if (deals.length > 0 && confirmDealDeletion !== "true") {
+      // Return deal info for confirmation
+      return res.status(200).json({
+        hasDeals: true,
+        deals: deals.map(d => ({
+          dealNumber: d.dealNumber,
+          status: d.status,
+        })),
+      });
+    }
+
+    // Delete associated deals and related records
+    let dealsDeleted = 0;
+    if (deals.length > 0) {
+      const dealIds = deals.map(d => d._id);
+      await SalesDocument.deleteMany({ dealId: { $in: dealIds } });
+      await PartExchange.deleteMany({ dealId: { $in: dealIds } });
+      await Deal.deleteMany({ _id: { $in: dealIds } });
+      dealsDeleted = deals.length;
+    }
+
+    // Delete vehicle-related records
     await VehicleTask.deleteMany({ vehicleId: id });
     await VehicleLabelAssignment.deleteMany({ vehicleId: id });
     await VehicleIssue.deleteMany({ vehicleId: id });
     await VehicleDocument.deleteMany({ vehicleId: id });
     await Vehicle.findByIdAndDelete(id);
-    return res.status(200).json({ message: "Deleted" });
+
+    return res.status(200).json({ message: "Deleted", dealsDeleted });
   }
 
   return res.status(405).json({ error: "Method not allowed" });

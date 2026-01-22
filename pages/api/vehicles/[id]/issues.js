@@ -2,6 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import VehicleIssue from "@/models/VehicleIssue";
 import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
+import Notification from "@/models/Notification";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
 import { logIssueCreated } from "@/libs/activityLogger";
@@ -29,7 +30,7 @@ async function handler(req, res, ctx) {
 
   if (req.method === "POST") {
     try {
-      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails, dealId, dealNumber } = req.body;
+      const { category, subcategory, description, photos, actionNeeded, priority, location, status, notes, partsRequired, partsDetails, dealId, dealNumber, assignedToUserIds } = req.body;
 
       if (!category || !subcategory || !description) {
         return res.status(400).json({ error: "Category, subcategory, and description are required" });
@@ -76,6 +77,8 @@ async function handler(req, res, ctx) {
         partsDetails: partsDetails || null,
         dealId: dealId || null,
         dealNumber: dealNumber || null,
+        createdByUserId: userId,
+        assignedToUserIds: assignedToUserIds || [],
       });
 
       // Log activity to VehicleActivity (legacy)
@@ -104,6 +107,28 @@ async function handler(req, res, ctx) {
         userId,
         userName: actorName,
       });
+
+      // Create notifications for assigned users
+      if (assignedToUserIds && assignedToUserIds.length > 0) {
+        const vehicleDisplay = `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}`.trim();
+        const descriptionSnippet = description.length > 50 ? description.substring(0, 50) + "..." : description;
+
+        for (const assignedUserId of assignedToUserIds) {
+          // Don't notify yourself
+          if (assignedUserId === userId) continue;
+
+          await Notification.create({
+            dealerId,
+            userId: assignedUserId,
+            type: "ISSUE_ASSIGNED",
+            title: "You've been assigned to an issue",
+            message: `${vehicleDisplay}: ${mappedCategory} - ${descriptionSnippet}`,
+            relatedVehicleId: id,
+            relatedIssueId: issue._id,
+            isRead: false,
+          });
+        }
+      }
 
       return res.status(201).json(issue.toJSON());
     } catch (error) {

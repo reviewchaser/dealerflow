@@ -1027,7 +1027,7 @@ export default function DashboardLayout({ children }) {
               <span className="font-medium text-slate-900">New Appraisal</span>
             </Link>
             <Link
-              href={getPath("/prep?addVehicle=1")}
+              href={getPath("/stock-book?addVehicle=1")}
               onClick={() => setShowMobileQuickAdd(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors"
             >
@@ -1115,7 +1115,7 @@ export default function DashboardLayout({ children }) {
                   <span className="text-sm font-medium text-slate-900">New Appraisal</span>
                 </Link>
                 <Link
-                  href={getPath("/prep?addVehicle=1")}
+                  href={getPath("/stock-book?addVehicle=1")}
                   onClick={() => setShowDesktopQuickAdd(false)}
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors"
                 >

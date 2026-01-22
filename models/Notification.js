@@ -7,12 +7,13 @@ const notificationSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // if null, show to all users in dealer
     type: {
       type: String,
-      enum: ["VEHICLE_MOT_DUE", "VEHICLE_TAX_DUE", "VEHICLE_SERVICE_DUE", "COURTESY_DUE_BACK", "COURTESY_OVERDUE", "EVENT_STARTING_SOON", "TASK_OVERDUE", "OTHER"],
+      enum: ["VEHICLE_MOT_DUE", "VEHICLE_TAX_DUE", "VEHICLE_SERVICE_DUE", "COURTESY_DUE_BACK", "COURTESY_OVERDUE", "EVENT_STARTING_SOON", "TASK_OVERDUE", "ISSUE_ASSIGNED", "OTHER"],
       required: true
     },
     title: { type: String, required: true },
     message: { type: String },
     relatedVehicleId: { type: mongoose.Schema.Types.ObjectId, ref: "Vehicle" },
+    relatedIssueId: { type: mongoose.Schema.Types.ObjectId, ref: "VehicleIssue" },
     relatedAftercareCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "AftercareCase" },
     relatedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
     relatedCourtesyAllocationId: { type: mongoose.Schema.Types.ObjectId, ref: "CourtesyAllocation" },

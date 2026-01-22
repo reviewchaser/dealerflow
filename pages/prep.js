@@ -11,7 +11,9 @@ import { Portal } from "@/components/ui/Portal";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 import VehicleImage from "@/components/VehicleImage";
+import { compressImages } from "@/libs/imageCompression";
 import ContactPicker from "@/components/ContactPicker";
+import TeamMemberPicker from "@/components/TeamMemberPicker";
 import InlineFormModal from "@/components/InlineFormModal";
 
 const COLUMNS = [
@@ -152,6 +154,7 @@ export default function SalesPrep() {
     photos: [],
     partsRequired: false,
     partsDetails: "",
+    assignedToUserIds: [],
   });
   const [issueUpdateContent, setIssueUpdateContent] = useState({});
   const [expandedIssues, setExpandedIssues] = useState({});
@@ -186,27 +189,6 @@ export default function SalesPrep() {
     }
     setShowFiltersDropdown(true);
   }, []);
-
-  // Load filters from localStorage on mount
-  useEffect(() => {
-    try {
-      const savedFilters = localStorage.getItem("salesPrepFilters");
-      if (savedFilters) {
-        setActiveFilters(JSON.parse(savedFilters));
-      }
-    } catch (e) {
-      console.warn("Failed to load saved filters:", e);
-    }
-  }, []);
-
-  // Save filters to localStorage when they change
-  useEffect(() => {
-    try {
-      localStorage.setItem("salesPrepFilters", JSON.stringify(activeFilters));
-    } catch (e) {
-      console.warn("Failed to save filters:", e);
-    }
-  }, [activeFilters]);
 
   // Location state
   const [locations, setLocations] = useState([]);
@@ -1084,9 +1066,14 @@ export default function SalesPrep() {
         subcategory: "",
         description: "",
         actionNeeded: "",
+        priority: "medium",
+        location: "",
         status: "outstanding",
         notes: "",
         photos: [],
+        partsRequired: false,
+        partsDetails: "",
+        assignedToUserIds: [],
       });
       toast.success("Issue added");
     } catch (error) {
@@ -1166,6 +1153,7 @@ export default function SalesPrep() {
       photos: issue.photos || [],
       partsRequired: issue.partsRequired || false,
       partsDetails: issue.partsDetails || "",
+      assignedToUserIds: issue.assignedToUserIds || [],
     });
     setShowAddIssueModal(true);
   };
@@ -1198,6 +1186,7 @@ export default function SalesPrep() {
         photos: [],
         partsRequired: false,
         partsDetails: "",
+        assignedToUserIds: [],
       });
     } catch (error) {
       toast.error("Failed to save issue");
@@ -1426,6 +1415,20 @@ export default function SalesPrep() {
           return cat === "electrical";
         });
 
+        // Bodywork subcategory filters
+        if (filter === "has_dents") return activeIssues.some(i =>
+          (i.subcategory || "").toLowerCase() === "dents"
+        );
+        if (filter === "has_scratches") return activeIssues.some(i =>
+          (i.subcategory || "").toLowerCase() === "scratches"
+        );
+        if (filter === "has_panel_damage") return activeIssues.some(i =>
+          (i.subcategory || "").toLowerCase() === "panel damage"
+        );
+        if (filter === "has_windscreen") return activeIssues.some(i =>
+          (i.subcategory || "").toLowerCase() === "windscreen"
+        );
+
         // Location filter
         if (filter === "offsite") return vehicle.locationId != null;
 
@@ -1580,6 +1583,19 @@ export default function SalesPrep() {
         const cat = (i.category || "").toLowerCase();
         return cat === "electrical";
       });
+      // Bodywork subcategory filters
+      if (filter === "has_dents") return activeIssues.some(i =>
+        (i.subcategory || "").toLowerCase() === "dents"
+      );
+      if (filter === "has_scratches") return activeIssues.some(i =>
+        (i.subcategory || "").toLowerCase() === "scratches"
+      );
+      if (filter === "has_panel_damage") return activeIssues.some(i =>
+        (i.subcategory || "").toLowerCase() === "panel damage"
+      );
+      if (filter === "has_windscreen") return activeIssues.some(i =>
+        (i.subcategory || "").toLowerCase() === "windscreen"
+      );
       if (filter === "offsite") return v.locationId != null;
       if (filter === "mot_due_soon") {
         if (!v.motExpiryDate) return false;
@@ -1705,7 +1721,7 @@ export default function SalesPrep() {
     }
   };
 
-  const handleVrmSelect = (vehicle) => {
+  const handleVrmSelect = async (vehicle) => {
     // Clear search and close dropdown
     setVrmSearch("");
     setShowVrmDropdown(false);
@@ -1720,8 +1736,26 @@ export default function SalesPrep() {
       }
     }
 
-    // Open the vehicle drawer with full details
-    openVehicleDrawer(vehicle);
+    // Check if this vehicle is already in the loaded vehicles list (has full data)
+    const fullVehicle = vehicles.find(v => v.id === vehicle.id);
+    if (fullVehicle) {
+      openVehicleDrawer(fullVehicle);
+    } else {
+      // Vehicle not on prep board (e.g., archived) - fetch full data
+      try {
+        const res = await fetch(`/api/vehicles/${vehicle.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          openVehicleDrawer(data);
+        } else {
+          // Fallback to limited data
+          openVehicleDrawer(vehicle);
+        }
+      } catch (error) {
+        console.error("Failed to fetch vehicle details:", error);
+        openVehicleDrawer(vehicle);
+      }
+    }
   };
 
   const getStatusLabel = (statusKey) => {
@@ -2246,6 +2280,10 @@ export default function SalesPrep() {
                               { key: "needs_paint", label: "Needs Paint" },
                               { key: "needs_mechanical", label: "Needs Mechanical" },
                               { key: "needs_electrical", label: "Needs Electrical" },
+                              { key: "has_dents", label: "Has Dents" },
+                              { key: "has_scratches", label: "Has Scratches" },
+                              { key: "has_panel_damage", label: "Has Panel Damage" },
+                              { key: "has_windscreen", label: "Has Windscreen Issue" },
                             ].map(filter => {
                               const isActive = activeFilters.includes(filter.key);
                               const count = getFilterCount(filter.key);
@@ -2505,6 +2543,10 @@ export default function SalesPrep() {
                       { key: "needs_paint", label: "Needs Paint" },
                       { key: "needs_mechanical", label: "Needs Mechanical" },
                       { key: "needs_electrical", label: "Needs Electrical" },
+                      { key: "has_dents", label: "Has Dents" },
+                      { key: "has_scratches", label: "Has Scratches" },
+                      { key: "has_panel_damage", label: "Has Panel Damage" },
+                      { key: "has_windscreen", label: "Has Windscreen Issue" },
                     ].map(filter => {
                       const isActive = activeFilters.includes(filter.key);
                       const count = getFilterCount(filter.key);
@@ -3574,7 +3616,7 @@ export default function SalesPrep() {
           >
             {/* Sticky Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 z-10">
-              {/* Top row: back, title, close/delete */}
+              {/* Top row: back, title, close */}
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Back button on mobile */}
@@ -3583,81 +3625,147 @@ export default function SalesPrep() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
                       {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
                     </h2>
                     <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {/* Create Sale button - only show if no active deal */}
-                  {(!vehicleDeal || vehicleDeal.status === "CANCELLED") && (
-                    <button
-                      onClick={handleSaleAction}
-                      disabled={creatingDeal || dealLoading}
-                      className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
-                      title="Create new sale"
-                    >
-                      {creatingDeal || dealLoading ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="text-xs">Create Sale</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                  {/* Open Sale button - only show if active deal exists (not cancelled) */}
-                  {vehicleDeal && vehicleDeal.status !== "CANCELLED" && (
-                    <button
-                      onClick={handleSaleAction}
-                      disabled={dealLoading}
-                      className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white border-none"
-                      title="Open existing sale"
-                    >
-                      {dealLoading ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="text-xs">Open Sale</span>
-                        </>
-                      )}
-                    </button>
-                  )}
+                {/* Desktop close button only */}
+                <button className="hidden md:flex btn btn-ghost btn-sm shrink-0" onClick={closeDrawer}>
+                  ✕
+                </button>
+              </div>
+              {/* Mobile action buttons row - separated to avoid overlap */}
+              <div className="flex items-center gap-2 mt-3 md:hidden">
+                {/* Create Sale button - only show if no active deal */}
+                {(!vehicleDeal || vehicleDeal.status === "CANCELLED") && (
                   <button
-                    className="btn btn-ghost btn-sm text-warning"
-                    onClick={async () => {
-                      if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book. Tasks will be preserved for restore.")) {
-                        await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                          method: "PUT",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            showOnPrepBoard: false,
-                            prepBoardRemovedAt: new Date().toISOString(),
-                          }),
-                        });
-                        closeDrawer();
-                        fetchVehicles();
-                        toast.success("Vehicle removed from Prep Board");
-                      }
-                    }}
-                    title="Remove from Prep Board"
+                    onClick={handleSaleAction}
+                    disabled={creatingDeal || dealLoading}
+                    className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none flex-1"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    {creatingDeal || dealLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs">Create Sale</span>
+                      </>
+                    )}
                   </button>
-                  <button className="hidden md:flex btn btn-ghost btn-sm" onClick={closeDrawer}>
-                    ✕
+                )}
+                {/* Open Sale button - only show if active deal exists (not cancelled) */}
+                {vehicleDeal && vehicleDeal.status !== "CANCELLED" && (
+                  <button
+                    onClick={handleSaleAction}
+                    disabled={dealLoading}
+                    className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white border-none flex-1"
+                  >
+                    {dealLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs">Open Sale</span>
+                      </>
+                    )}
                   </button>
-                </div>
+                )}
+                <button
+                  className="btn btn-sm btn-outline border-orange-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400"
+                  onClick={async () => {
+                    if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book. Tasks will be preserved for restore.")) {
+                      await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          showOnPrepBoard: false,
+                          prepBoardRemovedAt: new Date().toISOString(),
+                        }),
+                      });
+                      closeDrawer();
+                      fetchVehicles();
+                      toast.success("Vehicle removed from Prep Board");
+                    }
+                  }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  <span className="text-xs">Remove</span>
+                </button>
+              </div>
+              {/* Desktop action buttons - inline with title */}
+              <div className="hidden md:flex items-center gap-1 absolute top-3 right-12">
+                {/* Create Sale button - only show if no active deal */}
+                {(!vehicleDeal || vehicleDeal.status === "CANCELLED") && (
+                  <button
+                    onClick={handleSaleAction}
+                    disabled={creatingDeal || dealLoading}
+                    className="btn btn-sm bg-[#0066CC] hover:bg-[#0052a3] text-white border-none"
+                    title="Create new sale"
+                  >
+                    {creatingDeal || dealLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs">Create Sale</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {/* Open Sale button - only show if active deal exists (not cancelled) */}
+                {vehicleDeal && vehicleDeal.status !== "CANCELLED" && (
+                  <button
+                    onClick={handleSaleAction}
+                    disabled={dealLoading}
+                    className="btn btn-sm bg-amber-500 hover:bg-amber-600 text-white border-none"
+                    title="Open existing sale"
+                  >
+                    {dealLoading ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-xs">Open Sale</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                <button
+                  className="btn btn-ghost btn-sm text-warning"
+                  onClick={async () => {
+                    if (confirm("Remove this vehicle from the Prep Board?\n\nThe vehicle will remain in your Stock Book. Tasks will be preserved for restore.")) {
+                      await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          showOnPrepBoard: false,
+                          prepBoardRemovedAt: new Date().toISOString(),
+                        }),
+                      });
+                      closeDrawer();
+                      fetchVehicles();
+                      toast.success("Vehicle removed from Prep Board");
+                    }
+                  }}
+                  title="Remove from Prep Board"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </button>
               </div>
               {/* Action buttons row - visible on all screens */}
               <div className="flex items-center gap-2 mt-3">
@@ -3978,7 +4086,10 @@ export default function SalesPrep() {
                       </button>
 
                       {showLabelsDropdown && (
-                        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        <>
+                          {/* Click-outside overlay to close dropdown */}
+                          <div className="fixed inset-0 z-40" onClick={() => setShowLabelsDropdown(false)} />
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                           {availableLabels.map((label) => {
                             const isApplied = selectedVehicle.labels?.some(l => l.id === label.id);
                             return (
@@ -4019,6 +4130,7 @@ export default function SalesPrep() {
                             </button>
                           </div>
                         </div>
+                        </>
                       )}
                     </div>
 
@@ -6138,18 +6250,31 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
 
-  const handlePhotoChange = (e) => {
-    const files = Array.from(e.target.files);
-    setPhotoFiles(prev => [...prev, ...files]);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-    // Create previews
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreviews(prev => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+  const handlePhotoChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsCompressing(true);
+    try {
+      const compressedFiles = await compressImages(files);
+      setPhotoFiles(prev => [...prev, ...compressedFiles]);
+
+      // Create previews
+      compressedFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreviews(prev => [...prev, reader.result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (error) {
+      console.error("Compression error:", error);
+      toast.error("Failed to process images");
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const removePhoto = (index) => {
@@ -6382,6 +6507,17 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
               ></textarea>
             </div>
 
+            {/* Assign To Team Members */}
+            <div className="form-control col-span-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Assign To</label>
+              <TeamMemberPicker
+                value={issueForm.assignedToUserIds || []}
+                onChange={(userIds) => setIssueForm({ ...issueForm, assignedToUserIds: userIds })}
+                placeholder="Select team members to notify..."
+              />
+              <p className="text-xs text-slate-400 mt-1">Selected team members will receive a notification about this issue</p>
+            </div>
+
             {/* Photo Upload */}
             <div className="form-control col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Photos</label>
@@ -6408,13 +6544,43 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit, isEditing =
                   </div>
                 </div>
               )}
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoChange}
-                className="w-full px-4 py-3 bg-slate-50 border border-transparent rounded-lg text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#0066CC]/10 file:text-[#0066CC] file:font-medium hover:file:bg-[#0066CC]/20 focus:ring-2 focus:ring-[#0066CC] focus:shadow-sm transition-all duration-200 outline-none"
-              />
+              {isCompressing && (
+                <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                  <span className="loading loading-spinner loading-sm"></span>
+                  <span>Compressing images...</span>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {/* Take Photo - opens camera on mobile */}
+                <label className="flex items-center gap-2 px-4 py-2.5 bg-[#0066CC] hover:bg-[#0055BB] text-white font-medium rounded-lg cursor-pointer transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>Take Photo</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+                {/* Upload Photos - opens gallery with multi-select */}
+                <label className="flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg cursor-pointer transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Upload Photos</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
               {photoPreviews.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
                   {photoPreviews.map((preview, idx) => (

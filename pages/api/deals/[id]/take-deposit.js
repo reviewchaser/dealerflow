@@ -331,6 +331,8 @@ async function handler(req, res, ctx) {
       dealerSignerName: deal.signature.dealerSignerName,
     } : null,
     // Deal notes (e.g., finance advance info)
+    // DEBUG: Log notes to verify they're being captured
+    ...(console.log("[take-deposit] Deal notes:", deal.notes), {}),
     notes: deal.notes || null,
   };
 

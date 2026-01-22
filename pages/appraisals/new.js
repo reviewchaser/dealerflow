@@ -5,6 +5,7 @@ import Link from "next/link";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "react-hot-toast";
 import { showDummyNotification } from "@/utils/notifications";
+import { compressImages } from "@/libs/imageCompression";
 
 // Issue subcategories - same as stock board
 const ISSUE_SUBCATEGORIES = {
@@ -286,7 +287,7 @@ export default function NewAppraisal() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-24 md:pb-6">
         {/* Main Form - Left Side */}
         <div className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -835,19 +836,31 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoPreviews, setPhotoPreviews] = useState([]);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const handlePhotoChange = (e) => {
+  const handlePhotoChange = async (e) => {
     const files = Array.from(e.target.files);
-    setPhotoFiles((prev) => [...prev, ...files]);
+    if (files.length === 0) return;
 
-    // Create previews
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreviews((prev) => [...prev, reader.result]);
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsCompressing(true);
+    try {
+      const compressedFiles = await compressImages(files);
+      setPhotoFiles((prev) => [...prev, ...compressedFiles]);
+
+      // Create previews
+      compressedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPhotoPreviews((prev) => [...prev, reader.result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (error) {
+      console.error("Compression error:", error);
+      toast.error("Failed to process images");
+    } finally {
+      setIsCompressing(false);
+    }
   };
 
   const removePhoto = (index) => {
@@ -892,7 +905,7 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
 
   return (
     <div className="modal modal-open">
-      <div className="modal-box max-w-2xl">
+      <div className="modal-box max-w-2xl max-h-[90dvh] overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
         <h3 className="font-bold text-lg mb-4">Add Issue</h3>
         <form onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1040,13 +1053,43 @@ function AddIssueModal({ issueForm, setIssueForm, onClose, onSubmit }) {
               <label className="label">
                 <span className="label-text">Photos</span>
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoChange}
-                className="file-input file-input-bordered w-full"
-              />
+              {isCompressing && (
+                <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                  <span className="loading loading-spinner loading-sm"></span>
+                  <span>Compressing images...</span>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {/* Take Photo - opens camera on mobile */}
+                <label className="btn btn-primary gap-2 cursor-pointer">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Take Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+                {/* Upload Photos - opens gallery with multi-select */}
+                <label className="btn btn-ghost gap-2 cursor-pointer">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Upload Photos
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handlePhotoChange}
+                    className="hidden"
+                  />
+                </label>
+              </div>
               {photoPreviews.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
                   {photoPreviews.map((preview, idx) => (

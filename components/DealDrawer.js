@@ -2613,7 +2613,8 @@ export default function DealDrawer({
                         <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
-                        <span>Receipt</span>
+                        <span className="hidden md:inline">Deposit Receipt</span>
+                        <span className="md:hidden">Receipt</span>
                       </a>
                       <button
                         onClick={handleRegenerateReceipt}
@@ -2647,31 +2648,6 @@ export default function DealDrawer({
                       </svg>
                       <span>Invoice</span>
                     </a>
-                  )}
-                  {documents.invoice && (
-                    <button
-                      onClick={handleDownloadHandoverPack}
-                      disabled={isGeneratingHandover || !deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt}
-                      className={`flex items-center gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-xs font-medium transition-colors md:min-w-[70px] justify-center ${
-                        !deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt
-                          ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                          : "bg-emerald-100 hover:bg-emerald-200 text-emerald-700"
-                      }`}
-                      title={!deal.signature?.dealerSignedAt || !deal.signature?.customerSignedAt
-                        ? "Invoice must be signed by both parties"
-                        : "Download Handover Pack"
-                      }
-                    >
-                      {isGeneratingHandover ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      )}
-                      <span className="md:hidden">{isGeneratingHandover ? "..." : "Pack"}</span>
-                      <span className="hidden md:inline">{isGeneratingHandover ? "Generating..." : "Handover Pack"}</span>
-                    </button>
                   )}
                   <button
                     className="flex items-center justify-center w-9 h-9 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
@@ -3081,8 +3057,8 @@ export default function DealDrawer({
                     </div>
                   )}
 
-                  {/* Finance Selection Section - For DRAFT */}
-                  {deal.status === "DRAFT" && (
+                  {/* Finance Selection Section - For DRAFT and DEPOSIT_TAKEN */}
+                  {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
                     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                       <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-white border-b border-slate-100">
                         <div className="flex items-center gap-2">
@@ -4037,15 +4013,26 @@ export default function DealDrawer({
                             <span className="text-sm text-slate-700">PDI</span>
                           </div>
                           {linkedSubmissions?.pdi ? (
-                            <a
-                              href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.pdi.id}`}
-                              className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
-                            >
-                              Complete
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.pdi.id}`}
+                                className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                              >
+                                View / Edit
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </a>
+                              <button
+                                onClick={() => window.open(`/forms?tab=submissions&viewSubmission=${linkedSubmissions.pdi.id}&print=true`, '_blank')}
+                                className="text-xs text-slate-500 hover:text-slate-700"
+                                title="Print PDI"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                              </button>
+                            </div>
                           ) : (
                             <span className="text-xs text-amber-600 font-medium">Not completed</span>
                           )}
@@ -4060,15 +4047,26 @@ export default function DealDrawer({
                             <span className="text-sm text-slate-700">Service Receipt</span>
                           </div>
                           {linkedSubmissions?.serviceReceipt ? (
-                            <a
-                              href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.serviceReceipt.id}`}
-                              className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
-                            >
-                              Complete
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                              </svg>
-                            </a>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.serviceReceipt.id}`}
+                                className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
+                              >
+                                View / Edit
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </a>
+                              <button
+                                onClick={() => window.open(`/forms?tab=submissions&viewSubmission=${linkedSubmissions.serviceReceipt.id}&print=true`, '_blank')}
+                                className="text-xs text-slate-500 hover:text-slate-700"
+                                title="Print Service Receipt"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                              </button>
+                            </div>
                           ) : (
                             <button
                               type="button"

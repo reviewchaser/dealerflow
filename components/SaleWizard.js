@@ -90,7 +90,7 @@ const initialWizardData = {
   addOns: [],
 
   // Step 5: Deposit
-  wantsDeposit: false, // "Would customer like to leave a deposit?"
+  wantsDeposit: false, // "Would the customer like to leave a deposit now?"
   depositAmount: "",
   depositMethod: "CARD",
   notes: "", // Deal notes (e.g., finance advance info)
@@ -2432,9 +2432,9 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
                       className="checkbox checkbox-primary mt-1"
                     />
                     <div>
-                      <span className="text-lg font-medium">Would customer like to leave a deposit?</span>
+                      <span className="text-lg font-medium">Would the customer like to leave a deposit now?</span>
                       <p className="text-sm text-slate-500 mt-1">
-                        A deposit secures the vehicle for the customer. You can take additional deposits or proceed directly to invoice later.
+                        Deposits can be taken later if needed. A deposit secures the vehicle for the customer.
                       </p>
                     </div>
                   </label>

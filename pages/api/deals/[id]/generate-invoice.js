@@ -497,6 +497,8 @@ async function handler(req, res, ctx) {
     // Service receipt status
     serviceReceipt: serviceReceiptInfo,
     // Deal notes (e.g., finance advance info)
+    // DEBUG: Log notes to verify they're being captured
+    ...(console.log("[generate-invoice] Deal notes:", deal.notes), {}),
     notes: deal.notes || null,
   };
 

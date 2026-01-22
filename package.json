@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "^3.958.0",
     "@sparticuz/chromium": "^143.0.4",
     "bcryptjs": "^3.0.3",
+    "browser-image-compression": "^2.0.2",
     "crisp-sdk-web": "^1.0.26",
     "dotenv": "^17.2.3",
     "form-data": "^4.0.5",

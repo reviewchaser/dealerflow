@@ -103,6 +103,7 @@ export default function Forms() {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [pendingPrint, setPendingPrint] = useState(false);
 
   // Filters for templates
   const [templateTypeFilter, setTemplateTypeFilter] = useState(router.query.type || "");
@@ -146,6 +147,7 @@ export default function Forms() {
   useEffect(() => {
     if (router.query.tab) setActiveTab(router.query.tab);
     if (router.query.type) setTemplateTypeFilter(router.query.type);
+    if (router.query.print === "true") setPendingPrint(true);
   }, [router.query]);
 
   useEffect(() => {
@@ -166,6 +168,18 @@ export default function Forms() {
       setSubmissionDetail(null);
     }
   }, [selectedSubmission]);
+
+  // Auto-print when submission detail is loaded and print param is set
+  useEffect(() => {
+    if (pendingPrint && submissionDetail && !isLoadingDetail) {
+      // Small delay to ensure content is rendered
+      const timer = setTimeout(() => {
+        handlePrint();
+        setPendingPrint(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingPrint, submissionDetail, isLoadingDetail]);
 
   const loadForms = async () => {
     try {
@@ -196,11 +210,20 @@ export default function Forms() {
       const data = await res.json();
       if (Array.isArray(data)) {
         setSubmissions(data);
-        // Auto-select the most recent submission on desktop only (not on mobile)
-        // On mobile, we want to show the list first
-        const isDesktop = window.innerWidth >= 768;
-        if (data.length > 0 && !selectedSubmission && isDesktop) {
-          setSelectedSubmission(data[0]);
+        // Check if we should auto-select a specific submission from URL
+        const viewSubmissionId = router.query.viewSubmission;
+        if (viewSubmissionId) {
+          const targetSubmission = data.find(s => (s.id || s._id) === viewSubmissionId);
+          if (targetSubmission) {
+            setSelectedSubmission(targetSubmission);
+          }
+        } else {
+          // Auto-select the most recent submission on desktop only (not on mobile)
+          // On mobile, we want to show the list first
+          const isDesktop = window.innerWidth >= 768;
+          if (data.length > 0 && !selectedSubmission && isDesktop) {
+            setSelectedSubmission(data[0]);
+          }
         }
       } else {
         console.error("API returned non-array:", data);

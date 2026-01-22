@@ -122,6 +122,7 @@ export function MobileStageSelector({
   activeStage,
   onStageChange,
   className = "",
+  label = "Stage",
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const activeStageData = stages.find((s) => s.value === activeStage) || stages[0];
@@ -130,9 +131,13 @@ export function MobileStageSelector({
     <div className={`relative ${className}`}>
       {/* Mobile: Dropdown */}
       <div className="md:hidden">
+        {/* Label above selector for clarity on Android */}
+        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 px-1">
+          {label}
+        </label>
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm"
+          className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-white border border-slate-300 rounded-xl shadow-sm active:bg-slate-50"
         >
           <div className="flex items-center gap-2 min-w-0">
             {activeStageData.icon && <span>{activeStageData.icon}</span>}
@@ -145,14 +150,17 @@ export function MobileStageSelector({
               </span>
             )}
           </div>
-          <svg
-            className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-xs text-slate-400">Tap to change</span>
+            <svg
+              className={`w-5 h-5 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </button>
 
         {/* Dropdown menu */}

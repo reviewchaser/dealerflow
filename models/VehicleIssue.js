@@ -52,6 +52,8 @@ const vehicleIssueSchema = new mongoose.Schema(
     completedAt: { type: Date },
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // Assigned users - for notifications and accountability
+    assignedToUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     // Source tracking for PDI automation (idempotency - prevents duplicate issues on re-save)
     sourceSubmissionId: { type: mongoose.Schema.Types.ObjectId, ref: "FormSubmission" },
     // Field key for checklist-driven issues (e.g. "pdi:road_test:gear_change") - enables per-field deduplication

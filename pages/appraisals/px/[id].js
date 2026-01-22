@@ -602,7 +602,7 @@ export default function CustomerPXAppraisalDetail() {
       {/* Add Issue Modal */}
       {showIssueModal && (
         <div className="modal modal-open">
-          <div className="modal-box max-w-lg">
+          <div className="modal-box max-w-lg max-h-[90dvh] overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
             <h3 className="font-bold text-lg mb-4">Add Issue</h3>
 
             <div className="space-y-4">

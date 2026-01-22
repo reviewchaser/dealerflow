@@ -395,7 +395,7 @@ export default function CustomerPXForm() {
                 name="vehicleReg"
                 value={formData.vehicleReg}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white text-slate-900 border border-slate-200 rounded-lg text-xl font-mono uppercase text-center focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full h-12 px-4 uppercase text-xl font-bold tracking-wider text-center rounded border-2 border-black bg-[#F7D117] text-black placeholder:text-black/40"
                 placeholder="AB12 CDE"
                 required
               />

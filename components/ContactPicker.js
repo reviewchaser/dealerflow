@@ -569,6 +569,22 @@ export default function ContactPicker({
             </form>
           ) : (
             <>
+              {/* Create new option */}
+              {allowCreate && (
+                <div className="border-b border-slate-100 p-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0066CC] hover:bg-[#0066CC]/5 rounded-lg transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Create new contact
+                  </button>
+                </div>
+              )}
+
               {/* Search results */}
               <div className="max-h-60 overflow-y-auto">
                 {isLoading ? (
@@ -637,22 +653,6 @@ export default function ContactPicker({
                   </div>
                 )}
               </div>
-
-              {/* Create new option */}
-              {allowCreate && (
-                <div className="border-t border-slate-100 p-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateForm(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-[#0066CC] hover:bg-[#0066CC]/5 rounded-lg transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Create new contact
-                  </button>
-                </div>
-              )}
             </>
           )}
         </div>,
