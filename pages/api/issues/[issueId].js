@@ -204,14 +204,15 @@ async function handler(req, res, ctx) {
             : issue.description;
 
           for (const assignedUserId of newAssignees) {
-            // Don't notify yourself
-            if (assignedUserId.toString() === userId) continue;
+            const isSelfAssignment = assignedUserId.toString() === userId;
 
             await Notification.create({
               dealerId,
               userId: assignedUserId,
               type: "ISSUE_ASSIGNED",
-              title: "You've been assigned to an issue",
+              title: isSelfAssignment
+                ? "You assigned yourself to an issue"
+                : "You've been assigned to an issue",
               message: `${vehicleDisplay}: ${issue.category} - ${descriptionSnippet}`,
               relatedVehicleId: issue.vehicleId,
               relatedIssueId: issue._id,

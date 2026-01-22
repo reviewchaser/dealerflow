@@ -214,6 +214,11 @@ export default function StockBook() {
   const [showPrepRestoreModal, setShowPrepRestoreModal] = useState(false);
   const [prepRestoreVehicle, setPrepRestoreVehicle] = useState(null);
 
+  // Add to Prep Board modal state (for fresh additions)
+  const [showAddToPrepModal, setShowAddToPrepModal] = useState(false);
+  const [addToPrepVehicle, setAddToPrepVehicle] = useState(null);
+  const [addDefaultChecklist, setAddDefaultChecklist] = useState(true);
+
   // Load vehicles
   const fetchVehicles = useCallback(async () => {
     setIsLoading(true);
@@ -738,11 +743,9 @@ export default function StockBook() {
 
   // Add vehicle to Prep Board
   const handleAddToPrepBoard = async (vehicle) => {
-    const vehicleId = vehicle.id || vehicle._id;
-
     // Allow re-adding delivered vehicles (for resale scenarios)
-    // Check !== false to match prep board filter logic (includes undefined/null)
-    if (vehicle.showOnPrepBoard !== false && vehicle.status !== "delivered") {
+    // Only block if already on prep board (showOnPrepBoard === true)
+    if (vehicle.showOnPrepBoard === true && vehicle.status !== "delivered") {
       toast.error("Vehicle is already on the Prep Board");
       return;
     }
@@ -755,12 +758,14 @@ export default function StockBook() {
       return;
     }
 
-    // Normal flow - add to prep board
-    await addVehicleToPrepBoard(vehicleId, false);
+    // Normal flow - show modal asking about default checklist
+    setAddToPrepVehicle(vehicle);
+    setAddDefaultChecklist(true); // Reset to default (checked)
+    setShowAddToPrepModal(true);
   };
 
   // Helper function to add vehicle to prep board
-  const addVehicleToPrepBoard = async (vehicleId, restorePrevious) => {
+  const addVehicleToPrepBoard = async (vehicleId, restorePrevious, withDefaultChecklist = true) => {
     try {
       const res = await fetch(`/api/vehicles/${vehicleId}`, {
         method: "PUT",
@@ -768,6 +773,7 @@ export default function StockBook() {
         body: JSON.stringify({
           showOnPrepBoard: true,
           prepBoardRemovedAt: null, // Clear the removed timestamp
+          addDefaultChecklist: !restorePrevious && withDefaultChecklist, // Only add defaults for fresh adds
         }),
       });
 
@@ -776,16 +782,18 @@ export default function StockBook() {
         throw new Error(errorData.error || "Failed to add to Prep Board");
       }
 
-      // If not restoring, delete old tasks and create fresh ones
+      // If not restoring, delete old tasks first (API will create defaults if requested)
       if (!restorePrevious) {
         // Delete existing tasks
         await fetch(`/api/vehicles/${vehicleId}/tasks`, { method: "DELETE" });
-        // Create default tasks
-        await fetch(`/api/vehicles/${vehicleId}/tasks`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ createDefaults: true }),
-        });
+        // If user wants default checklist, create them
+        if (withDefaultChecklist) {
+          await fetch(`/api/vehicles/${vehicleId}/tasks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ createDefaults: true }),
+          });
+        }
       }
 
       fetchVehicles();
@@ -3352,16 +3360,26 @@ export default function StockBook() {
               >
                 Restore Previous Card
               </button>
+              <div className="divider my-1">OR</div>
+              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-primary checkbox-sm"
+                  checked={addDefaultChecklist}
+                  onChange={(e) => setAddDefaultChecklist(e.target.checked)}
+                />
+                <span className="text-sm">Add default checklist when starting fresh</span>
+              </label>
               <button
                 className="btn btn-outline"
                 onClick={async () => {
                   const vehicleId = prepRestoreVehicle.id || prepRestoreVehicle._id;
                   setShowPrepRestoreModal(false);
                   setPrepRestoreVehicle(null);
-                  await addVehicleToPrepBoard(vehicleId, false); // Create fresh
+                  await addVehicleToPrepBoard(vehicleId, false, addDefaultChecklist); // Create fresh
                 }}
               >
-                Start Fresh (Delete Old Tasks)
+                Start Fresh
               </button>
               <button
                 className="btn btn-ghost btn-sm mt-2"
@@ -3377,6 +3395,53 @@ export default function StockBook() {
           <div className="modal-backdrop bg-black/50" onClick={() => {
             setShowPrepRestoreModal(false);
             setPrepRestoreVehicle(null);
+          }}></div>
+        </div>
+      )}
+
+      {/* Add to Prep Board Modal - asks about default checklist */}
+      {showAddToPrepModal && addToPrepVehicle && (
+        <div className="modal modal-open">
+          <div className="modal-box">
+            <h3 className="font-bold text-lg mb-2">Add to Prep Board</h3>
+            <p className="text-slate-600 mb-4">
+              Add <span className="font-medium">{addToPrepVehicle.regCurrent || "this vehicle"}</span> to the Prep Board?
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer mb-4">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-primary"
+                checked={addDefaultChecklist}
+                onChange={(e) => setAddDefaultChecklist(e.target.checked)}
+              />
+              <span>Add default checklist (PDI, Valet, Oil Service Check, Photos, Advert)</span>
+            </label>
+            <div className="flex gap-2 justify-end">
+              <button
+                className="btn btn-ghost"
+                onClick={() => {
+                  setShowAddToPrepModal(false);
+                  setAddToPrepVehicle(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  const vehicleId = addToPrepVehicle.id || addToPrepVehicle._id;
+                  setShowAddToPrepModal(false);
+                  setAddToPrepVehicle(null);
+                  await addVehicleToPrepBoard(vehicleId, false, addDefaultChecklist);
+                }}
+              >
+                Add to Prep Board
+              </button>
+            </div>
+          </div>
+          <div className="modal-backdrop bg-black/50" onClick={() => {
+            setShowAddToPrepModal(false);
+            setAddToPrepVehicle(null);
           }}></div>
         </div>
       )}

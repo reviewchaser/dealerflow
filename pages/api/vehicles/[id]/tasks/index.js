@@ -27,7 +27,26 @@ async function handler(req, res, ctx) {
     }
 
     if (req.method === "POST") {
-      const { name, notes } = req.body;
+      const { name, notes, createDefaults } = req.body;
+
+      // If createDefaults is true, create default task set
+      if (createDefaults) {
+        const DEFAULT_TASKS = ["PDI", "Valet", "Oil Service Check", "Photos", "Advert"];
+        const createdTasks = [];
+        for (let i = 0; i < DEFAULT_TASKS.length; i++) {
+          const task = await VehicleTask.create({
+            vehicleId: id,
+            name: DEFAULT_TASKS[i],
+            status: "pending",
+            source: "system_default",
+            order: i,
+          });
+          createdTasks.push(task);
+        }
+        return res.status(201).json(createdTasks);
+      }
+
+      // Otherwise, create a single task
       if (!name) return res.status(400).json({ error: "Task name required" });
 
       // Get max order value for this vehicle's tasks
@@ -57,6 +76,12 @@ async function handler(req, res, ctx) {
       });
 
       return res.status(201).json(task.toJSON());
+    }
+
+    if (req.method === "DELETE") {
+      // Delete all tasks for this vehicle
+      const result = await VehicleTask.deleteMany({ vehicleId: id });
+      return res.status(200).json({ deleted: result.deletedCount });
     }
 
     return res.status(405).json({ error: "Method not allowed" });

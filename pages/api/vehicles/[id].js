@@ -53,14 +53,13 @@ async function handler(req, res, ctx) {
     const existingVehicle = await Vehicle.findOne({ _id: id, dealerId }).lean();
     if (!existingVehicle) return res.status(404).json({ error: "Not found" });
 
-    // Build update object
-    const updateData = { ...req.body };
+    // Build update object (excluding non-vehicle fields)
+    const { addDefaultChecklist, ...updateData } = req.body;
 
     // Check if trying to add to prep board when already there
     // Allow re-adding delivered vehicles (for resale scenarios)
-    // Check !== false to match prep board filter logic (includes undefined/null)
-    const isAddingToPrepBoard = updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard === false;
-    if (updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard !== false && existingVehicle.status !== "delivered") {
+    const isAddingToPrepBoard = updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard !== true;
+    if (updateData.showOnPrepBoard === true && existingVehicle.showOnPrepBoard === true && existingVehicle.status !== "delivered") {
       return res.status(400).json({ error: "Vehicle is already on the Prep Board" });
     }
 
@@ -201,8 +200,10 @@ async function handler(req, res, ctx) {
       });
     }
 
-    // Create default prep tasks when adding to prep board
-    if (isAddingToPrepBoard) {
+    // Create default prep tasks when adding to prep board (if requested)
+    // Default to true for backwards compatibility if not specified
+    const shouldAddDefaults = addDefaultChecklist !== false;
+    if (isAddingToPrepBoard && shouldAddDefaults) {
       // Check if vehicle already has tasks (shouldn't create duplicates)
       const existingTasks = await VehicleTask.countDocuments({ vehicleId: id });
       if (existingTasks === 0) {
