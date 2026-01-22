@@ -868,7 +868,7 @@ export default function StockBook() {
       await fetch(`/api/vehicles/${vehicleId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ v5Url: uploadData.url }),
+        body: JSON.stringify({ v5Url: uploadData.key || uploadData.url }),
       });
 
       const updated = await fetch(`/api/vehicles/${vehicleId}`).then(r => r.json());
@@ -879,6 +879,33 @@ export default function StockBook() {
       console.error("V5 upload error:", error);
       toast.error("Failed to upload V5");
     }
+  };
+
+  // View V5 document - fetches fresh signed URL if stored as S3 key
+  const viewV5 = async () => {
+    const url = selectedVehicle?.v5Url;
+    if (!url) return;
+
+    // If it's an S3 key, get a fresh signed URL
+    if (url.startsWith("uploads/")) {
+      try {
+        const res = await fetch("/api/photos/signed-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: url }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          window.open(data.url, "_blank");
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to get signed URL:", err);
+      }
+    }
+
+    // Fallback: open the URL directly (for local dev or old URLs)
+    window.open(url, "_blank");
   };
 
   // Upload Service History document
@@ -1227,7 +1254,7 @@ export default function StockBook() {
             await fetch(`/api/vehicles/${vehicleId}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ v5Url: uploadData.url }),
+              body: JSON.stringify({ v5Url: uploadData.key || uploadData.url }),
             });
           }
         } catch (e) {
@@ -2492,10 +2519,8 @@ export default function StockBook() {
                       </label>
                       {selectedVehicle?.v5Url ? (
                         <div className="flex gap-2">
-                          <a
-                            href={selectedVehicle.v5Url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={viewV5}
                             className="btn btn-sm btn-outline flex-1"
                           >
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2503,7 +2528,7 @@ export default function StockBook() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                             </svg>
                             View V5
-                          </a>
+                          </button>
                           <label className="btn btn-sm btn-ghost">
                             Replace
                             <input

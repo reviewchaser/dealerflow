@@ -387,7 +387,7 @@ export default function SalesPrep() {
       const vehicle = vehicles.find(v => v.id === router.query.vehicleId);
       if (vehicle) {
         setSelectedVehicle(vehicle);
-        router.replace("/prep", undefined, { shallow: true });
+        router.replace(router.pathname, undefined, { shallow: true });
       }
     }
   }, [router.isReady, router.query.vehicleId, vehicles]);
