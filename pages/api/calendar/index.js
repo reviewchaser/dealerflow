@@ -3,6 +3,7 @@ import CalendarEvent from "@/models/CalendarEvent";
 import CalendarCategory from "@/models/CalendarCategory";
 import Contact from "@/models/Contact"; // Required for populate
 import Vehicle from "@/models/Vehicle"; // Required for populate
+import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {
@@ -77,6 +78,18 @@ async function handler(req, res, ctx) {
     if (linkedAftercareCaseId) eventData.linkedAftercareCaseId = linkedAftercareCaseId;
 
     const event = await CalendarEvent.create(eventData);
+
+    // Create notification for new calendar event
+    const eventDate = new Date(startDatetime).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    await Notification.create({
+      dealerId,
+      userId: null, // broadcasts to all users in dealer
+      type: "CALENDAR_EVENT_CREATED",
+      title: "New Calendar Event",
+      message: `${title} - ${eventDate}`,
+      relatedCalendarEventId: event._id,
+      isRead: false,
+    });
 
     const populated = await CalendarEvent.findById(event._id)
       .populate("categoryId").lean();

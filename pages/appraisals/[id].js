@@ -346,6 +346,7 @@ export default function AppraisalDetail() {
       <div class="field"><div class="field-label">Mileage</div><div class="field-value">${appraisal.mileage ? appraisal.mileage.toLocaleString() : "—"}</div></div>
       <div class="field"><div class="field-label">Colour</div><div class="field-value">${appraisal.colour || "—"}</div></div>
       <div class="field"><div class="field-label">Fuel Type</div><div class="field-value">${appraisal.fuelType || "—"}</div></div>
+      <div class="field"><div class="field-label">Transmission</div><div class="field-value">${appraisal.transmission || "—"}</div></div>
       <div class="field"><div class="field-label">Proposed Price</div><div class="field-value" style="font-weight: bold; font-size: 18px;">${appraisal.proposedPurchasePrice ? "£" + appraisal.proposedPurchasePrice.toLocaleString() : "—"}</div></div>
     </div>
   </div>
@@ -470,6 +471,9 @@ export default function AppraisalDetail() {
                 <KeyValue label="Model" value={appraisal.vehicleModel} />
                 <KeyValue label="Year" value={appraisal.vehicleYear} />
                 <KeyValue label="Mileage" value={appraisal.mileage?.toLocaleString()} />
+                <KeyValue label="Colour" value={appraisal.colour} />
+                <KeyValue label="Fuel Type" value={appraisal.fuelType} />
+                <KeyValue label="Transmission" value={appraisal.transmission} />
               </KeyValueGrid>
               <div className="mt-4 pt-4 border-t border-slate-100">
                 <KeyValue label="Proposed Price" value={appraisal.proposedPurchasePrice ? `£${appraisal.proposedPurchasePrice.toLocaleString()}` : null} size="lg" />
@@ -708,7 +712,7 @@ export default function AppraisalDetail() {
             <h3 className="font-bold text-lg mb-4">Add Issue</h3>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control">
                   <label className="label"><span className="label-text">Category</span></label>
                   <select

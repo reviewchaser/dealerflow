@@ -322,6 +322,7 @@ export default function CustomerPXAppraisalDetail() {
                 <KeyValue label="Mileage" value={appraisal.mileage ? `${appraisal.mileage.toLocaleString()} mi` : null} />
                 <KeyValue label="Colour" value={appraisal.colour} />
                 <KeyValue label="Fuel Type" value={appraisal.fuelType} />
+                <KeyValue label="Transmission" value={appraisal.transmission} />
                 {appraisal.conditionRating && (
                   <KeyValue label="Condition" value={<Badge variant={
                     appraisal.conditionRating === 'excellent' ? 'success' :
@@ -606,7 +607,7 @@ export default function CustomerPXAppraisalDetail() {
             <h3 className="font-bold text-lg mb-4">Add Issue</h3>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control">
                   <label className="label"><span className="label-text">Category</span></label>
                   <select

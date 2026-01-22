@@ -4,6 +4,7 @@ import AftercareCaseComment from "@/models/AftercareCaseComment";
 import Contact from "@/models/Contact";
 import Vehicle from "@/models/Vehicle"; // Required for populate
 import VehicleSale from "@/models/VehicleSale"; // Required for populate
+import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {
@@ -124,6 +125,18 @@ async function handler(req, res, ctx) {
         content: summary || "Case created",
       });
     }
+
+    // Create notification for new aftersales case (broadcasts to all dealer users)
+    const vehicleInfo = vehicleReg || regAtPurchase || "";
+    await Notification.create({
+      dealerId,
+      userId: null, // broadcasts to all users in dealer
+      type: "NEW_AFTERCARE_CASE",
+      title: "New Aftersales Case",
+      message: `${customerName}${vehicleInfo ? ` - ${vehicleInfo}` : ""}`,
+      relatedAftercareCaseId: aftercareCase._id,
+      isRead: false,
+    });
 
     const populated = await AftercareCase.findById(aftercareCase._id)
       .populate("contactId").lean();

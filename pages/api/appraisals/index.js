@@ -2,6 +2,7 @@ import connectMongo from "@/libs/mongoose";
 import Appraisal from "@/models/Appraisal";
 import Contact from "@/models/Contact";
 import Vehicle from "@/models/Vehicle";
+import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
 
 async function handler(req, res, ctx) {
@@ -25,7 +26,7 @@ async function handler(req, res, ctx) {
   if (req.method === "POST") {
     const {
       vehicleReg, vehicleMake, vehicleModel, vehicleYear,
-      mileage, colour, fuelType, conditionNotes, proposedPurchasePrice, aiHintText,
+      mileage, colour, fuelType, transmission, conditionNotes, proposedPurchasePrice, aiHintText,
       damagePhotos, faultCodePhotos, v5Url, serviceHistoryUrl, otherDocuments, prepTemplateId
     } = req.body;
 
@@ -48,6 +49,7 @@ async function handler(req, res, ctx) {
     if (mileage) appraisalData.mileage = Number(mileage);
     if (colour) appraisalData.colour = colour;
     if (fuelType) appraisalData.fuelType = fuelType;
+    if (transmission) appraisalData.transmission = transmission;
     if (conditionNotes) appraisalData.conditionNotes = conditionNotes;
     if (proposedPurchasePrice) appraisalData.proposedPurchasePrice = Number(proposedPurchasePrice);
     if (aiHintText) appraisalData.aiHintText = aiHintText;
@@ -57,6 +59,18 @@ async function handler(req, res, ctx) {
     if (prepTemplateId && prepTemplateId !== "default") appraisalData.prepTemplateId = prepTemplateId;
 
     const appraisal = await Appraisal.create(appraisalData);
+
+    // Create notification for new appraisal (broadcasts to all dealer users)
+    const vehicleDisplay = [vehicleMake, vehicleModel].filter(Boolean).join(" ") || "Unknown Vehicle";
+    await Notification.create({
+      dealerId,
+      userId: null, // broadcasts to all users in dealer
+      type: "NEW_APPRAISAL",
+      title: "New Appraisal Created",
+      message: `${vehicleReg} - ${vehicleDisplay}`,
+      relatedAppraisalId: appraisal._id,
+      isRead: false,
+    });
 
     const populated = await Appraisal.findById(appraisal._id).populate("contactId").lean();
     // Transform _id to id for frontend

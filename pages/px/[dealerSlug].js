@@ -43,6 +43,7 @@ export default function CustomerPXForm() {
     mileage: "",
     colour: "",
     fuelType: "",
+    transmission: "",
     dateOfRegistration: "",
     conditionRating: "",
     conditionNotes: "",
@@ -515,6 +516,20 @@ export default function CustomerPXForm() {
                   <option value="Diesel">Diesel</option>
                   <option value="Hybrid">Hybrid</option>
                   <option value="Electric">Electric</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Transmission</label>
+                <select
+                  name="transmission"
+                  value={formData.transmission}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2.5 bg-white text-slate-900 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select...</option>
+                  <option value="Manual">Manual</option>
+                  <option value="Automatic">Automatic</option>
+                  <option value="Semi-Automatic">Semi-Automatic</option>
                 </select>
               </div>
             </div>

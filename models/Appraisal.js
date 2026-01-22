@@ -13,6 +13,7 @@ const appraisalSchema = new mongoose.Schema(
     mileage: { type: Number },
     colour: { type: String },
     fuelType: { type: String },
+    transmission: { type: String },
     motExpiryDate: { type: Date }, // MOT expiry - transferred to vehicle on conversion
     conditionNotes: { type: String },
     proposedPurchasePrice: { type: Number },

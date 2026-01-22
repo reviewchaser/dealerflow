@@ -61,6 +61,7 @@ export default function NewAppraisal() {
     mileage: "",
     colour: "",
     fuelType: "",
+    transmission: "",
     dateOfRegistration: "",
     conditionNotes: "",
     proposedPurchasePrice: "",
@@ -421,6 +422,22 @@ export default function NewAppraisal() {
                       <option value="Diesel">Diesel</option>
                       <option value="Hybrid">Hybrid</option>
                       <option value="Electric">Electric</option>
+                    </select>
+                  </div>
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Transmission</span>
+                    </label>
+                    <select
+                      name="transmission"
+                      value={formData.transmission}
+                      onChange={handleChange}
+                      className="select select-bordered"
+                    >
+                      <option value="">Select...</option>
+                      <option value="Manual">Manual</option>
+                      <option value="Automatic">Automatic</option>
+                      <option value="Semi-Automatic">Semi-Automatic</option>
                     </select>
                   </div>
                   <div className="form-control">

@@ -73,59 +73,45 @@ export function PageHint({ id, children }) {
     localStorage.setItem(storageKey, "true");
   };
 
-  const handleToggle = () => {
-    if (dismissed) {
-      setDismissed(false);
-      localStorage.removeItem(storageKey);
-    }
-    setIsOpen(!isOpen);
+  const handleClose = () => {
+    setIsOpen(false);
   };
 
-  // Don't render until we've loaded the localStorage state
-  if (!loaded) return null;
+  // Don't render anything if dismissed or not yet loaded
+  if (!loaded || dismissed) return null;
+
+  // Don't render anything if dropdown is closed
+  if (!isOpen) return null;
 
   return (
     <div className="relative inline-flex" ref={containerRef}>
-      {/* Info button - always visible */}
+      {/* Close button */}
       <button
-        onClick={handleToggle}
-        className={`inline-flex items-center justify-center w-5 h-5 rounded-full transition-colors ${
-          isOpen
-            ? "bg-blue-100 text-blue-600"
-            : "bg-slate-100 text-slate-400 hover:bg-blue-100 hover:text-blue-600"
-        }`}
-        title={isOpen ? "Close help" : "Show page help"}
-        aria-label={isOpen ? "Close help" : "Show page help"}
-        aria-expanded={isOpen}
+        onClick={handleClose}
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full transition-colors bg-blue-100 text-blue-600"
+        title="Close help"
+        aria-label="Close help"
       >
-        {isOpen ? (
-          <XIcon className="w-3 h-3" />
-        ) : (
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        )}
+        <XIcon className="w-3 h-3" />
       </button>
 
       {/* Dropdown tooltip */}
-      {isOpen && (
-        <div
-          className="absolute top-full left-0 mt-2 z-[100] w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg"
-        >
-          <div className="flex items-start gap-2.5 p-3">
-            <InfoIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0 text-sm text-slate-600 leading-relaxed">{children}</div>
-          </div>
-          <div className="border-t border-slate-100 px-3 py-2 flex justify-end">
-            <button
-              onClick={handleDismiss}
-              className="text-xs text-slate-500 hover:text-slate-700 font-medium"
-            >
-              Got it, don't show again
-            </button>
-          </div>
+      <div
+        className="absolute top-full left-0 mt-2 z-[100] w-72 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg"
+      >
+        <div className="flex items-start gap-2.5 p-3">
+          <InfoIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0 text-sm text-slate-600 leading-relaxed">{children}</div>
         </div>
-      )}
+        <div className="border-t border-slate-100 px-3 py-2 flex justify-end">
+          <button
+            onClick={handleDismiss}
+            className="text-xs text-slate-500 hover:text-slate-700 font-medium"
+          >
+            Got it, don't show again
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

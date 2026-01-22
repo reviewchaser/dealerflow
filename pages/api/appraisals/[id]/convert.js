@@ -78,6 +78,7 @@ export default async function handler(req, res) {
       mileageCurrent: appraisal.mileage,
       colour: appraisal.colour,
       fuelType: appraisal.fuelType,
+      transmission: appraisal.transmission,
       motExpiryDate: appraisal.motExpiryDate || null, // Transfer MOT expiry
       status: initialStatus,
       notes: appraisal.conditionNotes,

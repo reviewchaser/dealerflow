@@ -7,7 +7,7 @@ const notificationSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // if null, show to all users in dealer
     type: {
       type: String,
-      enum: ["VEHICLE_MOT_DUE", "VEHICLE_TAX_DUE", "VEHICLE_SERVICE_DUE", "COURTESY_DUE_BACK", "COURTESY_OVERDUE", "EVENT_STARTING_SOON", "TASK_OVERDUE", "ISSUE_ASSIGNED", "OTHER"],
+      enum: ["VEHICLE_MOT_DUE", "VEHICLE_TAX_DUE", "VEHICLE_SERVICE_DUE", "COURTESY_DUE_BACK", "COURTESY_OVERDUE", "EVENT_STARTING_SOON", "TASK_OVERDUE", "ISSUE_ASSIGNED", "NEW_APPRAISAL", "CALENDAR_EVENT_CREATED", "NEW_AFTERCARE_CASE", "OTHER"],
       required: true
     },
     title: { type: String, required: true },
@@ -17,6 +17,7 @@ const notificationSchema = new mongoose.Schema(
     relatedAftercareCaseId: { type: mongoose.Schema.Types.ObjectId, ref: "AftercareCase" },
     relatedCalendarEventId: { type: mongoose.Schema.Types.ObjectId, ref: "CalendarEvent" },
     relatedCourtesyAllocationId: { type: mongoose.Schema.Types.ObjectId, ref: "CourtesyAllocation" },
+    relatedAppraisalId: { type: mongoose.Schema.Types.ObjectId, ref: "Appraisal" },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: true }
