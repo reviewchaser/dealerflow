@@ -193,19 +193,23 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
   useEffect(() => {
     if (isOpen) {
       const saved = localStorage.getItem(STORAGE_KEY);
+      let cachedVehicleId = null;
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
           setWizardData(parsed.data || initialWizardData);
           setCurrentStep(parsed.step || 1);
+          cachedVehicleId = parsed.data?.vehicleId;
         } catch (e) {
           console.error("[SaleWizard] Failed to parse saved state:", e);
         }
       }
 
-      // If vehicle pre-selected, fetch it
+      // If vehicle pre-selected, fetch it; otherwise re-fetch cached vehicle to get fresh data (e.g. updated SIV)
       if (preSelectedVehicleId) {
         fetchVehicle(preSelectedVehicleId);
+      } else if (cachedVehicleId) {
+        fetchVehicle(cachedVehicleId);
       }
 
       // Load all required data

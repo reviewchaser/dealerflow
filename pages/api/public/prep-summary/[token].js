@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       prepSummary: {
         vehicle: {
-          vrm: vehicle.vrm,
+          vrm: vehicle.regCurrent,
           make: vehicle.make,
           model: vehicle.model,
           year: vehicle.year,

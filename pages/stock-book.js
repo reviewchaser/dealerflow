@@ -652,7 +652,7 @@ export default function StockBook() {
       }
 
       toast.success("Vehicle details saved");
-      fetchVehicles(); // Refresh list
+      await fetchVehicles(); // Refresh list - await to ensure UI updates before closing
       handleDrawerClose();
     } catch (error) {
       toast.error(error.message || "Failed to save changes");
