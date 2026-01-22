@@ -381,6 +381,17 @@ export default function SalesPrep() {
     }
   }, [router.query.addVehicle]);
 
+  // Handle vehicleId query param (from notification clicks) - auto-open vehicle card
+  useEffect(() => {
+    if (router.isReady && router.query.vehicleId && vehicles.length > 0) {
+      const vehicle = vehicles.find(v => v.id === router.query.vehicleId);
+      if (vehicle) {
+        setSelectedVehicle(vehicle);
+        router.replace("/prep", undefined, { shallow: true });
+      }
+    }
+  }, [router.isReady, router.query.vehicleId, vehicles]);
+
   const fetchVehicles = async (includeAllDelivered = false) => {
     try {
       // Use excludeOldDelivered filter unless showing all
@@ -472,6 +483,10 @@ export default function SalesPrep() {
       });
       if (res.ok) {
         const updatedData = await res.json();
+        // Update vehicle in list (optimistic update - no full refetch needed)
+        setVehicles(prev => prev.map(v =>
+          v.id === vehicleId ? { ...v, labels: updatedData.labels || [] } : v
+        ));
         // Update selected vehicle if it's the same one
         if (selectedVehicle?.id === vehicleId) {
           setSelectedVehicle(prev => ({
@@ -479,7 +494,6 @@ export default function SalesPrep() {
             labels: updatedData.labels || [],
           }));
         }
-        fetchVehicles();
       }
     } catch (error) {
       toast.error("Failed to update label");
@@ -510,7 +524,7 @@ export default function SalesPrep() {
     }
   };
 
-  // Open vehicle drawer - vehicle from grid already has tasks, issues, documents
+  // Open vehicle drawer - vehicle from grid already has tasks, issues, documents, and activeDeal
   const openVehicleDrawer = (vehicle) => {
     const vehicleId = vehicle.id || vehicle._id;
     setSelectedVehicle({ ...vehicle, id: vehicleId });
@@ -518,9 +532,8 @@ export default function SalesPrep() {
     setShowLabelsDropdown(false); // Close labels dropdown when opening new vehicle
     setShowMotDetails(false); // Reset MOT details when opening new vehicle
     setActivityData({ activities: [], total: 0, hasMore: false }); // Reset activity when opening new vehicle
-    setVehicleDeal(null); // Reset deal state
-    // Fetch any existing deal for this vehicle
-    fetchVehicleDeal(vehicleId);
+    // Use deal data already loaded with vehicle (no extra API call needed)
+    setVehicleDeal(vehicle.activeDeal || null);
   };
 
   // Fetch deal for the selected vehicle

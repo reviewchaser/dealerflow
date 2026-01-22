@@ -8,6 +8,7 @@ import VehicleDrawer from "@/components/VehicleDrawer";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { MobileStageSelector } from "@/components/ui/PageShell";
 import { PageHint } from "@/components/ui";
+import { PhotoGallery } from "@/components/ui/PhotoGallery";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
 import InlineFormModal from "@/components/InlineFormModal";
@@ -3083,34 +3084,53 @@ export default function Warranty() {
                 </div>
                 <div className="p-4">
                   {selectedCase.attachments?.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {selectedCase.attachments.map((att, i) => (
-                        <a
-                          key={i}
-                          href={att.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block aspect-square bg-slate-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
-                        >
-                          {att.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                            <img src={att.url} alt={att.filename} className="w-full h-full object-cover" />
-                          ) : att.url.match(/\.(mp4|webm|mov)$/i) ? (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-200">
-                              <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-2">
-                              <svg className="w-6 h-6 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <span className="text-xs text-slate-500 text-center truncate w-full">{att.filename}</span>
-                            </div>
-                          )}
-                        </a>
-                      ))}
+                    <div className="space-y-3">
+                      {/* Images - with lightbox */}
+                      {(() => {
+                        const images = selectedCase.attachments.filter(att => att.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                        if (images.length === 0) return null;
+                        return (
+                          <PhotoGallery
+                            photos={images.map(att => ({ url: att.url, caption: att.filename }))}
+                            thumbnailSize="lg"
+                            showCount={false}
+                          />
+                        );
+                      })()}
+                      {/* Videos & Documents - open in new tab */}
+                      {(() => {
+                        const nonImages = selectedCase.attachments.filter(att => !att.url?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                        if (nonImages.length === 0) return null;
+                        return (
+                          <div className="grid grid-cols-3 gap-2">
+                            {nonImages.map((att, i) => (
+                              <a
+                                key={i}
+                                href={att.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block aspect-square bg-slate-100 rounded-lg overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all"
+                              >
+                                {att.url?.match(/\.(mp4|webm|mov)$/i) ? (
+                                  <div className="w-full h-full flex items-center justify-center bg-slate-200">
+                                    <svg className="w-8 h-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 p-2">
+                                    <svg className="w-6 h-6 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <span className="text-xs text-slate-500 text-center truncate w-full">{att.filename}</span>
+                                  </div>
+                                )}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500 text-center py-2">No attachments yet. Click "Add Media" to upload photos or documents.</p>
@@ -3233,21 +3253,42 @@ export default function Warranty() {
                               </div>
                               <p className="text-sm text-slate-700">{content}</p>
                               {attachments.length > 0 && (
-                                <div className="flex gap-2 mt-2 flex-wrap">
-                                  {attachments.map((att, i) => (
-                                    <a
-                                      key={i}
-                                      href={att.url || att}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                                    >
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                                      </svg>
-                                      {att.filename || "File"}
-                                    </a>
-                                  ))}
+                                <div className="mt-2 space-y-2">
+                                  {/* Images with lightbox */}
+                                  {(() => {
+                                    const images = attachments.filter(att => (att.url || att)?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                                    if (images.length === 0) return null;
+                                    return (
+                                      <PhotoGallery
+                                        photos={images.map(att => ({ url: att.url || att, caption: att.filename }))}
+                                        thumbnailSize="sm"
+                                        showCount={false}
+                                      />
+                                    );
+                                  })()}
+                                  {/* Non-images - open in new tab */}
+                                  {(() => {
+                                    const nonImages = attachments.filter(att => !(att.url || att)?.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                                    if (nonImages.length === 0) return null;
+                                    return (
+                                      <div className="flex gap-2 flex-wrap">
+                                        {nonImages.map((att, i) => (
+                                          <a
+                                            key={i}
+                                            href={att.url || att}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                                          >
+                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                            </svg>
+                                            {att.filename || "File"}
+                                          </a>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               )}
                             </div>

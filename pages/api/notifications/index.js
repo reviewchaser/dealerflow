@@ -62,6 +62,9 @@ async function handler(req, res, ctx) {
           message: notification.message,
           isRead: notification.isRead,
           createdAt: notification.createdAt,
+          // Include raw related IDs for deep-linking
+          relatedVehicleId: notification.relatedVehicleId?.toString() || null,
+          relatedAftercareCaseId: notification.relatedAftercareCaseId?.toString() || null,
         };
 
         // Add vehicle info if available

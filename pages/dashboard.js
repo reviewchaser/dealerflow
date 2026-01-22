@@ -564,7 +564,13 @@ export default function Dashboard() {
 
                     {/* Task content - clickable to navigate */}
                     <Link
-                      href={getPath(`/prep?vrm=${task.vehicle?.regCurrent || ""}`)}
+                      href={
+                        task.relatedAftercareCaseId
+                          ? getPath(`/aftersales?caseId=${task.relatedAftercareCaseId}`)
+                          : task.relatedVehicleId
+                            ? getPath(`/prep?vehicleId=${task.relatedVehicleId}`)
+                            : getPath("/prep")
+                      }
                       className="flex-1 min-w-0"
                     >
                       <div className="flex items-center gap-2 mb-1">
