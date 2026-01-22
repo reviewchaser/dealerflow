@@ -75,7 +75,8 @@ export default withDealerContext(async (req, res, ctx) => {
         return res.status(404).json({ error: "Vehicle not found" });
       }
 
-      const tasks = await VehicleTask.find({ vehicleId: id }).sort({ createdAt: 1 }).lean();
+      const tasksRaw = await VehicleTask.find({ vehicleId: id }).sort({ createdAt: 1 }).lean();
+      const tasks = tasksRaw.map(task => ({ ...task, id: task._id.toString() }));
       const issues = await VehicleIssue.find({
         vehicleId: id,
         status: { $in: ["outstanding", "ordered", "Outstanding", "Ordered"] }
