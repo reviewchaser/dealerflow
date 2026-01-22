@@ -23,4 +23,8 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.plugin(toJSON);
+
+// Compound index for efficient notification queries
+notificationSchema.index({ dealerId: 1, userId: 1, isRead: 1, createdAt: -1 });
+
 export default mongoose.models?.Notification || mongoose.model("Notification", notificationSchema);

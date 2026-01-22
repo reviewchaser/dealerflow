@@ -29,62 +29,78 @@ async function handler(req, res, ctx) {
         .limit(50)
         .lean();
 
-      // Enrich with vehicle and issue details
-      const enrichedNotifications = await Promise.all(
-        notifications.map(async (notification) => {
-          const result = {
-            id: notification._id.toString(),
-            type: notification.type,
-            title: notification.title,
-            message: notification.message,
-            isRead: notification.isRead,
-            createdAt: notification.createdAt,
-          };
+      // Batch fetch related data (avoids N+1 queries)
+      const vehicleIds = notifications.filter(n => n.relatedVehicleId).map(n => n.relatedVehicleId);
+      const issueIds = notifications.filter(n => n.relatedIssueId).map(n => n.relatedIssueId);
 
-          // Add vehicle info if available
-          if (notification.relatedVehicleId) {
-            const vehicle = await Vehicle.findById(notification.relatedVehicleId)
-              .select("regCurrent make model")
-              .lean();
-            if (vehicle) {
-              result.vehicle = {
-                id: vehicle._id.toString(),
-                regCurrent: vehicle.regCurrent,
-                make: vehicle.make,
-                model: vehicle.model,
-              };
-            }
+      const [vehicles, issues] = await Promise.all([
+        vehicleIds.length > 0
+          ? Vehicle.find({ _id: { $in: vehicleIds } }).select("regCurrent make model").lean()
+          : [],
+        issueIds.length > 0
+          ? VehicleIssue.find({ _id: { $in: issueIds } }).select("category subcategory description status createdByUserId").lean()
+          : [],
+      ]);
+
+      // Get unique user IDs from issues for creator names
+      const userIds = [...new Set(issues.filter(i => i.createdByUserId).map(i => i.createdByUserId.toString()))];
+      const users = userIds.length > 0
+        ? await User.find({ _id: { $in: userIds } }).select("name email").lean()
+        : [];
+
+      // Create lookup maps for O(1) access
+      const vehicleMap = Object.fromEntries(vehicles.map(v => [v._id.toString(), v]));
+      const issueMap = Object.fromEntries(issues.map(i => [i._id.toString(), i]));
+      const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u]));
+
+      // Enrich notifications using the maps (no DB calls in loop)
+      const enrichedNotifications = notifications.map((notification) => {
+        const result = {
+          id: notification._id.toString(),
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          isRead: notification.isRead,
+          createdAt: notification.createdAt,
+        };
+
+        // Add vehicle info if available
+        if (notification.relatedVehicleId) {
+          const vehicle = vehicleMap[notification.relatedVehicleId.toString()];
+          if (vehicle) {
+            result.vehicle = {
+              id: vehicle._id.toString(),
+              regCurrent: vehicle.regCurrent,
+              make: vehicle.make,
+              model: vehicle.model,
+            };
           }
+        }
 
-          // Add issue info if available
-          if (notification.relatedIssueId) {
-            const issue = await VehicleIssue.findById(notification.relatedIssueId)
-              .select("category subcategory description status createdByUserId")
-              .lean();
-            if (issue) {
-              result.issue = {
-                id: issue._id.toString(),
-                category: issue.category,
-                subcategory: issue.subcategory,
-                description: issue.description,
-                status: issue.status,
-              };
+        // Add issue info if available
+        if (notification.relatedIssueId) {
+          const issue = issueMap[notification.relatedIssueId.toString()];
+          if (issue) {
+            result.issue = {
+              id: issue._id.toString(),
+              category: issue.category,
+              subcategory: issue.subcategory,
+              description: issue.description,
+              status: issue.status,
+            };
 
-              // Get creator name
-              if (issue.createdByUserId) {
-                const creator = await User.findById(issue.createdByUserId)
-                  .select("name email")
-                  .lean();
-                if (creator) {
-                  result.assignedBy = creator.name || creator.email;
-                }
+            // Get creator name from user map
+            if (issue.createdByUserId) {
+              const creator = userMap[issue.createdByUserId.toString()];
+              if (creator) {
+                result.assignedBy = creator.name || creator.email;
               }
             }
           }
+        }
 
-          return result;
-        })
-      );
+        return result;
+      });
 
       // Get unread count
       const unreadCount = await Notification.countDocuments({

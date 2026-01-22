@@ -859,7 +859,7 @@ export default function DashboardLayout({ children }) {
                 {hasClientPermission(userRole, "admin") && <div className="divider my-1"></div>}
                 <li>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/auth/signin" })}
+                    onClick={() => signOut()}
                     className="text-sm text-error"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

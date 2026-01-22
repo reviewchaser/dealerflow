@@ -3105,13 +3105,12 @@ export default function DealDrawer({
                             </label>
                             {!deal.financeSelection?.toBeConfirmed && (
                               <ContactPicker
-                                value={deal.financeSelection?.financeCompanyId || ""}
+                                value={deal.financeSelection?.financeCompanyContactId || ""}
                                 onChange={(contactId, contact) => {
                                   handleUpdateField({
                                     financeSelection: {
                                       ...deal.financeSelection,
-                                      financeCompanyId: contactId || "",
-                                      financeCompanyName: contact?.displayName || contact?.companyName || ""
+                                      financeCompanyContactId: contactId || null
                                     }
                                   });
                                 }}

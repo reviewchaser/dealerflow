@@ -86,6 +86,7 @@ async function handler(req, res, ctx) {
       delivery,
       termsKey,
       termsSnapshotText,
+      financeSelection,
     } = req.body;
 
     // Build update object
@@ -120,6 +121,11 @@ async function handler(req, res, ctx) {
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
     if (termsKey !== undefined) updateData.termsKey = termsKey;
     if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
+
+    // Finance selection can be edited until INVOICED status
+    if (financeSelection !== undefined && deal.status !== "INVOICED" && deal.status !== "DELIVERED") {
+      updateData.financeSelection = { ...(deal.financeSelection?.toObject?.() || deal.financeSelection || {}), ...financeSelection };
+    }
 
     // Delivery can be edited until INVOICED status
     if (delivery !== undefined && deal.status !== "INVOICED" && deal.status !== "DELIVERED") {

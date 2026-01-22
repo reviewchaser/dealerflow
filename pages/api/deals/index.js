@@ -77,7 +77,7 @@ async function handler(req, res, ctx) {
       .populate("soldToContactId", "displayName email phone companyName")
       .populate("invoiceToContactId", "displayName companyName")
       .populate("salesPersonId", "name email")
-      .populate("partExchangeId")
+      .populate("partExchangeId", "vrm allowance settlement hasFinance financeSettled")
       .sort({ createdAt: -1 })
       .lean();
 
