@@ -369,12 +369,6 @@ export default function Forms() {
 
     if (!isShareable || !form.publicSlug) return null;
 
-    // WARRANTY_CLAIM forms use the dedicated report-a-problem page
-    // which creates aftercare cases directly
-    if (form.type === "WARRANTY_CLAIM") {
-      return `${window.location.origin}/public/report-a-problem`;
-    }
-
     // Use dealer-scoped URL to avoid server-side redirect
     const dealerSlug = session?.user?.dealerSlug;
     if (dealerSlug) {

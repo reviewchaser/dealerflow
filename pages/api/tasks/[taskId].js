@@ -3,6 +3,7 @@ import VehicleTask, { TASK_PROGRESS, PARTS_STATUS, SUPPLIER_TYPE, SUPPLIER_TYPE_
 import Vehicle from "@/models/Vehicle";
 import VehicleActivity from "@/models/VehicleActivity";
 import User from "@/models/User";
+import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
 import { logTaskPartsOrdered, logTaskPartsReceived, logTaskCompleted } from "@/libs/activityLogger";
 
@@ -61,10 +62,11 @@ async function handler(req, res, ctx) {
     }
 
     if (req.method === "PUT") {
-      const { status, notes, completedAt, name, progress, progressNote } = req.body;
+      const { status, notes, completedAt, name, progress, progressNote, assignedUserId } = req.body;
       const previousStatus = task.status;
       const previousProgress = task.progress || "NONE";
       const previousProgressNote = task.progressNote;
+      const previousAssignedUserId = task.assignedUserId?.toString();
 
       // Get actor name for activity logging
       const actor = await User.findById(userId).lean();
@@ -74,10 +76,20 @@ async function handler(req, res, ctx) {
       let statusChanged = false;
       let progressChanged = false;
       let nameChanged = false;
+      let assigneeChanged = false;
 
       if (name !== undefined && name !== task.name) {
         task.name = name;
         nameChanged = true;
+      }
+
+      // Handle assignee changes
+      if (assignedUserId !== undefined) {
+        const newAssignedUserId = assignedUserId || null;
+        if (newAssignedUserId?.toString() !== previousAssignedUserId) {
+          task.assignedUserId = newAssignedUserId;
+          assigneeChanged = true;
+        }
       }
 
       if (status && status !== previousStatus) {
@@ -404,6 +416,45 @@ async function handler(req, res, ctx) {
             order: partsOrderRemoved,
           },
         });
+      }
+
+      // Log activity and create notification for assignee changes
+      if (assigneeChanged) {
+        const newAssignee = task.assignedUserId
+          ? await User.findById(task.assignedUserId).lean()
+          : null;
+        const newAssigneeName = newAssignee?.name || newAssignee?.email || "Unassigned";
+
+        await VehicleActivity.log({
+          dealerId,
+          vehicleId: task.vehicleId,
+          actorId: userId,
+          actorName,
+          type: "TASK_ASSIGNED",
+          message: task.assignedUserId
+            ? `${task.name} assigned to ${newAssigneeName}`
+            : `${task.name} unassigned`,
+          meta: {
+            taskId: task._id,
+            taskName: task.name,
+            assignedUserId: task.assignedUserId,
+            assignedUserName: newAssigneeName,
+          },
+        });
+
+        // Create notification for the newly assigned user (if not self-assigning)
+        if (task.assignedUserId && task.assignedUserId.toString() !== userId) {
+          await Notification.create({
+            dealerId,
+            userId: task.assignedUserId,
+            type: "TASK_ASSIGNED",
+            title: "You've been assigned to a task",
+            message: `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}: ${task.name}`.trim(),
+            relatedVehicleId: task.vehicleId,
+            relatedTaskId: task._id,
+            isRead: false,
+          });
+        }
       }
 
       return res.status(200).json(task.toJSON());

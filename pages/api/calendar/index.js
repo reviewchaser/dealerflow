@@ -3,6 +3,7 @@ import CalendarEvent from "@/models/CalendarEvent";
 import CalendarCategory from "@/models/CalendarCategory";
 import Contact from "@/models/Contact"; // Required for populate
 import Vehicle from "@/models/Vehicle"; // Required for populate
+import User from "@/models/User"; // Required for populate
 import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
 
@@ -23,6 +24,7 @@ async function handler(req, res, ctx) {
       .populate("categoryId")
       .populate("linkedContactId")
       .populate("linkedVehicleId")
+      .populate("assignedToUserIds", "name email")
       .sort({ startDatetime: 1 })
       .lean();
 
@@ -40,6 +42,7 @@ async function handler(req, res, ctx) {
       endDatetime: event.endDatetime,
       linkedContactId: event.linkedContactId,
       linkedVehicleId: event.linkedVehicleId,
+      assignedToUserIds: event.assignedToUserIds || [],
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     }));
@@ -51,7 +54,8 @@ async function handler(req, res, ctx) {
     const {
       title, description, categoryId,
       startDatetime, endDatetime,
-      linkedContactId, linkedVehicleId, linkedLeadId, linkedAftercareCaseId
+      linkedContactId, linkedVehicleId, linkedLeadId, linkedAftercareCaseId,
+      assignedToUserIds
     } = req.body;
 
     if (!title || !startDatetime || !endDatetime) {
@@ -76,6 +80,9 @@ async function handler(req, res, ctx) {
     if (linkedVehicleId) eventData.linkedVehicleId = linkedVehicleId;
     if (linkedLeadId) eventData.linkedLeadId = linkedLeadId;
     if (linkedAftercareCaseId) eventData.linkedAftercareCaseId = linkedAftercareCaseId;
+    if (assignedToUserIds && assignedToUserIds.length > 0) {
+      eventData.assignedToUserIds = assignedToUserIds;
+    }
 
     const event = await CalendarEvent.create(eventData);
 
@@ -91,8 +98,26 @@ async function handler(req, res, ctx) {
       isRead: false,
     });
 
+    // Create notifications for assigned users
+    if (assignedToUserIds && assignedToUserIds.length > 0) {
+      for (const assignedUserId of assignedToUserIds) {
+        if (assignedUserId === ctx.userId) continue; // Don't notify self
+        await Notification.create({
+          dealerId,
+          userId: assignedUserId,
+          type: "CALENDAR_EVENT_ASSIGNED",
+          title: "You've been assigned to a calendar event",
+          message: `${title} - ${eventDate}`,
+          relatedCalendarEventId: event._id,
+          isRead: false,
+        });
+      }
+    }
+
     const populated = await CalendarEvent.findById(event._id)
-      .populate("categoryId").lean();
+      .populate("categoryId")
+      .populate("assignedToUserIds", "name email")
+      .lean();
 
     // Transform for response
     return res.status(201).json({
@@ -106,6 +131,7 @@ async function handler(req, res, ctx) {
       } : null,
       startDatetime: populated.startDatetime,
       endDatetime: populated.endDatetime,
+      assignedToUserIds: populated.assignedToUserIds || [],
       createdAt: populated.createdAt,
       updatedAt: populated.updatedAt,
     });

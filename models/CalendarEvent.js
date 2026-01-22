@@ -10,7 +10,7 @@ const calendarEventSchema = new mongoose.Schema(
     startDatetime: { type: Date, required: true },
     endDatetime: { type: Date, required: true },
     location: { type: String },
-    assignedUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    assignedToUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     createdByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     linkedContactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },

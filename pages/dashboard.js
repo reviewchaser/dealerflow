@@ -538,7 +538,7 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-lg font-bold text-slate-900">My Tasks</h2>
-                    <p className="text-xs text-slate-500">Issues assigned to you</p>
+                    <p className="text-xs text-slate-500">Tasks assigned to you</p>
                   </div>
                 </div>
                 <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-sm font-semibold rounded-full">
@@ -565,39 +565,92 @@ export default function Dashboard() {
                     {/* Task content - clickable to navigate */}
                     <Link
                       href={
-                        task.relatedAftercareCaseId
-                          ? getPath(`/aftersales?caseId=${task.relatedAftercareCaseId}`)
-                          : task.relatedVehicleId
-                            ? getPath(`/prep?vehicleId=${task.relatedVehicleId}`)
-                            : getPath("/prep")
+                        task.relatedCalendarEventId
+                          ? getPath("/calendar")
+                          : task.relatedAftercareCaseId
+                            ? getPath(`/aftersales?caseId=${task.relatedAftercareCaseId}`)
+                            : task.type === "TASK_ASSIGNED" && task.relatedVehicleId
+                              ? getPath(`/prep?vehicleId=${task.relatedVehicleId}&tab=checklist`)
+                              : task.relatedVehicleId
+                                ? getPath(`/prep?vehicleId=${task.relatedVehicleId}`)
+                                : getPath("/prep")
                       }
                       className="flex-1 min-w-0"
                     >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono text-sm font-bold text-slate-900">
-                          {task.vehicle?.regCurrent || "Unknown"}
-                        </span>
-                        <span className="text-slate-400">-</span>
-                        <span className="text-sm text-slate-600 truncate">
-                          {task.vehicle?.make} {task.vehicle?.model}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
-                          {task.issue?.category || "Issue"}
-                        </span>
-                        <span className="text-sm text-slate-500 truncate">
-                          {task.issue?.description || task.message}
-                        </span>
-                      </div>
-                      {task.assignedBy && (
-                        <p className="text-xs text-slate-400 mt-1">
-                          Assigned by {task.assignedBy} - {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        </p>
+                      {/* Calendar Event Assignment */}
+                      {task.type === "CALENDAR_EVENT_ASSIGNED" && task.calendarEvent ? (
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-slate-900">
+                              {task.calendarEvent.title}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-blue-100 text-blue-600 text-xs font-medium rounded">
+                              Calendar
+                            </span>
+                            <span className="text-sm text-slate-500">
+                              {new Date(task.calendarEvent.startDatetime).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at {new Date(task.calendarEvent.startDatetime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          </p>
+                        </>
+                      ) : task.type === "TASK_ASSIGNED" ? (
+                        /* Checklist Task Assignment */
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-bold text-slate-900">
+                              {task.vehicle?.regCurrent || "Unknown"}
+                            </span>
+                            <span className="text-slate-400">-</span>
+                            <span className="text-sm text-slate-600 truncate">
+                              {task.vehicle?.make} {task.vehicle?.model}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-600 text-xs font-medium rounded">
+                              Task
+                            </span>
+                            <span className="text-sm text-slate-500 truncate">
+                              {task.task?.name || task.message}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            Assigned {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                          </p>
+                        </>
+                      ) : (
+                        /* Issue Assignment */
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-bold text-slate-900">
+                              {task.vehicle?.regCurrent || "Unknown"}
+                            </span>
+                            <span className="text-slate-400">-</span>
+                            <span className="text-sm text-slate-600 truncate">
+                              {task.vehicle?.make} {task.vehicle?.model}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs font-medium rounded">
+                              {task.issue?.category || "Issue"}
+                            </span>
+                            <span className="text-sm text-slate-500 truncate">
+                              {task.issue?.description || task.message}
+                            </span>
+                          </div>
+                          {task.assignedBy && (
+                            <p className="text-xs text-slate-400 mt-1">
+                              Assigned by {task.assignedBy} - {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                            </p>
+                          )}
+                        </>
                       )}
                     </Link>
 
-                    {/* Priority indicator */}
+                    {/* Priority indicator for issues */}
                     {task.issue?.status && (
                       <span className={`px-2 py-1 text-xs font-medium rounded ${
                         task.issue.status === "Outstanding" ? "bg-red-100 text-red-700" :
@@ -606,6 +659,21 @@ export default function Dashboard() {
                         "bg-slate-100 text-slate-600"
                       }`}>
                         {task.issue.status}
+                      </span>
+                    )}
+                    {/* Status indicator for checklist tasks */}
+                    {task.task?.status && (
+                      <span className={`px-2 py-1 text-xs font-medium rounded ${
+                        task.task.status === "pending" ? "bg-slate-100 text-slate-600" :
+                        task.task.status === "in_progress" ? "bg-blue-100 text-blue-700" :
+                        task.task.status === "done" ? "bg-green-100 text-green-700" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {task.task.status === "pending" ? "Pending" :
+                         task.task.status === "in_progress" ? "In Progress" :
+                         task.task.status === "done" ? "Done" :
+                         task.task.status === "not_required" ? "Not Required" :
+                         task.task.status}
                       </span>
                     )}
                   </div>

@@ -3,6 +3,7 @@ import { toast } from "react-hot-toast";
 import ContactPicker from "@/components/ContactPicker";
 import SignatureCapture from "@/components/SignatureCapture";
 import InlineFormModal from "@/components/InlineFormModal";
+import TeamMemberPicker from "@/components/TeamMemberPicker";
 
 // Format currency
 const formatCurrency = (amount) => {
@@ -251,6 +252,7 @@ export default function DealDrawer({
     addressLine2: "",
     town: "",
     postcode: "",
+    assignedToUserIds: [],
   });
   const [scheduleDeliveryLoading, setScheduleDeliveryLoading] = useState(false);
 
@@ -293,6 +295,7 @@ export default function DealDrawer({
     date: "",
     time: "",
     notes: "",
+    assignedToUserIds: [],
   });
 
   // Inline form modals state
@@ -1840,6 +1843,7 @@ export default function DealDrawer({
           endDatetime: endDatetime.toISOString(),
           linkedVehicleId: vehicle.id || vehicle._id,
           linkedContactId: customer.id || customer._id,
+          assignedToUserIds: scheduleDeliveryForm.assignedToUserIds || [],
         }),
       });
 
@@ -1871,7 +1875,8 @@ export default function DealDrawer({
       setShowScheduleDeliveryModal(false);
       setScheduleDeliveryForm({
         date: "", time: "", notes: "",
-        sameAsCustomer: true, addressLine1: "", addressLine2: "", town: "", postcode: ""
+        sameAsCustomer: true, addressLine1: "", addressLine2: "", town: "", postcode: "",
+        assignedToUserIds: []
       });
       fetchDeal();
     } catch (error) {
@@ -1933,6 +1938,7 @@ export default function DealDrawer({
           endDatetime: endDatetime.toISOString(),
           linkedVehicleId: vehicle.id || vehicle._id,
           linkedContactId: customer.id || customer._id,
+          assignedToUserIds: scheduleCollectionForm.assignedToUserIds || [],
         }),
       });
 
@@ -1955,7 +1961,7 @@ export default function DealDrawer({
 
       toast.success("Handover scheduled");
       setShowScheduleCollectionModal(false);
-      setScheduleCollectionForm({ date: "", time: "", notes: "" });
+      setScheduleCollectionForm({ date: "", time: "", notes: "", assignedToUserIds: [] });
       fetchDeal();
     } catch (error) {
       toast.error(error.message);
@@ -6332,6 +6338,17 @@ export default function DealDrawer({
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Assign To
+                </label>
+                <TeamMemberPicker
+                  value={scheduleDeliveryForm.assignedToUserIds}
+                  onChange={(userIds) => setScheduleDeliveryForm(prev => ({ ...prev, assignedToUserIds: userIds }))}
+                  placeholder="Who should handle this delivery?"
+                />
+              </div>
+
               {/* Delivery Address */}
               <div className="border-t pt-4">
                 <label className="flex items-center gap-2 cursor-pointer mb-3">
@@ -6473,6 +6490,17 @@ export default function DealDrawer({
                   className="textarea textarea-bordered w-full"
                   placeholder="Any special instructions..."
                   rows={2}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Assign To
+                </label>
+                <TeamMemberPicker
+                  value={scheduleCollectionForm.assignedToUserIds}
+                  onChange={(userIds) => setScheduleCollectionForm(prev => ({ ...prev, assignedToUserIds: userIds }))}
+                  placeholder="Who should handle this handover?"
                 />
               </div>
             </div>

@@ -103,6 +103,10 @@ export default function SalesPrep() {
   });
   const [editingPartsOrderId, setEditingPartsOrderId] = useState(null);
 
+  // Task assignee state
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [taskAssigneeDropdownId, setTaskAssigneeDropdownId] = useState(null);
+
   // Column sorting state
   const [columnSortOptions, setColumnSortOptions] = useState({});
 
@@ -360,6 +364,18 @@ export default function SalesPrep() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showVrmDropdown]);
 
+  // Close task assignee dropdown when clicking outside
+  useEffect(() => {
+    if (!taskAssigneeDropdownId) return;
+    const handleClickOutside = (e) => {
+      if (!e.target.closest("[data-task-assignee-dropdown]")) {
+        setTaskAssigneeDropdownId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [taskAssigneeDropdownId]);
+
   // Mobile state
   const [mobileActiveColumn, setMobileActiveColumn] = useState("in_stock");
 
@@ -367,6 +383,7 @@ export default function SalesPrep() {
     fetchVehicles(showAllDelivered);
     fetchLocations();
     fetchLabels();
+    fetchTeamMembers();
   }, []);
 
   // Refetch when showAllDelivered toggle changes
@@ -387,10 +404,14 @@ export default function SalesPrep() {
       const vehicle = vehicles.find(v => v.id === router.query.vehicleId);
       if (vehicle) {
         setSelectedVehicle(vehicle);
+        // Also handle tab query param
+        if (router.query.tab) {
+          setActiveTab(router.query.tab);
+        }
         router.replace(router.pathname, undefined, { shallow: true });
       }
     }
-  }, [router.isReady, router.query.vehicleId, vehicles]);
+  }, [router.isReady, router.query.vehicleId, router.query.tab, vehicles]);
 
   const fetchVehicles = async (includeAllDelivered = false) => {
     try {
@@ -432,6 +453,19 @@ export default function SalesPrep() {
       setAvailableLabels(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load labels:", error);
+    }
+  };
+
+  // Fetch team members for task assignment
+  const fetchTeamMembers = async () => {
+    try {
+      const res = await fetch("/api/team/members");
+      if (res.ok) {
+        const data = await res.json();
+        setTeamMembers(data);
+      }
+    } catch (error) {
+      console.error("Failed to load team members:", error);
     }
   };
 
@@ -793,6 +827,66 @@ export default function SalesPrep() {
     } catch (error) {
       // Rollback on error
       toast.error("Failed to update task");
+      setSelectedVehicle(previousVehicle);
+      setVehicles(previousVehicles);
+    }
+  };
+
+  // Update task assignee
+  const updateTaskAssignee = async (taskId, userId) => {
+    // Optimistic update
+    const previousVehicle = selectedVehicle;
+    const previousVehicles = vehicles;
+    const assignedMember = userId ? teamMembers.find(m => m.userId === userId) : null;
+
+    // Update selectedVehicle optimistically
+    if (selectedVehicle) {
+      const updatedTasks = selectedVehicle.tasks?.map(task =>
+        task.id === taskId
+          ? {
+              ...task,
+              assignedUserId: userId || null,
+              assignedUserName: assignedMember?.name || null,
+            }
+          : task
+      );
+      setSelectedVehicle({ ...selectedVehicle, tasks: updatedTasks });
+    }
+
+    // Update vehicles list optimistically
+    setVehicles(vehicles.map(v =>
+      v.id === selectedVehicle?.id
+        ? {
+            ...v,
+            tasks: v.tasks?.map(task =>
+              task.id === taskId
+                ? { ...task, assignedUserId: userId || null, assignedUserName: assignedMember?.name || null }
+                : task
+            ),
+          }
+        : v
+    ));
+
+    // Close the dropdown
+    setTaskAssigneeDropdownId(null);
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignedUserId: userId || null }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update");
+
+      // Background refresh to sync any server-side changes
+      fetchVehicles();
+      if (userId) {
+        toast.success(`Task assigned to ${assignedMember?.name || "team member"}`);
+      }
+    } catch (error) {
+      // Rollback on error
+      toast.error("Failed to assign task");
       setSelectedVehicle(previousVehicle);
       setVehicles(previousVehicles);
     }
@@ -4935,6 +5029,67 @@ export default function SalesPrep() {
                                 {formatDate(task.completedAt)}
                               </span>
                             )}
+                            {/* Assignee indicator */}
+                            <div className="relative" data-task-assignee-dropdown>
+                              {task.assignedUserId ? (
+                                <button
+                                  className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-[10px] font-medium flex items-center justify-center hover:bg-blue-200 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTaskAssigneeDropdownId(taskAssigneeDropdownId === task.id ? null : task.id);
+                                  }}
+                                  title={`Assigned to ${task.assignedUserName || "team member"}`}
+                                >
+                                  {(task.assignedUserName || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                                </button>
+                              ) : (
+                                <button
+                                  className="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity text-blue-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTaskAssigneeDropdownId(task.id);
+                                  }}
+                                  title="Assign to team member"
+                                >
+                                  Assign
+                                </button>
+                              )}
+                              {/* Assignee dropdown */}
+                              {taskAssigneeDropdownId === task.id && (
+                                <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-lg shadow-lg min-w-[180px] max-h-48 overflow-y-auto">
+                                  <div className="py-1">
+                                    {task.assignedUserId && (
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateTaskAssignee(task.id, null);
+                                        }}
+                                      >
+                                        <span className="text-xs">✕</span> Unassign
+                                      </button>
+                                    )}
+                                    {teamMembers.map((member) => (
+                                      <button
+                                        key={member.userId}
+                                        className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 flex items-center gap-2 ${
+                                          task.assignedUserId === member.userId ? "bg-blue-50 text-blue-700" : ""
+                                        }`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          updateTaskAssignee(task.id, member.userId);
+                                        }}
+                                      >
+                                        <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium flex items-center justify-center">
+                                          {(member.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                                        </span>
+                                        <span className="truncate">{member.name || member.email}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             {/* Order Parts button - show for pending/in_progress tasks */}
                             {task.status !== "done" && task.status !== "not_required" && (
                               <button

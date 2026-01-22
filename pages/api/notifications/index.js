@@ -2,6 +2,8 @@ import connectMongo from "@/libs/mongoose";
 import Notification from "@/models/Notification";
 import Vehicle from "@/models/Vehicle";
 import VehicleIssue from "@/models/VehicleIssue";
+import VehicleTask from "@/models/VehicleTask";
+import CalendarEvent from "@/models/CalendarEvent";
 import User from "@/models/User";
 import { withDealerContext } from "@/libs/authContext";
 
@@ -32,13 +34,21 @@ async function handler(req, res, ctx) {
       // Batch fetch related data (avoids N+1 queries)
       const vehicleIds = notifications.filter(n => n.relatedVehicleId).map(n => n.relatedVehicleId);
       const issueIds = notifications.filter(n => n.relatedIssueId).map(n => n.relatedIssueId);
+      const taskIds = notifications.filter(n => n.relatedTaskId).map(n => n.relatedTaskId);
+      const calendarEventIds = notifications.filter(n => n.relatedCalendarEventId).map(n => n.relatedCalendarEventId);
 
-      const [vehicles, issues] = await Promise.all([
+      const [vehicles, issues, tasks, calendarEvents] = await Promise.all([
         vehicleIds.length > 0
           ? Vehicle.find({ _id: { $in: vehicleIds } }).select("regCurrent make model").lean()
           : [],
         issueIds.length > 0
           ? VehicleIssue.find({ _id: { $in: issueIds } }).select("category subcategory description status createdByUserId").lean()
+          : [],
+        taskIds.length > 0
+          ? VehicleTask.find({ _id: { $in: taskIds } }).select("name status").lean()
+          : [],
+        calendarEventIds.length > 0
+          ? CalendarEvent.find({ _id: { $in: calendarEventIds } }).select("title startDatetime endDatetime").lean()
           : [],
       ]);
 
@@ -51,7 +61,9 @@ async function handler(req, res, ctx) {
       // Create lookup maps for O(1) access
       const vehicleMap = Object.fromEntries(vehicles.map(v => [v._id.toString(), v]));
       const issueMap = Object.fromEntries(issues.map(i => [i._id.toString(), i]));
+      const taskMap = Object.fromEntries(tasks.map(t => [t._id.toString(), t]));
       const userMap = Object.fromEntries(users.map(u => [u._id.toString(), u]));
+      const calendarEventMap = Object.fromEntries(calendarEvents.map(e => [e._id.toString(), e]));
 
       // Enrich notifications using the maps (no DB calls in loop)
       const enrichedNotifications = notifications.map((notification) => {
@@ -100,6 +112,33 @@ async function handler(req, res, ctx) {
               }
             }
           }
+        }
+
+        // Add task info if available
+        if (notification.relatedTaskId) {
+          const task = taskMap[notification.relatedTaskId.toString()];
+          if (task) {
+            result.task = {
+              id: task._id.toString(),
+              name: task.name,
+              status: task.status,
+            };
+          }
+          result.relatedTaskId = notification.relatedTaskId.toString();
+        }
+
+        // Add calendar event info if available
+        if (notification.relatedCalendarEventId) {
+          const calendarEvent = calendarEventMap[notification.relatedCalendarEventId.toString()];
+          if (calendarEvent) {
+            result.calendarEvent = {
+              id: calendarEvent._id.toString(),
+              title: calendarEvent.title,
+              startDatetime: calendarEvent.startDatetime,
+              endDatetime: calendarEvent.endDatetime,
+            };
+          }
+          result.relatedCalendarEventId = notification.relatedCalendarEventId.toString();
         }
 
         return result;

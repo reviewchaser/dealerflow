@@ -7,6 +7,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { PageHint } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import useDealerRedirect from "@/hooks/useDealerRedirect";
+import TeamMemberPicker from "@/components/TeamMemberPicker";
 
 export default function Calendar() {
   const router = useRouter();
@@ -962,6 +963,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
     endDatetime: event ? new Date(event.endDatetime).toISOString().slice(0, 16) : "",
     linkedVehicleId: event?.linkedVehicleId || "",
     linkedContactId: event?.linkedContactId || "",
+    assignedToUserIds: event?.assignedToUserIds?.map(u => u._id || u.id || u) || [],
   });
 
   const handleAddCategory = async () => {
@@ -1000,6 +1002,7 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
         description: formData.description || "",
         startDatetime: formData.startDatetime,
         endDatetime: endDatetime,
+        assignedToUserIds: formData.assignedToUserIds || [],
       };
       if (formData.categoryId && formData.categoryId !== "") {
         payload.categoryId = formData.categoryId;
@@ -1148,6 +1151,15 @@ function EventModal({ event, categories, onClose, onSuccess, onCategoriesChange,
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
                 ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Assign To</label>
+                <TeamMemberPicker
+                  value={formData.assignedToUserIds}
+                  onChange={(userIds) => setFormData({ ...formData, assignedToUserIds: userIds })}
+                  placeholder="Select team members..."
+                />
               </div>
             </div>
 
