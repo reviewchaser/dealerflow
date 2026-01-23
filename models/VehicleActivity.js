@@ -19,6 +19,7 @@ const ACTIVITY_TYPES = [
   "TASK_COMPLETED",      // Specifically when marked complete
   "TASK_PROGRESS_UPDATED", // Legacy progress sub-status
   "TASK_UPDATED",        // Name/notes changed
+  "TASK_ASSIGNED",       // Task assigned to team member
   "TASK_DELETED",
   // Parts ordering events
   "TASK_PARTS_STATUS_CHANGED", // Overall parts status changed

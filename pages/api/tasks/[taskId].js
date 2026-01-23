@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import connectMongo from "@/libs/mongoose";
 import VehicleTask, { TASK_PROGRESS, PARTS_STATUS, SUPPLIER_TYPE, SUPPLIER_TYPE_LABELS } from "@/models/VehicleTask";
 import Vehicle from "@/models/Vehicle";
@@ -85,7 +86,13 @@ async function handler(req, res, ctx) {
 
       // Handle assignee changes
       if (assignedUserId !== undefined) {
-        const newAssignedUserId = assignedUserId || null;
+        let newAssignedUserId = null;
+        if (assignedUserId) {
+          if (!mongoose.Types.ObjectId.isValid(assignedUserId)) {
+            return res.status(400).json({ error: "Invalid user ID format" });
+          }
+          newAssignedUserId = new mongoose.Types.ObjectId(assignedUserId);
+        }
         if (newAssignedUserId?.toString() !== previousAssignedUserId) {
           task.assignedUserId = newAssignedUserId;
           assigneeChanged = true;
@@ -444,16 +451,21 @@ async function handler(req, res, ctx) {
 
         // Create notification for the newly assigned user (if not self-assigning)
         if (task.assignedUserId && task.assignedUserId.toString() !== userId) {
-          await Notification.create({
-            dealerId,
-            userId: task.assignedUserId,
-            type: "TASK_ASSIGNED",
-            title: "You've been assigned to a task",
-            message: `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}: ${task.name}`.trim(),
-            relatedVehicleId: task.vehicleId,
-            relatedTaskId: task._id,
-            isRead: false,
-          });
+          try {
+            await Notification.create({
+              dealerId,
+              userId: task.assignedUserId,
+              type: "TASK_ASSIGNED",
+              title: "You've been assigned to a task",
+              message: `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}: ${task.name}`.trim(),
+              relatedVehicleId: task.vehicleId,
+              relatedTaskId: task._id,
+              isRead: false,
+            });
+          } catch (notifError) {
+            console.error("Failed to create task assignment notification:", notifError);
+            // Don't fail the request - task assignment succeeded
+          }
         }
       }
 

@@ -90,6 +90,7 @@ export default function VehicleImage({
         className={`${className} ${isLoading ? 'hidden' : ''}`}
         onError={handleError}
         onLoad={handleLoad}
+        draggable="false"
         {...rest}
       />
     </>

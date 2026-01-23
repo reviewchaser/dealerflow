@@ -87,6 +87,10 @@ export default function SalesPrep() {
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editingTaskName, setEditingTaskName] = useState("");
 
+  // Inline title editing state
+  const [editingVehicleTitle, setEditingVehicleTitle] = useState(null); // vehicle.id
+  const [editTitleValue, setEditTitleValue] = useState("");
+
   // Task drag-and-drop state
   const [draggedTaskIndex, setDraggedTaskIndex] = useState(null);
   const [dragOverTaskIndex, setDragOverTaskIndex] = useState(null);
@@ -138,6 +142,32 @@ export default function SalesPrep() {
     const hasTouch = window.matchMedia('(pointer: coarse)').matches;
     setIsTouchDevice(hasTouch);
   }, []);
+
+  // Touch drag state for mobile
+  const [touchDragActive, setTouchDragActive] = useState(false);
+  const [touchDropTarget, setTouchDropTarget] = useState(null);
+  const [isLongPressing, setIsLongPressing] = useState(null);
+  const touchStartRef = useRef({ x: 0, y: 0, timer: null });
+  const scrollIntervalRef = useRef(null);
+
+  // Load columnSortOptions from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("prepColumnSortOptions");
+    if (saved) {
+      try {
+        setColumnSortOptions(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse saved sort options:", e);
+      }
+    }
+  }, []);
+
+  // Save columnSortOptions to localStorage on change
+  useEffect(() => {
+    if (Object.keys(columnSortOptions).length > 0) {
+      localStorage.setItem("prepColumnSortOptions", JSON.stringify(columnSortOptions));
+    }
+  }, [columnSortOptions]);
 
   // Inline form modals state
   const [showPdiModal, setShowPdiModal] = useState(false);
@@ -630,10 +660,19 @@ export default function SalesPrep() {
 
   const updateVehicleStatus = async (vehicleId, newStatus) => {
     try {
+      const updateData = { status: newStatus };
+
+      // When moving to "live" (Sold In Progress), set prepBoardOrder to bottom
+      if (newStatus === "live") {
+        const liveVehicles = vehicles.filter(v => v.status === "live" && v.id !== vehicleId);
+        const maxOrder = Math.max(0, ...liveVehicles.map(v => v.prepBoardOrder || 0));
+        updateData.prepBoardOrder = maxOrder + 1;
+      }
+
       await fetch(`/api/vehicles/${vehicleId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(updateData),
       });
       fetchVehicles();
       const columnLabel = COLUMNS.find(col => col.key === newStatus)?.label || newStatus.replace("_", " ");
@@ -653,6 +692,30 @@ export default function SalesPrep() {
       });
     } catch (error) {
       console.error("Failed to update prep order:", error);
+    }
+  };
+
+  // Save inline title edit (make/model)
+  const saveVehicleTitle = async (vehicleId, titleValue) => {
+    const parts = titleValue.trim().split(/\s+/);
+    if (parts.length < 2) {
+      toast.error("Please enter both make and model");
+      return false;
+    }
+    const make = parts[0];
+    const model = parts.slice(1).join(" ");
+    try {
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ make, model }),
+      });
+      fetchVehicles();
+      toast.success("Vehicle updated");
+      return true;
+    } catch (error) {
+      toast.error("Failed to update vehicle");
+      return false;
     }
   };
 
@@ -874,10 +937,14 @@ export default function SalesPrep() {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assignedUserId: userId || null }),
+        body: JSON.stringify({ assignedUserId: userId ? String(userId) : null }),
       });
 
-      if (!res.ok) throw new Error("Failed to update");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Task assignment failed:", errorData);
+        throw new Error(errorData.error || "Failed to update");
+      }
 
       // Background refresh to sync any server-side changes
       fetchVehicles();
@@ -886,6 +953,7 @@ export default function SalesPrep() {
       }
     } catch (error) {
       // Rollback on error
+      console.error("Task assignment error:", error);
       toast.error("Failed to assign task");
       setSelectedVehicle(previousVehicle);
       setVehicles(previousVehicles);
@@ -1409,6 +1477,7 @@ export default function SalesPrep() {
     setDraggedCard(vehicle);
     setDragPosition({ x: e.clientX, y: e.clientY });
     e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", vehicle.id || ""); // Required for drag to work in all browsers
     // Create invisible drag image (we'll render our own preview)
     const emptyImg = new Image();
     emptyImg.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
@@ -1441,6 +1510,9 @@ export default function SalesPrep() {
 
     // Always cleanup immediately to prevent stale state
     cleanupDrag();
+    // Also cleanup priority drag state
+    setDraggedPriorityIndex(null);
+    setDragOverPriorityIndex(null);
 
     if (!card || card.status === newStatus) {
       return;
@@ -1448,6 +1520,188 @@ export default function SalesPrep() {
 
     const vehicleId = card.id || card._id;
     await updateVehicleStatus(vehicleId, newStatus);
+  };
+
+  // Touch drag handlers for mobile
+  const LONG_PRESS_DURATION = 350; // ms
+  const TOUCH_MOVE_THRESHOLD = 10; // px - movement beyond this cancels long press
+
+  const handleTouchStart = (e, vehicle, isPrioritySort, cardIndex) => {
+    if (!isTouchDevice) return;
+
+    const touch = e.touches[0];
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      timer: setTimeout(() => {
+        // Long press triggered - start drag mode
+        setIsLongPressing(vehicle.id);
+        setTouchDragActive(true);
+        setDraggedCard(vehicle);
+        setDragPosition({ x: touch.clientX, y: touch.clientY });
+
+        if (isPrioritySort) {
+          setDraggedPriorityIndex(cardIndex);
+        }
+
+        // Haptic feedback if available
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }, LONG_PRESS_DURATION),
+    };
+  };
+
+  const handleTouchMove = (e, isPrioritySort) => {
+    const touch = e.touches[0];
+
+    // If not in drag mode, check if movement exceeds threshold (user is scrolling)
+    if (!touchDragActive) {
+      const dx = touch.clientX - touchStartRef.current.x;
+      const dy = touch.clientY - touchStartRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > TOUCH_MOVE_THRESHOLD) {
+        // Cancel long press timer - user is scrolling
+        if (touchStartRef.current.timer) {
+          clearTimeout(touchStartRef.current.timer);
+          touchStartRef.current.timer = null;
+        }
+        setIsLongPressing(null);
+      }
+      return;
+    }
+
+    // In drag mode - prevent scrolling and update position
+    e.preventDefault();
+    setDragPosition({ x: touch.clientX, y: touch.clientY });
+
+    // Find drop target under finger
+    const elementUnderFinger = document.elementFromPoint(touch.clientX, touch.clientY);
+
+    if (isPrioritySort) {
+      // Find card element for priority reordering
+      const cardElement = elementUnderFinger?.closest('[data-card-index]');
+      if (cardElement) {
+        const targetIndex = parseInt(cardElement.dataset.cardIndex, 10);
+        if (!isNaN(targetIndex) && targetIndex !== draggedPriorityIndex) {
+          setDragOverPriorityIndex(targetIndex);
+        }
+      } else {
+        setDragOverPriorityIndex(null);
+      }
+    } else {
+      // Find column element for stage-to-stage drag
+      const columnElement = elementUnderFinger?.closest('[data-column-key]');
+      if (columnElement) {
+        const columnKey = columnElement.dataset.columnKey;
+        setTouchDropTarget(columnKey);
+      } else {
+        setTouchDropTarget(null);
+      }
+    }
+
+    // Edge scrolling
+    handleEdgeScroll(touch.clientY);
+  };
+
+  const handleTouchEnd = async (isPrioritySort, columnVehicles) => {
+    // Clear long press timer
+    if (touchStartRef.current.timer) {
+      clearTimeout(touchStartRef.current.timer);
+      touchStartRef.current.timer = null;
+    }
+
+    // Stop edge scrolling
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+
+    // If not in drag mode, let the click handler fire
+    if (!touchDragActive) {
+      setIsLongPressing(null);
+      return;
+    }
+
+    const card = draggedCard;
+
+    if (isPrioritySort && draggedPriorityIndex !== null && dragOverPriorityIndex !== null) {
+      // Handle priority reorder drop
+      if (draggedPriorityIndex !== dragOverPriorityIndex) {
+        const reordered = [...columnVehicles];
+        const [moved] = reordered.splice(draggedPriorityIndex, 1);
+        const adjustedIndex = draggedPriorityIndex < dragOverPriorityIndex
+          ? dragOverPriorityIndex - 1
+          : dragOverPriorityIndex;
+        reordered.splice(adjustedIndex, 0, moved);
+
+        // Optimistic UI update - update local state immediately
+        setVehicles(prev => prev.map(v => {
+          const newIndex = reordered.findIndex(r => r.id === v.id);
+          if (newIndex !== -1) {
+            return { ...v, prepBoardOrder: newIndex };
+          }
+          return v;
+        }));
+
+        // Persist to server in background (fire and forget)
+        for (let i = 0; i < reordered.length; i++) {
+          updateVehiclePrepOrder(reordered[i].id, i);
+        }
+      }
+    } else if (touchDropTarget && card && touchDropTarget !== card.status) {
+      // Handle stage-to-stage drop
+      await updateVehicleStatus(card.id, touchDropTarget);
+    }
+
+    // Clean up all drag state
+    setTouchDragActive(false);
+    setTouchDropTarget(null);
+    setIsLongPressing(null);
+    cleanupDrag();
+    setDraggedPriorityIndex(null);
+    setDragOverPriorityIndex(null);
+  };
+
+  const handleTouchCancel = () => {
+    if (touchStartRef.current.timer) {
+      clearTimeout(touchStartRef.current.timer);
+      touchStartRef.current.timer = null;
+    }
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+    setTouchDragActive(false);
+    setTouchDropTarget(null);
+    setIsLongPressing(null);
+    cleanupDrag();
+    setDraggedPriorityIndex(null);
+    setDragOverPriorityIndex(null);
+  };
+
+  const handleEdgeScroll = (touchY) => {
+    const EDGE_ZONE = 60; // px from edge to trigger scroll
+    const SCROLL_SPEED = 10; // px per frame
+
+    const viewportHeight = window.innerHeight;
+
+    // Clear existing interval
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+
+    if (touchY < EDGE_ZONE) {
+      // Near top - scroll up
+      scrollIntervalRef.current = setInterval(() => {
+        window.scrollBy(0, -SCROLL_SPEED);
+      }, 16);
+    } else if (touchY > viewportHeight - EDGE_ZONE) {
+      // Near bottom - scroll down
+      scrollIntervalRef.current = setInterval(() => {
+        window.scrollBy(0, SCROLL_SPEED);
+      }, 16);
+    }
   };
 
   const formatDate = (date) => {
@@ -2230,8 +2484,8 @@ export default function SalesPrep() {
       <div className="flex justify-between items-center mb-2">
         <div>
           <h1 className="text-3xl font-bold">Vehicle Prep</h1>
-          <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; {isTouchDevice ? "Tap a card, then use Move to change stage" : "Drag cards to move between stages"}</p>
-          <div className="mt-1"><PageHint id="sales-prep">{isTouchDevice ? "Tap a vehicle card to view details. Use the Move button to change stages." : "Drag vehicles between columns to track their progress. Click a card to view details and manage tasks."}</PageHint></div>
+          <p className="text-base-content/60 mt-1">Manage vehicle prep and sales pipeline &bull; {isTouchDevice ? "Long-press and drag to move, or tap for details" : "Drag cards to move between stages"}</p>
+          <div className="mt-1"><PageHint id="sales-prep">{isTouchDevice ? "Tap a card to view details. Long-press and drag to move between stages, or use the Move button." : "Drag vehicles between columns to track their progress. Click a card to view details and manage tasks."}</PageHint></div>
         </div>
         <Link href="/stock-book" className="btn btn-outline btn-sm text-slate-600">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3002,6 +3256,28 @@ export default function SalesPrep() {
             </div>
           </div>
 
+          {/* Mobile Touch Drag Drop Zones - shown when dragging */}
+          {touchDragActive && isTouchDevice && (
+            <div className="md:hidden sticky top-0 z-50 bg-white/95 backdrop-blur-sm py-3 px-4 shadow-md border-b border-slate-200 -mx-4">
+              <p className="text-xs text-slate-500 mb-2 text-center font-medium">Drop to move to stage</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+                {COLUMNS.filter(c => c.key !== draggedCard?.status).map((col) => (
+                  <div
+                    key={col.key}
+                    data-column-key={col.key}
+                    className={`flex-shrink-0 px-4 py-3 rounded-xl border-2 transition-all ${
+                      touchDropTarget === col.key
+                        ? `border-solid ${col.accentBg} text-white shadow-lg scale-105`
+                        : "border-dashed border-slate-300 bg-slate-50 text-slate-600"
+                    }`}
+                  >
+                    <span className="text-sm font-medium whitespace-nowrap">{col.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Mobile Single Column View */}
           <div className="md:hidden">
             {(() => {
@@ -3037,9 +3313,11 @@ export default function SalesPrep() {
                 )},
               };
 
+              const isPrioritySort = mobileActiveColumn === "live" && columnSortOptions[mobileActiveColumn] === "priority";
+
               return (
                 <div key={isAllMode ? "all" : currentCol?.key} className="space-y-3">
-                  {columnVehicles.map((vehicle) => {
+                  {columnVehicles.map((vehicle, cardIndex) => {
                     const tasks = vehicle.tasks || [];
                     const completedTasks = tasks.filter(t => t.status === "done").length;
                     const motStatus = getMOTStatus(vehicle);
@@ -3049,8 +3327,25 @@ export default function SalesPrep() {
                     return (
                       <div
                         key={vehicle.id}
-                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow border border-slate-100/50 overflow-hidden active:scale-[0.98]"
-                        onClick={() => openVehicleDrawer(vehicle)}
+                        data-card-index={cardIndex}
+                        className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-slate-100/50 overflow-hidden ${
+                          touchDragActive && draggedCard?.id === vehicle.id ? "opacity-40 scale-95" : ""
+                        } ${
+                          isLongPressing === vehicle.id ? "scale-[1.02] shadow-lg ring-2 ring-blue-400" : ""
+                        } ${
+                          isPrioritySort && dragOverPriorityIndex === cardIndex ? "border-t-4 border-t-cyan-400" : ""
+                        } ${
+                          !touchDragActive ? "active:scale-[0.98]" : ""
+                        }`}
+                        onClick={() => {
+                          if (!touchDragActive) {
+                            openVehicleDrawer(vehicle);
+                          }
+                        }}
+                        onTouchStart={(e) => handleTouchStart(e, vehicle, isPrioritySort, cardIndex)}
+                        onTouchMove={(e) => handleTouchMove(e, isPrioritySort)}
+                        onTouchEnd={() => handleTouchEnd(isPrioritySort, columnVehicles)}
+                        onTouchCancel={handleTouchCancel}
                       >
                         <div className="p-4">
                           {/* Title with Registration Badge */}
@@ -3421,12 +3716,27 @@ export default function SalesPrep() {
                         onDragStart={(e) => {
                           if (isPrioritySort) {
                             setDraggedPriorityIndex(cardIndex);
+                            setDraggedCard(vehicle); // For visual preview
                             e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", "");
+                            // Create invisible drag image (hide browser's default ghost)
+                            const img = new Image();
+                            img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+                            e.dataTransfer.setDragImage(img, 0, 0);
+                            setDragPosition({ x: e.clientX, y: e.clientY });
                           } else {
                             handleDragStart(e, vehicle);
                           }
                         }}
-                        onDrag={isPrioritySort ? undefined : handleDrag}
+                        onDrag={(e) => {
+                          if (isPrioritySort) {
+                            if (e.clientX > 0 && e.clientY > 0) {
+                              setDragPosition({ x: e.clientX, y: e.clientY });
+                            }
+                          } else {
+                            handleDrag(e);
+                          }
+                        }}
                         onDragOver={(e) => {
                           e.preventDefault();
                           if (isPrioritySort && draggedPriorityIndex !== null && draggedPriorityIndex !== cardIndex) {
@@ -3436,24 +3746,44 @@ export default function SalesPrep() {
                         onDragLeave={() => isPrioritySort && setDragOverPriorityIndex(null)}
                         onDrop={async (e) => {
                           e.preventDefault();
-                          if (isPrioritySort && draggedPriorityIndex !== null && draggedPriorityIndex !== cardIndex) {
-                            // Reorder the vehicles
-                            const reordered = [...columnVehicles];
-                            const [moved] = reordered.splice(draggedPriorityIndex, 1);
-                            reordered.splice(cardIndex, 0, moved);
-                            // Update prepBoardOrder for all affected vehicles
-                            for (let i = 0; i < reordered.length; i++) {
-                              await updateVehiclePrepOrder(reordered[i].id, i);
+                          if (isPrioritySort) {
+                            e.stopPropagation(); // Prevent column handler from firing
+                            if (draggedPriorityIndex !== null && draggedPriorityIndex !== cardIndex) {
+                              // Reorder the vehicles
+                              const reordered = [...columnVehicles];
+                              const [moved] = reordered.splice(draggedPriorityIndex, 1);
+                              // Adjust target index when moving forward (source was before target)
+                              const adjustedIndex = draggedPriorityIndex < cardIndex ? cardIndex - 1 : cardIndex;
+                              reordered.splice(adjustedIndex, 0, moved);
+
+                              // Optimistic UI update - update local state immediately
+                              setVehicles(prev => prev.map(v => {
+                                const newIndex = reordered.findIndex(r => r.id === v.id);
+                                if (newIndex !== -1) {
+                                  return { ...v, prepBoardOrder: newIndex };
+                                }
+                                return v;
+                              }));
+
+                              // Persist to server in background (fire and forget)
+                              for (let i = 0; i < reordered.length; i++) {
+                                updateVehiclePrepOrder(reordered[i].id, i);
+                              }
                             }
-                            fetchVehicles();
+                            // Only cleanup in priority mode - for stage-to-stage drags, let the column handler do it
+                            setDraggedPriorityIndex(null);
+                            setDragOverPriorityIndex(null);
+                            setDraggedCard(null);
+                            setDragPosition({ x: 0, y: 0 });
                           }
-                          setDraggedPriorityIndex(null);
-                          setDragOverPriorityIndex(null);
+                          // For non-priority drops, let the event bubble to the column handler
                         }}
                         onDragEnd={() => {
                           if (isPrioritySort) {
                             setDraggedPriorityIndex(null);
                             setDragOverPriorityIndex(null);
+                            setDraggedCard(null);
+                            setDragPosition({ x: 0, y: 0 });
                           } else {
                             handleDragEnd();
                           }
@@ -3735,10 +4065,39 @@ export default function SalesPrep() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg md:text-xl font-bold text-slate-900 truncate">
-                      {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
-                    </h2>
+                  <div className="min-w-0 flex-1 md:pr-56">
+                    {editingVehicleTitle === selectedVehicle.id ? (
+                      <input
+                        type="text"
+                        className="text-lg md:text-xl font-bold text-slate-900 border border-cyan-400 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-cyan-300 w-full"
+                        value={editTitleValue}
+                        onChange={(e) => setEditTitleValue(e.target.value)}
+                        onBlur={async () => {
+                          const success = await saveVehicleTitle(selectedVehicle.id, editTitleValue);
+                          if (success) setEditingVehicleTitle(null);
+                        }}
+                        onKeyDown={async (e) => {
+                          if (e.key === "Enter") {
+                            const success = await saveVehicleTitle(selectedVehicle.id, editTitleValue);
+                            if (success) setEditingVehicleTitle(null);
+                          } else if (e.key === "Escape") {
+                            setEditingVehicleTitle(null);
+                          }
+                        }}
+                        autoFocus
+                      />
+                    ) : (
+                      <h2
+                        className="text-lg md:text-xl font-bold text-slate-900 truncate cursor-pointer hover:text-cyan-700"
+                        onClick={() => {
+                          setEditingVehicleTitle(selectedVehicle.id);
+                          setEditTitleValue(`${selectedVehicle.make} ${selectedVehicle.model}`);
+                        }}
+                        title="Click to edit"
+                      >
+                        {selectedVehicle.year || ""} {selectedVehicle.make} {selectedVehicle.model}
+                      </h2>
+                    )}
                     <p className="text-xs md:text-sm text-slate-500 font-mono mt-0.5">{selectedVehicle.regCurrent}</p>
                   </div>
                 </div>
@@ -4676,197 +5035,6 @@ export default function SalesPrep() {
                     </div>
 
 
-                  {/* Purchase Section - Only for Stock vehicles */}
-                  {(selectedVehicle.type === "STOCK" || !selectedVehicle.type) && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-semibold text-slate-900">Purchase Info (SIV)</h3>
-                        {!selectedVehicle.purchase?.purchasePriceNet && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                            Missing
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="form-control">
-                            <label className="label label-text text-xs">SIV (Total Inc. VAT)</label>
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="input input-sm input-bordered w-full pl-7"
-                                placeholder="0.00"
-                                value={selectedVehicle.purchase?.purchasePriceNet || ""}
-                                onChange={(e) => {
-                                  const siv = e.target.value ? parseFloat(e.target.value) : null;
-                                  // Auto-calculate VAT for VAT Qualifying (20% rate): VAT = SIV - (SIV / 1.2)
-                                  const autoVat = selectedVehicle.vatScheme === "VAT_QUALIFYING" && siv
-                                    ? Math.round((siv - (siv / 1.2)) * 100) / 100
-                                    : 0;
-                                  setSelectedVehicle({
-                                    ...selectedVehicle,
-                                    purchase: {
-                                      ...selectedVehicle.purchase,
-                                      purchasePriceNet: siv,
-                                      purchaseVat: autoVat
-                                    }
-                                  });
-                                }}
-                                onBlur={async () => {
-                                  await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ purchase: selectedVehicle.purchase }),
-                                  });
-                                  fetchVehicles();
-                                }}
-                              />
-                            </div>
-                          </div>
-                          {selectedVehicle.vatScheme === "VAT_QUALIFYING" && (
-                            <div className="form-control">
-                              <label className="label label-text text-xs">VAT Portion (Auto)</label>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
-                                <input
-                                  type="text"
-                                  className="input input-sm input-bordered w-full pl-7 bg-slate-100 cursor-not-allowed"
-                                  readOnly
-                                  value={selectedVehicle.purchase?.purchaseVat?.toFixed(2) || "0.00"}
-                                />
-                              </div>
-                              <p className="text-xs text-slate-400 mt-0.5">Calculated @ 20% VAT</p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="form-control">
-                            <label className="label label-text text-xs">Purchase Date</label>
-                            <input
-                              type="date"
-                              className="input input-sm input-bordered"
-                              value={selectedVehicle.purchase?.purchaseDate ? new Date(selectedVehicle.purchase.purchaseDate).toISOString().split('T')[0] : ""}
-                              onChange={async (e) => {
-                                const newValue = e.target.value;
-                                const updatedPurchase = { ...selectedVehicle.purchase, purchaseDate: newValue || null };
-                                setSelectedVehicle({ ...selectedVehicle, purchase: updatedPurchase });
-                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                  method: "PUT",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ purchase: updatedPurchase }),
-                                });
-                                fetchVehicles();
-                              }}
-                            />
-                          </div>
-                          <div className="form-control">
-                            <label className="label label-text text-xs">Invoice Ref</label>
-                            <input
-                              type="text"
-                              className="input input-sm input-bordered"
-                              placeholder="INV-001"
-                              value={selectedVehicle.purchase?.purchaseInvoiceRef || ""}
-                              onChange={(e) => setSelectedVehicle({
-                                ...selectedVehicle,
-                                purchase: { ...selectedVehicle.purchase, purchaseInvoiceRef: e.target.value }
-                              })}
-                              onBlur={async () => {
-                                await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                  method: "PUT",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ purchase: selectedVehicle.purchase }),
-                                });
-                                fetchVehicles();
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className="form-control">
-                          <label className="label label-text text-xs">Purchased From</label>
-                          <ContactPicker
-                            value={selectedVehicle.purchase?.purchasedFromContactId}
-                            onChange={async (contactId) => {
-                              const updatedPurchase = { ...selectedVehicle.purchase, purchasedFromContactId: contactId };
-                              setSelectedVehicle({ ...selectedVehicle, purchase: updatedPurchase });
-                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ purchase: updatedPurchase }),
-                              });
-                              fetchVehicles();
-                            }}
-                            filterTypeTags={["SUPPLIER"]}
-                            placeholder="Search suppliers..."
-                            allowCreate={true}
-                          />
-                        </div>
-                        <div className="form-control">
-                          <label className="label label-text text-xs">VAT Scheme</label>
-                          <select
-                            className="select select-sm select-bordered w-full"
-                            value={selectedVehicle.vatScheme || "MARGIN"}
-                            onChange={async (e) => {
-                              const newScheme = e.target.value;
-                              const siv = selectedVehicle.purchase?.purchasePriceNet || 0;
-                              // Recalculate VAT when scheme changes
-                              const autoVat = newScheme === "VAT_QUALIFYING" && siv
-                                ? Math.round((siv - (siv / 1.2)) * 100) / 100
-                                : 0;
-                              const updatedPurchase = {
-                                ...selectedVehicle.purchase,
-                                purchaseVat: autoVat
-                              };
-                              setSelectedVehicle({
-                                ...selectedVehicle,
-                                vatScheme: newScheme,
-                                purchase: updatedPurchase
-                              });
-                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ vatScheme: newScheme, purchase: updatedPurchase }),
-                              });
-                              fetchVehicles();
-                            }}
-                          >
-                            <option value="MARGIN">Margin Scheme</option>
-                            <option value="VAT_QUALIFYING">VAT Qualifying</option>
-                            <option value="NO_VAT">No VAT</option>
-                          </select>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {selectedVehicle.vatScheme === "VAT_QUALIFYING"
-                              ? "VAT can be reclaimed on purchase and charged on sale"
-                              : selectedVehicle.vatScheme === "NO_VAT"
-                              ? "No VAT applicable (e.g. private purchase)"
-                              : "VAT is calculated on the profit margin only"}
-                          </p>
-                        </div>
-                        <div className="form-control">
-                          <label className="label label-text text-xs">Purchase Notes</label>
-                          <textarea
-                            className="textarea textarea-bordered textarea-sm"
-                            rows={2}
-                            placeholder="Any notes about the purchase..."
-                            value={selectedVehicle.purchase?.purchaseNotes || ""}
-                            onChange={(e) => setSelectedVehicle({
-                              ...selectedVehicle,
-                              purchase: { ...selectedVehicle.purchase, purchaseNotes: e.target.value }
-                            })}
-                            onBlur={async () => {
-                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ purchase: selectedVehicle.purchase }),
-                              });
-                              fetchVehicles();
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Vehicle Notes Section */}
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
