@@ -255,6 +255,7 @@ export default function DashboardLayout({ children }) {
   const [showMobileQuickAdd, setShowMobileQuickAdd] = useState(false);
   const [showDesktopQuickAdd, setShowDesktopQuickAdd] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
   const quickAddButtonRef = useRef(null);
   const quickAddMenuRef = useRef(null);
 
@@ -269,6 +270,11 @@ export default function DashboardLayout({ children }) {
       // localStorage not available
     }
   }, []);
+
+  // Reset logo loaded state when URL changes to prevent flash of broken image
+  useEffect(() => {
+    setLogoLoaded(false);
+  }, [dealer?.logoUrl, cachedLogo]);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -469,11 +475,18 @@ export default function DashboardLayout({ children }) {
 
               if (logoUrl) {
                 return (
-                  <img
-                    src={logoUrl}
-                    alt={displayName || "Logo"}
-                    className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"}`}
-                  />
+                  <>
+                    {!logoLoaded && (
+                      <div className={`animate-pulse bg-slate-200 rounded-lg ${sidebarCollapsed ? "w-8 h-8" : "w-16 h-16"}`} />
+                    )}
+                    <img
+                      src={logoUrl}
+                      alt={displayName || "Logo"}
+                      className={`object-contain transition-all duration-300 ${sidebarCollapsed ? "max-h-8 w-8" : "max-h-16 w-auto mx-auto"} ${logoLoaded ? "" : "hidden"}`}
+                      onLoad={() => setLogoLoaded(true)}
+                      onError={() => setLogoLoaded(true)}
+                    />
+                  </>
                 );
               }
 

@@ -449,14 +449,18 @@ async function handler(req, res, ctx) {
           },
         });
 
-        // Create notification for the newly assigned user (if not self-assigning)
-        if (task.assignedUserId && task.assignedUserId.toString() !== userId) {
+        // Create notification for the newly assigned user (including self-assignments)
+        if (task.assignedUserId) {
+          const isSelfAssignment = task.assignedUserId.toString() === userId;
+
           try {
             await Notification.create({
               dealerId,
               userId: task.assignedUserId,
               type: "TASK_ASSIGNED",
-              title: "You've been assigned to a task",
+              title: isSelfAssignment
+                ? "You assigned yourself to a task"
+                : "You've been assigned to a task",
               message: `${vehicle.regCurrent} - ${vehicle.make || ""} ${vehicle.model || ""}: ${task.name}`.trim(),
               relatedVehicleId: task.vehicleId,
               relatedTaskId: task._id,
