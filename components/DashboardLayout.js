@@ -256,6 +256,8 @@ export default function DashboardLayout({ children }) {
   const [showDesktopQuickAdd, setShowDesktopQuickAdd] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [logoLoaded, setLogoLoaded] = useState(false);
+  const [popupNotifications, setPopupNotifications] = useState([]);
+  const [showNotificationPopup, setShowNotificationPopup] = useState(false);
   const quickAddButtonRef = useRef(null);
   const quickAddMenuRef = useRef(null);
 
@@ -270,6 +272,37 @@ export default function DashboardLayout({ children }) {
       // localStorage not available
     }
   }, []);
+
+  // Fetch unread notifications for popup on page load
+  useEffect(() => {
+    fetch("/api/notifications?unreadOnly=true")
+      .then(res => res.ok ? res.json() : { notifications: [] })
+      .then(data => {
+        const notifications = data.notifications || [];
+        if (notifications.length === 0) return;
+
+        // Get IDs already shown as popup from localStorage
+        const shownIds = JSON.parse(localStorage.getItem("dealerflow_popup_shown_ids") || "[]");
+
+        // Filter to only notifications not yet shown as popup
+        const unshown = notifications.filter(n => !shownIds.includes(n.id));
+
+        if (unshown.length > 0) {
+          setPopupNotifications(unshown);
+          setShowNotificationPopup(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Dismiss notification popup (marks as shown, NOT as read)
+  const dismissNotificationPopup = () => {
+    // Add notification IDs to "shown" list in localStorage
+    const shownIds = JSON.parse(localStorage.getItem("dealerflow_popup_shown_ids") || "[]");
+    const newShownIds = [...new Set([...shownIds, ...popupNotifications.map(n => n.id)])];
+    localStorage.setItem("dealerflow_popup_shown_ids", JSON.stringify(newShownIds));
+    setShowNotificationPopup(false);
+  };
 
   // Reset logo loaded state when URL changes to prevent flash of broken image
   useEffect(() => {
@@ -1191,6 +1224,67 @@ export default function DashboardLayout({ children }) {
 
       {/* Help Chat Widget */}
       <HelpChat />
+
+      {/* Notification Popup on Page Load */}
+      {showNotificationPopup && popupNotifications.length > 0 && (
+        <Portal>
+          <div className="fixed inset-0 bg-black/50 z-[99998] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-amber-50 to-orange-50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-lg">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">New Notifications</h3>
+                    <p className="text-xs text-slate-500">You have {popupNotifications.length} new task{popupNotifications.length !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="divide-y divide-slate-100 max-h-[50vh] overflow-y-auto">
+                {popupNotifications.map((notif) => (
+                  <div key={notif.id} className="px-6 py-4">
+                    <div className="flex items-start gap-3">
+                      <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                        notif.type === "CALENDAR_EVENT_ASSIGNED" ? "bg-blue-100 text-blue-600" :
+                        notif.type === "TASK_ASSIGNED" ? "bg-purple-100 text-purple-600" :
+                        notif.type === "AFTERCARE_TAGGED" ? "bg-orange-100 text-orange-600" :
+                        "bg-slate-100 text-slate-600"
+                      }`}>
+                        {notif.type === "CALENDAR_EVENT_ASSIGNED" ? "Calendar" :
+                         notif.type === "TASK_ASSIGNED" ? "Task" :
+                         notif.type === "AFTERCARE_TAGGED" ? "Aftersales" :
+                         "Notification"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">
+                          {notif.calendarEvent?.title || notif.task?.name || notif.aftercareCase?.customerName || notif.message || "New notification"}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {new Date(notif.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50">
+                <button
+                  onClick={dismissNotificationPopup}
+                  className="w-full px-4 py-2.5 bg-[#0066CC] hover:bg-[#0055AA] text-white font-semibold rounded-xl transition-colors"
+                >
+                  Got it
+                </button>
+                <p className="text-xs text-slate-400 text-center mt-2">
+                  View all tasks on your Dashboard
+                </p>
+              </div>
+            </div>
+          </div>
+        </Portal>
+      )}
     </div>
   );
 }

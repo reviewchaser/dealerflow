@@ -308,6 +308,18 @@ export default function StockBook() {
     };
   }, [actionMenu.open]);
 
+  // Lock body scroll when Add Vehicle modal is open (prevents background scrolling on mobile)
+  useEffect(() => {
+    if (showAddVehicleModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showAddVehicleModal]);
+
   // Filter vehicles
   const filteredVehicles = useMemo(() => {
     const filtered = vehicles.filter((vehicle) => {
@@ -671,29 +683,8 @@ export default function StockBook() {
       return;
     }
 
-    try {
-      const res = await fetch("/api/deals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vehicleId }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.existingDealId) {
-          toast.success("Opening existing deal");
-          router.push(`/sales?id=${data.existingDealId}`);
-          return;
-        }
-        throw new Error(data.error || "Failed to create deal");
-      }
-
-      toast.success("Deal created");
-      router.push(`/sales?id=${data.id}`);
-    } catch (error) {
-      toast.error(error.message || "Could not create sale");
-    }
+    // Navigate to Sales page with wizard open and vehicle pre-selected
+    router.push(`/sales?create=1&vehicle=${vehicleId}`);
   };
 
   // Generate purchase invoice (self-billing invoice)
@@ -2346,7 +2337,6 @@ export default function StockBook() {
                     >
                       <option value="MARGIN">Margin Scheme</option>
                       <option value="VAT_QUALIFYING">VAT Qualifying</option>
-                      <option value="NO_VAT">No VAT</option>
                     </select>
                   </div>
 
@@ -2688,6 +2678,7 @@ export default function StockBook() {
         <>
           <div
             className="fixed inset-0 bg-black/50 z-40"
+            style={{ touchAction: "none" }}
             onClick={() => setShowAddVehicleModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
@@ -2709,7 +2700,7 @@ export default function StockBook() {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6" style={{ WebkitOverflowScrolling: "touch" }}>
+              <div className="flex-1 overflow-y-auto p-4 md:p-6" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
                 <form id="add-vehicle-form" onSubmit={handleAddVehicle} className="space-y-6">
                   {/* VRM Lookup */}
                   <div className="form-control">
@@ -2891,7 +2882,6 @@ export default function StockBook() {
                         >
                           <option value="MARGIN">Margin Scheme</option>
                           <option value="VAT_QUALIFYING">VAT Qualifying</option>
-                          <option value="NO_VAT">No VAT</option>
                         </select>
                       </div>
 

@@ -5,6 +5,7 @@ import Dealer from "@/models/Dealer";
 import SalesDocument from "@/models/SalesDocument";
 import { withDealerContext } from "@/libs/authContext";
 import { randomBytes, createHash } from "crypto";
+import { getSignedGetUrl } from "@/libs/r2";
 
 /**
  * Generate Purchase Invoice for a Vehicle Purchase
@@ -106,6 +107,16 @@ async function handler(req, res, ctx) {
     const shareTokenHash = createHash("sha256").update(shareToken).digest("hex");
     const shareExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
 
+    // Get fresh signed URL for logo if stored in R2
+    let logoUrl = dealer.logoUrl;
+    if (dealer.logoKey) {
+      try {
+        logoUrl = await getSignedGetUrl(dealer.logoKey, 7 * 24 * 60 * 60);
+      } catch (logoError) {
+        console.warn("[generate-self-bill] Failed to generate logo URL:", logoError.message);
+      }
+    }
+
     // Build snapshot data
     const snapshotData = {
       // Vehicle
@@ -157,7 +168,7 @@ async function handler(req, res, ctx) {
         email: dealer.companyEmail || dealer.email,
         vatNumber: dealer.salesSettings?.vatNumber,
         companyNumber: dealer.salesSettings?.companyNumber,
-        logoUrl: dealer.logoUrl,
+        logoUrl,
       },
 
       // Bank details

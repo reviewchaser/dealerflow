@@ -51,6 +51,8 @@ const vehicleSchema = new mongoose.Schema(
     prepBoardRemovedAt: { type: Date },
     // Manual priority order on prep board (lower = higher priority)
     prepBoardOrder: { type: Number, default: 0 },
+    // Whether vehicle is pinned to top of prep board
+    isPinnedOnPrepBoard: { type: Boolean, default: false },
     // Whether vehicle is advertised online
     isAdvertised: {
       type: Boolean,

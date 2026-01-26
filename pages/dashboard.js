@@ -220,8 +220,10 @@ export default function Dashboard() {
   const [activityFilter, setActivityFilter] = useState("all");
   // VRM search for activity feed
   const [vrmSearch, setVrmSearch] = useState("");
-  // My Tasks (personal notifications)
-  const [myTasks, setMyTasks] = useState([]);
+  // My Tasks (personal notifications) - separated into new and done
+  const [newTasks, setNewTasks] = useState([]);
+  const [doneTasks, setDoneTasks] = useState([]);
+  const [taskTab, setTaskTab] = useState("new"); // "new" or "done"
   const [myTasksLoading, setMyTasksLoading] = useState(false);
   const [vrmSuggestions, setVrmSuggestions] = useState([]);
   const [showVrmSuggestions, setShowVrmSuggestions] = useState(false);
@@ -327,25 +329,28 @@ export default function Dashboard() {
         setIsLoading(false);
       });
 
-    // Fetch personal notifications (My Tasks)
+    // Fetch personal notifications (My Tasks) - all notifications for history
     setMyTasksLoading(true);
-    fetch("/api/notifications?unreadOnly=true")
+    fetch("/api/notifications")
       .then(async (res) => {
         if (!res.ok) return { notifications: [] };
         return res.json();
       })
       .then((data) => {
-        setMyTasks(data.notifications || []);
+        const all = data.notifications || [];
+        setNewTasks(all.filter(t => !t.isRead));
+        setDoneTasks(all.filter(t => t.isRead));
         setMyTasksLoading(false);
       })
       .catch((err) => {
         console.error("Notifications fetch error:", err);
-        setMyTasks([]);
+        setNewTasks([]);
+        setDoneTasks([]);
         setMyTasksLoading(false);
       });
   }, [slugFromUrl]);
 
-  // Dismiss a notification (mark as read)
+  // Dismiss a notification (mark as read) - moves from new to done
   const dismissTask = async (notificationId) => {
     try {
       const res = await fetch(`/api/notifications/${notificationId}`, {
@@ -354,7 +359,12 @@ export default function Dashboard() {
         body: JSON.stringify({ isRead: true }),
       });
       if (res.ok) {
-        setMyTasks(prev => prev.filter(t => t.id !== notificationId));
+        // Move from new to done in local state
+        const task = newTasks.find(t => t.id === notificationId);
+        if (task) {
+          setNewTasks(prev => prev.filter(t => t.id !== notificationId));
+          setDoneTasks(prev => [{ ...task, isRead: true }, ...prev]);
+        }
       }
     } catch (error) {
       console.error("Failed to dismiss task:", error);
@@ -526,8 +536,8 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* My Tasks - Personal Notifications */}
-          {myTasks.length > 0 && (
+          {/* My Tasks - Personal Notifications with History */}
+          {(newTasks.length > 0 || doneTasks.length > 0) && (
             <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden mb-6">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
@@ -541,26 +551,54 @@ export default function Dashboard() {
                     <p className="text-xs text-slate-500">Tasks assigned to you</p>
                   </div>
                 </div>
-                <span className="px-2.5 py-1 bg-amber-100 text-amber-700 text-sm font-semibold rounded-full">
-                  {myTasks.length}
-                </span>
+              </div>
+              {/* Tab buttons */}
+              <div className="flex gap-2 px-6 py-2 border-b border-slate-100">
+                <button
+                  onClick={() => setTaskTab("new")}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    taskTab === "new"
+                      ? "bg-amber-100 text-amber-700"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  New ({newTasks.length})
+                </button>
+                <button
+                  onClick={() => setTaskTab("done")}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                    taskTab === "done"
+                      ? "bg-slate-200 text-slate-700"
+                      : "text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  Done ({doneTasks.length})
+                </button>
               </div>
               <div className="divide-y divide-slate-100">
-                {myTasks.map((task) => (
+                {(taskTab === "new" ? newTasks : doneTasks).map((task) => (
                   <div
                     key={task.id}
                     className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors"
                   >
-                    {/* Dismiss checkbox */}
-                    <button
-                      onClick={() => dismissTask(task.id)}
-                      className="flex-shrink-0 w-5 h-5 rounded border-2 border-slate-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors group"
-                      title="Mark as done"
-                    >
-                      <svg className="w-3 h-3 text-transparent group-hover:text-green-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </button>
+                    {/* Dismiss checkbox - only show for new tasks */}
+                    {taskTab === "new" ? (
+                      <button
+                        onClick={() => dismissTask(task.id)}
+                        className="flex-shrink-0 w-5 h-5 rounded border-2 border-slate-300 hover:border-green-500 hover:bg-green-50 flex items-center justify-center transition-colors group"
+                        title="Mark as done"
+                      >
+                        <svg className="w-3 h-3 text-transparent group-hover:text-green-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div className="flex-shrink-0 w-5 h-5 rounded border-2 border-green-300 bg-green-50 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
 
                     {/* Task content - clickable to navigate */}
                     <Link
@@ -678,6 +716,17 @@ export default function Dashboard() {
                     )}
                   </div>
                 ))}
+                {/* Empty state for each tab */}
+                {taskTab === "new" && newTasks.length === 0 && (
+                  <div className="px-6 py-8 text-center">
+                    <p className="text-sm text-slate-500">No new tasks</p>
+                  </div>
+                )}
+                {taskTab === "done" && doneTasks.length === 0 && (
+                  <div className="px-6 py-8 text-center">
+                    <p className="text-sm text-slate-500">No completed tasks yet</p>
+                  </div>
+                )}
               </div>
             </div>
           )}

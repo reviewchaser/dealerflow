@@ -884,8 +884,17 @@ export default function Sales() {
         isOpen={showSaleWizard}
         onClose={() => {
           setShowSaleWizard(false);
+          // Clear vehicle param from URL when closing
+          const { vehicle, ...restQuery } = router.query;
+          if (vehicle) {
+            const queryString = Object.keys(restQuery).length > 0
+              ? "?" + new URLSearchParams(restQuery).toString()
+              : "";
+            router.replace(`/sales${queryString}`, undefined, { shallow: true });
+          }
           fetchDeals(); // Refresh deals list after wizard closes
         }}
+        preSelectedVehicleId={router.query.vehicle}
       />
 
       {/* Create Sale Modal - Vehicle Picker (Legacy - kept for quick vehicle selection) */}

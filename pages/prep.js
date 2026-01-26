@@ -695,6 +695,29 @@ export default function SalesPrep() {
     }
   };
 
+  // Toggle pin to top for a vehicle
+  const toggleVehiclePin = async (vehicleId, currentPinState) => {
+    try {
+      // Optimistic update
+      setVehicles(prev => prev.map(v =>
+        v.id === vehicleId ? { ...v, isPinnedOnPrepBoard: !currentPinState } : v
+      ));
+
+      await fetch(`/api/vehicles/${vehicleId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPinnedOnPrepBoard: !currentPinState }),
+      });
+
+      toast.success(currentPinState ? "Unpinned from top" : "Pinned to top");
+    } catch (error) {
+      console.error("Failed to toggle pin:", error);
+      toast.error("Failed to update pin");
+      // Revert on error
+      fetchVehicles();
+    }
+  };
+
   // Save inline title edit (make/model)
   const saveVehicleTitle = async (vehicleId, titleValue) => {
     const parts = titleValue.trim().split(/\s+/);
@@ -1885,8 +1908,16 @@ export default function SalesPrep() {
     const sortOption = columnSortOptions[status] || "oldest_first";
 
     return [...filtered].sort((a, b) => {
-      const daysA = a.createdAt ? Math.floor((new Date() - new Date(a.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
-      const daysB = b.createdAt ? Math.floor((new Date() - new Date(b.createdAt)) / (1000 * 60 * 60 * 24)) : 0;
+      // Pinned vehicles always come first
+      if (a.isPinnedOnPrepBoard && !b.isPinnedOnPrepBoard) return -1;
+      if (!a.isPinnedOnPrepBoard && b.isPinnedOnPrepBoard) return 1;
+
+      // For sold vehicles (live/reserved/delivered), sort by soldAt; otherwise use createdAt
+      const isSoldColumn = SOLD_STATUSES.includes(status);
+      const dateA = isSoldColumn ? (a.soldAt || a.createdAt) : a.createdAt;
+      const dateB = isSoldColumn ? (b.soldAt || b.createdAt) : b.createdAt;
+      const daysA = dateA ? Math.floor((new Date() - new Date(dateA)) / (1000 * 60 * 60 * 24)) : 0;
+      const daysB = dateB ? Math.floor((new Date() - new Date(dateB)) / (1000 * 60 * 60 * 24)) : 0;
 
       switch (sortOption) {
         case "oldest_first":
@@ -3182,8 +3213,7 @@ export default function SalesPrep() {
                   </svg>
                   <span className="text-xs font-medium">
                     {columnSortOptions[mobileActiveColumn] === "newest_first" ? "Newest" :
-                     columnSortOptions[mobileActiveColumn] === "alphabetical" ? "A-Z" :
-                     columnSortOptions[mobileActiveColumn] === "priority" ? "Priority" : "Oldest"}
+                     columnSortOptions[mobileActiveColumn] === "alphabetical" ? "A-Z" : "Oldest"}
                   </span>
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -3224,19 +3254,6 @@ export default function SalesPrep() {
                       A-Z (Make/Model)
                     </button>
                   </li>
-                  {mobileActiveColumn === "live" && (
-                    <li>
-                      <button
-                        className={`rounded-lg py-2.5 ${columnSortOptions[mobileActiveColumn] === "priority" ? "active bg-slate-100" : ""}`}
-                        onClick={() => setColumnSortOptions(prev => ({ ...prev, [mobileActiveColumn]: "priority" }))}
-                      >
-                        <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-                        </svg>
-                        Priority (Drag to reorder)
-                      </button>
-                    </li>
-                  )}
                   </ul>
                 </div>
               </div>
@@ -3618,8 +3635,7 @@ export default function SalesPrep() {
                       </svg>
                       <span className="text-xs">
                         {columnSortOptions[col.key] === "newest_first" ? "Newest" :
-                         columnSortOptions[col.key] === "alphabetical" ? "A-Z" :
-                         columnSortOptions[col.key] === "priority" ? "Priority" : "Oldest"}
+                         columnSortOptions[col.key] === "alphabetical" ? "A-Z" : "Oldest"}
                       </span>
                     </label>
                     <ul tabIndex={0} className="dropdown-content z-30 menu p-2 shadow-lg bg-white rounded-xl w-44 mt-2">
@@ -3647,16 +3663,6 @@ export default function SalesPrep() {
                           Alphabetical (Make/Model)
                         </button>
                       </li>
-                      {col.key === "live" && (
-                        <li>
-                          <button
-                            className={`rounded-lg ${columnSortOptions[col.key] === "priority" ? "active bg-slate-100" : ""}`}
-                            onClick={() => setColumnSortOptions(prev => ({ ...prev, [col.key]: "priority" }))}
-                          >
-                            Priority (Drag to reorder)
-                          </button>
-                        </li>
-                      )}
                     </ul>
                   </div>
                   {/* Archive toggle - only for delivered column */}
@@ -3788,7 +3794,7 @@ export default function SalesPrep() {
                             handleDragEnd();
                           }
                         }}
-                        className={`bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border border-slate-100/50 overflow-hidden ${
+                        className={`group bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border border-slate-100/50 overflow-hidden ${
                           draggedCard?.id === vehicle.id ? "opacity-40 scale-95" : ""
                         } ${
                           isPrioritySort && draggedPriorityIndex === cardIndex ? "opacity-40 scale-95" : ""
@@ -3827,6 +3833,23 @@ export default function SalesPrep() {
                                 </span>
                               </div>
                             </div>
+                            {/* Pin to Top Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleVehiclePin(vehicle.id, vehicle.isPinnedOnPrepBoard);
+                              }}
+                              className={`shrink-0 p-1.5 rounded-full transition-all ${
+                                vehicle.isPinnedOnPrepBoard
+                                  ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                                  : "text-slate-300 hover:text-slate-500 hover:bg-slate-100 md:opacity-0 md:group-hover:opacity-100"
+                              }`}
+                              title={vehicle.isPinnedOnPrepBoard ? "Unpin from top" : "Pin to top"}
+                            >
+                              <svg className="w-4 h-4" fill={vehicle.isPinnedOnPrepBoard ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                              </svg>
+                            </button>
                           </div>
 
                           {/* Tags - Modern Pill Style */}
