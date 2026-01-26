@@ -144,6 +144,10 @@ export default function DealDrawer({
   // Deal details editing state
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
+  // SIV (Stock Invoice Value) editing and amendment
+  const [isEditingSiv, setIsEditingSiv] = useState(false);
+  const [sivInput, setSivInput] = useState("");
+  const [sivAmendmentReason, setSivAmendmentReason] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReasonInput, setCancelReasonInput] = useState("");
@@ -2403,6 +2407,50 @@ export default function DealDrawer({
     setIsEditingPrice(false);
   };
 
+  // Update SIV (Stock Invoice Value)
+  const handleUpdateSiv = async () => {
+    const siv = parseFloat(sivInput);
+    if (isNaN(siv) || siv < 0) {
+      toast.error("Please enter a valid SIV amount");
+      return;
+    }
+
+    const updates = { purchasePriceNet: siv };
+
+    // If deal is INVOICED or later, require amendment audit
+    if (["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status)) {
+      if (!deal.sivAmendment?.isUnlocked) {
+        toast.error("SIV is locked. Unlock for amendment first.");
+        return;
+      }
+      if (!sivAmendmentReason.trim()) {
+        toast.error("Please provide a reason for the amendment");
+        return;
+      }
+      updates.sivAmendment = {
+        ...deal.sivAmendment,
+        amendedAt: new Date().toISOString(),
+        reason: sivAmendmentReason.trim(),
+      };
+    }
+
+    await handleUpdateField(updates, "SIV updated");
+    setIsEditingSiv(false);
+    setSivAmendmentReason("");
+  };
+
+  // Unlock SIV for amendment
+  const handleUnlockSiv = async () => {
+    const updates = {
+      sivAmendment: {
+        isUnlocked: true,
+        unlockedAt: new Date().toISOString(),
+        originalValue: deal.purchasePriceNet || deal.vehicle?.purchase?.purchasePriceNet || 0,
+      },
+    };
+    await handleUpdateField(updates, "SIV unlocked for amendment");
+  };
+
   // Delete draft deal
   const handleDeleteDraft = async () => {
     if (deal.status !== "DRAFT") {
@@ -3544,6 +3592,115 @@ export default function DealDrawer({
                       {deal.vatScheme === "VAT_QUALIFYING" && deal.vehiclePriceGross > 0 && (
                         <div className="text-xs text-slate-500 text-right">
                           Net: {formatCurrency(deal.vehiclePriceNet)} + VAT: {formatCurrency(deal.vehicleVatAmount)}
+                        </div>
+                      )}
+
+                      {/* SIV (Stock Invoice Value) - For profit reporting */}
+                      <div className="flex justify-between items-center border-t pt-2 mt-2">
+                        <span className="text-sm text-slate-600">
+                          SIV (Cost)
+                          {deal.sivAmendment?.amendedAt && (
+                            <span className="text-xs text-amber-600 ml-1" title={`Amended: ${deal.sivAmendment.reason || 'No reason given'}`}>
+                              (amended)
+                            </span>
+                          )}
+                        </span>
+                        {isEditingSiv ? (
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="relative w-28">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  className="input input-sm input-bordered w-full pl-6 pr-2 text-right"
+                                  value={sivInput}
+                                  onChange={(e) => setSivInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleUpdateSiv();
+                                    if (e.key === "Escape") {
+                                      setIsEditingSiv(false);
+                                      setSivAmendmentReason("");
+                                    }
+                                  }}
+                                  autoFocus
+                                />
+                              </div>
+                              <button
+                                onClick={handleUpdateSiv}
+                                disabled={actionLoading === "field"}
+                                className="btn btn-xs btn-ghost text-emerald-600"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setIsEditingSiv(false);
+                                  setSivAmendmentReason("");
+                                }}
+                                className="btn btn-xs btn-ghost text-slate-400"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                            {/* Reason field for amendments (after INVOICED) */}
+                            {["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status) && deal.sivAmendment?.isUnlocked && (
+                              <input
+                                type="text"
+                                placeholder="Reason for amendment..."
+                                className="input input-sm input-bordered w-full"
+                                value={sivAmendmentReason}
+                                onChange={(e) => setSivAmendmentReason(e.target.value)}
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-500">
+                              {formatCurrency(deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0)}
+                            </span>
+                            {/* Before INVOICED: simple edit button */}
+                            {["DRAFT", "DEPOSIT_TAKEN"].includes(deal.status) && (
+                              <button
+                                onClick={() => {
+                                  setSivInput((deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0).toString());
+                                  setIsEditingSiv(true);
+                                }}
+                                className="btn btn-xs btn-ghost text-[#0066CC]"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            {/* After INVOICED: require unlock first */}
+                            {["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status) && !deal.sivAmendment?.isUnlocked && (
+                              <button
+                                onClick={handleUnlockSiv}
+                                disabled={actionLoading === "field"}
+                                className="btn btn-xs btn-ghost text-amber-600"
+                                title="Unlock to amend SIV - this will be audited"
+                              >
+                                Unlock
+                              </button>
+                            )}
+                            {/* Unlocked: show edit button */}
+                            {["INVOICED", "DELIVERED", "COMPLETED"].includes(deal.status) && deal.sivAmendment?.isUnlocked && (
+                              <button
+                                onClick={() => {
+                                  setSivInput((deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0).toString());
+                                  setIsEditingSiv(true);
+                                }}
+                                className="btn btn-xs btn-ghost text-amber-600"
+                              >
+                                Amend
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* Amendment audit info */}
+                      {deal.sivAmendment?.originalValue != null && deal.sivAmendment.amendedAt && (
+                        <div className="text-xs text-slate-400 text-right">
+                          Original: {formatCurrency(deal.sivAmendment.originalValue)}
                         </div>
                       )}
 

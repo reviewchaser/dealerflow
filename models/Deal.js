@@ -206,6 +206,20 @@ const dealSchema = new mongoose.Schema(
     // For MARGIN scheme: only store gross (no VAT breakdown)
     // vehiclePriceGross is used for both schemes
 
+    // === PURCHASE PRICE SNAPSHOT ===
+    purchasePriceNet: { type: Number }, // SIV snapshotted from vehicle at deal creation
+
+    // === SIV AMENDMENT AUDIT ===
+    sivAmendment: {
+      isUnlocked: { type: Boolean, default: false },
+      unlockedAt: { type: Date },
+      unlockedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      originalValue: { type: Number }, // Original SIV before amendment
+      amendedAt: { type: Date },
+      amendedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      reason: { type: String },
+    },
+
     // === PART EXCHANGE ===
     // Legacy single PX field (for backwards compatibility)
     partExchangeId: { type: mongoose.Schema.Types.ObjectId, ref: "PartExchange" },

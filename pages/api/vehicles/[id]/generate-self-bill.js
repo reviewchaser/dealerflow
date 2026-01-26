@@ -5,7 +5,7 @@ import Dealer from "@/models/Dealer";
 import SalesDocument from "@/models/SalesDocument";
 import { withDealerContext } from "@/libs/authContext";
 import { randomBytes, createHash } from "crypto";
-import { getSignedGetUrl } from "@/libs/r2";
+import { getSignedGetUrl } from "@/libs/r2Client";
 
 /**
  * Generate Purchase Invoice for a Vehicle Purchase

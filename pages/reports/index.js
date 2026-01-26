@@ -231,7 +231,7 @@ export default function ReportsPage() {
     invoicedDeals.forEach(deal => {
       const saleGross = deal.vehiclePriceGross || 0;
       const saleVat = deal.vehicleVatAmount || 0;
-      const costPrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
+      const costPrice = deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0;
 
       // Calculate profit correctly based on VAT scheme
       let profit = 0;
@@ -476,7 +476,7 @@ export default function ReportsPage() {
         modelProfits[key] = { make: deal.vehicle?.make, model: deal.vehicle?.model, count: 0, totalRevenue: 0, totalCost: 0, totalProfit: 0 };
       }
 
-      const purchasePrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
+      const purchasePrice = deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0;
       const salePrice = deal.vehiclePriceGross || 0;
       const profit = salePrice - purchasePrice;
 
@@ -550,7 +550,7 @@ export default function ReportsPage() {
       dealStats[key].revenue += deal.vehiclePriceGross || 0;
 
       // Calculate profit
-      const costPrice = deal.vehicle?.purchase?.purchasePriceNet || 0;
+      const costPrice = deal.purchasePriceNet ?? deal.vehicle?.purchase?.purchasePriceNet ?? 0;
       if (costPrice > 0) {
         if (deal.vatScheme === "VAT_QUALIFYING") {
           const saleNet = deal.vehiclePriceNet || ((deal.vehiclePriceGross || 0) - (deal.vehicleVatAmount || 0));

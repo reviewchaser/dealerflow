@@ -648,6 +648,8 @@ export default function SaleWizard({ isOpen, onClose, preSelectedVehicleId }) {
         vehiclePriceNet,
         vehicleVatAmount,
         vehiclePriceGross: salePriceGross,
+        // Snapshot SIV from vehicle for historical reporting
+        purchasePriceNet: wizardData.vehicle?.purchase?.purchasePriceNet || 0,
         addOns: wizardData.addOns.map(a => ({
           // Only include addOnProductId if it's a valid ObjectId (24 hex chars), not for custom add-ons
           addOnProductId: (a.productId && /^[a-f0-9]{24}$/i.test(a.productId)) ? a.productId : undefined,

@@ -54,9 +54,17 @@ async function handler(req, res, ctx) {
       return res.status(404).json({ error: "Deal not found" });
     }
 
-    // Don't allow editing completed or cancelled deals
-    if (deal.status === "COMPLETED" || deal.status === "CANCELLED") {
-      return res.status(400).json({ error: "Cannot edit a completed or cancelled deal" });
+    // Don't allow editing cancelled deals
+    if (deal.status === "CANCELLED") {
+      return res.status(400).json({ error: "Cannot edit a cancelled deal" });
+    }
+
+    // Allow SIV amendments on completed deals, block other edits
+    const isSivOnlyUpdate = Object.keys(req.body).every(k =>
+      ["purchasePriceNet", "sivAmendment"].includes(k)
+    );
+    if (deal.status === "COMPLETED" && !isSivOnlyUpdate) {
+      return res.status(400).json({ error: "Cannot edit a completed deal (except SIV amendments)" });
     }
 
     const {
@@ -87,6 +95,8 @@ async function handler(req, res, ctx) {
       termsKey,
       termsSnapshotText,
       financeSelection,
+      purchasePriceNet,
+      sivAmendment,
     } = req.body;
 
     // Build update object
@@ -121,6 +131,10 @@ async function handler(req, res, ctx) {
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
     if (termsKey !== undefined) updateData.termsKey = termsKey;
     if (termsSnapshotText !== undefined) updateData.termsSnapshotText = termsSnapshotText;
+    if (purchasePriceNet !== undefined) updateData.purchasePriceNet = purchasePriceNet;
+    if (sivAmendment !== undefined) {
+      updateData.sivAmendment = { ...(deal.sivAmendment?.toObject?.() || deal.sivAmendment || {}), ...sivAmendment };
+    }
 
     // Finance selection can be edited until INVOICED status
     if (financeSelection !== undefined && deal.status !== "INVOICED" && deal.status !== "DELIVERED") {
