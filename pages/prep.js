@@ -3413,8 +3413,8 @@ export default function SalesPrep() {
                                 {vehicle.locationId.name || "Offsite"}
                               </span>
                             )}
-                            {/* Advertised badge */}
-                            {vehicle.isAdvertised && (
+                            {/* Advertised badge - hide for sold statuses */}
+                            {vehicle.isAdvertised && !["live", "reserved", "delivered"].includes(vehicle.status) && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -3854,8 +3854,8 @@ export default function SalesPrep() {
 
                           {/* Tags - Modern Pill Style */}
                           <div className="flex gap-1.5 flex-wrap mb-2">
-                            {/* Advertised badge */}
-                            {vehicle.isAdvertised && (
+                            {/* Advertised badge - hide for sold statuses */}
+                            {vehicle.isAdvertised && !["live", "reserved", "delivered"].includes(vehicle.status) && (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
                                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -4358,36 +4358,43 @@ export default function SalesPrep() {
               {activeTab === "overview" && (
                 <div className="space-y-6">
                   {/* Advertised Toggle */}
-                  <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      {selectedVehicle.isAdvertised ? (
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                      ) : (
-                        <span className="w-2 h-2 rounded-full bg-slate-300"></span>
-                      )}
-                      <span className="text-sm font-medium text-slate-700">
-                        {selectedVehicle.isAdvertised ? "Advertised online" : "Not advertised"}
-                      </span>
-                    </div>
-                    <label className="cursor-pointer flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        className="toggle toggle-sm toggle-success"
-                        checked={selectedVehicle.isAdvertised || false}
-                        onChange={async (e) => {
-                          const newValue = e.target.checked;
-                          setSelectedVehicle({ ...selectedVehicle, isAdvertised: newValue });
-                          await fetch(`/api/vehicles/${selectedVehicle.id}`, {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ isAdvertised: newValue }),
-                          });
-                          fetchVehicles();
-                          toast.success(newValue ? "Marked as advertised" : "Marked as not advertised");
-                        }}
-                      />
-                    </label>
-                  </div>
+                  {(() => {
+                    const isSoldStatus = ["live", "reserved", "delivered"].includes(selectedVehicle.status);
+                    return (
+                      <div className={`flex items-center justify-between p-3 border rounded-lg ${isSoldStatus ? "bg-slate-100 border-slate-200" : "bg-slate-50 border-slate-200"}`}>
+                        <div className="flex items-center gap-2">
+                          {selectedVehicle.isAdvertised && !isSoldStatus ? (
+                            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          ) : (
+                            <span className="w-2 h-2 rounded-full bg-slate-300"></span>
+                          )}
+                          <span className={`text-sm font-medium ${isSoldStatus ? "text-slate-400" : "text-slate-700"}`}>
+                            {isSoldStatus ? "N/A (vehicle sold)" : selectedVehicle.isAdvertised ? "Advertised online" : "Not advertised"}
+                          </span>
+                        </div>
+                        <label className={`flex items-center gap-2 ${isSoldStatus ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                          <input
+                            type="checkbox"
+                            className={`toggle toggle-sm ${isSoldStatus ? "toggle-disabled" : "toggle-success"}`}
+                            checked={!isSoldStatus && (selectedVehicle.isAdvertised || false)}
+                            disabled={isSoldStatus}
+                            onChange={async (e) => {
+                              if (isSoldStatus) return;
+                              const newValue = e.target.checked;
+                              setSelectedVehicle({ ...selectedVehicle, isAdvertised: newValue });
+                              await fetch(`/api/vehicles/${selectedVehicle.id}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ isAdvertised: newValue }),
+                              });
+                              fetchVehicles();
+                              toast.success(newValue ? "Marked as advertised" : "Marked as not advertised");
+                            }}
+                          />
+                        </label>
+                      </div>
+                    );
+                  })()}
 
                   {/* Vehicle Documentation Section */}
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">

@@ -28,7 +28,7 @@ const DEFAULT_STATS = {
   forms: { total: 0, submissions: 0 },
   recent: { appraisals: [], vehicles: [], formSubmissions: [] },
   prepPriorities: [], // Enhanced prep priorities for dashboard widget
-  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0, pxFinanceUnsettled: 0 },
+  needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, motExpired: 0, contactDue: 0, newWarrantyCases: 0, pxFinanceUnsettled: 0 },
   today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
   topForms: [],
   oldestAppraisalDays: null,
@@ -52,7 +52,7 @@ export default async function handler(req, res) {
   await connectMongo();
 
   // Check if slug is provided for parallel fetch optimization
-  const { slug } = req.query;
+  const { slug, activityOffset, activityLimit } = req.query;
 
   if (slug) {
     // Fast path: resolve dealer directly from slug (for parallel fetch from dashboard)
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       return res.status(200).json(DEFAULT_STATS);
     }
     // Pass dealerId directly without full context resolution
-    return handleStats(req, res, { dealerId: dealer._id });
+    return handleStats(req, res, { dealerId: dealer._id }, { activityOffset, activityLimit });
   }
 
   // Standard path: use full dealer context (for backwards compatibility)
@@ -75,12 +75,14 @@ export default async function handler(req, res) {
     return res.status(200).json(DEFAULT_STATS);
   }
 
-  return handleStats(req, res, ctx);
+  return handleStats(req, res, ctx, { activityOffset, activityLimit });
 }
 
-async function handleStats(req, res, ctx) {
+async function handleStats(req, res, ctx, options = {}) {
   await connectMongo();
   const { dealerId } = ctx;
+  const actOffset = parseInt(options.activityOffset) || 0;
+  const actLimit = parseInt(options.activityLimit) || 20;
 
   // Date helpers for today queries
   const startOfToday = new Date();
@@ -123,6 +125,7 @@ async function handleStats(req, res, ctx) {
     eventsToday,
     courtesyDueBack,
     motExpiringSoon,
+    motExpired,
     contactDue,
     newWarrantyCases,
     pxFinanceUnsettled,
@@ -157,10 +160,16 @@ async function handleStats(req, res, ctx) {
       dateDueBack: { $lte: endOfToday },
       dateReturned: null
     }),
-    // Needs Attention: MOT expiring soon (only if motExpiryDate exists)
+    // Needs Attention: MOT expiring soon (within 14 days, not already expired)
     Vehicle.countDocuments({
       dealerId,
-      motExpiryDate: { $exists: true, $ne: null, $lte: motDueSoon },
+      motExpiryDate: { $exists: true, $ne: null, $gte: startOfToday, $lte: motDueSoon },
+      status: { $nin: ["delivered", "archived"] }
+    }),
+    // Needs Attention: MOT expired (already past due)
+    Vehicle.countDocuments({
+      dealerId,
+      motExpiryDate: { $exists: true, $ne: null, $lt: startOfToday },
       status: { $nin: ["delivered", "archived"] }
     }),
     // Needs Attention: Contact due (nextContactAt is today or earlier)
@@ -982,7 +991,12 @@ async function handleStats(req, res, ctx) {
     }
   }
 
-  const recentActivity = deduped.slice(0, 20);
+  // Extract unique usernames for filtering
+  const activityUsers = [...new Set(deduped.map(a => a.userName).filter(Boolean))].sort();
+
+  // Apply pagination
+  const recentActivity = deduped.slice(actOffset, actOffset + actLimit);
+  const hasMoreActivity = deduped.length > actOffset + actLimit;
 
   // Cache for 30s, allow stale responses while revalidating for 60s more
   res.setHeader('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
@@ -1009,6 +1023,7 @@ async function handleStats(req, res, ctx) {
       eventsToday,
       courtesyDueBack,
       motExpiringSoon,
+      motExpired,
       contactDue,
       newWarrantyCases,
       pxFinanceUnsettled
@@ -1032,6 +1047,8 @@ async function handleStats(req, res, ctx) {
     sales,
     // Activity feed - recent sales events
     activityFeed: recentActivity,
+    activityUsers,
+    hasMoreActivity,
   });
 }
 

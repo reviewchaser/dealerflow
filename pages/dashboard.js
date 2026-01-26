@@ -153,6 +153,18 @@ const NEEDS_ATTENTION_ITEMS = [
     description: "within 14 days"
   },
   {
+    key: "motExpired",
+    label: "MOT expired",
+    href: "/stock-book",
+    color: "danger",
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+    ),
+    description: "vehicles need MOT"
+  },
+  {
     key: "contactDue",
     label: "Contact due",
     href: "/aftersales",
@@ -218,8 +230,14 @@ export default function Dashboard() {
   const [kpiDisplayMode, setKpiDisplayMode] = useState("net");
   // Activity feed filter
   const [activityFilter, setActivityFilter] = useState("all");
+  // User filter for activity feed
+  const [userFilter, setUserFilter] = useState("all");
   // VRM search for activity feed
   const [vrmSearch, setVrmSearch] = useState("");
+  // Activity feed pagination
+  const [activityItems, setActivityItems] = useState([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreActivity, setHasMoreActivity] = useState(false);
   // My Tasks (personal notifications) - separated into new and done
   const [newTasks, setNewTasks] = useState([]);
   const [doneTasks, setDoneTasks] = useState([]);
@@ -279,7 +297,7 @@ export default function Dashboard() {
     reviews: { count: 0, avgRating: "N/A", lastReviewDays: null },
     forms: { total: 0, submissions: 0 },
     recent: { appraisals: [], vehicles: [], formSubmissions: [] },
-    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, contactDue: 0, newWarrantyCases: 0 },
+    needsAttention: { soldInProgress: 0, warrantyNotBookedIn: 0, eventsToday: 0, courtesyDueBack: 0, motExpiringSoon: 0, motExpired: 0, contactDue: 0, newWarrantyCases: 0 },
     today: { events: 0, deliveries: 0, testDrives: 0, courtesyDueBack: 0 },
     topForms: [],
     oldestAppraisalDays: null,
@@ -316,9 +334,13 @@ export default function Dashboard() {
           console.error("Dashboard stats error:", statsData.error);
           setStats(defaultStats);
           setForms([]);
+          setActivityItems([]);
+          setHasMoreActivity(false);
         } else {
           setStats(statsData || defaultStats);
           setForms(Array.isArray(statsData?.formsList) ? statsData.formsList : []);
+          setActivityItems(statsData?.activityFeed || []);
+          setHasMoreActivity(statsData?.hasMoreActivity || false);
         }
         setIsLoading(false);
       })
@@ -349,6 +371,25 @@ export default function Dashboard() {
         setMyTasksLoading(false);
       });
   }, [slugFromUrl]);
+
+  // Load more activity items
+  const loadMoreActivity = async () => {
+    if (loadingMore || !slugFromUrl) return;
+    setLoadingMore(true);
+    try {
+      const offset = activityItems.length;
+      const res = await fetch(`/api/dashboard/stats?slug=${encodeURIComponent(slugFromUrl)}&activityOffset=${offset}&activityLimit=20`);
+      if (res.ok) {
+        const data = await res.json();
+        setActivityItems(prev => [...prev, ...(data.activityFeed || [])]);
+        setHasMoreActivity(data.hasMoreActivity || false);
+      }
+    } catch (err) {
+      console.error("Load more activity error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Dismiss a notification (mark as read) - moves from new to done
   const dismissTask = async (notificationId) => {
@@ -537,8 +578,7 @@ export default function Dashboard() {
           </div>
 
           {/* My Tasks - Personal Notifications with History */}
-          {(newTasks.length > 0 || doneTasks.length > 0) && (
-            <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden mb-6">
+          <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden mb-6">
               <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-lg">
@@ -729,10 +769,9 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-          )}
 
           {/* Activity Feed */}
-          {stats?.activityFeed?.length > 0 && (
+          {activityItems?.length > 0 && (
             <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
@@ -825,13 +864,30 @@ export default function Dashboard() {
                       ))}
                     </select>
                   </div>
+                  {/* User Filter */}
+                  {stats?.activityUsers?.length > 0 && (
+                    <select
+                      value={userFilter}
+                      onChange={(e) => setUserFilter(e.target.value)}
+                      className="px-3 py-1.5 text-xs font-semibold bg-slate-100 border-0 rounded-lg focus:ring-2 focus:ring-[#0066CC]/20"
+                    >
+                      <option value="all">All Users</option>
+                      {stats.activityUsers.map((user) => (
+                        <option key={user} value={user}>{user}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
-              <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-                {stats.activityFeed
+              <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+                {activityItems
                   .filter((event) => {
                     // VRM filter
                     if (vrmSearch && (!event.vehicleReg || !event.vehicleReg.toUpperCase().includes(vrmSearch.toUpperCase()))) {
+                      return false;
+                    }
+                    // User filter
+                    if (userFilter !== "all" && event.userName !== userFilter) {
                       return false;
                     }
                     // Category filter
@@ -956,9 +1012,13 @@ export default function Dashboard() {
                       </div>
                     );
                   })}
-                {stats.activityFeed.filter((event) => {
+                {activityItems.filter((event) => {
                   // VRM filter
                   if (vrmSearch && (!event.vehicleReg || !event.vehicleReg.toUpperCase().includes(vrmSearch.toUpperCase()))) {
+                    return false;
+                  }
+                  // User filter
+                  if (userFilter !== "all" && event.userName !== userFilter) {
                     return false;
                   }
                   // Category filter
@@ -970,12 +1030,26 @@ export default function Dashboard() {
                     <p>
                       {vrmSearch
                         ? `No activity found for "${vrmSearch}"`
-                        : `No ${ACTIVITY_FILTERS[activityFilter]?.label.toLowerCase()} activity yet`
+                        : userFilter !== "all"
+                          ? `No activity found for ${userFilter}`
+                          : `No ${ACTIVITY_FILTERS[activityFilter]?.label.toLowerCase()} activity yet`
                       }
                     </p>
                   </div>
                 )}
               </div>
+              {/* Load More Button */}
+              {hasMoreActivity && (
+                <div className="px-6 py-3 border-t border-slate-100">
+                  <button
+                    onClick={loadMoreActivity}
+                    disabled={loadingMore}
+                    className="w-full text-center text-sm font-medium text-[#0066CC] hover:text-[#0052A3] disabled:text-slate-400"
+                  >
+                    {loadingMore ? "Loading..." : "Load more"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

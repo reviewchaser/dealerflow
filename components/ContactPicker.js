@@ -58,13 +58,18 @@ export default function ContactPicker({
         const rect = containerRef.current.getBoundingClientRect();
         const viewportHeight = window.innerHeight;
         const spaceBelow = viewportHeight - rect.bottom - 20; // 20px margin from bottom
-        const maxHeight = Math.min(spaceBelow, viewportHeight * 0.7); // Cap at 70vh
+        const spaceAbove = rect.top - 20; // 20px margin from top
+
+        // Prefer below, but flip to above if space below < 200px and above has more room
+        const preferBelow = spaceBelow >= 200 || spaceBelow >= spaceAbove;
+        const availableSpace = preferBelow ? spaceBelow : spaceAbove;
+        const maxHeight = Math.min(availableSpace, viewportHeight * 0.7); // Cap at 70vh
 
         setDropdownPosition({
-          top: rect.bottom + 4,
+          top: preferBelow ? rect.bottom + 4 : rect.top - Math.max(maxHeight, 150) - 4,
           left: rect.left,
           width: rect.width,
-          maxHeight: Math.max(maxHeight, 300), // Minimum 300px height
+          maxHeight: Math.max(maxHeight, 150), // Reduced minimum for mobile
         });
       };
       updatePosition();

@@ -137,6 +137,16 @@ export default function TeamMemberPicker({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onFocus={() => setIsOpen(true)}
+          onBlur={() => {
+            // Delay to allow clicking dropdown items before closing
+            setTimeout(() => setIsOpen(false), 150);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setIsOpen(false);
+              e.target.blur();
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
           className="input input-bordered w-full pr-8"
@@ -150,56 +160,72 @@ export default function TeamMemberPicker({
 
       {/* Dropdown */}
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-          {isLoading ? (
-            <div className="p-4 text-center text-slate-500">
-              <span className="loading loading-spinner loading-sm"></span>
-            </div>
-          ) : filteredMembers.length === 0 ? (
-            <div className="p-4 text-center text-slate-500 text-sm">
-              {searchQuery ? "No members found" : "No team members"}
-            </div>
-          ) : (
-            <div className="py-1">
-              {filteredMembers.map(member => {
-                const isSelected = value.includes(member.userId);
-                return (
-                  <button
-                    key={member.userId}
-                    type="button"
-                    onClick={() => toggleMember(member.userId)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors ${
-                      isSelected ? "bg-blue-50" : ""
-                    }`}
-                  >
-                    {/* Checkbox */}
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                      isSelected ? "bg-blue-600 border-blue-600" : "border-slate-300"
-                    }`}>
-                      {isSelected && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-
-                    {/* Member info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-900 truncate">
-                          {member.name || "Unnamed"}
-                        </span>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRoleBadge(member.role)}`}>
-                          {member.role}
-                        </span>
+        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col">
+          {/* Close button header */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 bg-slate-50 shrink-0">
+            <span className="text-xs font-medium text-slate-500">Select Members</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="p-1 bg-slate-200 hover:bg-slate-300 rounded text-slate-600 hover:text-slate-800"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          {/* Scrollable content */}
+          <div className="overflow-y-auto flex-1">
+            {isLoading ? (
+              <div className="p-4 text-center text-slate-500">
+                <span className="loading loading-spinner loading-sm"></span>
+              </div>
+            ) : filteredMembers.length === 0 ? (
+              <div className="p-4 text-center text-slate-500 text-sm">
+                {searchQuery ? "No members found" : "No team members"}
+              </div>
+            ) : (
+              <div className="py-1">
+                {filteredMembers.map(member => {
+                  const isSelected = value.includes(member.userId);
+                  return (
+                    <button
+                      key={member.userId}
+                      type="button"
+                      onClick={() => toggleMember(member.userId)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50 transition-colors ${
+                        isSelected ? "bg-blue-50" : ""
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                        isSelected ? "bg-blue-600 border-blue-600" : "border-slate-300"
+                      }`}>
+                        {isSelected && (
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-500 truncate">{member.email}</div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+
+                      {/* Member info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-slate-900 truncate">
+                            {member.name || "Unnamed"}
+                          </span>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${getRoleBadge(member.role)}`}>
+                            {member.role}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500 truncate">{member.email}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

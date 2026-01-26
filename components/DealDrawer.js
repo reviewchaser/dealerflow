@@ -4178,6 +4178,8 @@ export default function DealDrawer({
                             <div className="flex items-center gap-2">
                               <a
                                 href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.pdi.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
                               >
                                 View / Edit
@@ -4212,6 +4214,8 @@ export default function DealDrawer({
                             <div className="flex items-center gap-2">
                               <a
                                 href={`/forms?tab=submissions&viewSubmission=${linkedSubmissions.serviceReceipt.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 className="text-xs text-emerald-600 font-medium hover:underline flex items-center gap-1"
                               >
                                 View / Edit
