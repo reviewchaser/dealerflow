@@ -1729,6 +1729,11 @@ export default function Warranty() {
                                   {caseItem.vehicleId.make} {caseItem.vehicleId.model}
                                 </p>
                               )}
+                              {!caseItem.vehicleId && caseItem.details?.make && (
+                                <p className="text-xs text-slate-500">
+                                  {caseItem.details.make} {caseItem.details.model}
+                                </p>
+                              )}
                             </div>
 
                             {/* Booked date row */}
@@ -2222,48 +2227,131 @@ export default function Warranty() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.displayName || "—"}</p>
+                      <input
+                        type="text"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        value={selectedCase.contactId?.displayName || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          contactId: { ...selectedCase.contactId, displayName: e.target.value }
+                        })}
+                        onBlur={() => updateCase({ _updateContact: { displayName: selectedCase.contactId?.displayName } })}
+                      />
                     </div>
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.phone || "—"}</p>
+                      <input
+                        type="tel"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        value={selectedCase.contactId?.phone || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          contactId: { ...selectedCase.contactId, phone: e.target.value }
+                        })}
+                        onBlur={() => updateCase({ _updateContact: { phone: selectedCase.contactId?.phone } })}
+                      />
                     </div>
                     <div className="col-span-2">
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.email || "—"}</p>
+                      <input
+                        type="email"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        value={selectedCase.contactId?.email || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          contactId: { ...selectedCase.contactId, email: e.target.value }
+                        })}
+                        onBlur={() => updateCase({ _updateContact: { email: selectedCase.contactId?.email } })}
+                      />
                     </div>
-                    {selectedCase.customerAddress && (selectedCase.customerAddress.street || selectedCase.customerAddress.city || selectedCase.customerAddress.postcode) && (
-                      <div className="col-span-2">
-                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Address</span>
-                        <p className="text-slate-900 mt-0.5">
-                          {[
-                            selectedCase.customerAddress.street,
-                            selectedCase.customerAddress.city,
-                            selectedCase.customerAddress.postcode
-                          ].filter(Boolean).join(", ")}
-                        </p>
+                    <div className="col-span-2">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Address</span>
+                      <div className="grid grid-cols-3 gap-2 mt-0.5">
+                        <input
+                          type="text"
+                          className="col-span-3 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          value={selectedCase.customerAddress?.street || ""}
+                          placeholder="Street"
+                          onChange={(e) => setSelectedCase({
+                            ...selectedCase,
+                            customerAddress: { ...selectedCase.customerAddress, street: e.target.value }
+                          })}
+                          onBlur={() => updateCase({ customerAddress: selectedCase.customerAddress })}
+                        />
+                        <input
+                          type="text"
+                          className="col-span-2 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          value={selectedCase.customerAddress?.city || ""}
+                          placeholder="City"
+                          onChange={(e) => setSelectedCase({
+                            ...selectedCase,
+                            customerAddress: { ...selectedCase.customerAddress, city: e.target.value }
+                          })}
+                          onBlur={() => updateCase({ customerAddress: selectedCase.customerAddress })}
+                        />
+                        <input
+                          type="text"
+                          className="bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          value={selectedCase.customerAddress?.postcode || ""}
+                          placeholder="Postcode"
+                          onChange={(e) => setSelectedCase({
+                            ...selectedCase,
+                            customerAddress: { ...selectedCase.customerAddress, postcode: e.target.value }
+                          })}
+                          onBlur={() => updateCase({ customerAddress: selectedCase.customerAddress })}
+                        />
                       </div>
-                    )}
+                    </div>
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Reg at Purchase</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.regAtPurchase || "—"}</p>
+                      <input
+                        type="text"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
+                        value={selectedCase.regAtPurchase || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({ ...selectedCase, regAtPurchase: e.target.value.toUpperCase() })}
+                        onBlur={() => updateCase({ regAtPurchase: selectedCase.regAtPurchase })}
+                      />
                     </div>
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Reg</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.currentReg || selectedCase.details?.vehicleReg || "—"}</p>
+                      <input
+                        type="text"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
+                        value={selectedCase.currentReg || selectedCase.details?.vehicleReg || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({ ...selectedCase, currentReg: e.target.value.toUpperCase() })}
+                        onBlur={() => updateCase({ currentReg: selectedCase.currentReg })}
+                      />
                     </div>
-                    {selectedCase.mileageAtPurchase && (
-                      <div>
-                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Mileage at Purchase</span>
-                        <p className="text-slate-900 mt-0.5">{selectedCase.mileageAtPurchase.toLocaleString()}</p>
-                      </div>
-                    )}
-                    {selectedCase.details?.mileage && (
-                      <div>
-                        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Mileage</span>
-                        <p className="text-slate-900 mt-0.5">{Number(selectedCase.details.mileage).toLocaleString()}</p>
-                      </div>
-                    )}
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Mileage at Purchase</span>
+                      <input
+                        type="number"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        value={selectedCase.mileageAtPurchase || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({ ...selectedCase, mileageAtPurchase: e.target.value ? Number(e.target.value) : null })}
+                        onBlur={() => updateCase({ mileageAtPurchase: selectedCase.mileageAtPurchase })}
+                      />
+                    </div>
+                    <div>
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Mileage</span>
+                      <input
+                        type="number"
+                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        value={selectedCase.details?.mileage || ""}
+                        placeholder="—"
+                        onChange={(e) => setSelectedCase({
+                          ...selectedCase,
+                          details: { ...selectedCase.details, mileage: e.target.value ? Number(e.target.value) : null }
+                        })}
+                        onBlur={() => updateCase({ details: selectedCase.details })}
+                      />
+                    </div>
                     {selectedCase.vehicleId && (
                       <>
                         <div className="col-span-2">
@@ -3044,16 +3132,21 @@ export default function Warranty() {
               */}
 
               {/* Issue Summary */}
-              {selectedCase.summary && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-100">
-                    <h3 className="text-sm font-semibold text-slate-900">Issue Summary</h3>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedCase.summary}</p>
-                  </div>
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h3 className="text-sm font-semibold text-slate-900">Issue Summary</h3>
                 </div>
-              )}
+                <div className="p-4">
+                  <textarea
+                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none rounded-lg px-2 py-1.5 text-sm text-slate-700 transition-colors resize-none"
+                    rows={3}
+                    value={selectedCase.summary || ""}
+                    placeholder="Describe the issue..."
+                    onChange={(e) => setSelectedCase({ ...selectedCase, summary: e.target.value })}
+                    onBlur={() => updateCase({ summary: selectedCase.summary })}
+                  />
+                </div>
+              </div>
 
               {/* Attachments/Media */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

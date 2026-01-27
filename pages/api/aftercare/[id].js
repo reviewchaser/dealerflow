@@ -71,13 +71,29 @@ async function handler(req, res, ctx) {
   }
 
   if (req.method === "PUT") {
-    const { boardStatus, _eventType, _eventMetadata, _addAttachments, ...otherUpdates } = req.body;
+    const { boardStatus, _eventType, _eventMetadata, _addAttachments, _updateContact, ...otherUpdates } = req.body;
 
     // Get user name for event tracking
     let userName = null;
     if (userId) {
       const user = await User.findById(userId).lean();
       userName = user?.name || null;
+    }
+
+    // Handle updating linked Contact record
+    if (_updateContact && typeof _updateContact === "object") {
+      const currentCase = await AftercareCase.findOne({ _id: id, dealerId }).lean();
+      if (currentCase?.contactId) {
+        const contactUpdateFields = {};
+        if (_updateContact.displayName !== undefined) contactUpdateFields.displayName = _updateContact.displayName;
+        if (_updateContact.name !== undefined) contactUpdateFields.name = _updateContact.name;
+        if (_updateContact.phone !== undefined) contactUpdateFields.phone = _updateContact.phone;
+        if (_updateContact.email !== undefined) contactUpdateFields.email = _updateContact.email;
+
+        if (Object.keys(contactUpdateFields).length > 0) {
+          await Contact.findByIdAndUpdate(currentCase.contactId, contactUpdateFields);
+        }
+      }
     }
 
     // Build events array
