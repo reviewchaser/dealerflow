@@ -2681,8 +2681,8 @@ export default function StockBook() {
             style={{ touchAction: "none" }}
             onClick={() => setShowAddVehicleModal(false)}
           />
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 overflow-hidden">
+            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95vh] h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
               {/* Modal Header */}
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
@@ -2700,7 +2700,7 @@ export default function StockBook() {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 overflow-y-auto p-4 md:p-6" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 touch-pan-y" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
                 <form id="add-vehicle-form" onSubmit={handleAddVehicle} className="space-y-6">
                   {/* VRM Lookup */}
                   <div className="form-control">

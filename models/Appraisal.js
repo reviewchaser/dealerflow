@@ -24,6 +24,8 @@ const appraisalSchema = new mongoose.Schema(
       name: { type: String },
       url: { type: String }
     }],
+    // Generic photos of the vehicle
+    genericPhotos: [{ type: String }],
     // Legacy fields - kept for backwards compatibility
     damagePhotos: [{ type: String }],
     faultCodePhotos: [{ type: String }],

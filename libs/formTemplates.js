@@ -149,7 +149,7 @@ export const FORM_TEMPLATES = [
   // Test Drive Request
   // ═══════════════════════════════════════════════════════════════════════════════
   {
-    name: "Test Drive Request",
+    name: "Test Drive",
     type: "TEST_DRIVE",
     visibility: "PUBLIC", // Fully public - customers can access
     isPublic: true, // Deprecated - kept for backward compat
@@ -207,8 +207,8 @@ export const FORM_TEMPLATES = [
   {
     name: "Courtesy Car Out",
     type: "COURTESY_OUT",
-    visibility: "INTERNAL", // Staff only - requires login
-    isPublic: false, // Deprecated - kept for backward compat
+    visibility: "PUBLIC", // Fully public - customers can access
+    isPublic: true, // Deprecated - kept for backward compat
     publicSlug: "courtesy-out",
     introText: "Complete this form when issuing a courtesy vehicle to a customer.",
     vrmLookup: { enabled: true, statuses: ["COURTESY"], vehicleType: "COURTESY" },
@@ -267,8 +267,8 @@ For emergencies, contact: {dealer.companyPhone}`,
   {
     name: "Courtesy Car Return",
     type: "COURTESY_IN",
-    visibility: "INTERNAL", // Staff only - requires login
-    isPublic: false, // Deprecated - kept for backward compat
+    visibility: "PUBLIC", // Fully public - customers can access
+    isPublic: true, // Deprecated - kept for backward compat
     publicSlug: "courtesy-in",
     introText: "Complete this form when a courtesy vehicle is returned.",
     vrmLookup: { enabled: true, statuses: ["COURTESY"], vehicleType: "COURTESY" },

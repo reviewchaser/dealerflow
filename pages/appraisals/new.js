@@ -74,6 +74,11 @@ export default function NewAppraisal() {
   const [serviceHistoryFile, setServiceHistoryFile] = useState(null);
   const [otherDocuments, setOtherDocuments] = useState([]);
 
+  // Generic Photos
+  const [genericPhotoFiles, setGenericPhotoFiles] = useState([]);
+  const [genericPhotoPreviews, setGenericPhotoPreviews] = useState([]);
+  const [isCompressingGenericPhotos, setIsCompressingGenericPhotos] = useState(false);
+
   // Issues
   const [issues, setIssues] = useState([]);
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
@@ -204,6 +209,46 @@ export default function NewAppraisal() {
     return data.key || data.url;
   };
 
+  // Generic Photos handlers
+  const handleGenericPhotoChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsCompressingGenericPhotos(true);
+    try {
+      const compressedFiles = await compressImages(files);
+      setGenericPhotoFiles((prev) => [...prev, ...compressedFiles]);
+
+      // Create previews
+      compressedFiles.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setGenericPhotoPreviews((prev) => [...prev, reader.result]);
+        };
+        reader.readAsDataURL(file);
+      });
+    } catch (error) {
+      console.error("Compression error:", error);
+      toast.error("Failed to process images");
+    } finally {
+      setIsCompressingGenericPhotos(false);
+    }
+  };
+
+  const removeGenericPhoto = (index) => {
+    setGenericPhotoFiles((prev) => prev.filter((_, i) => i !== index));
+    setGenericPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadGenericPhotos = async () => {
+    const uploadedUrls = [];
+    for (const file of genericPhotoFiles) {
+      const url = await uploadFile(file, "generic_photo");
+      uploadedUrls.push(url);
+    }
+    return uploadedUrls;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.vehicleReg) {
@@ -230,12 +275,19 @@ export default function NewAppraisal() {
         }
       }
 
+      // Upload generic photos
+      let genericPhotosUrls = [];
+      if (genericPhotoFiles.length > 0) {
+        genericPhotosUrls = await uploadGenericPhotos();
+      }
+
       // Create appraisal
       const appraisalData = {
         ...formData,
         v5Url,
         serviceHistoryUrl,
         otherDocuments: uploadedOtherDocs,
+        genericPhotos: genericPhotosUrls,
       };
 
       const res = await fetch("/api/appraisals", {
@@ -560,6 +612,77 @@ export default function NewAppraisal() {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Photos Section */}
+            <div className="card bg-base-200">
+              <div className="card-body">
+                <h2 className="card-title">Photos</h2>
+                <p className="text-sm text-base-content/60">
+                  Add photos of the vehicle for reference
+                </p>
+
+                {isCompressingGenericPhotos && (
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <span className="loading loading-spinner loading-sm"></span>
+                    <span>Compressing images...</span>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {/* Take Photo - opens camera on mobile */}
+                  <label className="btn btn-primary gap-2 cursor-pointer">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Take Photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleGenericPhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+
+                  {/* Upload Photos - opens gallery with multi-select */}
+                  <label className="btn btn-ghost gap-2 cursor-pointer">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Upload Photos
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleGenericPhotoChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {genericPhotoPreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {genericPhotoPreviews.map((preview, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={preview}
+                          alt={`Photo ${idx + 1}`}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeGenericPhoto(idx)}
+                          className="absolute -top-2 -right-2 btn btn-circle btn-xs btn-error"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
