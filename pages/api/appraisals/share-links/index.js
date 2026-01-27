@@ -35,7 +35,7 @@ export default withDealerContext(async (req, res, ctx) => {
   // POST - Create new share link
   if (req.method === "POST") {
     try {
-      const { expiresInDays } = req.body;
+      const { expiresInDays, linkType } = req.body;
 
       // Generate token and hash it
       const token = generateToken();
@@ -52,6 +52,9 @@ export default withDealerContext(async (req, res, ctx) => {
       const creator = await User.findById(userId).lean();
       const creatorName = creator?.name || user?.name || user?.email || "Unknown";
 
+      // Validate linkType
+      const validLinkType = ["customer_px", "agent_appraisal"].includes(linkType) ? linkType : "customer_px";
+
       const link = await AppraisalShareLink.create({
         dealerId,
         tokenHash,
@@ -59,6 +62,7 @@ export default withDealerContext(async (req, res, ctx) => {
         createdByName: creatorName,
         expiresAt,
         isActive: true,
+        linkType: validLinkType,
       });
 
       // Return the link info along with the raw token (only returned once!)
@@ -69,6 +73,7 @@ export default withDealerContext(async (req, res, ctx) => {
         createdAt: link.createdAt,
         createdByName: link.createdByName,
         isActive: link.isActive,
+        linkType: link.linkType,
       });
     } catch (error) {
       console.error("Error creating share link:", error);

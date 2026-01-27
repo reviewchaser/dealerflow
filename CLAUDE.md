@@ -9,6 +9,44 @@ Rules:
 
 # DealerHQ - Development Notes
 
+## Completed Work (27 January 2026)
+
+### Appraisal Form Enhancements
+
+**Public Dealer Appraisal Form Enhanced** (`pages/appraisal/[dealerSlug].js`):
+- Now includes full appraisal features matching internal form
+- Photo uploads with compression (generic vehicle photos)
+- Issues system with categories/subcategories/estimated costs
+- Document uploads (V5, service history, other)
+- Transmission field added
+- Submits to `/api/public/appraisal-submit/[dealerSlug]`
+
+**Token-Based Agent Appraisal Links**:
+- Third-party agents/contractors can submit full appraisals without login
+- Generate links from Share Links modal on Appraisals page
+- Links expire after 30 days
+- Uses existing share link system with `linkType: "agent_appraisal"`
+- Form at `/appraisal/a/[token]` includes AI hints sidebar
+
+**New Files Created:**
+- `pages/api/public/upload.js` - Public file upload endpoint
+- `pages/appraisal/a/[token].js` - Agent appraisal form (token-based)
+- `pages/api/appraisals/share-links/submit-agent.js` - Agent submission API
+
+**Modified Files:**
+- `models/AppraisalShareLink.js` - Added `linkType` field
+- `pages/api/appraisals/share-links/index.js` - Accepts `linkType` in POST
+- `pages/api/appraisals/share-links/validate.js` - Returns `linkType`
+- `pages/api/public/appraisal-submit/[dealerSlug].js` - Handles photos/issues/documents
+- `pages/appraisals/index.js` - Agent link generation in share modal
+
+**Share Links Modal** (`pages/appraisals/index.js`):
+- Customer Part Exchange: `/px/{dealerSlug}`
+- Dealer Buying Appraisal: `/appraisal/{dealerSlug}` (enhanced with photos/issues)
+- Agent Appraisal Link: `/appraisal/a/{token}` (full form, 30-day expiry)
+
+---
+
 ## Completed Work (16 January 2026)
 
 ### Sales/Invoicing Improvements - ALL PHASES COMPLETE

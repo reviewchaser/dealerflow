@@ -1,15 +1,21 @@
 /**
- * Public Dealer Buying Appraisal Submission API
+ * Agent Appraisal Submission API
  *
- * POST - Submit a dealer buying appraisal (public, no auth required)
- * Supports full appraisal with photos, issues, and documents
+ * POST - Submit a full appraisal via agent share link (token-based, no auth required)
+ * Used by third-party agents/contractors to submit appraisals on behalf of dealers
  */
 
+import crypto from "crypto";
 import connectMongo from "@/libs/mongoose";
-import Dealer from "@/models/Dealer";
+import AppraisalShareLink from "@/models/AppraisalShareLink";
 import Appraisal from "@/models/Appraisal";
 import AppraisalIssue from "@/models/AppraisalIssue";
-import Contact from "@/models/Contact";
+import Dealer from "@/models/Dealer";
+
+// Hash token with SHA256
+function hashToken(token) {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 // Normalize VRM (strip spaces, uppercase)
 function normalizeVrm(vrm) {
@@ -24,24 +30,44 @@ export default async function handler(req, res) {
   await connectMongo();
 
   try {
-    const { dealerSlug } = req.query;
+    const { token, ...formData } = req.body;
 
-    // Find dealer by slug or ID
-    let dealer = await Dealer.findOne({ slug: dealerSlug }).lean();
-    if (!dealer) {
-      // Try finding by ID
-      dealer = await Dealer.findById(dealerSlug).lean();
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
     }
 
+    // Validate token
+    const tokenHash = hashToken(token);
+    const link = await AppraisalShareLink.findOne({ tokenHash }).lean();
+
+    if (!link) {
+      return res.status(404).json({ error: "Invalid or expired link" });
+    }
+
+    if (!link.isActive) {
+      return res.status(403).json({ error: "This link has been deactivated" });
+    }
+
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      return res.status(403).json({ error: "This link has expired" });
+    }
+
+    // Verify this is an agent appraisal link
+    if (link.linkType !== "agent_appraisal") {
+      return res.status(400).json({ error: "Invalid link type for this form" });
+    }
+
+    // Get dealer info
+    const dealer = await Dealer.findById(link.dealerId).lean();
     if (!dealer) {
       return res.status(404).json({ error: "Dealer not found" });
     }
 
     const {
-      submitterName,
-      submitterEmail,
-      submitterPhone,
-      submitterCompany,
+      agentName,
+      agentEmail,
+      agentPhone,
+      agentCompany,
       vehicleReg,
       vin,
       vehicleMake,
@@ -52,58 +78,32 @@ export default async function handler(req, res) {
       fuelType,
       transmission,
       dateOfRegistration,
-      conditionRating,
       conditionNotes,
       proposedPurchasePrice,
-      hasV5,
-      hasServiceHistory,
-      // New fields for enhanced form
+      prepTemplateId,
       v5Url,
       serviceHistoryUrl,
       otherDocuments,
       genericPhotos,
       issues,
-    } = req.body;
+    } = formData;
 
     // Validate required fields
-    if (!submitterName || !submitterEmail || !vehicleReg) {
-      return res.status(400).json({ error: "Name, email, and vehicle registration are required" });
+    if (!vehicleReg) {
+      return res.status(400).json({ error: "Vehicle registration is required" });
     }
 
     const normalizedVrm = normalizeVrm(vehicleReg);
 
-    // Create or find contact
-    let contact = await Contact.findOne({
-      dealerId: dealer._id,
-      email: submitterEmail.toLowerCase(),
-    });
-
-    if (!contact) {
-      contact = await Contact.create({
-        dealerId: dealer._id,
-        name: submitterName,
-        email: submitterEmail.toLowerCase(),
-        phone: submitterPhone || "",
-        notes: submitterCompany ? `Company: ${submitterCompany}` : "",
-      });
-    }
-
-    // Build condition notes with document info
+    // Build notes with agent info
     let fullConditionNotes = conditionNotes || "";
-    if (hasV5) {
-      fullConditionNotes += `\nV5 Present: ${hasV5}`;
-    }
-    if (hasServiceHistory) {
-      fullConditionNotes += `\nService History: ${hasServiceHistory}`;
-    }
-    if (conditionRating) {
-      fullConditionNotes = `Condition: ${conditionRating}\n${fullConditionNotes}`;
+    if (agentName || agentCompany) {
+      fullConditionNotes = `[Submitted by: ${agentName || "Agent"}${agentCompany ? ` (${agentCompany})` : ""}]\n\n${fullConditionNotes}`;
     }
 
     // Create appraisal
     const appraisal = await Appraisal.create({
       dealerId: dealer._id,
-      contactId: contact._id,
       vehicleReg: normalizedVrm,
       vin: vin || undefined,
       vehicleMake: vehicleMake || "",
@@ -116,15 +116,18 @@ export default async function handler(req, res) {
       conditionNotes: fullConditionNotes.trim(),
       proposedPurchasePrice: proposedPurchasePrice ? parseInt(proposedPurchasePrice) : null,
       decision: "pending",
-      // Track that this came from public form
-      submitterName,
-      submitterEmail: submitterEmail.toLowerCase(),
-      submitterPhone: submitterPhone || "",
+      prepTemplateId: prepTemplateId || undefined,
       // Documents and photos
       v5Url: v5Url || undefined,
       serviceHistoryUrl: serviceHistoryUrl || undefined,
       otherDocuments: Array.isArray(otherDocuments) ? otherDocuments : [],
       genericPhotos: Array.isArray(genericPhotos) ? genericPhotos : [],
+      // Link to share link
+      shareLinkId: link._id,
+      // Agent info
+      submitterName: agentName || "",
+      submitterEmail: agentEmail || "",
+      submitterPhone: agentPhone || "",
     });
 
     // Create issues if provided
@@ -147,14 +150,23 @@ export default async function handler(req, res) {
       }
     }
 
-    console.log(`[PublicAppraisal] New appraisal submitted for ${normalizedVrm} to dealer ${dealer.name}`);
+    // Update link usage stats
+    await AppraisalShareLink.updateOne(
+      { _id: link._id },
+      {
+        $inc: { usageCount: 1 },
+        $set: { lastUsedAt: new Date() },
+      }
+    );
+
+    console.log(`[AgentAppraisal] New appraisal submitted for ${normalizedVrm} by agent ${agentName || "Unknown"} to dealer ${dealer.name}`);
 
     return res.status(201).json({
       success: true,
       appraisalId: appraisal._id,
     });
   } catch (error) {
-    console.error("Error creating public appraisal:", error);
+    console.error("Error creating agent appraisal:", error);
     return res.status(500).json({ error: "Failed to submit appraisal" });
   }
 }

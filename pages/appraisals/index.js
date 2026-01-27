@@ -36,6 +36,8 @@ export default function Appraisals() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [dealerSlug, setDealerSlug] = useState("");
   const [vrmSearch, setVrmSearch] = useState("");
+  const [agentLink, setAgentLink] = useState(null);
+  const [isGeneratingAgentLink, setIsGeneratingAgentLink] = useState(false);
   const [showVrmSuggestions, setShowVrmSuggestions] = useState(false);
   const menuRef = useRef(null);
   const newDropdownRef = useRef(null);
@@ -212,6 +214,26 @@ export default function Appraisals() {
     const link = `${window.location.origin}/px/${dealerSlug}`;
     navigator.clipboard.writeText(link);
     toast.success("Link copied to clipboard!");
+  };
+
+  const generateAgentLink = async () => {
+    setIsGeneratingAgentLink(true);
+    try {
+      const res = await fetch("/api/appraisals/share-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expiresInDays: 30, linkType: "agent_appraisal" }),
+      });
+      if (!res.ok) throw new Error("Failed to generate link");
+      const data = await res.json();
+      const fullLink = `${window.location.origin}/appraisal/a/${data.token}`;
+      setAgentLink(fullLink);
+      toast.success("Agent link generated!");
+    } catch (error) {
+      toast.error("Failed to generate agent link");
+    } finally {
+      setIsGeneratingAgentLink(false);
+    }
   };
 
   // Combine and filter appraisals based on tab
@@ -822,6 +844,69 @@ export default function Appraisals() {
                   </svg>
                 </button>
               </div>
+            </div>
+
+            {/* Agent Appraisal Link */}
+            <div className="bg-purple-50 rounded-xl p-4 mb-4 border border-purple-100">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-slate-900">Agent Appraisal Link</h3>
+                  <p className="text-xs text-slate-500">For third-party agents/contractors (full form, 30-day expiry)</p>
+                </div>
+              </div>
+
+              {agentLink ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={agentLink}
+                      className="flex-1 bg-white border border-purple-200 rounded-lg px-3 py-2 text-sm font-mono text-slate-700"
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(agentLink);
+                        toast.success("Agent link copied!");
+                      }}
+                      className="px-3 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setAgentLink(null)}
+                    className="text-xs text-purple-600 hover:text-purple-700"
+                  >
+                    Generate new link
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={generateAgentLink}
+                  disabled={isGeneratingAgentLink}
+                  className="w-full py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:bg-purple-300 transition-colors flex items-center justify-center gap-2"
+                >
+                  {isGeneratingAgentLink ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Generate Agent Link
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
             <p className="text-xs text-slate-500 text-center">

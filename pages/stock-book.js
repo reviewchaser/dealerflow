@@ -2673,6 +2673,16 @@ export default function StockBook() {
         </>
       )}
 
+      {/* Mobile Floating Action Button - Add Vehicle */}
+      <button
+        onClick={() => setShowAddVehicleModal(true)}
+        className="md:hidden fixed fab-safe right-4 z-40 w-14 h-14 bg-[#0066CC] hover:bg-[#0055AA] text-white rounded-2xl shadow-lg shadow-[#0066CC]/30 flex items-center justify-center transition-all active:scale-95"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
       {/* Add Vehicle Modal */}
       {showAddVehicleModal && (
         <>
@@ -2682,7 +2692,7 @@ export default function StockBook() {
             onClick={() => setShowAddVehicleModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 overflow-hidden">
-            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95vh] h-[95dvh] md:h-auto md:max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[80vh] h-[80dvh] md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden relative">
               {/* Modal Header */}
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>
@@ -2700,7 +2710,7 @@ export default function StockBook() {
               </div>
 
               {/* Modal Content */}
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 touch-pan-y" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 pb-32 md:pb-24 touch-pan-y" style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}>
                 <form id="add-vehicle-form" onSubmit={handleAddVehicle} className="space-y-6">
                   {/* VRM Lookup */}
                   <div className="form-control">
@@ -3076,8 +3086,8 @@ export default function StockBook() {
                 </form>
               </div>
 
-              {/* Sticky Footer - Action Buttons */}
-              <div className="shrink-0 border-t border-slate-200 bg-white px-4 md:px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {/* Fixed Footer - Action Buttons */}
+              <div className="absolute left-0 right-0 border-t border-slate-200 bg-white px-4 md:px-6 py-4 z-10 bottom-16 md:bottom-0" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
                 <div className="flex gap-3">
                   <button
                     type="button"

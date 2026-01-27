@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       dealerName: dealer.name || dealer.companyName,
       dealerLogo: dealer.logoUrl,
       linkId: link._id,
+      linkType: link.linkType || "customer_px",
     });
   } catch (error) {
     console.error("Error validating share link:", error);

@@ -19,6 +19,8 @@ const appraisalShareLinkSchema = new mongoose.Schema(
     isActive: { type: Boolean, default: true },
     usageCount: { type: Number, default: 0 },
     lastUsedAt: { type: Date },
+    // Link type: customer_px for customer part-exchange, agent_appraisal for third-party agents
+    linkType: { type: String, enum: ["customer_px", "agent_appraisal"], default: "customer_px" },
   },
   { timestamps: true }
 );
