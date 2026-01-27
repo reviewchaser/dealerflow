@@ -1089,7 +1089,7 @@ export default function Warranty() {
         const currentReg = (c.currentReg || "").toUpperCase().replace(/\s/g, "");
         const detailsReg = (c.details?.vehicleReg || "").toUpperCase().replace(/\s/g, "");
         // Search by customer name
-        const customerName = (c.contactId?.name || "").toUpperCase();
+        const customerName = (c.contactId?.displayName || "").toUpperCase();
         return regAtPurchase.includes(query) ||
                currentReg.includes(query) ||
                detailsReg.includes(query) ||
@@ -1164,8 +1164,8 @@ export default function Warranty() {
         return new Date(b.createdAt) - new Date(a.createdAt);
       }
       if (sortOption === "alphabetical") {
-        const nameA = a.contactId?.name || "";
-        const nameB = b.contactId?.name || "";
+        const nameA = a.contactId?.displayName || "";
+        const nameB = b.contactId?.displayName || "";
         return nameA.localeCompare(nameB);
       }
       // oldest_first (default)
@@ -1651,7 +1651,7 @@ export default function Warranty() {
                             {caseItem.regAtPurchase || caseItem.details?.vehicleReg || "?"}
                           </span>
                           <span className="text-sm text-slate-700 truncate max-w-[120px]">
-                            {caseItem.contactId?.name || "Unknown"}
+                            {caseItem.contactId?.displayName || "Unknown"}
                           </span>
                         </div>
                         <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1722,7 +1722,7 @@ export default function Warranty() {
                             {/* Customer name + Vehicle make/model */}
                             <div className="mb-2">
                               <p className="font-semibold text-slate-900 text-sm truncate">
-                                {caseItem.contactId?.name || "Unknown"}
+                                {caseItem.contactId?.displayName || "Unknown"}
                               </p>
                               {caseItem.vehicleId && (
                                 <p className="text-xs text-slate-500">
@@ -1967,7 +1967,7 @@ export default function Warranty() {
                             {/* Customer name + Vehicle make/model */}
                             <div className="mb-2">
                               <p className="font-semibold text-slate-900 text-sm truncate">
-                                {caseItem.contactId?.name || "Unknown"}
+                                {caseItem.contactId?.displayName || "Unknown"}
                               </p>
                               {caseItem.vehicleId && (
                                 <p className="text-xs text-slate-500">
@@ -2072,7 +2072,7 @@ export default function Warranty() {
               <div className="bg-white rounded-xl shadow-2xl border-2 border-blue-400 w-60 p-3 opacity-90">
                 <div className="flex items-center gap-2">
                   <p className="font-bold text-slate-900 text-sm truncate">
-                    {draggedCard.contactId?.name || "Unknown"}
+                    {draggedCard.contactId?.displayName || "Unknown"}
                   </p>
                 </div>
                 <span className="inline-block bg-[#fcd34d] border border-yellow-500/50 rounded-md px-2 py-0.5 shadow-sm font-mono font-bold text-slate-900 text-xs tracking-wider uppercase mt-1">
@@ -2117,7 +2117,7 @@ export default function Warranty() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-500 mt-1.5 truncate">
-                    {selectedCase.contactId?.name || "Unknown"} &middot; {daysSince(selectedCase.createdAt)}d open
+                    {selectedCase.contactId?.displayName || "Unknown"} &middot; {daysSince(selectedCase.createdAt)}d open
                   </p>
                 </div>
                 <div className="hidden md:flex items-center gap-1.5">
@@ -2222,7 +2222,7 @@ export default function Warranty() {
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
-                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.name || "—"}</p>
+                      <p className="text-slate-900 mt-0.5">{selectedCase.contactId?.displayName || "—"}</p>
                     </div>
                     <div>
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</span>
@@ -3615,7 +3615,7 @@ export default function Warranty() {
         onClose={() => setShowCourtesyOutModal(false)}
         formType="COURTESY_OUT"
         prefill={{
-          customer_name: selectedCase?.contactId?.name,
+          customer_name: selectedCase?.contactId?.displayName,
           customer_phone: selectedCase?.contactId?.phone,
           customer_email: selectedCase?.contactId?.email,
           customer_address: selectedCase?.customerAddress
@@ -3841,7 +3841,7 @@ function AddCaseModal({ onClose, onSuccess }) {
                       {deal.vehicleId?.make} {deal.vehicleId?.model} ({deal.vehicleId?.year})
                     </div>
                     <div className="text-xs text-slate-500">
-                      {deal.customerId?.name || deal.contactId?.name || "Unknown"} &middot;{" "}
+                      {deal.customerId?.name || deal.contactId?.displayName || "Unknown"} &middot;{" "}
                       {new Date(deal.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     </div>
                   </button>

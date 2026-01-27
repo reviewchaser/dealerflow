@@ -466,6 +466,13 @@ export default async function handler(req, res) {
 
       // Warranty board integration - create/update AftercareCase for WARRANTY_CLAIM forms
       if (form.type === "WARRANTY_CLAIM") {
+        console.log("[WARRANTY_CLAIM] Processing submission:", {
+          formId: form._id,
+          formType: form.type,
+          dealerId,
+          email: rawAnswers.email,
+          customer_name: rawAnswers.customer_name,
+        });
         try {
           const customerEmail = rawAnswers.email?.toLowerCase().trim();
           const customerName = rawAnswers.customer_name?.trim();
@@ -484,9 +491,10 @@ export default async function handler(req, res) {
             if (!contact) {
               contact = await Contact.create({
                 dealerId,
-                name: customerName,
+                displayName: customerName,
                 email: customerEmail,
                 phone: customerPhone,
+                typeTags: ["CUSTOMER"],
               });
             }
 
@@ -611,9 +619,17 @@ export default async function handler(req, res) {
                 linkedAftercareCaseId: newCase._id
               });
             }
+          } else {
+            console.warn("[WARRANTY_CLAIM] Case NOT created - missing required fields:", {
+              hasEmail: !!customerEmail,
+              hasCustomerName: !!customerName,
+              rawEmail: rawAnswers.email,
+              rawCustomerName: rawAnswers.customer_name,
+            });
           }
         } catch (caseError) {
-          console.error("Error creating/updating AftercareCase:", caseError);
+          console.error("[WARRANTY_CLAIM] Error creating AftercareCase:", caseError.message);
+          console.error("[WARRANTY_CLAIM] Submission data:", { formId: form._id, rawAnswers });
           // Don't fail the submission if case creation fails
         }
       }
