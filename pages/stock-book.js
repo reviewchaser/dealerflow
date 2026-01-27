@@ -2682,7 +2682,7 @@ export default function StockBook() {
             onClick={() => setShowAddVehicleModal(false)}
           />
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 overflow-hidden">
-            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95vh] h-[95dvh] md:h-auto md:max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white rounded-t-2xl md:rounded-2xl shadow-2xl w-full max-w-2xl h-[95vh] h-[95dvh] md:h-auto md:max-h-[90vh] flex flex-col">
               {/* Modal Header */}
               <div className="sticky top-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
                 <div>

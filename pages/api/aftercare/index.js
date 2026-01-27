@@ -62,7 +62,7 @@ async function handler(req, res, ctx) {
     if (!contact) {
       contact = await Contact.create({
         dealerId,
-        name: customerName,
+        displayName: customerName,
         email: customerEmail || undefined,
         phone: customerPhone || undefined,
       });
