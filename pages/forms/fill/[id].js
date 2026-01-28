@@ -62,6 +62,16 @@ export default function FillForm() {
     try {
       const res = await fetch("/api/dealer");
       const data = await res.json();
+      // Fetch fresh signed logo URL (same as sidebar does)
+      if (data?.logoKey) {
+        try {
+          const logoRes = await fetch("/api/dealer/logo");
+          if (logoRes.ok) {
+            const logoData = await logoRes.json();
+            data.logoUrl = logoData.url;
+          }
+        } catch {}
+      }
       setDealer(data);
     } catch (error) {
       console.error("Failed to load dealer:", error);
@@ -1219,9 +1229,6 @@ export default function FillForm() {
               {dealer?.companyAddress && (
                 <p className="text-base-content/60 mt-1 text-sm">{dealer.companyAddress}</p>
               )}
-              <div className="badge badge-outline mt-2">
-                {FORM_TYPE_LABELS[form?.type] || form?.type}
-              </div>
             </div>
             <div className="flex items-center gap-4">
               {dealer?.logoUrl && (

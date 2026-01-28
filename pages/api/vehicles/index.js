@@ -102,7 +102,7 @@ async function handler(req, res, ctx) {
       .map(v => v.soldDealId);
 
     // Fetch all related data in parallel - scoped by dealerId
-    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allDealsNotViewed, allSoldDeals, allPdiSubmissions] = await Promise.all([
+    const [allTasks, allIssues, allDocuments, allLocations, allLabels, allActiveDeals, allDealsWithDelivery, allDealsNotViewed, allSoldDeals, allPdiSubmissions, allServiceReceiptSubmissions] = await Promise.all([
       VehicleTask.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleIssue.find({ vehicleId: { $in: vehicleIds } }).lean(),
       VehicleDocument.find({ vehicleId: { $in: vehicleIds } }).lean(),
@@ -150,6 +150,17 @@ async function handler(req, res, ctx) {
           formId: { $in: pdiFormIds },
           linkedVehicleId: { $in: vehicleIds },
         }).select("linkedVehicleId pdiIssues submittedAt status").lean();
+      })(),
+      // Fetch Service Receipt submissions for prep board
+      (async () => {
+        const srForms = await Form.find({ dealerId, type: "SERVICE_RECEIPT" }).select("_id").lean();
+        if (srForms.length === 0) return [];
+        const srFormIds = srForms.map(f => f._id);
+        return FormSubmission.find({
+          dealerId,
+          formId: { $in: srFormIds },
+          linkedVehicleId: { $in: vehicleIds },
+        }).select("linkedVehicleId submittedAt status").lean();
       })(),
     ]);
 
@@ -219,6 +230,18 @@ async function handler(req, res, ctx) {
         status: submission.status,
         issueCount: (submission.pdiIssues || []).length,
         outstandingIssues,
+      };
+    }
+
+    // Build Service Receipt submissions lookup
+    const serviceReceiptByVehicle = {};
+    for (const submission of allServiceReceiptSubmissions) {
+      if (!submission.linkedVehicleId) continue;
+      const vid = submission.linkedVehicleId.toString();
+      serviceReceiptByVehicle[vid] = {
+        id: submission._id.toString(),
+        submittedAt: submission.submittedAt,
+        status: submission.status,
       };
     }
 
@@ -341,6 +364,8 @@ async function handler(req, res, ctx) {
         buyerHasNotSeenVehicle: notViewedByVehicle[vid] || false,
         // PDI submission info for prep board badge and drawer
         pdiSubmission: pdiByVehicle[vid] || null,
+        // Service Receipt submission info for prep board
+        serviceReceiptSubmission: serviceReceiptByVehicle[vid] || null,
         // PX source info (for vehicles taken in part exchange)
         sourceDealId: vehicle.sourceDealId ? vehicle.sourceDealId.toString() : null,
         sourcePxVrm: vehicle.sourcePxVrm || null,

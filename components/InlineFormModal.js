@@ -110,6 +110,15 @@ export default function InlineFormModal({ isOpen, onClose, formType, prefill = {
     try {
       const res = await fetch("/api/dealer");
       const data = await res.json();
+      if (data?.logoKey) {
+        try {
+          const logoRes = await fetch("/api/dealer/logo");
+          if (logoRes.ok) {
+            const logoData = await logoRes.json();
+            data.logoUrl = logoData.url;
+          }
+        } catch {}
+      }
       setDealer(data);
     } catch (error) {
       console.error("Failed to load dealer:", error);
@@ -436,22 +445,110 @@ export default function InlineFormModal({ isOpen, onClose, formType, prefill = {
           />
         );
 
-      case "PDI_ISSUES":
-        // Simplified PDI issues for inline modal - just a textarea
+      case "PDI_ISSUES": {
+        const issues = formData.pdi_issues || [];
+        const addIssue = () => {
+          setFormData(prev => ({
+            ...prev,
+            pdi_issues: [...(prev.pdi_issues || []), {
+              category: "",
+              subcategory: "",
+              description: "",
+              actionNeeded: "",
+              status: "outstanding",
+              notes: "",
+            }]
+          }));
+        };
+        const updateIssue = (index, key, val) => {
+          setFormData(prev => {
+            const newIssues = [...(prev.pdi_issues || [])];
+            newIssues[index] = { ...newIssues[index], [key]: val };
+            return { ...prev, pdi_issues: newIssues };
+          });
+        };
+        const removeIssue = (index) => {
+          setFormData(prev => ({
+            ...prev,
+            pdi_issues: prev.pdi_issues.filter((_, i) => i !== index)
+          }));
+        };
+        const ISSUE_SUBCATEGORIES = {
+          mechanical: ["Engine", "Transmission", "Suspension", "Brakes", "Exhaust", "Other"],
+          electrical: ["Battery", "Lights", "Starter Motor", "Alternator", "Sensors", "Other"],
+          bodywork: ["Panel Damage", "Scratches", "Dents", "Bumper", "Windscreen", "Other"],
+          interior: ["Seats", "Dashboard", "Trim", "Carpet", "Controls", "Other"],
+          tyres: ["Tread Depth", "Puncture", "Alloys", "Alignment", "Other"],
+          mot: ["Advisory", "Failed Item", "Due Soon", "Other"],
+          service: ["Oil Change", "Filters", "Fluids", "Timing Belt", "Other"],
+          fault_codes: ["Engine", "Transmission", "ABS", "Airbag", "Emissions", "Other"],
+          other: ["General", "Misc"],
+        };
+
         return (
-          <div className="space-y-2">
-            <textarea
-              className="textarea textarea-bordered w-full"
-              rows={3}
-              placeholder="List any issues found during inspection..."
-              value={value || ""}
-              onChange={(e) => handleInputChange(field.fieldName, e.target.value)}
-            />
-            <p className="text-xs text-base-content/60">
-              Issues will be added to the vehicle's issue list after submission.
-            </p>
+          <div className="space-y-3">
+            {issues.map((issue, idx) => (
+              <div key={idx} className="bg-base-200 rounded-lg p-3 space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-xs">Issue #{idx + 1}</span>
+                  <button type="button" className="btn btn-ghost btn-xs text-error" onClick={() => removeIssue(idx)}>Remove</button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="form-control">
+                    <label className="label py-0.5"><span className="label-text text-xs">Category *</span></label>
+                    <select className="select select-bordered select-sm w-full" value={issue.category} onChange={(e) => { updateIssue(idx, "category", e.target.value); updateIssue(idx, "subcategory", ""); }} required>
+                      <option value="">Select...</option>
+                      <option value="mechanical">Mechanical</option>
+                      <option value="electrical">Electrical</option>
+                      <option value="bodywork">Bodywork</option>
+                      <option value="interior">Interior</option>
+                      <option value="tyres">Tyres</option>
+                      <option value="mot">MOT</option>
+                      <option value="service">Service</option>
+                      <option value="fault_codes">Fault Codes</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  {issue.category && (
+                    <div className="form-control">
+                      <label className="label py-0.5"><span className="label-text text-xs">Subcategory</span></label>
+                      <select className="select select-bordered select-sm w-full" value={issue.subcategory} onChange={(e) => updateIssue(idx, "subcategory", e.target.value)}>
+                        <option value="">Select...</option>
+                        {(ISSUE_SUBCATEGORIES[issue.category] || []).map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="form-control">
+                  <label className="label py-0.5"><span className="label-text text-xs">Description *</span></label>
+                  <textarea className="textarea textarea-bordered textarea-sm w-full" rows={2} placeholder="Describe the issue..." value={issue.description} onChange={(e) => updateIssue(idx, "description", e.target.value)} required />
+                </div>
+                <div className="form-control">
+                  <label className="label py-0.5"><span className="label-text text-xs">Action Needed</span></label>
+                  <input type="text" className="input input-bordered input-sm w-full" placeholder="What needs to be done?" value={issue.actionNeeded || ""} onChange={(e) => updateIssue(idx, "actionNeeded", e.target.value)} />
+                </div>
+                <div className="form-control">
+                  <label className="label py-0.5"><span className="label-text text-xs">Status</span></label>
+                  <select className="select select-bordered select-sm w-full" value={issue.status || "outstanding"} onChange={(e) => updateIssue(idx, "status", e.target.value)}>
+                    <option value="outstanding">Outstanding</option>
+                    <option value="ordered">Ordered</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+            <button type="button" className="btn btn-outline btn-primary btn-sm w-full" onClick={addIssue}>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Issue
+            </button>
           </div>
         );
+      }
 
       default:
         return (

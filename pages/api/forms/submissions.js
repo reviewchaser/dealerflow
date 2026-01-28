@@ -10,6 +10,7 @@ import AftercareCase from "@/models/AftercareCase";
 import CourtesyAllocation from "@/models/CourtesyAllocation";
 import Deal from "@/models/Deal";
 import { requireDealerContext } from "@/libs/authContext";
+import { lookupVehicleByVrm } from "@/libs/motLookup";
 
 export default async function handler(req, res) {
   await connectMongo();
@@ -561,6 +562,17 @@ export default async function handler(req, res) {
                 }
               }
 
+              // Look up make/model from VRM via MOT API
+              let vehicleMake = null;
+              let vehicleModel = null;
+              if (vrmNormalized) {
+                const motData = await lookupVehicleByVrm(vrmNormalized);
+                if (motData) {
+                  vehicleMake = motData.make;
+                  vehicleModel = motData.model;
+                }
+              }
+
               // Get any files from the form submission to add as attachments
               const submissionFiles = await FormSubmissionFile.find({ formSubmissionId: submission._id });
               const initialAttachments = submissionFiles.map(f => ({
@@ -599,6 +611,8 @@ export default async function handler(req, res) {
                   mileage: rawAnswers.exact_mileage,
                   purchaseDate: rawAnswers.purchase_date,
                   vehicleMakeModel: rawAnswers.vehicle_make_model,
+                  make: vehicleMake,
+                  model: vehicleModel,
                   customerAddress: {
                     street: rawAnswers.address_street,
                     line2: rawAnswers.address_line2,

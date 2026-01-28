@@ -1724,16 +1724,13 @@ export default function Warranty() {
                               <p className="font-semibold text-slate-900 text-sm truncate">
                                 {caseItem.contactId?.displayName || "Unknown"}
                               </p>
-                              {caseItem.vehicleId && (
-                                <p className="text-xs text-slate-500">
-                                  {caseItem.vehicleId.make} {caseItem.vehicleId.model}
-                                </p>
-                              )}
-                              {!caseItem.vehicleId && caseItem.details?.make && (
-                                <p className="text-xs text-slate-500">
-                                  {caseItem.details.make} {caseItem.details.model}
-                                </p>
-                              )}
+                              <p className="text-xs text-slate-500">
+                                {caseItem.vehicleId
+                                  ? `${caseItem.vehicleId.make} ${caseItem.vehicleId.model}`
+                                  : caseItem.details?.make
+                                    ? `${caseItem.details.make} ${caseItem.details.model || ""}`
+                                    : "Vehicle details pending"}
+                              </p>
                             </div>
 
                             {/* Booked date row */}
@@ -1974,16 +1971,13 @@ export default function Warranty() {
                               <p className="font-semibold text-slate-900 text-sm truncate">
                                 {caseItem.contactId?.displayName || "Unknown"}
                               </p>
-                              {caseItem.vehicleId && (
-                                <p className="text-xs text-slate-500">
-                                  {caseItem.vehicleId.make} {caseItem.vehicleId.model}
-                                </p>
-                              )}
-                              {!caseItem.vehicleId && caseItem.details?.make && (
-                                <p className="text-xs text-slate-500">
-                                  {caseItem.details.make} {caseItem.details.model}
-                                </p>
-                              )}
+                              <p className="text-xs text-slate-500">
+                                {caseItem.vehicleId
+                                  ? `${caseItem.vehicleId.make} ${caseItem.vehicleId.model}`
+                                  : caseItem.details?.make
+                                    ? `${caseItem.details.make} ${caseItem.details.model || ""}`
+                                    : "Vehicle details pending"}
+                              </p>
                             </div>
 
                             {/* Booked date row - shown if bookedInAt exists */}
@@ -2229,7 +2223,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Name</span>
                       <input
                         type="text"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
                         value={selectedCase.contactId?.displayName || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({
@@ -2243,7 +2237,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</span>
                       <input
                         type="tel"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
                         value={selectedCase.contactId?.phone || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({
@@ -2257,7 +2251,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</span>
                       <input
                         type="email"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
                         value={selectedCase.contactId?.email || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({
@@ -2272,7 +2266,7 @@ export default function Warranty() {
                       <div className="grid grid-cols-3 gap-2 mt-0.5">
                         <input
                           type="text"
-                          className="col-span-3 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          className="col-span-3 bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
                           value={selectedCase.customerAddress?.street || ""}
                           placeholder="Street"
                           onChange={(e) => setSelectedCase({
@@ -2283,7 +2277,7 @@ export default function Warranty() {
                         />
                         <input
                           type="text"
-                          className="col-span-2 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          className="col-span-2 bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
                           value={selectedCase.customerAddress?.city || ""}
                           placeholder="City"
                           onChange={(e) => setSelectedCase({
@@ -2294,7 +2288,7 @@ export default function Warranty() {
                         />
                         <input
                           type="text"
-                          className="bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
+                          className="bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 transition-colors"
                           value={selectedCase.customerAddress?.postcode || ""}
                           placeholder="Postcode"
                           onChange={(e) => setSelectedCase({
@@ -2309,7 +2303,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Reg at Purchase</span>
                       <input
                         type="text"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
                         value={selectedCase.regAtPurchase || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({ ...selectedCase, regAtPurchase: e.target.value.toUpperCase() })}
@@ -2320,7 +2314,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Reg</span>
                       <input
                         type="text"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors uppercase"
                         value={selectedCase.currentReg || selectedCase.details?.vehicleReg || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({ ...selectedCase, currentReg: e.target.value.toUpperCase() })}
@@ -2331,7 +2325,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Mileage at Purchase</span>
                       <input
                         type="number"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
                         value={selectedCase.mileageAtPurchase || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({ ...selectedCase, mileageAtPurchase: e.target.value ? Number(e.target.value) : null })}
@@ -2342,7 +2336,7 @@ export default function Warranty() {
                       <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Current Mileage</span>
                       <input
                         type="number"
-                        className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                        className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
                         value={selectedCase.details?.mileage || ""}
                         placeholder="—"
                         onChange={(e) => setSelectedCase({
@@ -2352,7 +2346,7 @@ export default function Warranty() {
                         onBlur={() => updateCase({ details: selectedCase.details })}
                       />
                     </div>
-                    {selectedCase.vehicleId && (
+                    {selectedCase.vehicleId ? (
                       <>
                         <div className="col-span-2">
                           <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Vehicle</span>
@@ -2376,7 +2370,50 @@ export default function Warranty() {
                           </button>
                         </div>
                       </>
+                    ) : (
+                      <>
+                        <div>
+                          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Make</span>
+                          <input
+                            type="text"
+                            className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                            value={selectedCase.details?.make || ""}
+                            placeholder="—"
+                            onChange={(e) => setSelectedCase({
+                              ...selectedCase,
+                              details: { ...selectedCase.details, make: e.target.value }
+                            })}
+                            onBlur={() => updateCase({ details: selectedCase.details })}
+                          />
+                        </div>
+                        <div>
+                          <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Model</span>
+                          <input
+                            type="text"
+                            className="w-full bg-transparent border-b border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none px-0 py-0.5 text-slate-900 mt-0.5 transition-colors"
+                            value={selectedCase.details?.model || ""}
+                            placeholder="—"
+                            onChange={(e) => setSelectedCase({
+                              ...selectedCase,
+                              details: { ...selectedCase.details, model: e.target.value }
+                            })}
+                            onBlur={() => updateCase({ details: selectedCase.details })}
+                          />
+                        </div>
+                      </>
                     )}
+                    {/* Issue Summary */}
+                    <div className="col-span-2 pt-2">
+                      <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Issue</span>
+                      <textarea
+                        className="w-full bg-transparent border border-slate-200 hover:border-slate-300 focus:border-[#0066CC] focus:bg-white focus:outline-none rounded-lg px-2 py-1.5 text-sm text-slate-700 mt-0.5 transition-colors resize-none"
+                        rows={3}
+                        value={selectedCase.summary || ""}
+                        placeholder="Describe the issue..."
+                        onChange={(e) => setSelectedCase({ ...selectedCase, summary: e.target.value })}
+                        onBlur={() => updateCase({ summary: selectedCase.summary })}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3130,23 +3167,6 @@ export default function Warranty() {
                 ...AI Diagnostics Panel content...
               </div>
               */}
-
-              {/* Issue Summary */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h3 className="text-sm font-semibold text-slate-900">Issue Summary</h3>
-                </div>
-                <div className="p-4">
-                  <textarea
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0066CC] focus:bg-white focus:outline-none rounded-lg px-2 py-1.5 text-sm text-slate-700 transition-colors resize-none"
-                    rows={3}
-                    value={selectedCase.summary || ""}
-                    placeholder="Describe the issue..."
-                    onChange={(e) => setSelectedCase({ ...selectedCase, summary: e.target.value })}
-                    onBlur={() => updateCase({ summary: selectedCase.summary })}
-                  />
-                </div>
-              </div>
 
               {/* Attachments/Media */}
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">

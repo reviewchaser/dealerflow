@@ -6,6 +6,7 @@ import Vehicle from "@/models/Vehicle"; // Required for populate
 import VehicleSale from "@/models/VehicleSale"; // Required for populate
 import Notification from "@/models/Notification";
 import { withDealerContext } from "@/libs/authContext";
+import { lookupVehicleByVrm } from "@/libs/motLookup";
 
 async function handler(req, res, ctx) {
   await connectMongo();
@@ -92,6 +93,18 @@ async function handler(req, res, ctx) {
       });
     }
 
+    // Look up make/model from VRM via MOT API
+    const vrmForLookup = vehicleReg || regAtPurchase;
+    let vehicleMake = null;
+    let vehicleModel = null;
+    if (vrmForLookup) {
+      const motData = await lookupVehicleByVrm(vrmForLookup);
+      if (motData) {
+        vehicleMake = motData.make;
+        vehicleModel = motData.model;
+      }
+    }
+
     // Build customerAddress object if any address fields provided
     const customerAddress = (addressStreet || addressCity || addressPostcode) ? {
       street: addressStreet || "",
@@ -104,7 +117,7 @@ async function handler(req, res, ctx) {
       dealerId,
       contactId: contact._id,
       summary,
-      details: { ...details, vehicleReg, regAtPurchase },
+      details: { ...details, vehicleReg, regAtPurchase, make: vehicleMake, model: vehicleModel },
       source,
       priority,
       regAtPurchase,

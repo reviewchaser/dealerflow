@@ -82,6 +82,7 @@ export default function SalesPrep() {
   const [dragOverPriorityIndex, setDragOverPriorityIndex] = useState(null);
   const [newTaskName, setNewTaskName] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const vehicleIdHandledRef = useRef(false);
   const [showMotDetails, setShowMotDetails] = useState(false);
   const [isRefreshingMot, setIsRefreshingMot] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -430,7 +431,8 @@ export default function SalesPrep() {
 
   // Handle vehicleId query param (from notification clicks) - auto-open vehicle card
   useEffect(() => {
-    if (router.isReady && router.query.vehicleId && vehicles.length > 0) {
+    if (router.isReady && router.query.vehicleId && vehicles.length > 0 && !vehicleIdHandledRef.current) {
+      vehicleIdHandledRef.current = true;
       const vehicle = vehicles.find(v => v.id === router.query.vehicleId);
       if (vehicle) {
         setSelectedVehicle(vehicle);
@@ -4458,20 +4460,44 @@ export default function SalesPrep() {
                       <div>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-medium text-slate-600">Service Receipt</span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
-                            Optional
-                          </span>
+                          {selectedVehicle.serviceReceiptSubmission ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+                              Complete
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600">
+                              Optional
+                            </span>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => setShowServiceReceiptModal(true)}
-                          className="btn btn-xs btn-outline w-full"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                          Add Service Receipt
-                        </button>
+                        {selectedVehicle.serviceReceiptSubmission ? (
+                          <div className="flex gap-2">
+                            <a
+                              href={`/forms?tab=submissions&viewSubmission=${selectedVehicle.serviceReceiptSubmission.id}`}
+                              className="btn btn-xs btn-ghost flex-1"
+                            >
+                              View
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setShowServiceReceiptModal(true)}
+                              className="btn btn-xs btn-outline flex-1"
+                            >
+                              Add Another
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowServiceReceiptModal(true)}
+                            className="btn btn-xs btn-outline w-full"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            Add Service Receipt
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

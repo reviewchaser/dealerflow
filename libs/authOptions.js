@@ -206,6 +206,7 @@ export const authOptions = {
         session.user.dealerId = token.dealerId || null;
         session.user.role = token.role || null;
         session.user.platformRole = token.platformRole || "USER";
+        session.user.dealerSlug = token.dealerSlug || null;
       }
       return session;
     },

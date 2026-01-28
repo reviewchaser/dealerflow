@@ -46,7 +46,7 @@ export default async function handler(req, res) {
         submission,
         files,
         fields,
-        dealer: dealer ? { name: dealer.name, logoUrl: dealer.logoUrl } : null,
+        dealer: dealer ? { name: dealer.companyName || dealer.name, logoUrl: dealer.logoUrl, address: dealer.companyAddress, phone: dealer.companyPhone } : null,
       });
     } catch (error) {
       console.error("Error fetching submission:", error);

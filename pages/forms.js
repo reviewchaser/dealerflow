@@ -724,9 +724,10 @@ export default function Forms() {
           <div class="header">
             ${submissionDetail.dealer?.logoUrl
               ? `<img src="${submissionDetail.dealer.logoUrl}" alt="Logo" class="logo" />`
-              : submissionDetail.dealer?.name
-              ? `<div class="dealer-name">${submissionDetail.dealer.name}</div>`
               : ""}
+            ${submissionDetail.dealer?.name ? `<div class="dealer-name" style="font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px;">${submissionDetail.dealer.name}</div>` : ""}
+            ${submissionDetail.dealer?.address ? `<div style="font-size: 13px; color: #666; margin-bottom: 2px;">${submissionDetail.dealer.address}</div>` : ""}
+            ${submissionDetail.dealer?.phone ? `<div style="font-size: 13px; color: #666; margin-bottom: 10px;">${submissionDetail.dealer.phone}</div>` : ""}
             <h1>${formName}</h1>
             ${vrm ? `<div class="vrm">${vrm}</div>` : ""}
             <div class="meta">
@@ -899,16 +900,7 @@ export default function Forms() {
                     <li key={form.id || form._id}>
                       <button
                         onClick={() => {
-                          const canOpenPublic = (form.visibility === "PUBLIC" || form.visibility === "SHARE_LINK" || (!form.visibility && form.isPublic));
-                          if (canOpenPublic && form.publicSlug) {
-                            const dealerSlug = session?.user?.dealerSlug;
-                            const url = dealerSlug
-                              ? `/public/forms/d/${dealerSlug}/${form.publicSlug}`
-                              : `/public/forms/${form.publicSlug}`;
-                            window.open(url, '_blank');
-                          } else {
-                            router.push(`/forms/fill/${form.id || form._id}`);
-                          }
+                          router.push(`/forms/fill/${form.id || form._id}`);
                         }}
                         className="text-sm text-left"
                       >

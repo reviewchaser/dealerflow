@@ -1207,7 +1207,7 @@ export default function PublicForm({ form, fields, dealer }) {
               </label>
             </div>
 
-            {helpText && <p className="text-sm text-base-content/60">{helpText}</p>}
+            {field.helpText && <p className="text-sm text-base-content/60">{field.helpText}</p>}
           </div>
         );
 
